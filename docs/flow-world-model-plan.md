@@ -1,173 +1,159 @@
-Title: Flow-Matching World Model for PWM — Design and Evaluation Plan
+Title: PWM Flow-Matching World Model — Precise Design, Interfaces, and Fair-Comparison Protocol
 
-Status: Draft (source of truth for upcoming changes)
-Owners: PWM repo extension (flow-based dynamics)
-Scope: Introduce a flow-matching variant of the world model dynamics (F) that plugs into PWM with minimal disruption; define a fair A/B protocol against the baseline MLP dynamics.
-
----
-
-1) Goals and Hypotheses
-- Goal: Replace the MLP “one-step next-latent” dynamics in PWM with a conditional, smooth flow-matching dynamics that improves optimization landscape for gradient-based policy learning (higher reward, faster convergence, better stability) while keeping the rest of PWM unchanged.
-- Hypothesis H1 (Smoothness): A flow-based (rectified flow) dynamics produces smoother gradients during H-step unrolls, improving actor optimization (higher ESNR, fewer NaNs, smaller grad variance).
-- Hypothesis H2 (Performance): Under equal compute and data, the flow-dynamics variant matches or outperforms the baseline in single-task and multi-task settings on reward and wall-clock.
-
-Non-goals
-- Do not change actor/critic architectures or policy training objective beyond what is necessary to integrate the new dynamics.
-- Do not change reward modeling; keep identical reward head and target handling.
-- Do not change datasets, evaluation environments, or scripts other than strictly required configuration toggles.
+Status: Authoritative plan (all future changes must conform)
+Owners: PWM extension (flow-based dynamics)
+Scope: Introduce a flow-matching dynamics into PWM with rigorous software design, explicit interfaces, parameter/compute parity, and mathematically defined diagnostics.
 
 ---
 
-2) High-Level Approach
-- Keep the encoder E_phi and reward head R_phi exactly as baseline.
-- Replace the dynamics F_phi(z_t, a_t) with a conditional velocity field v_theta(z, a, t) integrated over t in [0,1] to produce z_{t+1}. This is a rectified flow/flow-matching formulation.
-- Training dynamics with flow-matching (not MSE on next state): we minimize E_tau[ || v_theta(z_tau, a, tau) − (z_target − z_source) ||^2 ], where z_tau = (1−tau) z_source + tau z_target and z_target = E_phi(obs_{t+1}). This encourages a smooth field that transports z_source to z_target.
-- Keep PWM’s truncated H-step rollout, value bootstrapping, gamma=0.99, and horizon H (e.g., 16) intact.
+**1) Goals and Non-Goals**
+- Goals
+  - Replace the baseline MLP next-state dynamics with a conditional flow-matching dynamics to improve gradient quality for policy learning, without altering actor/critic objectives.
+  - Preserve strict separation of concerns: models implement single-step functions; the algorithm handles rollout and loss.
+- Non-Goals
+  - No change to encoder and reward architectures besides parity alignment.
+  - No hidden “duck typing” or runtime `hasattr` checks.
+  - No coupling of rollout/loss into model classes.
 
 ---
 
-3) Interfaces and Contracts
-- New class: FlowWorldModel implementing the same public API as the baseline WorldModel to preserve PWM integration:
-  - encode(obs, task) -> z: latent encoding (identical as baseline)
-  - next(z, a, task) -> z_next: integrate velocity field v_theta over t ∈ [0,1] using fixed-step Euler; same tensor shapes as baseline.
-  - reward(z, a, task) -> r_hat: identical reward head as baseline (including two-hot utilities if num_bins>1).
-  - step(z, a, task) -> (z_next, r_hat): wrapper calling next(...) and reward(...).
-- Additional training helper in the model for clarity and locality of logic:
-  - latent_rollout_and_dynamics_loss(z0, act_seq, next_z_seq, horizon, gamma, task=None) -> (zs, dynamics_loss)
-    - Performs H-step rollout with the flow dynamics; returns predicted zs and the flow-matching loss summed across steps with gamma^t weighting and normalized by H.
-- Backward-compatibility: The baseline WorldModel is unchanged. The algorithm will detect the presence of the above helper and use flow-matching; otherwise it falls back to MSE-to-next_z.
+**2) Minimal Software Design (pragmatic first iteration)**
+- No new abstract base classes or strategy modules in the initial iteration.
+- Do not modify the existing world model class structure.
+- Add a single `if/else` switch inside `pwm.py::compute_wm_loss`:
+  - If `cfg.alg.use_flow_dynamics == False` → use the current baseline MSE dynamics loss (unchanged codepath).
+  - If `cfg.alg.use_flow_dynamics == True` → compute the flow-matching dynamics loss and integrate with the selected integrator (Section 4).
+- Add a `# TODO` in code: if more loss types are added in the future, refactor to a strategy/ABC pattern.
+- Responsibility separation is preserved: rollout and loss remain in the algorithm layer; model exposes `encode/next/reward/step` only (no loss helpers in the model).
 
 ---
 
-4) Mathematical Details
-- Dynamics integration (per step):
-  - Given z_t and action a_t, integrate v_theta over t ∈ [0,1] with K uniform Euler sub-steps:
-    - dt = 1/K; for k = 0..K−1: z ← z + dt · v_theta(z, a_t, t_k), where t_k = (k+0.5)·dt
-    - Final z is z_{t+1}.
-- Flow-matching loss (rectified flow):
-  - For each unrolled step t:
-    - Source z_s = z_t (predicted), target z_tgt = E_phi(obs_{t+1}).
-    - Sample tau ~ U[0,1] (or midpoint 0.5 for deterministic variant).
-    - z_tau = (1−tau)·z_s + tau·z_tgt; v_star = z_tgt − z_s (constant drift).
-    - L_dyn^t = || v_theta(z_tau, a_t, tau) − v_star ||^2.
-    - Discounted aggregation: L_dyn = (1/H) · Σ_{t=0}^{H−1} γ^t · L_dyn^t.
-- Reward loss: identical to baseline (two-hot or scalar) using zs[:-1] and act_seq.
-- Total world model loss: L_wm = L_dyn + L_rew.
+**3) Mathematical Specification**
+- Latent Encoding and Reward
+  - `z_t = E_φ(o_t)`, `r̂_t = R_φ(z_t, a_t)`; identical architectures for MLP and Flow variants.
+
+- Baseline Dynamics (for reference)
+  - `z_{t+1} = F_φ(z_t, a_t)` (MLP)
+  - Dynamics loss: `L_dyn = (1/H) Σ_{t=0}^{H-1} γ^t || z_pred_{t+1} − z_tgt_{t+1} ||^2`, where `z_tgt_{t+1} = E_φ(o_{t+1})`.
+
+- Flow-Matching Dynamics
+  - Velocity field: `v_θ(z, a, τ)` with explicit time conditioning `τ ∈ [0, 1]`.
+  - Target construction per step `t`:
+    - `z_s = z_pred_t`, `z_tgt = E_φ(o_{t+1})`.
+    - Sample `τ ~ U[0,1]` (or midpoint `0.5`).
+    - Interpolate `z_τ = (1−τ) z_s + τ z_tgt`.
+    - Rectified-flow target: `v* = z_tgt − z_s`.
+  - Per-step loss: `ℓ_t = || v_θ(z_τ, a_t, τ) − v* ||^2`.
+  - Aggregation: `L_dyn = (1/H) Σ_{t=0}^{H-1} γ^t ℓ_t`.
+
+- Reward Loss (shared)
+  - `L_rew = mean_t [ ((R_φ(z_t, a_t) − r_t)^2) · γ^t ]` with two-hot handling identical to baseline.
+  - Total: `L_wm = L_dyn + L_rew`.
 
 ---
 
-5) Config Additions (Hydra YAML)
-- Provide a separate algorithm config to switch the WM target class without touching baseline configs, e.g.:
-  - PWM/scripts/cfg/alg/pwm_48M_flow.yaml
-    - world_model_config._target_: pwm.models.flow_world_model.FlowWorldModel
-    - encoder_units/units/task_dim/num_bins/vmin/vmax/tasks/action_dims: copied from baseline for parity.
-    - New hyperparameters:
-      - integrate_steps: int (default 4) — Euler sub-steps K per environment step.
-      - fm_tau_sampling: {uniform, midpoint} (default uniform).
-- No changes to actor/critic configs.
+**4) ODE Integrator Choice and Justification**
+- Default: Heun’s method (explicit trapezoidal / RK2)
+  - For fixed sub-steps `K`, `dt = 1/K`, per sub-step:
+    - `k1 = v_θ(z, a, t_k)`
+    - `z' = z + dt · k1`
+    - `k2 = v_θ(z', a, t_k + dt)`
+    - `z ← z + (dt/2) · (k1 + k2)`
+  - Rationale: Substantial stability improvement vs Euler with ~2× field evals; materially better multi-step behavior at small extra cost.
+- Ablation: Euler (K identical) for completeness.
+- We report both reward and wall-clock under the chosen K; compute-aware analysis is specified in Section 7.
 
 ---
 
-6) Implementation Plan (File-by-File)
-- PWM/src/pwm/models/flow_world_model.py (new)
-  - Implement FlowWorldModel with modules:
-    - _encoder: identical to baseline (mlp with LayerNorm+Mish and same final head).
-    - _velocity: mlp on [z, a, (optional task emb), t] → R^{latent_dim} with same hidden sizes as baseline dynamics (units) to keep capacity parity. Input grows by +1 dimension due to t.
-    - _reward: identical to baseline reward head and two-hot utilities if enabled.
-  - Public methods: encode, next (Euler integration), reward, step, latent_rollout_and_dynamics_loss.
-- PWM/src/pwm/algorithms/pwm.py (minimal, additive only)
-  - In compute_wm_loss(...):
-    - Compute targets next_z = wm.encode(obs[1:]).
-    - If the WM exposes latent_rollout_and_dynamics_loss, call it to obtain (zs, dynamics_loss). Else use current baseline MSE rollout to next_z.
-    - Compute reward_loss same as baseline; total = dynamics_loss + reward_loss.
-  - WM optimizer: include parameters of _velocity when present; keep others identical.
-- PWM/scripts/cfg/alg/pwm_48M_flow.yaml (new)
-  - Mirror pwm_48M.yaml with only world_model_config._target_ and the new dynamics hyperparameters changed.
-
-Note: The baseline files remain untouched other than the guarded path in compute_wm_loss and optimizer param-group extension. The baseline codepath is unchanged when using the original world model class.
+**5) Fairness: Parameter Parity（務實版）**
+- 參數量對齊（必要）：
+  - `P_base`：現有 WM（encoder+dynamics+reward）的參數總數。
+  - `P_flow`：flow 版本的參數總數。
+  - 規則：`|P_flow − P_base| / P_base ≤ 0.02`（1–2% 範圍內）。
+  - 作法：維持相同深度，必要時微調 hidden width 以補償 +1 的時間通道，直到達到 1–2% 的範圍。
+  - 驗證與紀錄：初始化時記錄 `P_base、P_flow、差距百分比`。若超過 2%，以 warning log 提示並繼續訓練；在報告中透明呈現實際差距與其可能影響。
+- 不做「計算量對齊」消融於第一階段。專注在參數對齊下的核心比較。牆鐘時間仍需回報以供參考。
 
 ---
 
-7) Fairness and Parity Controls
-- Data and splits: identical offline datasets per task.
-- Encoder and reward head: identical architectures and initialization.
-- Dynamics capacity: same hidden layers and widths; only +1 input for time t. This changes parameter count minimally. Record parameter counts for both models and report.
-- Optimizer, learning rates, weight decay, gradient clipping, batch sizes, horizon H, gamma, number of iterations/epochs: identical.
-- Seeds: fix seeds across runs.
-- Compute: run both on the same GPU type; report wall-clock.
-- Evaluation protocol: same eval frequency, same number of eval episodes, same success metrics.
+**6) ESNR：定義與測量（保留數學、鬆綁實作）**
+- 目標：衡量 actor 更新的梯度訊噪比。
+- 定義（數學不變）：
+  - 令微批次梯度為 `g_i`，`μ = (1/M) Σ_i g_i`，`E[||g||^2] = (1/M) Σ_i ||g_i||^2`，`Var = E[||g||^2] − ||μ||^2`。
+  - `ESNR = ||μ||^2 / max(Var, ε)`，並可報告 `ESNR_dB = 10 log10(ESNR)`。
+- 實作自由度：不在計畫中固定 `M`、記錄頻率或是否採用 EMA；這些作為可調超參數，在實作時根據效能/開銷權衡設定，並於報告中註明。
 
 ---
 
-8) Experiments and Metrics
-- Single-task locomotion (dflex tasks): reward curves over iterations and wall-clock; time to thresholds; stability (NaN counts).
-- Multi-task MT30/MT80: task-wise reward, success rate, average reward.
-- Optimization diagnostics:
-  - Actor grad norm, critic grad norm.
-  - ESNR proxy: ratio of gradient signal to batch variance (implement simple logging via running stats if needed).
-  - WM losses: dynamics (flow vs MSE) and reward loss.
-  - Rollout stability: exploding/vanishing checks for latent norms.
+**7) Algorithmic Rollout and Loss (Responsibility Separation)**
+- Location: `PWM/src/pwm/algorithms/dynamics_loss.py` (new) and `PWM/src/pwm/algorithms/pwm.py` (existing).
+- The algorithm performs the H-step rollout, independent of model internals:
+  - `z0 = model.encode(obs[0])`.
+  - For `t = 0..H−1`: `z_{t+1} = model.next(z_t, a_t)` via the chosen model.
+  - Collect `zs = [z0..zH]`.
+- Dynamics losses via strategy:
+  - MLP baseline: `MSE(z_{t+1}, E_φ(o_{t+1}))` with `γ^t` weights.
+  - Flow-matching: compute per-step rectified-flow loss as in Section 3, using the chosen integrator from Section 4 to produce `z_{t+1}`.
+- Reward loss identical to baseline using `zs[:-1]` and `act`.
+- No loss computation resides inside model classes.
 
 ---
 
-9) Hyperparameters to Sweep (small)
-- integrate_steps: {2, 4, 8} (trade-off between smoothness and compute).
-- fm_tau_sampling: {uniform, midpoint}.
-- horizon H: keep 16 for the primary comparison; optionally 10/20 as ablation.
-- Finetune WM during policy extraction: {False, True (small lr)}.
+**8) Configuration (Hydra) and Wiring**
+- Add `alg.dynamics_loss._target_` to select the loss strategy explicitly (`MLPDynamicsLoss` or `FlowMatchingDynamicsLoss`).
+- Add `alg.integrator` group with fields: `type ∈ {heun, euler}`, `substeps (K)`, `tau_sampling ∈ {uniform, midpoint}`.
+- Add `alg.model._target_` to choose between `MLPWorldModel` and `FlowWorldModel` (no duck typing).
 
 ---
 
-10) Risks and Mitigations
-- Risk: Extra compute from integration increases wall-clock. Mitigation: small K (e.g., 4) and measure; ensure apples-to-apples by reporting wall-clock.
-- Risk: Flow loss underfits with small batches. Mitigation: maintain baseline batch size; consider mild increase only if necessary and report.
-- Risk: Reward head mismatch due to two-hot handling. Mitigation: reuse exact baseline utilities and configurations.
-- Risk: Numerical instability in integration. Mitigation: use midpoint Euler and clip latents if norms explode; log latent norms.
+**9) Implementation Steps and Files**
+- Models
+  - Add `pwm/models/base.py` with `BaseWorldModel` ABC.
+  - Refactor current `world_model.py` to expose `MLPWorldModel` (wrapping existing logic; no functional changes).
+  - Add `pwm/models/flow_world_model.py` implementing the velocity field dynamics; encoder/reward identical to baseline.
+- Algorithm
+  - Add `pwm/algorithms/dynamics_loss.py` with `MLPDynamicsLoss` and `FlowMatchingDynamicsLoss` (+ integrator implementations and unit-tested math helpers).
+  - Update `pwm/algorithms/pwm.py` to instantiate the selected strategy via Hydra and call it in `compute_wm_loss`.
+- Configs
+  - Add `scripts/cfg/alg/pwm_48M_flow.yaml` mirroring baseline with `model._target_` / `dynamics_loss._target_` / `integrator` overrides.
+- Instrumentation
+  - Add ESNR logging utility in `pwm/utils/metrics.py` implementing the estimators in Section 6.
 
 ---
 
-11) Rollout and Training Pseudocode (for compute_wm_loss)
-- Baseline branch (unchanged):
-  - z0 = wm.encode(obs[0]); next_z = wm.encode(obs[1:]);
-  - for t in 0..H−1:
-      z = wm.next(z, act[t]); dyn_loss += MSE(z, next_z[t]) * gamma^t
-  - reward_loss = MSE(wm.reward(zs[:-1], act), rew) with discount window
-  - total = (dyn_loss + reward_loss) / H
-- Flow branch (when wm exposes latent_rollout_and_dynamics_loss):
-  - zs, dyn_loss = wm.latent_rollout_and_dynamics_loss(z0, act, next_z, H, gamma)
-  - reward_loss same as baseline; total = (dyn_loss + reward_loss) / H
+**10) Verification and Invariants（精簡）**
+- 參數量：記錄 `P_base, P_flow, 差距%`；若超 2% 發出 warning（不中斷），並於結果中揭露。
+- 健全檢查（sanity checks）：檢測 NaN、過大梯度或潛在向量爆炸（可用梯度裁剪與簡單範數門檻），超標則早停或重設 batch。
+- 不為積分器編寫單元測試；Heun 實作以簡單自檢（單步邏輯與張量形狀）為主。
 
 ---
 
-12) Deliverables and Milestones
-- D1: Code implementing FlowWorldModel and minimal PWM hooks as described.
-- D2: Config file to enable flow model without touching baseline configs.
-- D3: Parity report with parameter counts and training wall-clock for both variants on at least one task.
-- D4: Full MT30/MT80 comparison plots and tables.
+**11) Experimental Protocol**
+- Datasets: identical offline data per task.
+- Seeds: 3 seeds per setting.
+- Settings: MT30 and MT80; optionally 1–2 dflex single tasks.
+- Variants:
+  - Baseline: `MLPWorldModel + MLPDynamicsLoss`.
+  - Flow: `FlowWorldModel + FlowMatchingDynamicsLoss` (Heun, `K ∈ {2,4}`), parameter parity enforced.
+  - Optional compute-aware: choose `K` to approximate eval count parity; report separately.
+- Metrics per run: episode reward, success, WM losses, ESNR (actor), grad norms, wall-clock.
 
 ---
 
-13) Exact Files to be Added/Modified
-- Added:
-  - PWM/src/pwm/models/flow_world_model.py
-  - PWM/scripts/cfg/alg/pwm_48M_flow.yaml
-- Modified (guarded changes only):
-  - PWM/src/pwm/algorithms/pwm.py
-    - compute_wm_loss: call model’s helper if present; else unchanged path.
-    - wm optimizer: include _velocity params if present.
+**12) Acceptance Criteria**
+- Code respects the interfaces and responsibility separation defined here (no runtime `hasattr`, no loss in model classes).
+- Parameter parity constraint satisfied; runs abort if violated.
+- Flow variant meets or exceeds baseline on ≥50% tasks in reward under parameter parity, and shows improved ESNR trends on at least one benchmark.
+- All results include wall-clock and evaluation count reporting.
 
 ---
 
-14) How to Run (once implemented)
-- Baseline (unchanged):
-  - python scripts/train_multitask.py -cn config_mt30 alg=pwm_48M task=<task> general.data_dir=<dir> general.checkpoint=<wm_ckpt>
-- Flow variant:
-  - python scripts/train_multitask.py -cn config_mt30 alg=pwm_48M_flow task=<task> general.data_dir=<dir> general.checkpoint=<wm_ckpt>
-- For single-task dflex, mirror the same substitution in its config.
+**13) Rationale For Key Choices**
+- Interfaces via ABCs improve maintainability, explicit coupling, and testing vs ad-hoc runtime checks.
+- Heun integrator balances stability and cost, improving multi-step accuracy critical for PWM’s H-step unrolls.
+- Parameter parity removes capacity confounds; compute-aware ablation separates architecture benefits from raw throughput.
+- ESNR definition is explicit, computable with bounded overhead, and directly tied to H1.
 
 ---
 
-15) Acceptance Criteria
-- The flow variant code compiles and runs on the same datasets and scripts as baseline, with no changes required to evaluation code.
-- Under equal compute, flow variant achieves ≥ baseline reward on at least half of tested tasks; shows improved convergence speed on a subset; and exhibits lower gradient instability or better ESNR proxy.
-
+File Reference (authoritative plan file): docs/flow-world-model-plan.md:1
