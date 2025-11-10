@@ -1,5 +1,26 @@
 # Flow-Matching PWM - 使用者 TODO 清單
 
+To-DO:
+在您目前的腳本設定中，「使用多 GPU」的含義是實驗並行，而不是模型並行。
+
+您腳本做的是：申請 4 個 GPU，然後同時進行 4 個獨立的實驗，每個實驗使用 1 個 GPU。例如，用 4 個 GPU 同時跑 4 個不同隨機種子的 pwm_48M 實驗。
+您腳本沒做的：用 4 個 GPU 加速單一一個 pwm_48M 實驗。這需要修改 Python 程式碼本身（例如使用 DistributedDataParallel），遠比修改提交腳本複雜。
+我將假設您的目標是前者（實驗並行），因為這符合您腳本的設計。
+
+現有腳本的限制
+我發現 submit_job.sh 在設計上存在一個小缺陷：在 multi 模式下，它沒有提供一個參數讓您指定要運行的演算法（algorithm），導致 multi_seed 這個策略會一直預設使用 pwm_48M。
+
+我們可以修正這個問題。
+
+我建議修改 submit_job.sh，讓 multi 模式可以接收 algorithm 參數。這只需要做一個小小的改動。
+
+修改計畫
+我將修改 submit_job.sh 腳本，把 multi 模式的用法從： $0 multi <strategy> <task> [base_seed]
+
+改成： $0 multi <strategy> <algorithm> <task> [base_seed]
+
+這樣您就可以明確指定要對哪個演算法進行多 GPU 的並行實驗了。
+
 ## 🔧 首次設置（5-10分鐘）
 
 ### 1. 創建 Conda 環境
