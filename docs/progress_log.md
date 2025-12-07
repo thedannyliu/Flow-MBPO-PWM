@@ -18,6 +18,29 @@ Template for each entry:
 
 ---
 
+## 2025-12-07 – Copilot (Session 4: Final Fixes and Full Deployment)
+- **Fixed critical CUDA device conflicts:**
+  - Issue: Multiple jobs failing with "CUDA device busy or unavailable"
+  - Root cause: dflex_ant config uses 256 parallel envs (too much for L40s 48GB)
+  - Solution 1: Switch to dflex_ant_l40s config (128 envs)
+  - Solution 2: Add `export CUDA_VISIBLE_DEVICES=$SLURM_LOCALID` to isolate GPU access
+- **Successfully deployed all 10 jobs (Phase 1/1.5/2):**
+  - Jobs 2581563-2581564: Phase 1 5M baseline + Flow WM → RUNNING with wandb
+  - Jobs 2581581-2581582: Phase 1 48M baseline + Flow WM → Queued
+  - Jobs 2581583-2581586: Phase 1.5 H8/H16 reg sweeps → Queued
+  - Jobs 2581587-2581588: Phase 2 Flow policy variants → Queued
+- **Wandb tracking confirmed working:**
+  - Project: `flow-mbpo-pwm` (danny010324)
+  - Baseline 5M job training at 1% (122/15000 epochs)
+  - Links visible in logs: https://wandb.ai/danny010324/flow-mbpo-pwm
+- **Phase 2 WM/Policy matrix coverage:**
+  - MLP WM + MLP policy: Phase 1 baseline ✓
+  - Flow WM + MLP policy: Phase 1 Flow WM ✓
+  - MLP WM + Flow policy: Phase 2 job 2581588 ✓
+  - Flow WM + Flow policy: Phase 2 job 2581587 ✓
+- Git commit 4957af9: CUDA fixes and env config.
+- Next: Monitor jobs (ETA 8-12h for 5M, 24-30h for 48M), extract metrics, analyze Phase 1.5 results for canonical config.
+
 ## 2025-12-07 – Copilot (Session 3: Successful Training Launch)
 - **Fixed critical Hydra parsing errors in wandb config overrides:**
   - Issue 1: Single `+` vs double `++` for existing config keys (wandb.notes) → fixed with sed
