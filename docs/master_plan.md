@@ -518,4 +518,35 @@ Across all phases we will consistently log:
 - Multi-task Flow WM + Flow policy runs (Phase 3/4) are considered high-risk, high-cost experiments and should only be launched once single-task and small-scale multi-task results are stable.
 - For MVP experiments, we assume **3 seeds per configuration** unless otherwise noted; total compute should be planned as `num_configs × 3 × runtime_per_run`.
 
+---
+
+**10) Experiment Operations, Naming, and Logging**
+
+- **Clusters and resources**
+  - All GPU training and eval runs must be submitted to Phoenix via Slurm with `--gres=gpu:L40S:1`, `--mem=384GB`, `-t 32:00:00`, and account `-A gts-agarg35-ideas_l40s`.
+  - Always `cd PWM` inside scripts before launching Python; activate `conda activate pwm`; set `PYTHONPATH=src` if not installed in editable mode.
+- **Script organization (do not rename existing baselines)**
+  - `scripts/` root currently holds single-task Slurm scripts and entrypoints:
+    - Baselines: `submit_5M_baseline_l40s_final.sh`, `submit_48M_baseline_l40s.sh`.
+    - Flow WM single-task: `submit_5M_flow_v{1,2,3}_l40s_final.sh`, `submit_48M_flow_v{1,2,3}_l40s.sh`.
+    - Helpers: `submit_all_verified.sh`, `mt30.bash`, `mt80.bash`, `train_dflex.py`, `train_multitask.py`, `cfg/`.
+  - New scripts should follow `scripts/phase{1|1p5|2|3}/submit_<env>_<config>_l40s.sh` (create subfolders per phase to keep clarity) and mirror the Slurm header used above. Keep original PWM baselines under `scripts/cfg/alg/original_pwm` untouched for reference.
+- **Run naming conventions**
+  - **W&B**: project `flow-mbpo-pwm`; groups `phase{1|1p5|2|3}_<env>_<config>`; run names `{config}_seed{seed}_H{H}_K{K}_Kpol{Kpol}` (omit unused fields). Example: `phase1_dflex_ant_flow_v2_seed42_H16_K4`.
+  - **Slurm job name**: `pwm_{phase}_{env}_{config}_s{seed}` to align logs with W&B.
+  - **Log files**: write to `logs/slurm/{phase}/{env}/train_{config}_seed{seed}_%j.{out,err}` to keep jobid traceable. For quick smoke tests on CPU, use `logs/smoke/` with `_cpu` suffix.
+- **Artifacts and checkpoints**
+  - Store checkpoints under `outputs/{phase}/{env}/{config}/seed{seed}/` with `latest.pt` and periodic `epochXXXX.pt`. Copy W&B run ID into a `run_id.txt` in the same folder.
+  - Evaluation results (CSV/JSON) go to `results/{phase}/{env}/{config}/seed{seed}/` with a short README noting the exact checkpoint used.
+- **Minimal sanity tests before GPU jobs**
+  - CPU-only import check: `PYTHONPATH=src python - <<'PY' ... FlowActor ...` (already validated once).
+  - Config dry-run (no env rollout): `PYTHONPATH=src python scripts/train_dflex.py alg=pwm_5M_baseline_final general.device=cpu general.num_envs=1 general.num_steps=4 eval_every=0 train_every=0` to ensure Hydra config resolves on the login node; keep under 1 minute.
+- **Experiment registry (see new docs files)**
+  - `docs/progress_log.md`: chronological development log (what changed, why, open issues, next steps).
+  - `docs/experiment_log.md`: per-run registry with Slurm job ID, config, seed, phase, metrics (final reward, ESNR if available), W&B link, status (queued/running/succeeded/failed), and log paths. Update after each run submission and completion.
+- **Required hygiene**
+  - Comments and documentation in English only; convert any Chinese comments encountered.
+  - Every change recorded via git with English commit messages; never revert user changes unintentionally.
+  - Keep PWM baselines from `imgeorgiev/PWM` intact; do not modify files under `scripts/cfg/alg/original_pwm`.
+
 All new implementations and experiments in this repository should be traceable back to a specific phase and subsection of this document.
