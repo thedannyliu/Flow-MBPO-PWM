@@ -18,24 +18,33 @@ Template for each entry:
 
 ---
 
-## 2025-12-07 – Copilot (Session 2: Job Submissions)
+## 2025-12-07 – Copilot (Session 3: Successful Training Launch)
+- **Fixed critical Hydra parsing errors in wandb config overrides:**
+  - Issue 1: Single `+` vs double `++` for existing config keys (wandb.notes) → fixed with sed
+  - Issue 2: Equals signs in wandb field values (K=4, H=16, L2=3e-4) interpreted as nested config → removed all `=` from wandb strings
+  - Issue 3: Parentheses in wandb.notes causing parse errors → removed all parentheses
+- **Successfully submitted all Phase 1/1.5/2 training jobs (10 total):**
+  - Phase 1: Jobs 2572352-2572355 (5M+48M baseline+Flow WM) → all TRAINING
+  - Phase 1.5: Jobs 2572356-2572359 (5M Flow WM H8/H16 reg sweeps) → 1 running, 3 queued
+  - Phase 2: Jobs 2572360-2572361 (5M Flow policy variants) → both queued
+- **Verified training startup:**
+  - Baseline (job 2572354): WorldModel 1.52M params, self-check passed, training started
+  - Flow WM (job 2572355): FlowWorldModel 1.51M params, Heun K=4, self-check passed, training started
+- All job logs confirm models initialize correctly, no NaN/config errors.
+- Git commit 74e537f: Hydra-safe wandb fields fix.
+- Next: Monitor jobs over hours/days, collect final metrics, update experiment_log.md with results.
+
+## 2025-12-07 – Copilot (Session 2: Initial Job Submissions - FAILED)
 - Fixed bash strict mode (`set -euo pipefail`) conflicts with cluster bashrc; removed from all scripts.
-- Submitted smoke test (job 2571819) → running successfully, models initializing correctly.
-- **Submitted Phase 1 jobs (baseline vs Flow WM):**
-  - 2571823: 5M baseline H=16
-  - 2571824: 5M Flow WM v2 H=16 K=4
-  - 2571831: 48M baseline H=16
-  - 2571832: 48M Flow WM v2 H=16 K=4
-- **Submitted Phase 1.5 jobs (Flow WM reg sweeps):**
-  - 2571834: 5M Flow v2 H=8 base reg
-  - 2571835: 5M Flow v2 H=8 L2=3e-4
-  - 2571836: 5M Flow v2 H=16 base reg
-  - 2571837: 5M Flow v2 H=16 L2=3e-4
-- **Submitted Phase 2 jobs (Flow policy):**
-  - 2571838: 5M Flow WM + Flow policy H=8 K=4 Kpol=2
-  - 2571839: 5M MLP WM + Flow policy H=8 Kpol=2
-- All jobs recorded in `docs/experiment_log.md` with job IDs, scripts, W&B groups, and log paths.
-- Next: monitor jobs, record metrics when complete, identify canonical Flow WM config from Phase 1.5 results.
+- Submitted smoke test (job 2571819) → succeeded, models initializing correctly.
+- **First job submission attempt (jobs 2571823-2571839):**
+  - All 10 jobs failed immediately due to Hydra ConfigCompositionException
+  - Root cause: Used `+wandb.project` but wandb already exists in config.yaml (should use `++` for override)
+- Applied sed fix: `+wandb.*` → `++wandb.*` across all scripts.
+- **Second submission attempt (jobs 2571866-2571882):**
+  - Some jobs still failed with "mismatched input '(' expecting <EOF>" and "mismatched input '=' expecting <EOF>"
+  - Root cause: Parentheses and equals signs in wandb field values confuse Hydra parser
+- Issues documented; fixes applied in Session 3.
 
 ## 2025-12-07 – Copilot (Session 1: Setup)
 - Added `wm_weight_decay` option to PWM optimizer to support Phase 1.5 regularization sweeps.
