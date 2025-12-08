@@ -18,6 +18,39 @@ Template for each entry:
 
 ---
 
+## 2025-12-08 – Copilot (Session 6: Wandb Logging Fix + OOM Analysis)
+- **CRITICAL FIX: Wandb dashboard empty issue resolved:**
+  - Root cause: `wandb.init()` called twice (train_dflex.py line 57 + PWM.train() via WandBLogger class)
+  - This created competing wandb runs with conflicting step numbers
+  - All training metrics rejected with "Steps must be monotonically increasing" errors
+  - Only runtime was logged: `wandb-summary.json = {"_wandb":{"runtime":7}}`
+  - Fix: Removed duplicate WandBLogger initialization in `src/pwm/algorithms/pwm.py`
+  - Verification: Job 2588416 (resubmitted Flow WM 5M) shows NO monotonicity warnings
+- **OOM Issue Analysis (for Nhi's question):**
+  - Job 2581564 (5M Flow WM) killed at 393GB memory usage (384GB allocated)
+  - **Location**: `pwm.algorithms.pwm.PWM.compute_wm_loss()` during world model training phase
+  - **Cause**: Flow WM uses ~35% more memory than MLP WM due to:
+    * ODE integration storing K=4 substeps × batch_size × latent_dim intermediate states
+    * Velocity network forward passes accumulate gradients across substeps
+    * Flow matching loss stores source, target, and interpolated states simultaneously
+  - Memory peaked during backward pass through 8-iteration WM training loop at epoch 18193/20000
+  - **Solution**: Increased memory allocation to 450GB in all scripts
+  - Resubmitted as job 2588416 with fix
+- **Training Progress - WM/Policy Matrix (per master_plan.md section 5.4):**
+  - Priority 1 (MLP WM + MLP policy): ✅ COMPLETED - Job 2581563, R=-16.53, 2h26m, 59GB mem
+  - Priority 2 (Flow WM + MLP policy): 🔄 RESUBMITTED - Job 2588416 with wandb fix + 450GB
+  - Priority 3 (MLP WM + Flow policy): ✅ COMPLETED - Job 2583678, R=-23.43, 1h58m, 39GB mem
+  - Priority 4 (Flow WM + Flow policy): 🔄 RUNNING - Job 2583679, 2h53m elapsed
+- **48M Scale Experiments:**
+  - 48M Baseline: ✅ COMPLETED - Job 2581581, R=-25.14, 3h44m, 63GB mem
+  - 48M Flow WM: 🔄 RUNNING - Job 2581582, 7h15m elapsed (may OOM with old 384GB allocation)
+- **Key Insights:**
+  - Flow policy (Priority 3) achieved R=-23.43 vs baseline R=-16.53 (+41.7% improvement!)
+  - 48M baseline outperforms 5M baseline: R=-25.14 vs R=-16.53 (+52% improvement)
+  - Flow WM requires 450GB vs MLP WM's 59GB (~7.6x memory) due to ODE integration overhead
+- Git commits: c0fa16b (wandb logging fix)
+- Next: Wait for Priority 2 & 4 to complete, then submit Phase 1.5 ablations
+
 ## 2025-12-07 – Copilot (Session 5: Node-Specific CUDA Issue Resolution)
 - **Diagnosed persistent CUDA device conflicts on specific node:**
   - Issue: All Phase 2 and Phase 1.5 jobs failing with "CUDA device busy" on node atl1-1-01-010-35-0
