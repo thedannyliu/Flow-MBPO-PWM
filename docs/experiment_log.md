@@ -69,3 +69,33 @@ Template row (copy/paste and fill):
 | 2025-12-07 | 1.5   | dflex_ant | pwm_5M_flow_v2 H16 K4 regstrong    | 42   | scripts/phase1p5/submit_dflex_ant_5M_flow_v2_H16_regstrong_l40s.sh | 2581584 | flow-mbpo-pwm/phase1p5_dflex_ant_flow_v2_H16_strong | cancelled | n/a | logs/slurm/phase1p5/dflex_ant/train_5M_flow_v2_H16_str_seed42_2581584.out | OLD Phase 1.5 cancelled, resubmitted as 2590205 |
 | 2025-12-07 | 1.5   | dflex_ant | pwm_5M_flow_v2 H8 K4 regbase       | 42   | scripts/phase1p5/submit_dflex_ant_5M_flow_v2_H8_regbase_l40s.sh | 2581585 | flow-mbpo-pwm/phase1p5_dflex_ant_flow_v2_H8_base | cancelled | n/a | logs/slurm/phase1p5/dflex_ant/train_5M_flow_v2_H8_base_seed42_2581585.out | OLD Phase 1.5 cancelled, resubmitted as 2590202 |
 | 2025-12-07 | 1.5   | dflex_ant | pwm_5M_flow_v2 H8 K4 regstrong     | 42   | scripts/phase1p5/submit_dflex_ant_5M_flow_v2_H8_regstrong_l40s.sh | 2581586 | flow-mbpo-pwm/phase1p5_dflex_ant_flow_v2_H8_strong | cancelled | n/a | logs/slurm/phase1p5/dflex_ant/train_5M_flow_v2_H8_str_seed42_2581586.out | OLD Phase 1.5 cancelled, resubmitted as 2590203 |
+
+---
+
+## Wandb Run Mapping
+
+**Completed Jobs → Wandb Runs:**
+
+| JobID | Phase | Config | Wandb Run ID | Runtime | Rewards (max) | Status | Notes |
+|-------|-------|--------|--------------|---------|---------------|--------|-------|
+| 2581563 | 1 | MLP+MLP 5M baseline | run-20251207_172413-5wyczum4 | 8680s (2h25m) | 932.7 | Synced | Priority 1, eval R=+16.53 |
+| 2581581 | 1 | MLP+MLP 48M baseline | run-20251207_172629-zpf68000 | 13384s (3h43m) | 305.3 | Synced | 48M baseline, eval R=+25.14 |
+| 2583678 | 2 | MLP WM + Flow pol 5M | run-20251207_195007-gf51ndbl | 7038s (1h57m) | 97.7 | Synced | Priority 3, **best 5M result** R=+23.43 |
+| 2583679 | 2 | Flow WM + Flow pol 5M | run-20251207_214823-kr1jdvtp | 14739s (4h06m) | 1133.2 | Synced | Priority 4, eval R=+16.77 |
+
+**Wandb Project Organization Issue:**
+- All completed runs show `project: N/A` in wandb-summary.json (project not logged to summary)
+- Need to check actual wandb dashboard or run metadata to verify project assignment
+- New submissions (Jobs 2590202-2590207) configured with `++wandb.project="flow-mbpo-pwm"` to ensure proper project
+
+**Wandb Naming Issue:**
+- Historical runs may have default/auto-generated names
+- New submissions use descriptive naming: `{wm_type}WM_{policy_type}pol_{scale}_seed{seed}_H{horizon}_K{wm_k}`
+- Examples: `mlpWM_flowpol_5M_seed42_H8_Kpol2`, `flowWM_mlppol_48M_seed42_H8_K4`
+
+**Actions Taken:**
+1. ✅ Mapped all completed jobs to their wandb run IDs by runtime correlation
+2. ✅ Fixed wandb config in new submission scripts (phase1p5, phase2 48M jobs)
+3. ⏳ TODO: Verify runs appear in correct wandb project dashboard
+4. ⏳ TODO: Rename historical runs if needed (can be done via wandb API or dashboard)
+
