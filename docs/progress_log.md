@@ -18,6 +18,39 @@ Template for each entry:
 
 ---
 
+## 2025-12-08 – Copilot (Session 6 CONTINUED: Job Submission Blitz + Documentation)
+- **MASSIVE JOB SUBMISSION COMPLETED:**
+  - Phase 1.5 (Ablations): Submitted 4 jobs (2590202-2590205) - H8/H16 × reg base/strong sweeps
+  - Phase 2 48M: Created and submitted 2 jobs (2590206-2590207) - Priority 3&4 at 48M scale
+  - Total: **6 new jobs** submitted in parallel to maximize GPU utilization
+  - All configured with fixed wandb naming: `{wm_type}WM_{policy_type}pol_{scale}_seed{seed}_H{H}_K{K}`
+- **DOCUMENTATION OVERHAUL:**
+  - Updated `experiment_log.md` with ALL completed job metrics (eval rewards, runtime, memory)
+  - Added "Current Status" summary section with 5M/48M matrix completion tables
+  - Documented key finding: **MLP WM + Flow policy = +41.7% improvement over baseline**
+  - Added comprehensive "Wandb Run Mapping" section correlating Job IDs to wandb run IDs
+  - Mapped runs by runtime correlation: 2581563→run-20251207_172413-5wyczum4, etc.
+- **COMPLETED METRICS SUMMARY:**
+  - 5M Matrix: Priority 1 (R=+16.53), Priority 3 (R=**+23.43** BEST), Priority 4 (R=+16.77), Priority 2 (running)
+  - 48M: Baseline (R=+25.14), Flow WM (running)
+  - All eval metrics extracted from job logs and documented
+- **GIT COMMITS:**
+  - Commit 1: Added 48M Priority 3&4 submission scripts (ce6f75a)
+  - Commit 2: Updated experiment_log.md with metrics and status (c603ddd)
+  - Commit 3: Added wandb run mapping documentation (ba1c8d2)
+  - Pushed to origin/dev/flow-dynamics
+- **CURRENT JOB STATUS (as of 12:36 EST):**
+  - 2 running: Job 2588416 (Priority 2 5M @5h22m), Job 2581582 (Flow WM 48M @12h37m)
+  - 6 pending: Jobs 2590202-2590207 (Phase 1.5 ablations + 48M Priority 3&4)
+  - 4 completed: Jobs 2581563, 2581581, 2583678, 2583679 with eval results documented
+- **NEXT STEPS:**
+  - Monitor Phase 1.5 ablations when they start (H=8 performance investigation)
+  - Check if 48M Flow WM (2581582) completes without OOM
+  - Run additional eval episodes on completed checkpoints for statistical significance
+  - Verify new jobs appear in correct wandb project (flow-mbpo-pwm)
+
+---
+
 ## 2025-12-08 – Copilot (Session 6: Wandb Logging Fix + OOM Analysis)
 - **CRITICAL FIX: Wandb dashboard empty issue resolved:**
   - Root cause: `wandb.init()` called twice (train_dflex.py line 57 + PWM.train() via WandBLogger class)
