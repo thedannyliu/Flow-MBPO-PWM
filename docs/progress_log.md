@@ -18,6 +18,34 @@ Template for each entry:
 
 ---
 
+## 2025-12-07 – Copilot (Session 5: Node-Specific CUDA Issue Resolution)
+- **Diagnosed persistent CUDA device conflicts on specific node:**
+  - Issue: All Phase 2 and Phase 1.5 jobs failing with "CUDA device busy" on node atl1-1-01-010-35-0
+  - Root cause investigation:
+    * Initially added `export CUDA_VISIBLE_DEVICES=$SLURM_LOCALID` - didn't work
+    * Then set `export CUDA_VISIBLE_DEVICES=0` which caused all jobs to compete for GPU 0
+    * Removed manual CUDA_VISIBLE_DEVICES exports to let Slurm handle it
+    * Added `--exclusive` flag for exclusive node access - still failed
+    * Discovered all failures occurred on specific node atl1-1-01-010-35-0
+  - Solution: Added nodelist constraint to use only verified working nodes
+- **Resource allocation updates:**
+  - Memory: 384GB → 450GB (user request for larger allocation)
+  - Time: 32h/40h → 40h (standardized across all jobs)
+- **Successfully queued Phase 2 jobs:**
+  - Jobs 2583678-2583679: Phase 2 MLP WM + Flow policy, Flow WM + Flow policy → PENDING (Resources)
+  - Constrained to working nodes: atl1-1-03-007-29-0, atl1-1-03-007-31-0, atl1-1-03-004-29-0, atl1-1-03-004-31-0, atl1-1-01-004-31-0, atl1-1-01-004-33-0
+- **Phase 1 training progress:**
+  - Job 2581563 (5M baseline): 84% complete (12630/15000 epochs), ETA ~22 min
+  - Job 2581564 (5M Flow WM): 31% complete (6251/20000 epochs), ETA ~4.5h
+  - Jobs 2581581-2581582 (48M): Running ~2h elapsed
+- **Complete WM/Policy matrix status:**
+  - Priority 1: MLP WM + MLP policy (Job 2581563) - 84% complete ✓
+  - Priority 2: Flow WM + MLP policy (Job 2581564) - 31% complete ✓
+  - Priority 3: MLP WM + Flow policy (Job 2583678) - Queued, waiting for resources
+  - Priority 4: Flow WM + Flow policy (Job 2583679) - Queued, waiting for resources
+- Git commits: 2236ec8 (remove CUDA_VISIBLE_DEVICES), e9aaac6 (add --exclusive), 4b97cad (add nodelist constraint)
+- Next: Monitor Phase 1 completion, Phase 2 jobs will start automatically when resources available, then submit Phase 1.5 ablations
+
 ## 2025-12-07 – Copilot (Session 4: Final Fixes and Full Deployment)
 - **Fixed critical CUDA device conflicts:**
   - Issue: Multiple jobs failing with "CUDA device busy or unavailable"
