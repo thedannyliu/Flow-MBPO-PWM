@@ -1,0 +1,70 @@
+_target_: pwm.algorithms.pwm.PWM
+_recursive_: False
+actor_config:
+  _target_: pwm.models.actor.ActorStochasticMLP
+  units: [400, 200, 100]
+  activation_class: nn.Mish
+  init_gain: 1.0
+  init_logstd: -1.0
+  min_logstd: -1.427
+critic_config:
+  _target_: pwm.models.critic.CriticMLP
+  units: [400, 200]
+  activation_class: nn.Mish
+world_model_config:
+  _target_: pwm.models.flow_world_model.FlowWorldModel
+  units: [510, 510]
+  encoder_units: [256]
+  num_bins: 101
+  vmin: -10.0
+  vmax: 10.0
+  task_dim: 96
+  multitask: False
+  action_dims: null
+  tasks: null
+  encoder:
+    last_layer: normedlinear
+    last_layer_kwargs:
+      act:
+        _target_: pwm.models.mlp.SimNorm
+        simnorm_dim: 8
+  dynamics:
+    last_layer: normedlinear
+    last_layer_kwargs:
+      act:
+        _target_: pwm.models.mlp.SimNorm
+        simnorm_dim: 8
+  reward:
+    last_layer: linear
+    last_layer_kwargs: {}
+num_critics: 3
+latent_dim: 512
+actor_lr: 5e-4
+critic_lr: 5e-4
+model_lr: 1e-4  # IMPROVED: 從 3e-4 降低 (更穩定)
+lr_schedule: constant  # IMPROVED: 從 linear 改為 constant (避免過度衰減)
+obs_rms: False
+rew_rms: False
+ret_rms: True
+critic_iterations: 8
+critic_batches: 4
+critic_method: td-lambda
+lam: 0.95
+gamma: 0.99
+max_epochs: 20_000  # IMPROVED: 從 15000 增加到 20000 (Flow 需要更長訓練)
+horizon: ${horizon}
+actor_grad_norm: 1.0
+critic_grad_norm: 100.0
+wm_batch_size: 2048  # IMPROVED: 從 1024 增加到 2048 (更穩定的梯度)
+wm_iterations: 8
+wm_grad_norm: 20.0
+wm_buffer_size: 2_000_000
+detach: True
+save_interval: 2500
+device: ${general.device}
+
+# Flow-matching specific parameters
+use_flow_dynamics: true
+flow_integrator: heun
+flow_substeps: 4  # IMPROVED: 從 2 增加到 4
+flow_tau_sampling: uniform
