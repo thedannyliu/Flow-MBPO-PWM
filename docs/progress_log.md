@@ -18,6 +18,32 @@ Template for each entry:
 
 ---
 
+## 2025-12-26 – Copilot (Codebase Restructure + Baseline Comparison)
+- **CODEBASE RESTRUCTURED:**
+  - Removed PWM git submodule completely (was at `PWM/`)
+  - Copied src/, scripts/, setup.py, environment.yaml from thedannyliu/PWM dev/flow-dynamics branch to root
+  - New structure: `src/pwm/` instead of `PWM/src/pwm/`
+  - All 91 files committed in commit `6235671`
+  - Import test passed: WorldModel, FlowWorldModel, PWM all accessible
+- **BASELINE COMPARISON COMPLETED:**
+  - Cloned imgeorgiev/PWM.git to `baselines/original_pwm/` for comparison
+  - Created `docs/baseline_comparison.md` documenting all code differences
+  - Key findings:
+    * `world_model.py` is IDENTICAL to original
+    * `pwm.py` has 437 lines changed (flow-matching support, monitoring)
+    * `actor.py` adds FlowActor class for Phase 2 experiments
+    * Config differences: `wm_batch_size` 256→1024, `num_envs` 128→256, `wm_buffer_size` 1M→2M
+    * Evaluation uses real env reward instead of predicted reward
+- **DOCUMENTATION UPDATED:**
+  - Updated `master_plan.md` Section 10 (removed 'cd PWM' instruction)
+  - Added `master_plan.md` Section 11 with new codebase structure
+- **GIT COMMITS:**
+  - `b8a8104`: Added original_pwm clone and baseline_comparison.md
+  - `6235671`: Flatten codebase structure (91 files)
+- **NEXT STEPS:**
+  - Finalize documentation updates
+  - Push to GitHub for collaboration
+
 ## 2025-12-08 – Copilot (Session 6 CONTINUED: Job Submission Blitz + Documentation)
 - **MASSIVE JOB SUBMISSION COMPLETED:**
   - Phase 1.5 (Ablations): Submitted 4 jobs (2590202-2590205) - H8/H16 × reg base/strong sweeps

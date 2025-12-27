@@ -524,7 +524,7 @@ Across all phases we will consistently log:
 
 - **Clusters and resources**
   - All GPU training and eval runs must be submitted to Phoenix via Slurm with `--gres=gpu:L40S:1`, `--mem=384GB`, `-t 32:00:00`, and account `-A gts-agarg35-ideas_l40s`.
-  - Always `cd PWM` inside scripts before launching Python; activate `conda activate pwm`; set `PYTHONPATH=src` if not installed in editable mode.
+  - Activate `conda activate pwm`; set `PYTHONPATH=src` if not installed in editable mode.
 - **Script organization (do not rename existing baselines)**
   - `scripts/` root currently holds single-task Slurm scripts and entrypoints:
     - Baselines: `submit_5M_baseline_l40s_final.sh`, `submit_48M_baseline_l40s.sh`.
@@ -539,7 +539,7 @@ Across all phases we will consistently log:
   - Store checkpoints under `outputs/{phase}/{env}/{config}/seed{seed}/` with `latest.pt` and periodic `epochXXXX.pt`. Copy W&B run ID into a `run_id.txt` in the same folder.
   - Evaluation results (CSV/JSON) go to `results/{phase}/{env}/{config}/seed{seed}/` with a short README noting the exact checkpoint used.
 - **Minimal sanity tests before GPU jobs**
-  - CPU-only import check: `PYTHONPATH=src python - <<'PY' ... FlowActor ...` (already validated once).
+  - CPU-only import check: `PYTHONPATH=src python -c "from pwm.models.world_model import WorldModel; from pwm.models.flow_world_model import FlowWorldModel; print('OK')"`.
   - Config dry-run (no env rollout): `PYTHONPATH=src python scripts/train_dflex.py alg=pwm_5M_baseline_final general.device=cpu general.num_envs=1 general.num_steps=4 eval_every=0 train_every=0` to ensure Hydra config resolves on the login node; keep under 1 minute.
 - **Experiment registry (see new docs files)**
   - `docs/progress_log.md`: chronological development log (what changed, why, open issues, next steps).
@@ -547,6 +547,43 @@ Across all phases we will consistently log:
 - **Required hygiene**
   - Comments and documentation in English only; convert any Chinese comments encountered.
   - Every change recorded via git with English commit messages; never revert user changes unintentionally.
-  - Keep PWM baselines from `imgeorgiev/PWM` intact; do not modify files under `scripts/cfg/alg/original_pwm`.
+  - Keep PWM baselines from `imgeorgiev/PWM` intact; stored in `baselines/original_pwm/`.
 
 All new implementations and experiments in this repository should be traceable back to a specific phase and subsection of this document.
+
+---
+
+**11) Codebase Structure**
+
+As of 2025-12-26, the codebase has been flattened to remove the PWM git submodule for easier collaboration:
+
+```
+Flow-MBPO-PWM/
+├── src/pwm/                     # Main source code
+│   ├── algorithms/              # PWM, SHAC algorithms
+│   ├── models/                  # WorldModel, FlowWorldModel, Actor, Critic
+│   └── utils/                   # Buffer, integrators, monitoring, etc.
+├── scripts/                     # Training and evaluation scripts
+│   ├── cfg/                     # Hydra config files
+│   │   ├── alg/                 # Algorithm configs (pwm_5M_*, pwm_48M_*, etc.)
+│   │   └── env/                 # Environment configs (dflex_ant, etc.)
+│   ├── train_dflex.py           # Main single-task training script
+│   └── train_multitask.py       # Multi-task training script
+├── baselines/
+│   └── original_pwm/            # Clone of imgeorgiev/PWM for comparison
+├── docs/                        # Documentation
+│   ├── master_plan.md           # This document
+│   ├── progress_log.md          # Development log
+│   ├── experiment_log.md        # Experiment registry
+│   └── baseline_comparison.md   # Comparison with original PWM
+├── hf_pwm_repo/                 # HuggingFace pre-trained models
+├── setup.py                     # Package installation
+└── environment.yaml             # Conda environment
+```
+
+Key changes from previous structure:
+- Removed PWM git submodule (was `PWM/` folder)
+- Source code moved from `PWM/src/pwm/` to `src/pwm/`
+- Scripts moved from `PWM/scripts/` to `scripts/`
+- Original baseline preserved in `baselines/original_pwm/` for comparison
+
