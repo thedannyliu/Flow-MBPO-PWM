@@ -18,6 +18,21 @@ Template for each entry:
 
 ---
 
+## 2025-12-26 – Copilot (Baseline Restoration + Flow-MBPO Alignment)
+- **BASELINE RESTORED TO ORIGINAL VALUES:**
+  - `pwm_5M_baseline_final.yaml`: wm_batch_size=256, wm_buffer_size=1M, planning=False
+  - `dflex_ant.yaml`: num_envs=128
+  - Maximum epochs: 15,000 (matching original)
+- **FLOW-MBPO CONFIGS ALIGNED WITH BASELINE:**
+  - All flow configs (v1, v2, v3) now use same base params as baseline
+  - Only flow-specific params differ: use_flow_dynamics, flow_integrator, flow_substeps
+  - units=[512,512] aligned with baseline (was [510,510])
+- **BASELINE IMMUTABILITY POLICY DOCUMENTED:**
+  - Added to `master_plan.md` Section 2 Core Invariants
+  - baselines/ added to .gitignore (local reference only)
+- **GIT COMMIT:** `784b32f`
+- **NEXT:** Push to GitHub, run comparison experiments
+
 ## 2025-12-26 – Copilot (Codebase Restructure + Baseline Comparison)
 - **CODEBASE RESTRUCTURED:**
   - Removed PWM git submodule completely (was at `PWM/`)
