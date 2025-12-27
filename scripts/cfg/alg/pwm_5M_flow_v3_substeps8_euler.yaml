@@ -1,3 +1,5 @@
+# Flow-MBPO config aligned with baseline for fair comparison
+# Only flow-specific parameters differ from pwm_5M_baseline_final.yaml
 _target_: pwm.algorithms.pwm.PWM
 _recursive_: False
 actor_config:
@@ -13,12 +15,12 @@ critic_config:
   activation_class: nn.Mish
 world_model_config:
   _target_: pwm.models.flow_world_model.FlowWorldModel
-  units: [510, 510]
+  units: [512, 512]             # ALIGNED: Same as baseline
   encoder_units: [256]
   num_bins: 101
   vmin: -10.0
   vmax: 10.0
-  task_dim: 0                    # FIXED: Single-task MUST be 0
+  task_dim: 0                   # Single-task
   multitask: False
   action_dims: null
   tasks: null
@@ -51,20 +53,21 @@ critic_batches: 4
 critic_method: td-lambda
 lam: 0.95
 gamma: 0.99
-max_epochs: 20_000
+max_epochs: 15_000              # ALIGNED: Same as baseline
 horizon: ${horizon}
 actor_grad_norm: 1.0
 critic_grad_norm: 100.0
-wm_batch_size: 1024
+wm_batch_size: 256              # ALIGNED: Same as baseline
 wm_iterations: 8
 wm_grad_norm: 20.0
-wm_buffer_size: 2_000_000
+wm_buffer_size: 1_000_000       # ALIGNED: Same as baseline
 detach: True
 save_interval: 500
 device: ${general.device}
+planning: False                 # ALIGNED: Same as baseline
 
-# Flow-matching specific parameters
+# Flow-matching specific parameters (THE ONLY DIFFERENCES)
 use_flow_dynamics: true
-flow_integrator: euler           # Euler method (simpler, 1st order)
-flow_substeps: 8                 # High-fidelity: more substeps
+flow_integrator: euler          # Euler method (simpler, 1st order)
+flow_substeps: 8                # High-fidelity: more substeps
 flow_tau_sampling: uniform
