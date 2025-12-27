@@ -74,3 +74,4 @@ temp/
 # Baseline reference (local only, do not track)
 baselines/
 hf_pwm_repo/
+docs/
