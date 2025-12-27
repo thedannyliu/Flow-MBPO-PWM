@@ -62,4 +62,3 @@ wm_buffer_size: 1_000_000        # ORIGINAL: Keep at 1M for fair comparison
 detach: True
 save_interval: 500
 device: ${general.device}
-planning: False
