@@ -4,14 +4,17 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 
 ---
 
-## Session: 2025-12-28 - All Experiments (400GB Memory)
+## Session: 2025-12-28 Evening - Complete Experiment Status
 
-### Summary
-- **Baseline**: COMPLETED (3080227-3080229) ✅
-- **Flow WM + MLP Policy**: 9 jobs submitted (3082681-3082689)
-- **MLP WM + Flow Policy**: 3 jobs submitted (3082690-3082692)
-- **Full Flow (Flow WM + Flow Policy)**: 3 jobs submitted (3082693-3082695)
-- **TOTAL**: 15 new jobs with 400GB memory
+### Overall Summary
+| Variant | Seeds | Status |
+|---------|-------|--------|
+| Baseline (MLP WM + MLP Policy) | 42, 123, 456 | ✅ COMPLETED (Dec 27) |
+| Flow WM K=4 Heun + MLP Policy | 42, 123, 456 | ✅ COMPLETED |
+| Flow WM K=2 Heun + MLP Policy | 42, 123, 456 | ✅ COMPLETED |
+| Flow WM K=8 Euler + MLP Policy | 42, 123, 456 | 🔄 RUNNING |
+| MLP WM + Flow Policy | 42, 123, 456 | 🔄 RUNNING |
+| Full Flow (Flow WM + Flow Policy) | 42, 123, 456 | 🔄 RUNNING |
 
 ### WandB Dashboard
 - **Project**: `flow-mbpo-single`
@@ -19,52 +22,60 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 
 ---
 
-## Completed: Baseline (MLP WM + MLP Policy)
-| Job ID | Seed | Status |
-|--------|------|--------|
-| 3080227 | 42 | ✅ COMPLETED |
-| 3080228 | 123 | ✅ COMPLETED |
-| 3080229 | 456 | ✅ COMPLETED |
+## Completed Experiments
+
+### Baseline (MLP WM + MLP Policy) - Dec 27
+| Job ID | Seed | Status | Runtime |
+|--------|------|--------|---------|
+| 3080227 | 42 | ✅ COMPLETED | ~2h |
+| 3080228 | 123 | ✅ COMPLETED | ~2h |
+| 3080229 | 456 | ✅ COMPLETED | ~2h |
+
+### Flow WM K=4 Heun - Dec 28
+| Job ID | Seed | Status | Runtime |
+|--------|------|--------|---------|
+| 3082681 | 42 | ✅ COMPLETED | 4:55:05 |
+| 3082682 | 123 | ✅ COMPLETED | 4:54:37 |
+| 3082683 | 456 | ✅ COMPLETED | 4:53:58 |
+
+### Flow WM K=2 Heun - Dec 28
+| Job ID | Seed | Status | Runtime |
+|--------|------|--------|---------|
+| 3082684 | 42 | ✅ COMPLETED | 3:36:07 |
+| 3082685 | 123 | ✅ COMPLETED | 3:38:12 |
+| 3082686 | 456 | ✅ COMPLETED | 4:27:55 |
 
 ---
 
-## Flow WM + MLP Policy (400GB memory)
-| Job ID | Config | Seed | WandB Name | Status |
-|--------|--------|------|------------|--------|
-| 3082681 | K=4 Heun | 42 | Anymal_FlowWM_K4Heun_s42 | RUNNING |
-| 3082682 | K=4 Heun | 123 | Anymal_FlowWM_K4Heun_s123 | RUNNING |
-| 3082683 | K=4 Heun | 456 | Anymal_FlowWM_K4Heun_s456 | RUNNING |
-| 3082684 | K=2 Heun | 42 | Anymal_FlowWM_K2Heun_s42 | RUNNING |
-| 3082685 | K=2 Heun | 123 | Anymal_FlowWM_K2Heun_s123 | RUNNING |
-| 3082686 | K=2 Heun | 456 | Anymal_FlowWM_K2Heun_s456 | RUNNING |
-| 3082687 | K=8 Euler | 42 | Anymal_FlowWM_K8Euler_s42 | RUNNING |
-| 3082688 | K=8 Euler | 123 | Anymal_FlowWM_K8Euler_s123 | PENDING |
-| 3082689 | K=8 Euler | 456 | Anymal_FlowWM_K8Euler_s456 | PENDING |
+## Currently Running (Dec 28 Evening)
 
----
-
-## MLP WM + Flow Policy (400GB memory)
+### Flow WM K=8 Euler (400GB memory)
 | Job ID | Seed | WandB Name | Status |
 |--------|------|------------|--------|
-| 3082690 | 42 | Anymal_FlowPolicy_MLPWM_s42 | PENDING |
-| 3082691 | 123 | Anymal_FlowPolicy_MLPWM_s123 | PENDING |
-| 3082692 | 456 | Anymal_FlowPolicy_MLPWM_s456 | PENDING |
+| 3084837 | 42 | Anymal_FlowWM_K8Euler_s42 | RUNNING |
+| 3084838 | 123 | Anymal_FlowWM_K8Euler_s123 | RUNNING |
+| 3084839 | 456 | Anymal_FlowWM_K8Euler_s456 | RUNNING |
 
----
-
-## Full Flow: Flow WM + Flow Policy (400GB memory)
+### MLP WM + Flow Policy (400GB memory)
 | Job ID | Seed | WandB Name | Status |
 |--------|------|------------|--------|
-| 3082693 | 42 | Anymal_FullFlow_FlowWM_FlowPol_s42 | PENDING |
-| 3082694 | 123 | Anymal_FullFlow_FlowWM_FlowPol_s123 | PENDING |
-| 3082695 | 456 | Anymal_FullFlow_FlowWM_FlowPol_s456 | PENDING |
+| 3084840 | 42 | Anymal_FlowPolicy_MLPWM_s42 | RUNNING |
+| 3084841 | 123 | Anymal_FlowPolicy_MLPWM_s123 | RUNNING |
+| 3084842 | 456 | Anymal_FlowPolicy_MLPWM_s456 | RUNNING |
+
+### Full Flow: Flow WM + Flow Policy (400GB memory)
+| Job ID | Seed | WandB Name | Status |
+|--------|------|------------|--------|
+| 3084843 | 42 | Anymal_FullFlow_FlowWM_FlowPol_s42 | RUNNING |
+| 3084847 | 123 | Anymal_FullFlow_FlowWM_FlowPol_s123 | RUNNING |
+| 3084848 | 456 | Anymal_FullFlow_FlowWM_FlowPol_s456 | PENDING |
 
 ---
 
-## Configuration Summary
-| Variant | Config File | WM | Policy |
-|---------|-------------|-----|-------|
-| Baseline | pwm_5M_baseline_final | MLP | MLP |
+## Configuration Reference
+| Variant | Config File | WM Type | Policy Type |
+|---------|-------------|---------|-------------|
+| Baseline | pwm_5M_baseline_final | MLP | MLP (Gaussian) |
 | Flow WM K=2 | pwm_5M_flow_v1_substeps2 | Flow (Heun, K=2) | MLP |
 | Flow WM K=4 | pwm_5M_flow_v2_substeps4 | Flow (Heun, K=4) | MLP |
 | Flow WM K=8 | pwm_5M_flow_v3_substeps8_euler | Flow (Euler, K=8) | MLP |
@@ -73,4 +84,8 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 
 ---
 
-## Memory: 400GB per job | Time: 40 hours | Partition: gpu-l40s
+## Resource Configuration
+- **Memory**: 400GB per job
+- **Time**: 40 hours
+- **Partition**: gpu-l40s
+- **Account**: gts-agarg35-ideas_l40s
