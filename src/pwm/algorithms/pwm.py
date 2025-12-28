@@ -727,30 +727,9 @@ class PWM:
         self.time_report.add_timer("world model training")
         self.time_report.start_timer("algorithm")
 
-        # Initialize WandB logger if enabled
-        if self.log:
-            wandb_config = {
-                'num_envs': self.num_envs,
-                'horizon': self.horizon,
-                'max_epochs': self.max_epochs,
-                'actor_lr': self.actor_lr,
-                'critic_lr': self.critic_lr,
-                'model_lr': self.model_lr,
-                'use_flow_dynamics': getattr(self, 'use_flow_dynamics', False),
-                'flow_integrator': getattr(self, 'flow_integrator', 'N/A'),
-                'flow_substeps': getattr(self, 'flow_substeps', 'N/A'),
-            }
-            # Get task name safely
-            task_name = getattr(self.env, 'task', None)
-            task_name = task_name.name if task_name and hasattr(task_name, 'name') else 'env'
-            
-            self.wandb_logger = WandBLogger(
-                project='pwm-flow-matching',
-                entity=None,  # TODO: set your wandb entity
-                name=f"{task_name}_{'flow' if getattr(self, 'use_flow_dynamics', False) else 'baseline'}",
-                config=wandb_config,
-                enabled=True,
-            )
+        # Note: WandB logger is initialized externally by train_dflex.py
+        # Do NOT create a new WandBLogger here to avoid overriding run names
+        self.wandb_logger = None  # Use wandb directly for logging
         
         # Start training monitor
         self.training_monitor.start()
