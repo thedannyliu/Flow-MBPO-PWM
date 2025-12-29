@@ -18,6 +18,22 @@ Template for each entry:
 
 ---
 
+## 2025-12-29 – Copilot (Ant Experiments Setup)
+- **ANT EXPERIMENTS LAUNCHED:**
+  - Created `scripts/ant/` directory with smoke tests and full training scripts
+  - Smoke tests: baseline, flowWM, flowpolicy, fullflow (jobs 3093139-3093142)
+  - Full training: 18 jobs submitted (3093165-3093182)
+  - Variants: Baseline, Flow WM (K=2,4,8), Flow Policy, Full Flow - 3 seeds each
+  - WandB project: `flow-mbpo-single-task-ant`
+- **FIXED STRONGREG CONFIG:**
+  - Removed unsupported `wm_weight_decay` parameter
+  - Changed to tighter gradient clipping for regularization
+  - Resubmitted jobs 3093114-3093116
+- **GIT COMMITS:** TBD
+- **NEXT:** Monitor job status, verify smoke tests complete successfully
+
+---
+
 ## 2025-12-26 – Copilot (Baseline Restoration + Flow-MBPO Alignment)
 - **BASELINE RESTORED TO ORIGINAL VALUES:**
   - `pwm_5M_baseline_final.yaml`: wm_batch_size=256, wm_buffer_size=1M, planning=False
