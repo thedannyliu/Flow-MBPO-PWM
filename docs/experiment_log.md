@@ -4,7 +4,7 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 
 ---
 
-## Session: 2025-12-28 - Complete Experiment Matrix
+## Session: 2025-12-29 - Complete Experiment Matrix
 
 ### WandB Dashboard
 - **Project**: `flow-mbpo-single`
@@ -12,108 +12,68 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 
 ---
 
-## Overall Status Summary
-| Category | Variant | Seeds | Status |
-|----------|---------|-------|--------|
-| Baseline | MLP WM + MLP Policy | 3 | ✅ COMPLETED |
-| Core | Flow WM K=4 Heun | 3 | ✅ COMPLETED |
-| Core | Flow WM K=2 Heun | 3 | ✅ COMPLETED |
-| Core | Flow WM K=8 Euler | 3 | 🔄 RUNNING |
-| Core | MLP WM + Flow Policy | 3 | ✅ COMPLETED |
-| Core | Full Flow | 1+2 | 🔄 s42 RUNNING, s123/s456 PENDING |
-| **Ablation** | Flow WM H=8 | 3 | 🔄 RUNNING |
-| **Ablation** | Flow WM LowLR | 3 | ⏳ PENDING |
-| **Ablation** | Flow Policy H=8 | 3 | ⏳ PENDING |
+## Status Summary (Dec 29, 2:15 AM)
+
+### COMPLETED ✅ (21 jobs)
+| Variant | Seeds | Job IDs |
+|---------|-------|---------|
+| Baseline (MLP WM + MLP Policy) | 3 | 3080227-3080229 |
+| Flow WM K=4 Heun | 3 | 3082681-3082683 |
+| Flow WM K=2 Heun | 3 | 3082684-3082686 |
+| Flow WM K=8 Euler | 3 | 3084837-3084839 |
+| MLP WM + Flow Policy | 3 | 3084840-3084842 |
+| Full Flow s42 | 1 | 3084843 |
+| Flow WM H=8 | 3 | 3087697-3087699 |
+| Flow Policy H=8 | 3 | 3087703-3087705 |
+
+### RUNNING 🔄 (14 jobs)
+| Variant | Seeds | Job IDs | Elapsed |
+|---------|-------|---------|---------|
+| Flow WM LowLR | 3 | 3087700-3087702 | ~4h |
+| Full Flow s123, s456 | 2 | 3087706-3087707 | ~2h |
+| **Flow WM StrongReg** | 3 | 3091990-3091992 | just started |
+| **Full Flow H=8** | 3 | 3091993-3091996 | just started |
+| **Flow WM HighLR** | 3 | 3091997-3091999 | just started |
 
 ---
 
-## Completed Experiments ✅
+## Hyperparameter Ablation Matrix
 
-### Baseline (MLP WM + MLP Policy) - Dec 27
-| Job ID | Seed | Runtime |
-|--------|------|---------|
-| 3080227 | 42 | ~2h |
-| 3080228 | 123 | ~2h |
-| 3080229 | 456 | ~2h |
+### Flow WM Ablations
+| Variant | Config | LR | H | Reg | Status |
+|---------|--------|-----|---|-----|--------|
+| K=4 Heun (base) | pwm_5M_flow_v2_substeps4 | 5e-4 | 16 | base | ✅ |
+| K=2 Heun | pwm_5M_flow_v1_substeps2 | 5e-4 | 16 | base | ✅ |
+| K=8 Euler | pwm_5M_flow_v3_substeps8_euler | 5e-4 | 16 | base | ✅ |
+| H=8 | pwm_5M_flow_H8 | 5e-4 | 8 | base | ✅ |
+| LowLR | pwm_5M_flow_lowLR | 3e-4 | 16 | base | 🔄 |
+| StrongReg | pwm_5M_flow_strongReg | 5e-4 | 16 | 3e-4 | 🔄 |
+| HighLR | (CLI override) | 7e-4 | 16 | base | 🔄 |
 
-### Flow WM K=4 Heun - Dec 28
-| Job ID | Seed | Runtime |
-|--------|------|---------|
-| 3082681 | 42 | 4:55:05 |
-| 3082682 | 123 | 4:54:37 |
-| 3082683 | 456 | 4:53:58 |
-
-### Flow WM K=2 Heun - Dec 28
-| Job ID | Seed | Runtime |
-|--------|------|---------|
-| 3082684 | 42 | 3:36:07 |
-| 3082685 | 123 | 3:38:12 |
-| 3082686 | 456 | 4:27:55 |
-
-### MLP WM + Flow Policy - Dec 28
-| Job ID | Seed | Runtime |
-|--------|------|---------|
-| 3084840 | 42 | 2:22:20 |
-| 3084841 | 123 | 2:22:48 |
-| 3084842 | 456 | 2:22:34 |
-
----
-
-## Currently Running 🔄
-
-### Flow WM K=8 Euler (~4h elapsed)
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3084837 | 42 | Anymal_FlowWM_K8Euler_s42 |
-| 3084838 | 123 | Anymal_FlowWM_K8Euler_s123 |
-| 3084839 | 456 | Anymal_FlowWM_K8Euler_s456 |
-
-### Full Flow (Flow WM + Flow Policy)
-| Job ID | Seed | Status |
-|--------|------|--------|
-| 3084843 | 42 | RUNNING (~4h) |
-| 3087706 | 123 | PENDING |
-| 3087707 | 456 | PENDING |
-
-### Ablation: Flow WM H=8 (just started)
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3087697 | 42 | Anymal_FlowWM_K4_H8_s42 |
-| 3087698 | 123 | Anymal_FlowWM_K4_H8_s123 |
-| 3087699 | 456 | Anymal_FlowWM_K4_H8_s456 |
-
----
-
-## Pending ⏳
-
-### Ablation: Flow WM LowLR (actor_lr=3e-4)
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3087700 | 42 | Anymal_FlowWM_K4_LR3e4_s42 |
-| 3087701 | 123 | Anymal_FlowWM_K4_LR3e4_s123 |
-| 3087702 | 456 | Anymal_FlowWM_K4_LR3e4_s456 |
-
-### Ablation: Flow Policy H=8
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3087703 | 42 | Anymal_FlowPolicy_H8_s42 |
-| 3087704 | 123 | Anymal_FlowPolicy_H8_s123 |
-| 3087705 | 456 | Anymal_FlowPolicy_H8_s456 |
+### Flow Policy Ablations
+| Variant | WM | Policy | H | Status |
+|---------|-----|--------|---|--------|
+| Flow Policy (base) | MLP | Flow ODE | 16 | ✅ |
+| Flow Policy H=8 | MLP | Flow ODE | 8 | ✅ |
+| Full Flow (base) | Flow | Flow ODE | 16 | 🔄 |
+| Full Flow H=8 | Flow | Flow ODE | 8 | 🔄 |
 
 ---
 
 ## Configuration Files
 | Config | Description |
 |--------|-------------|
-| pwm_5M_baseline_final | Baseline MLP WM + MLP Policy |
-| pwm_5M_flow_v1_substeps2 | Flow WM K=2 Heun |
-| pwm_5M_flow_v2_substeps4 | Flow WM K=4 Heun |
-| pwm_5M_flow_v3_substeps8_euler | Flow WM K=8 Euler |
-| pwm_5M_flowpolicy | MLP WM + Flow Policy |
-| pwm_5M_fullflow | Flow WM + Flow Policy |
-| **pwm_5M_flow_H8** | Flow WM K=4 with H=8 |
-| **pwm_5M_flow_lowLR** | Flow WM K=4 with LR=3e-4 |
-| **pwm_5M_flowpolicy_H8** | Flow Policy with H=8 |
+| pwm_5M_baseline_final | Baseline |
+| pwm_5M_flow_v1_substeps2 | K=2 Heun |
+| pwm_5M_flow_v2_substeps4 | K=4 Heun |
+| pwm_5M_flow_v3_substeps8_euler | K=8 Euler |
+| pwm_5M_flowpolicy | Flow Policy |
+| pwm_5M_fullflow | Full Flow |
+| pwm_5M_flow_H8 | H=8 |
+| pwm_5M_flow_lowLR | LR=3e-4 |
+| pwm_5M_flowpolicy_H8 | Flow Policy H=8 |
+| **pwm_5M_flow_strongReg** | Strong reg (wd=3e-4) |
+| **pwm_5M_fullflow_H8** | Full Flow H=8 |
 
 ---
 
@@ -121,4 +81,3 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 - **Memory**: 400GB per job
 - **Time**: 40 hours
 - **Partition**: gpu-l40s
-- **Account**: gts-agarg35-ideas_l40s
