@@ -4,92 +4,99 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 
 ---
 
-## Session: 2025-12-29 - Ant Experiments
+## Status Summary (Dec 29, 4:22 PM)
 
-### WandB Dashboards
-- **Anymal**: `flow-mbpo-single` - https://wandb.ai/danny010324/flow-mbpo-single
-- **Ant**: `flow-mbpo-single-task-ant` - https://wandb.ai/danny010324/flow-mbpo-single-task-ant
+### ANYMAL (25 COMPLETED, 1 RUNNING)
+All Anymal experiments nearly complete! Only 1 job still running.
+
+### ANT (13 COMPLETED, 8 RUNNING)
+Most Ant jobs completed or running. Resubmitted 2 failed Full Flow jobs.
 
 ---
 
-# ANT EXPERIMENTS (Dec 29)
+# ANT EXPERIMENTS
 
-## Smoke Tests
+## WandB: flow-mbpo-single-task-ant
+
+### Smoke Tests ✅
 | Job ID | Variant | Status |
 |--------|---------|--------|
-| 3093139 | Baseline | PENDING |
-| 3093140 | Flow WM | PENDING |
-| 3093141 | Flow Policy | PENDING |
-| 3093142 | Full Flow | PENDING |
+| 3093139 | Baseline | ✅ COMPLETED |
+| 3093140 | Flow WM | ✅ COMPLETED |
+| 3093141 | Flow Policy | ✅ COMPLETED |
+| 3093142 | Full Flow | ✅ COMPLETED |
 
-## Full Training (18 jobs)
+### Training Results
 
-### Baseline (MLP WM + MLP Policy)
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3093165 | 42 | Ant_Baseline_MLP_s42 |
-| 3093166 | 123 | Ant_Baseline_MLP_s123 |
-| 3093167 | 456 | Ant_Baseline_MLP_s456 |
+#### Baseline ✅ COMPLETED
+| Job ID | Seed | Runtime |
+|--------|------|---------|
+| 3093165 | 42 | 2:06:32 |
+| 3093166 | 123 | 1:58:33 |
+| 3093167 | 456 | 2:06:23 |
 
-### Flow WM K=4 Heun
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3093168 | 42 | Ant_FlowWM_K4Heun_s42 |
-| 3093169 | 123 | Ant_FlowWM_K4Heun_s123 |
-| 3093170 | 456 | Ant_FlowWM_K4Heun_s456 |
+#### Flow WM K=4 Heun ✅ COMPLETED
+| Job ID | Seed | Runtime |
+|--------|------|---------|
+| 3093168 | 42 | 4:37:40 |
+| 3093169 | 123 | 4:39:13 |
+| 3093170 | 456 | 4:40:16 |
 
-### Flow WM K=2 Heun
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3093171 | 42 | Ant_FlowWM_K2Heun_s42 |
-| 3093172 | 123 | Ant_FlowWM_K2Heun_s123 |
-| 3093173 | 456 | Ant_FlowWM_K2Heun_s456 |
+#### Flow WM K=2 Heun ✅ COMPLETED
+| Job ID | Seed | Runtime |
+|--------|------|---------|
+| 3093171 | 42 | 3:25:42 |
+| 3093172 | 123 | 3:20:58 |
+| 3093173 | 456 | 3:25:20 |
 
-### Flow WM K=8 Euler
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3093174 | 42 | Ant_FlowWM_K8Euler_s42 |
-| 3093175 | 123 | Ant_FlowWM_K8Euler_s123 |
-| 3093176 | 456 | Ant_FlowWM_K8Euler_s456 |
+#### Flow WM K=8 Euler 🔄 (1 COMPLETED, 2 RUNNING)
+| Job ID | Seed | Status |
+|--------|------|--------|
+| 3093174 | 42 | ✅ COMPLETED (4:40:09) |
+| 3093175 | 123 | 🔄 RUNNING |
+| 3093176 | 456 | 🔄 RUNNING |
 
-### MLP WM + Flow Policy
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3093177 | 42 | Ant_FlowPolicy_MLPWM_s42 |
-| 3093178 | 123 | Ant_FlowPolicy_MLPWM_s123 |
-| 3093179 | 456 | Ant_FlowPolicy_MLPWM_s456 |
+#### Flow Policy 🔄 (3 RUNNING)
+| Job ID | Seed | Status |
+|--------|------|--------|
+| 3093177 | 42 | 🔄 RUNNING |
+| 3093178 | 123 | 🔄 RUNNING |
+| 3093179 | 456 | 🔄 RUNNING |
 
-### Full Flow (Flow WM + Flow Policy)
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3093180 | 42 | Ant_FullFlow_FlowWM_FlowPol_s42 |
-| 3093181 | 123 | Ant_FullFlow_FlowWM_FlowPol_s123 |
-| 3093182 | 456 | Ant_FullFlow_FlowWM_FlowPol_s456 |
+#### Full Flow 🔄 (1 RUNNING, 2 RESUBMITTED)
+| Job ID | Seed | Status |
+|--------|------|--------|
+| 3093180 | 42 | 🔄 RUNNING |
+| 3099532 | 123 | 🔄 RESUBMITTED |
+| 3099534 | 456 | 🔄 RESUBMITTED |
 
 ---
 
-# ANYMAL EXPERIMENTS (Dec 28-29)
+# ANYMAL EXPERIMENTS
 
-## Completed ✅
-| Variant | Seeds | Job IDs |
-|---------|-------|---------|
-| Baseline | 3 | 3080227-3080229 |
-| Flow WM K=4 Heun | 3 | 3082681-3082683 |
-| Flow WM K=2 Heun | 3 | 3082684-3082686 |
-| Flow WM K=8 Euler | 3 | 3084837-3084839 |
-| MLP WM + Flow Policy | 3 | 3084840-3084842 |
-| Full Flow s42 | 1 | 3084843 |
-| Flow WM H=8 | 3 | 3087697-3087699 |
-| Flow Policy H=8 | 3 | 3087703-3087705 |
-| Flow WM LowLR | 3 | 3087700-3087702 |
-| Full Flow s123, s456 | 2 | 3087706-3087707 |
+## WandB: flow-mbpo-single
 
-## Running/Pending
+### All Completed ✅ (25 jobs)
+
 | Variant | Job IDs | Status |
 |---------|---------|--------|
-| Flow WM StrongReg | 3093114-3093116 | Running |
-| Flow WM HighLR | 3091997-3091999 | Running |
-| Full Flow H=8 | 3091993-3091996 | Running |
+| Baseline | 3080227-3080229 | ✅ |
+| Flow WM K=4 | 3082681-3082683 | ✅ |
+| Flow WM K=2 | 3082684-3082686 | ✅ |
+| Flow WM K=8 | 3084837-3084839 | ✅ |
+| Flow Policy | 3084840-3084842 | ✅ |
+| Full Flow | 3084843, 3087706-3087707 | ✅ |
+| Flow WM H=8 | 3087697-3087699 | ✅ |
+| Flow Policy H=8 | 3087703-3087705 | ✅ |
+| Flow WM LowLR | 3087700-3087702 | ✅ |
+| Full Flow H=8 | 3091993, 3091995-3091996 | ✅ |
+| Flow WM HighLR | 3091997-3091998 | ✅ |
+| Flow WM StrongReg | 3093114-3093116 | ✅ |
+
+### Still Running (1 job)
+| Job ID | Variant | Status |
+|--------|---------|--------|
+| 3091999 | Flow WM HighLR s456 | 🔄 RUNNING (~11h) |
 
 ---
 
@@ -97,4 +104,3 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 - **Memory**: 400GB
 - **Time**: 40 hours
 - **Partition**: gpu-l40s
-- **Account**: gts-agarg35-ideas_l40s
