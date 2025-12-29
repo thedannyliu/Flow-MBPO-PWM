@@ -1,5 +1,5 @@
-# Flow WM K=4 with strong regularization (weight decay)
-# Testing stronger L2 regularization for world model
+# Flow WM K=4 with strong regularization (tighter gradient clipping)
+# Testing stronger regularization for world model via gradient clipping
 _target_: pwm.algorithms.pwm.PWM
 _recursive_: False
 actor_config:
@@ -55,13 +55,12 @@ lam: 0.95
 gamma: 0.99
 max_epochs: 15_000
 horizon: ${horizon}
-actor_grad_norm: 1.0
-critic_grad_norm: 100.0
+actor_grad_norm: 0.5               # ABLATION: Tighter gradient clip (vs 1.0 base)
+critic_grad_norm: 50.0             # ABLATION: Tighter gradient clip (vs 100.0 base)
 wm_batch_size: 256
 wm_iterations: 8
-wm_grad_norm: 20.0
+wm_grad_norm: 10.0                 # ABLATION: Tighter gradient clip (vs 20.0 base)
 wm_buffer_size: 1_000_000
-wm_weight_decay: 3e-4              # ABLATION: Strong regularization
 detach: True
 save_interval: 500
 device: ${general.device}
