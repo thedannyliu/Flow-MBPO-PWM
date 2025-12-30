@@ -11,8 +11,8 @@ sys.modules['torch.onnx._internal.exporter'] = mock_exporter
 import hydra, os, wandb, yaml
 from omegaconf import DictConfig, OmegaConf, open_dict
 from hydra.core.hydra_config import HydraConfig
-from pwm.utils import hydra_utils
-from pwm.utils.common import seeding
+from flow_mbpo_pwm.utils import hydra_utils
+from flow_mbpo_pwm.utils.common import seeding
 from hydra.utils import instantiate
 
 from IPython.core import ultratb

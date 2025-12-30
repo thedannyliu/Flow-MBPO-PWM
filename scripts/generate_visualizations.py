@@ -11,7 +11,7 @@ import pickle
 # Add PWM to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pwm.utils.visualization import TrainingVisualizer
+from flow_mbpo_pwm.utils.visualization import TrainingVisualizer
 
 
 def main():
