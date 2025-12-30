@@ -21,7 +21,7 @@ SEED=${SEEDS[$SLURM_ARRAY_TASK_ID]}
 
 # Data paths - UPDATE THESE
 DATA_DIR="${DATA_DIR:-/home/hice1/eliu354/scratch/Data/tdmpc2/mt30}"
-CHECKPOINT="${CHECKPOINT:-/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/checkpoints/mt30_48M_4900000.pt}"
+CHECKPOINT="${CHECKPOINT:-/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/checkpoints/multitask/mt30_48M_4900000.pt}"
 
 # === ENVIRONMENT ===
 source ~/.bashrc

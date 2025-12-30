@@ -23,7 +23,7 @@ SEED=${SEEDS[$SLURM_ARRAY_TASK_ID]}
 DATA_DIR="${DATA_DIR:-/home/hice1/eliu354/scratch/Data/tdmpc2/mt30}"
 # NOTE: For Full Flow, you need a FLOW WM checkpoint, not the baseline MLP WM
 # This requires pretraining a Flow WM first OR testing with finetune_wm=True
-CHECKPOINT="${CHECKPOINT:-/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/checkpoints/mt30_48M_4900000.pt}"
+CHECKPOINT="${CHECKPOINT:-/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/checkpoints/multitask/mt30_48M_4900000.pt}"
 
 # === ENVIRONMENT ===
 source ~/.bashrc
