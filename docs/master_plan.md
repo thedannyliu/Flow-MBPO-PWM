@@ -397,7 +397,41 @@ In Phase 3 we move from single-task dflex to PWM’s multi-task Meta-World setti
   - ESNR and training stability under comparable compute.
 - The multi-task training pipeline is stable (no structural NaN issues) for all four WM/policy combinations.
 
----
+**6.5 Implementation Details (December 2025)**
+
+Configuration files (all aligned with original PWM baseline hyperparameters):
+
+| Config | World Model | Policy | File |
+|--------|-------------|--------|------|
+| Baseline | MLP | MLP | `scripts/cfg/alg/pwm_48M_mt_baseline.yaml` |
+| Flow Policy | MLP | Flow ODE | `scripts/cfg/alg/pwm_48M_mt_flowpolicy.yaml` |
+| Full Flow | Flow | Flow ODE | `scripts/cfg/alg/pwm_48M_mt_fullflow.yaml` |
+
+Baseline alignment (all configs use these values for fair comparison):
+- `wm_batch_size: 256`
+- `wm_buffer_size: 1_000_000`
+- `wm_iterations: 8`
+- `horizon: 16` (via config_mt30.yaml)
+- `max_epochs: 15_000`
+
+Data and checkpoints:
+- MT30 data: Download from https://www.tdmpc2.com/dataset
+- MT30 checkpoint: `checkpoints/mt30_48M_4900000.pt` (from HuggingFace imgeorgiev/pwm)
+- MT80 data: Download from https://www.tdmpc2.com/dataset
+- MT80 checkpoint: `checkpoints/mt80_48M_2700000.pt` (from HuggingFace imgeorgiev/pwm)
+
+Slurm submission scripts:
+- `scripts/mt30/submit_baseline.sh` - Run MT30 baseline experiments
+- `scripts/mt30/submit_flowpolicy.sh` - Run MT30 Flow Policy experiments
+- `scripts/mt30/submit_fullflow.sh` - Run MT30 Full Flow experiments
+- `scripts/mt30/download_data.sh` - Download checkpoints and data instructions
+
+Experiment priority order:
+1. **Policy-only comparison** (most fair): baseline vs flowpolicy with same WM checkpoint
+2. **Full Flow comparison**: After Policy-only is stable, run fullflow experiments
+3. Flow WM pretraining (if needed): Would require training Flow WM on MT30 data
+
+
 
 **7) Phase 4 – A/B/C Pipeline in PWM (Offline and Online, Multi-Task and Single-Task)**
 

@@ -20,17 +20,27 @@ Template for each entry:
 
 ## 2025-12-29 – Copilot (Multitask Branch Setup)
 - **NEW BRANCH CREATED:** `dev/multitask` pushed to origin
-- **NEW CONFIGS ADDED:**
-  - `pwm_48M_flowpolicy.yaml`: 48M MLP WM + Flow ODE Policy (for Policy-only comparison)
-  - `pwm_48M_fullflow.yaml`: 48M Flow WM + Flow ODE Policy (for Full Flow comparison)
+- **NEW CONFIGS ADDED (baseline-aligned):**
+  - `pwm_48M_mt_baseline.yaml`: 48M MLP WM + MLP Policy (baseline reference)
+  - `pwm_48M_mt_flowpolicy.yaml`: 48M MLP WM + Flow ODE Policy
+  - `pwm_48M_mt_fullflow.yaml`: 48M Flow WM + Flow ODE Policy
+  - All configs use `wm_batch_size=256`, `wm_buffer_size=1_000_000` to match original PWM
 - **NEW SLURM SCRIPTS:**
-  - `scripts/mt30/submit_baseline.sh`: MT30 baseline submission
+  - `scripts/mt30/submit_baseline.sh`: MT30 baseline submission (array jobs)
   - `scripts/mt30/submit_flowpolicy.sh`: MT30 Flow Policy submission
-- **GIT COMMIT:** `a4b99b4` - Add multitask Flow-MBPO configs and Slurm scripts
+  - `scripts/mt30/submit_fullflow.sh`: MT30 Full Flow submission
+  - `scripts/mt30/download_data.sh`: Download checkpoints and data instructions
+- **TRAINING CODE VERIFICATION:**
+  - `train_multitask.py` is identical to original PWM (only import path changed)
+  - Conda env `flow-mbpo` verified at `/storage/ice1/2/9/eliu354/conda_envs/flow-mbpo`
+- **DATA/CHECKPOINT PATHS:**
+  - MT30 checkpoint: `checkpoints/mt30_48M_4900000.pt` (download from HuggingFace)
+  - MT30 data: `/home/hice1/eliu354/scratch/Data/tdmpc2/mt30` (download from tdmpc2.com)
+- **GIT COMMITS:** `a4b99b4`, `132b319`
 - **NEXT STEPS:**
-  - User to provide: TD-MPC2 MT30 data_dir and pretrained WM checkpoint path
-  - Run smoke tests on MT30 config before full experiments
-  - Submit baseline vs flowpolicy comparison jobs
+  1. Run `scripts/mt30/download_data.sh` to download checkpoints
+  2. Download TD-MPC2 MT30 data manually from https://www.tdmpc2.com/dataset
+  3. Submit baseline experiments first, then flowpolicy for comparison
 
 ---
 

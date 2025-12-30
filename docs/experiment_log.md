@@ -4,13 +4,56 @@ Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb li
 
 ---
 
-## Status Summary (Dec 29, 4:22 PM)
+## Status Summary (Dec 29, 8:09 PM)
 
 ### ANYMAL (25 COMPLETED, 1 RUNNING)
 All Anymal experiments nearly complete! Only 1 job still running.
 
 ### ANT (13 COMPLETED, 8 RUNNING)
 Most Ant jobs completed or running. Resubmitted 2 failed Full Flow jobs.
+
+### MULTITASK MT30 (NOT STARTED)
+New Phase 3 experiments for multitask comparison. Waiting for data download.
+
+---
+
+# MULTITASK EXPERIMENTS (Phase 3)
+
+## WandB Project: flow-mbpo-multitask
+
+### Prerequisites
+- [ ] Download checkpoints: `scripts/mt30/download_data.sh`
+- [ ] Download TD-MPC2 MT30 data from https://www.tdmpc2.com/dataset
+
+### Configuration Files (Baseline-Aligned)
+| Config | World Model | Policy | Aligned with Original |
+|--------|-------------|--------|----------------------|
+| `pwm_48M_mt_baseline.yaml` | MLP | MLP | ✅ Yes |
+| `pwm_48M_mt_flowpolicy.yaml` | MLP | Flow ODE | ✅ Yes |
+| `pwm_48M_mt_fullflow.yaml` | Flow | Flow ODE | ✅ Yes |
+
+### Experiment Matrix (MT30)
+
+#### Baseline (MLP WM + MLP Policy) - Priority 1
+| Task | Seed 42 | Seed 123 | Seed 456 |
+|------|---------|----------|----------|
+| reach-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+| push-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+| pick-place-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+
+#### Flow Policy (MLP WM + Flow Policy) - Priority 2
+| Task | Seed 42 | Seed 123 | Seed 456 |
+|------|---------|----------|----------|
+| reach-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+| push-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+| pick-place-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+
+#### Full Flow (Flow WM + Flow Policy) - Priority 3
+| Task | Seed 42 | Seed 123 | Seed 456 |
+|------|---------|----------|----------|
+| reach-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+| push-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
+| pick-place-v2 | ⏳ Pending | ⏳ Pending | ⏳ Pending |
 
 ---
 
@@ -101,6 +144,6 @@ Most Ant jobs completed or running. Resubmitted 2 failed Full Flow jobs.
 ---
 
 ## Resource Allocation
-- **Memory**: 400GB
+- **Memory**: 400GB (450GB for Flow WM)
 - **Time**: 40 hours
 - **Partition**: gpu-l40s
