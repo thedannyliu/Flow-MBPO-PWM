@@ -57,6 +57,7 @@ eval_results*/
 *.safetensors
 data/
 datasets/
+checkpoints/
 
 # OS
 .DS_Store
