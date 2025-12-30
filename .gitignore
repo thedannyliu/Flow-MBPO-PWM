@@ -68,4 +68,6 @@ temp/
 *.tmp
 
 # Local reference only (do not track)
-# docs/
+docs/
+baselines/
+hf_pwm_repo/
