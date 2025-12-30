@@ -64,7 +64,6 @@ wm_buffer_size: 1_000_000       # ALIGNED: Same as baseline
 detach: True
 save_interval: 500
 device: ${general.device}
-planning: False                 # ALIGNED: Same as baseline
 
 # Flow-matching specific parameters (THE ONLY DIFFERENCES)
 use_flow_dynamics: true
