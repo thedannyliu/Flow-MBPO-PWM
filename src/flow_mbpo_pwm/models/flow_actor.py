@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from torch.distributions.normal import Normal
 
-from pwm.models import model_utils
+from flow_mbpo_pwm.models import model_utils
 
 
 class ActorFlowODE(nn.Module):

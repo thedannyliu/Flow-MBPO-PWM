@@ -1,20 +1,20 @@
 # Flow WM K=4 with H=8 horizon (ablation)
 # Testing shorter horizon vs default H=16
-_target_: pwm.algorithms.pwm.PWM
+_target_: flow_mbpo_pwm.algorithms.pwm.PWM
 _recursive_: False
 actor_config:
-  _target_: pwm.models.actor.ActorStochasticMLP
+  _target_: flow_mbpo_pwm.models.actor.ActorStochasticMLP
   units: [400, 200, 100]
   activation_class: nn.Mish
   init_gain: 1.0
   init_logstd: -1.0
   min_logstd: -1.427
 critic_config:
-  _target_: pwm.models.critic.CriticMLP
+  _target_: flow_mbpo_pwm.models.critic.CriticMLP
   units: [400, 200]
   activation_class: nn.Mish
 world_model_config:
-  _target_: pwm.models.flow_world_model.FlowWorldModel
+  _target_: flow_mbpo_pwm.models.flow_world_model.FlowWorldModel
   units: [512, 512]
   encoder_units: [256]
   num_bins: 101
@@ -28,13 +28,13 @@ world_model_config:
     last_layer: normedlinear
     last_layer_kwargs:
       act:
-        _target_: pwm.models.mlp.SimNorm
+        _target_: flow_mbpo_pwm.models.mlp.SimNorm
         simnorm_dim: 8
   dynamics:
     last_layer: normedlinear
     last_layer_kwargs:
       act:
-        _target_: pwm.models.mlp.SimNorm
+        _target_: flow_mbpo_pwm.models.mlp.SimNorm
         simnorm_dim: 8
   reward:
     last_layer: linear

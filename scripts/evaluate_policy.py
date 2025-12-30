@@ -34,7 +34,7 @@ import seaborn as sns
 PWM_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(PWM_DIR / "src"))
 
-from pwm.algorithms.pwm import PWM
+from flow_mbpo_pwm.algorithms.pwm import PWM
 
 
 def load_checkpoint(checkpoint_path, env_name, device='cuda:0'):
@@ -85,7 +85,7 @@ def load_checkpoint(checkpoint_path, env_name, device='cuda:0'):
     print(f"Loading models...")
     
     # Create actor network
-    from pwm.models.actor import ActorStochasticMLP
+    from flow_mbpo_pwm.models.actor import ActorStochasticMLP
     
     # Determine latent_dim from actor input
     first_weight = actor_state['mu_net.0.weight']

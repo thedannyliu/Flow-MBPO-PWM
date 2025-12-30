@@ -168,7 +168,7 @@ class FlowWorldModel(nn.Module):
             Next latent state
         """
         # Import here to avoid circular dependency
-        from pwm.utils.integrators import euler_step, heun_step
+        from flow_mbpo_pwm.utils.integrators import euler_step, heun_step
         
         if integrator is None or integrator == 'heun':
             return heun_step(self.velocity, z, a, task, substeps)

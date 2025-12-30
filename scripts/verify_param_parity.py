@@ -13,8 +13,8 @@ from pathlib import Path
 # Add PWM to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pwm.models.world_model import WorldModel
-from pwm.models.flow_world_model import FlowWorldModel
+from flow_mbpo_pwm.models.world_model import WorldModel
+from flow_mbpo_pwm.models.flow_world_model import FlowWorldModel
 
 
 def count_parameters(model):
@@ -24,7 +24,7 @@ def count_parameters(model):
 
 def create_baseline_model(obs_dim=100, act_dim=20, latent_dim=768):
     """Create baseline world model (48M config)."""
-    from pwm.models.mlp import SimNorm
+    from flow_mbpo_pwm.models.mlp import SimNorm
     
     model = WorldModel(
         observation_dim=obs_dim,
@@ -57,7 +57,7 @@ def create_baseline_model(obs_dim=100, act_dim=20, latent_dim=768):
 
 def create_flow_model(obs_dim=100, act_dim=20, latent_dim=768, units=None):
     """Create flow world model (48M config)."""
-    from pwm.models.mlp import SimNorm
+    from flow_mbpo_pwm.models.mlp import SimNorm
     
     if units is None:
         units = [1788, 1788]  # Adjusted for +1 time dimension
