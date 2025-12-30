@@ -18,6 +18,22 @@ Template for each entry:
 
 ---
 
+## 2025-12-29 – Copilot (Multitask Branch Setup)
+- **NEW BRANCH CREATED:** `dev/multitask` pushed to origin
+- **NEW CONFIGS ADDED:**
+  - `pwm_48M_flowpolicy.yaml`: 48M MLP WM + Flow ODE Policy (for Policy-only comparison)
+  - `pwm_48M_fullflow.yaml`: 48M Flow WM + Flow ODE Policy (for Full Flow comparison)
+- **NEW SLURM SCRIPTS:**
+  - `scripts/mt30/submit_baseline.sh`: MT30 baseline submission
+  - `scripts/mt30/submit_flowpolicy.sh`: MT30 Flow Policy submission
+- **GIT COMMIT:** `a4b99b4` - Add multitask Flow-MBPO configs and Slurm scripts
+- **NEXT STEPS:**
+  - User to provide: TD-MPC2 MT30 data_dir and pretrained WM checkpoint path
+  - Run smoke tests on MT30 config before full experiments
+  - Submit baseline vs flowpolicy comparison jobs
+
+---
+
 ## 2025-12-29 – Copilot (Ant Experiments Setup)
 - **ANT EXPERIMENTS LAUNCHED:**
   - Created `scripts/ant/` directory with smoke tests and full training scripts
