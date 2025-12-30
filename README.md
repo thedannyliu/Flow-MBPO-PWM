@@ -59,7 +59,7 @@ Configs are in `scripts/cfg/`:
 | `alg/pwm_5M_flow_v3_substeps8_euler.yaml` | Flow WM, Euler, K=8 |
 | `env/dflex_ant.yaml` | Ant locomotion environment |
 
-### Key Hyperparameters (Aligned for Fair Comparison)
+### Key Hyperparameters
 
 Both baseline and flow configs use:
 - `wm_batch_size: 256`

@@ -44,7 +44,7 @@ critic_lr: 5e-4
 model_lr: 3e-4
 lr_schedule: linear
 obs_rms: False
-rew_rms: False
+rew_rms: True
 ret_rms: True
 critic_iterations: 8
 critic_batches: 4
