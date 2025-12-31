@@ -75,7 +75,7 @@ echo "============================================"
 cd "${TDMPC2_DIR}"
 echo "Working directory: $(pwd)"
 
-export WANDB_API_KEY="649ebee0bba0d06876e022242e4f9924fdefaf3e"
+export WANDB_API_KEY="<YOUR_WANDB_API_KEY>"
 WANDB_PROJECT="flowmbpo" 
 
 echo "Starting training..."
