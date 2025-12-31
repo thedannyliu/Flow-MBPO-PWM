@@ -11,8 +11,8 @@ sys.modules['torch.onnx._internal.exporter'] = mock_exporter
 import hydra, os, wandb, yaml
 from omegaconf import DictConfig, OmegaConf, open_dict
 from hydra.core.hydra_config import HydraConfig
-from pwm.utils import hydra_utils
-from pwm.utils.common import seeding
+from flow_mbpo_pwm.utils import hydra_utils
+from flow_mbpo_pwm.utils.common import seeding
 from hydra.utils import instantiate
 
 from IPython.core import ultratb
@@ -23,20 +23,36 @@ sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_
 
 
 def create_wandb_run(wandb_cfg, job_config, run_id=None):
+    """Create a WandB run with proper naming.
+    
+    Supports name and notes from config override (e.g., ++wandb.name=XXX).
+    """
     env_name = job_config["env"]["config"]["_target_"].split(".")[-1]
     try:
         alg_name = job_config["alg"]["_target_"].split(".")[-1]
     except:
         alg_name = job_config["alg"]["name"].upper()
-    try:
-        # Multirun config
-        job_id = HydraConfig().get().job.num
-        name = f"{alg_name}_{env_name}_sweep_{job_config['general']['seed']}"
-        notes = wandb_cfg.get("notes", None)
-    except:
-        # Normal (singular) run config
-        name = f"{alg_name}_{env_name}"
-        notes = wandb_cfg.get("notes", "")  # Default to empty string instead of requiring notes
+    
+    # Get seed for naming
+    seed = job_config.get('general', {}).get('seed', 42)
+    
+    # Use wandb.name from config if provided, otherwise generate default
+    if hasattr(wandb_cfg, 'name') and wandb_cfg.name:
+        name = wandb_cfg.name
+    else:
+        try:
+            # Multirun config
+            job_id = HydraConfig().get().job.num
+            name = f"{alg_name}_{env_name}_sweep_{seed}"
+        except:
+            # Normal (singular) run config - include seed for uniqueness
+            name = f"{alg_name}_{env_name}_s{seed}"
+    
+    # Get notes from config
+    notes = getattr(wandb_cfg, 'notes', '') if hasattr(wandb_cfg, 'notes') else ''
+    
+    print(f"Initializing WandB run: name='{name}', project='{wandb_cfg.project}'")
+    
     return wandb.init(
         project=wandb_cfg.project,
         config=job_config,

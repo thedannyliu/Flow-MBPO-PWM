@@ -1,6 +1,7 @@
+# Flow WM K=4 with lower actor LR (ablation)
+# Testing actor_lr=3e-4 vs default 5e-4
 _target_: flow_mbpo_pwm.algorithms.pwm.PWM
 _recursive_: False
-
 actor_config:
   _target_: flow_mbpo_pwm.models.actor.ActorStochasticMLP
   units: [400, 200, 100]
@@ -8,23 +9,18 @@ actor_config:
   init_gain: 1.0
   init_logstd: -1.0
   min_logstd: -1.427
-
 critic_config:
   _target_: flow_mbpo_pwm.models.critic.CriticMLP
   units: [400, 200]
   activation_class: nn.Mish
-
 world_model_config:
   _target_: flow_mbpo_pwm.models.flow_world_model.FlowWorldModel
-  # Match baseline architecture as closely as possible for parameter parity
-  # Baseline uses [1792, 1792] for dynamics and [1792, 1792, 1792] for encoder
-  # Flow adds +1 input dimension (time) to dynamics, so we slightly adjust width
-  units: [1788, 1788]  # Slightly reduced to compensate for +1 time dimension
-  encoder_units: [1792, 1792, 1792]  # Keep encoder identical
+  units: [512, 512]
+  encoder_units: [256]
   num_bins: 101
   vmin: -10.0
   vmax: 10.0
-  task_dim: 0  # Set to 0 for single-task environments (obs_dim=37, not 37+96=133)
+  task_dim: 0
   multitask: False
   action_dims: null
   tasks: null
@@ -43,42 +39,33 @@ world_model_config:
   reward:
     last_layer: linear
     last_layer_kwargs: {}
-
 num_critics: 3
-latent_dim: 768
-
-actor_lr: 5e-4
-critic_lr: 5e-4
-model_lr: 3e-4
+latent_dim: 512
+actor_lr: 3e-4                      # ABLATION: LR=3e-4 vs default 5e-4
+critic_lr: 3e-4
+model_lr: 2e-4
 lr_schedule: linear
-
 obs_rms: False
 rew_rms: False
 ret_rms: True
-
 critic_iterations: 8
 critic_batches: 4
-critic_method: td-lambda  # ('td-lambda', 'one-step')
+critic_method: td-lambda
 lam: 0.95
 gamma: 0.99
-
-max_epochs: 15_000  # assuming 64 actor batch size / num envs
+max_epochs: 15_000
 horizon: ${horizon}
-
 actor_grad_norm: 1.0
 critic_grad_norm: 100.0
-
-wm_batch_size: 768  # Optimized for 48M flow model
+wm_batch_size: 256
 wm_iterations: 8
 wm_grad_norm: 20.0
-wm_buffer_size: 2_000_000  # Increased to 2M with 256GB RAM allocation
-
+wm_buffer_size: 1_000_000
 detach: True
-save_interval: 2500
+save_interval: 500
 device: ${general.device}
 
-# Flow-matching specific configuration
-use_flow_dynamics: True
-flow_integrator: heun  # 'heun' or 'euler'
-flow_substeps: 2  # K substeps for integration (can try 2 or 4)
-flow_tau_sampling: uniform  # 'uniform' or 'midpoint'
+use_flow_dynamics: true
+flow_integrator: heun
+flow_substeps: 4
+flow_tau_sampling: uniform

@@ -17,16 +17,16 @@ import torch.nn.functional as F
 from collections import OrderedDict
 
 
-from pwm.utils.common import *
-import pwm.utils.torch_utils as tu
-from pwm.utils.running_mean_std import RunningMeanStd
-from pwm.utils.dataset import CriticDataset
-from pwm.utils.time_report import TimeReport
-from pwm.utils.average_meter import AverageMeter
-from pwm.models.model_utils import Ensemble
-from pwm.utils.buffer import Buffer
-from pwm.utils.monitoring import TrainingMonitor, WandBLogger, compute_gradient_stats
-from pwm.utils.reproducibility import set_seed, ExperimentConfig, DatasetVerifier
+from flow_mbpo_pwm.utils.common import *
+import flow_mbpo_pwm.utils.torch_utils as tu
+from flow_mbpo_pwm.utils.running_mean_std import RunningMeanStd
+from flow_mbpo_pwm.utils.dataset import CriticDataset
+from flow_mbpo_pwm.utils.time_report import TimeReport
+from flow_mbpo_pwm.utils.average_meter import AverageMeter
+from flow_mbpo_pwm.models.model_utils import Ensemble
+from flow_mbpo_pwm.utils.buffer import Buffer
+from flow_mbpo_pwm.utils.monitoring import TrainingMonitor, WandBLogger, compute_gradient_stats
+from flow_mbpo_pwm.utils.reproducibility import set_seed, ExperimentConfig, DatasetVerifier
 import pickle
 
 tensordict.set_lazy_legacy(False).set()
@@ -168,7 +168,7 @@ class PWM:
         
         # Lazy import to avoid ONNX issues
         try:
-            from pwm.utils.visualization import TrainingVisualizer
+            from flow_mbpo_pwm.utils.visualization import TrainingVisualizer
             self.visualizer = TrainingVisualizer(log_dir=self.log_dir)
         except ImportError as e:
             print(f"Warning: Could not import TrainingVisualizer: {e}")
@@ -727,30 +727,9 @@ class PWM:
         self.time_report.add_timer("world model training")
         self.time_report.start_timer("algorithm")
 
-        # Initialize WandB logger if enabled
-        if self.log:
-            wandb_config = {
-                'num_envs': self.num_envs,
-                'horizon': self.horizon,
-                'max_epochs': self.max_epochs,
-                'actor_lr': self.actor_lr,
-                'critic_lr': self.critic_lr,
-                'model_lr': self.model_lr,
-                'use_flow_dynamics': getattr(self, 'use_flow_dynamics', False),
-                'flow_integrator': getattr(self, 'flow_integrator', 'N/A'),
-                'flow_substeps': getattr(self, 'flow_substeps', 'N/A'),
-            }
-            # Get task name safely
-            task_name = getattr(self.env, 'task', None)
-            task_name = task_name.name if task_name and hasattr(task_name, 'name') else 'env'
-            
-            self.wandb_logger = WandBLogger(
-                project='pwm-flow-matching',
-                entity=None,  # TODO: set your wandb entity
-                name=f"{task_name}_{'flow' if getattr(self, 'use_flow_dynamics', False) else 'baseline'}",
-                config=wandb_config,
-                enabled=True,
-            )
+        # Note: WandB logger is initialized externally by train_dflex.py
+        # Do NOT create a new WandBLogger here to avoid overriding run names
+        self.wandb_logger = None  # Use wandb directly for logging
         
         # Start training monitor
         self.training_monitor.start()
@@ -1413,7 +1392,7 @@ class PWM:
         # TODO: If more loss types are added in the future, refactor to strategy/ABC pattern
         if self.use_flow_dynamics:
             # Flow-matching dynamics loss
-            from pwm.utils.integrators import compute_flow_matching_loss
+            from flow_mbpo_pwm.utils.integrators import compute_flow_matching_loss
             
             dynamics_loss = 0.0
             for t in range(self.horizon):

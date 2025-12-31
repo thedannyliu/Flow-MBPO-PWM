@@ -364,13 +364,15 @@ class TrainingVisualizer:
             window: Window size
         
         Returns:
-            Smoothed data
+            Smoothed data (same length as input)
         """
         if len(data) < window:
             return data
         
-        cumsum = np.cumsum(np.insert(data, 0, 0))
-        return (cumsum[window:] - cumsum[:-window]) / window
+        # Use convolution with 'same' mode to return same-length array
+        kernel = np.ones(window) / window
+        smoothed = np.convolve(data, kernel, mode='same')
+        return smoothed
 
 
 def compare_runs(

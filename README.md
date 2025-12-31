@@ -59,7 +59,7 @@ Configs are in `scripts/cfg/`:
 | `alg/pwm_5M_flow_v3_substeps8_euler.yaml` | Flow WM, Euler, K=8 |
 | `env/dflex_ant.yaml` | Ant locomotion environment |
 
-### Key Hyperparameters (Aligned for Fair Comparison)
+### Key Hyperparameters
 
 Both baseline and flow configs use:
 - `wm_batch_size: 256`
@@ -77,23 +77,13 @@ Flow-specific parameters:
 
 ```
 Flow-MBPO-PWM/
-├── src/pwm/                 # Source code
+├── src/                 # Source code
 │   ├── algorithms/          # PWM training algorithm
 │   ├── models/              # WorldModel, FlowWorldModel, Actor
 │   └── utils/               # Helpers, integrators, monitoring
 ├── scripts/                 # Training scripts and configs
-├── docs/                    # Documentation
-│   ├── master_plan.md       # Research plan and phases
-│   ├── progress_log.md      # Development log
-│   └── experiment_log.md    # Experiment registry
 └── environment.yaml         # Conda environment
 ```
-
-## Documentation
-
-- [Master Plan](docs/master_plan.md) - Research questions, phases, and methodology
-- [Progress Log](docs/progress_log.md) - Development timeline
-- [Experiment Log](docs/experiment_log.md) - Experiment results
 
 ## Citation
 
