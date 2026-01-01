@@ -429,7 +429,25 @@ Slurm submission scripts:
 Experiment priority order:
 1. **Policy-only comparison** (most fair): baseline vs flowpolicy with same WM checkpoint
 2. **Full Flow comparison**: After Policy-only is stable, run fullflow experiments
-3. Flow WM pretraining (if needed): Would require training Flow WM on MT30 data
+3. Flow WM pretraining: Would require training Flow WM on MT30 data
+
+**6.6 Checkpoint Resume Support**
+
+For long-running jobs (>16 hours), training can be resumed from checkpoints:
+
+```bash
+# Resume training from a saved checkpoint
+python scripts/train_multitask.py -cn config_mt30 \
+  alg=pwm_48M_mt_baseline \
+  task=reach-v2 \
+  general.resume_from=/path/to/model_2000.pt \
+  general.data_dir=/path/to/mt30 \
+  general.epochs=10000
+```
+
+- Checkpoints saved every `eval_freq=200` epochs as `model_{epoch}.pt`
+- Resume loads full state: actor, critic, WM, optimizers, training progress
+- Training continues from the saved epoch
 
 
 

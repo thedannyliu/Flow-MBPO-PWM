@@ -18,6 +18,22 @@ Template for each entry:
 
 ---
 
+## 2026-01-01 – Copilot (Resume Support + MT30 Prep)
+- **RESUME SUPPORT ADDED:**
+  - Added `resume_from` parameter to `config_mt30.yaml` for checkpoint resume
+  - Modified `train_multitask.py` to support full checkpoint loading with training state
+  - Training loop now starts from `start_epoch` when resuming
+  - Checkpoints saved every `eval_freq=200` epochs for recovery
+- **DATA CLEANUP:**
+  - Deleted MT80 data and checkpoint to save disk space
+  - Keeping only MT30 for initial experiments
+- **GIT COMMITS:** `46e2f56` (path fix), `2442639` (resume support)
+- **READY FOR TRAINING:**
+  - Checkpoints: `checkpoints/multitask/mt30_48M_4900000.pt` ✅
+  - Data: `/home/hice1/eliu354/scratch/Data/tdmpc2/mt30/` (4 chunks) ✅
+
+---
+
 ## 2025-12-29 – Copilot (Multitask Branch Setup)
 - **NEW BRANCH CREATED:** `dev/multitask` pushed to origin
 - **NEW CONFIGS ADDED (baseline-aligned):**
