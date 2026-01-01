@@ -237,7 +237,15 @@ def train(cfg: dict):
     )
 
     # load model
-    if cfg.general.checkpoint:
+    start_epoch = 0
+    if cfg.general.get("resume_from"):
+        # Resume from a full checkpoint (actor, critic, WM, optimizers, training state)
+        print(f"Resuming training from checkpoint: {cfg.general.resume_from}")
+        agent.load(cfg.general.resume_from, buffer=False, resume_training=True)
+        start_epoch = agent.iter_count
+        print(f"Resuming from epoch {start_epoch}")
+    elif cfg.general.checkpoint:
+        # Load only the world model (for fresh policy training with pretrained WM)
         agent.load_wm(cfg.general.checkpoint)
         agent.wm_bootstrapped = True
 
@@ -269,7 +277,7 @@ def train(cfg: dict):
     start_time = time()
     task_ids = torch.tensor([task_id] * cfg.buffer.batch_size, device=agent.device)
     metrics_log = []
-    for i in range(cfg.general.epochs):
+    for i in range(start_epoch, cfg.general.epochs):
         agent.update_lrs(i)
         obs, act, rew = buffer.sample()
         train_metrics = agent.update(obs, act, rew, task_ids, cfg.general.finetune_wm)
