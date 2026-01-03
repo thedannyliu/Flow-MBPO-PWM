@@ -69,4 +69,4 @@ temp/
 *.tmp
 
 # Local reference only (do not track)
-# docs/
+# docs/external/tdmpc2/

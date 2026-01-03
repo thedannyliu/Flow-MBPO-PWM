@@ -1,0 +1,41 @@
+# Flow-MBPO-PWM Environment Requirements
+# This file documents the key packages required for the flow-mbpo conda environment
+# Use with: pip install -r requirements-flowmbpo.txt
+
+# Core ML
+torch>=2.6.0
+torchvision
+torchaudio
+tensordict>=0.4.0
+torchrl>=0.4.0
+
+# Hydra configuration
+hydra-core>=1.2.0
+omegaconf>=2.3.0
+
+# DMControl environments
+dm_control>=1.0.0
+dm_env>=1.6
+mujoco>=3.0.0
+lxml>=4.9.0
+
+# Legacy gym (required by TD-MPC2)
+gym>=0.26.0
+gymnasium
+
+# Utilities
+numpy<2.0  # gym compatibility
+pandas>=2.0.0
+scipy>=1.10.0
+matplotlib>=3.7.0
+tqdm>=4.65.0
+termcolor>=2.3.0
+
+# Logging
+wandb>=0.15.0
+
+# Development
+ipython>=8.0.0
+
+# Note: The flow_mbpo_pwm package should be installed with:
+# pip install -e .

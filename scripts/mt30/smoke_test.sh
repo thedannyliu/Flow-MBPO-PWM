@@ -10,12 +10,9 @@
 #SBATCH --partition=ice-gpu
 
 # MT30 Smoke Test: Minimal test to verify training pipeline works
-# - Uses baseline config (MLP WM + MLP Policy)
-# - Runs only 100 epochs with 1 eval run
-# - Single task (reach-v2), single seed (42)
 
 # === CONFIGURATION ===
-TASK="${1:-reach-v2}"
+TASK="${1:-reacher-easy}"
 SEED="${2:-42}"
 EPOCHS="${3:-100}"
 
@@ -23,10 +20,19 @@ DATA_DIR="${DATA_DIR:-/home/hice1/eliu354/scratch/Data/tdmpc2/mt30}"
 CHECKPOINT="${CHECKPOINT:-/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/checkpoints/multitask/mt30_48M_4900000.pt}"
 
 # === ENVIRONMENT ===
+# Properly activate conda environment
 source ~/.bashrc
+eval "$(conda shell.bash hook)"
 conda activate flow-mbpo
+
+# Force correct Python from conda env
+export PATH=$CONDA_PREFIX/bin:$PATH
+
+# Set working directory
 cd /home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM
-export PYTHONPATH=src:$PYTHONPATH
+
+# Set PYTHONPATH to include src, scripts, and external/tdmpc2
+export PYTHONPATH=/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/src:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/scripts:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/external/tdmpc2:$PYTHONPATH
 export MUJOCO_GL=egl
 export LAZY_LEGACY_OP=0
 
@@ -43,6 +49,8 @@ echo "Checkpoint: ${CHECKPOINT}"
 echo "Job ID: ${SLURM_JOB_ID}"
 echo "Node: ${SLURM_NODELIST}"
 echo "GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || echo 'N/A')"
+echo "Python: $(which python)"
+echo "CONDA_PREFIX: ${CONDA_PREFIX}"
 echo "========================"
 
 # Verify paths exist
@@ -59,6 +67,18 @@ fi
 # List data files
 echo "Data files found:"
 ls -la ${DATA_DIR}/*.pt 2>/dev/null | head -5
+
+# Test DMControl environment creation first
+echo ""
+echo "=== Testing DMControl Environment ==="
+python -c "
+from dm_control import suite
+print('dm_control imported successfully')
+env = suite.load('walker', 'stand')
+print('walker-stand loaded successfully')
+obs = env.reset()
+print('Environment reset successful')
+" || { echo "ERROR: DMControl test failed"; exit 1; }
 
 # === RUN MINIMAL TRAINING ===
 echo ""

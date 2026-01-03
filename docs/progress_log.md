@@ -18,6 +18,40 @@ Template for each entry:
 
 ---
 
+## 2026-01-03 – Copilot (MT30 Smoke Test SUCCESS)
+
+### 🎉 Smoke Test Completed Successfully!
+- **Job ID:** 4010862
+- **Task:** reacher-easy
+- **Results:**
+  - Final Reward: **1000.00**
+  - Planning Reward: **993.00**
+  - Runtime: 2:16
+  - Data loaded: 24000 episodes from chunk_2.pt
+  - Buffer: 12,024,000 capacity (1.59 GB on CUDA)
+
+### Environment Fixes Applied
+- **Conda activation fix:** Added `conda shell.bash hook` + `export PATH=$CONDA_PREFIX/bin:$PATH`
+- **Missing packages installed:** dm_control, dm_env, lxml, pandas, hydra, omegaconf
+- **Config fix:** Changed `pwm.utils.buffer` → `flow_mbpo_pwm.utils.buffer`
+- **PWM.save() fix:** Added `getattr()` defaults for missing attributes
+
+### Code Changes
+- `train_multitask.py`: Added `weights_only=False` for PyTorch 2.6 TensorDict compatibility
+- `train_multitask.py`: Enhanced WandB logging with epoch, epoch_progress, learning_rate
+- `pwm.py`: Fixed save() method to use getattr() for missing attributes
+- `smoke_test.sh`: Fixed conda activation for proper environment detection
+
+### Ready for Full Experiments
+- ✅ Environment verified working on H100
+- ✅ Data loading works (MT30: 24000 episodes)
+- ✅ Training loop works
+- ✅ Evaluation works (include planning)
+- ✅ Model saving works
+- ✅ WandB logging enhanced
+
+---
+
 ## 2026-01-01 – Copilot (Resume Support + MT30 Prep)
 - **RESUME SUPPORT ADDED:**
   - Added `resume_from` parameter to `config_mt30.yaml` for checkpoint resume

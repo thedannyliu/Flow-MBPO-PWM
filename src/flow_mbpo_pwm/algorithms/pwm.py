@@ -1210,10 +1210,10 @@ class PWM:
                 "critic_opt": self.critic_optimizer.state_dict(),
                 "world_model_opt": self.wm_optimizer.state_dict(),
                 # Training progress
-                "iter_count": self.iter_count,
-                "step_count": self.step_count,
-                "best_policy_loss": self.best_policy_loss,
-                "mean_horizon": self.mean_horizon,
+                "iter_count": getattr(self, 'iter_count', 0),
+                "step_count": getattr(self, 'step_count', 0),
+                "best_policy_loss": getattr(self, 'best_policy_loss', float('inf')),
+                "mean_horizon": getattr(self, 'mean_horizon', 0.0),
             },
             str(log_dir / f"{filename}.pt"),
         )

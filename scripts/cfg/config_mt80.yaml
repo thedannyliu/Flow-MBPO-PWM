@@ -37,7 +37,7 @@ seed_steps: ???
 horizon: 16
 
 buffer:
-  _target_: pwm.utils.buffer.Buffer
+  _target_: flow_mbpo_pwm.utils.buffer.Buffer
   buffer_size: ???
   batch_size: 512
   horizon: ${horizon}

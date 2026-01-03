@@ -26,9 +26,9 @@ from pathlib import Path
 from glob import glob
 import pandas as pd
 
-from IPython.core import ultratb
-
-sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=1)
+# Removed: IPython ultratb debug hook not compatible with newer versions
+# from IPython.core import ultratb
+# sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=1)
 
 torch.backends.cudnn.benchmark = True
 
@@ -259,7 +259,7 @@ def train(cfg: dict):
     print(f"Found {len(fps)} files in {fp}")
     for fp in tqdm(fps, desc="Loading data"):
         print("Loading", fp)
-        td = torch.load(fp)
+        td = torch.load(fp, weights_only=False)  # TD-MPC2 data uses TensorDict
         assert td.shape[1] == cfg.episode_length, (
             f"Expected episode length {td.shape[1]} to match config episode length {cfg.episode_length}, "
             f"please double-check your config."
@@ -311,8 +311,16 @@ def train(cfg: dict):
 
             metrics_log.append(metrics)
 
+            # Log to WandB every 100 iterations (detailed metrics)
             if cfg.general.run_wandb:
-                wandb.log(metrics)
+                # Add additional training context
+                log_metrics = {
+                    **metrics,
+                    "epoch": i,
+                    "epoch_progress": i / cfg.general.epochs,
+                    "learning_rate": agent.actor_optimizer.param_groups[0]["lr"] if hasattr(agent, 'actor_optimizer') else 0,
+                }
+                wandb.log(log_metrics, step=i)
 
     agent.save(f"model_final", logdir)
     print("Final evaluation")
