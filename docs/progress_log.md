@@ -18,6 +18,31 @@ Template for each entry:
 
 ---
 
+## 2026-01-03 04:37 – Copilot (MT30 Full Training Submitted)
+
+### Training Jobs Submitted
+- **Baseline Array Job 4010895**: 9 jobs (3 tasks × 3 seeds)
+- **Flow Policy Array Job 4010896**: 9 jobs (3 tasks × 3 seeds)
+- **Total**: 18 training jobs
+
+### Configuration
+- **Tasks**: reacher-easy, walker-stand, cheetah-run (DMControl)
+- **Seeds**: 42, 123, 456
+- **GPU**: H100 (ice-gpu partition)
+- **Memory**: 450GB
+- **Time limit**: 16 hours
+- **Epochs**: 10000
+
+### Scripts Updated
+- `submit_baseline.sh`: Updated for H100/ice-gpu, fixed task names (DMControl, not MetaWorld)
+- `submit_flowpolicy.sh`: Same updates
+- `validate_config.sh`: Created for quick validation testing
+
+### Validation Test Passed
+- **Job 4010894**: walker-stand seed 42, R=356.81, 2:34 runtime
+
+---
+
 ## 2026-01-03 – Copilot (MT30 Smoke Test SUCCESS)
 
 ### 🎉 Smoke Test Completed Successfully!
