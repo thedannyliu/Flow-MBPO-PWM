@@ -47,7 +47,7 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
     except:
         # Normal (singular) run config
         name = f"{alg_name}_{task}"
-        notes = wandb_cfg["notes"]  # force user to make notes
+        notes = wandb_cfg.get("notes", None)  # use .get to handle missing notes gracefully
     return wandb.init(
         project=wandb_cfg.project,
         config=job_config,

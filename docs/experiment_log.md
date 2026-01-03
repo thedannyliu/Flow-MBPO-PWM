@@ -24,33 +24,68 @@
 
 ## Active / Recent Experiments
 
-### MT30 Full Training (2026-01-03 04:37 EST)
+### MT30 Full Training - Attempt 2 (2026-01-03 18:15 EST)
+- **Status**: 🔄 **RUNNING**
+- **Goal**: Complete Baseline (MLP WM + MLP Policy) vs Flow Policy (MLP WM + Flow Policy) comparison.
+
+**Baseline Array Job 4011379** (9 jobs: 3 tasks × 3 seeds)
+| Array ID | Task | Seed | Job ID | Status | WandB Name |
+|----------|------|------|--------|--------|------------|
+| 0 | reacher-easy | 42 | 4011379_0 | 🔄 RUNNING | baseline_reacher-easy_s42 |
+| 1 | reacher-easy | 123 | 4011379_1 | 🔄 RUNNING | baseline_reacher-easy_s123 |
+| 2 | reacher-easy | 456 | 4011379_2 | 🔄 RUNNING | baseline_reacher-easy_s456 |
+| 3 | walker-stand | 42 | 4011379_3 | 🔄 RUNNING | baseline_walker-stand_s42 |
+| 4 | walker-stand | 123 | 4011379_4 | 🔄 RUNNING | baseline_walker-stand_s123 |
+| 5 | walker-stand | 456 | 4011379_5 | 🔄 RUNNING | baseline_walker-stand_s456 |
+| 6 | cheetah-run | 42 | 4011379_6 | 🔄 RUNNING | baseline_cheetah-run_s42 |
+| 7 | cheetah-run | 123 | 4011379_7 | 🔄 RUNNING | baseline_cheetah-run_s123 |
+| 8 | cheetah-run | 456 | 4011379_8 | 🔄 RUNNING | baseline_cheetah-run_s456 |
+
+**Flow Policy Array Job 4011380** (9 jobs: 3 tasks × 3 seeds)
+| Array ID | Task | Seed | Job ID | Status | WandB Name |
+|----------|------|------|--------|--------|------------|
+| 0 | reacher-easy | 42 | 4011380_0 | ⏳ PENDING | flowpolicy_reacher-easy_s42 |
+| 1 | reacher-easy | 123 | 4011380_1 | ⏳ PENDING | flowpolicy_reacher-easy_s123 |
+| 2 | reacher-easy | 456 | 4011380_2 | ⏳ PENDING | flowpolicy_reacher-easy_s456 |
+| 3 | walker-stand | 42 | 4011380_3 | ⏳ PENDING | flowpolicy_walker-stand_s42 |
+| 4 | walker-stand | 123 | 4011380_4 | ⏳ PENDING | flowpolicy_walker-stand_s123 |
+| 5 | walker-stand | 456 | 4011380_5 | ⏳ PENDING | flowpolicy_walker-stand_s456 |
+| 6 | cheetah-run | 42 | 4011380_6 | ⏳ PENDING | flowpolicy_cheetah-run_s42 |
+| 7 | cheetah-run | 123 | 4011380_7 | ⏳ PENDING | flowpolicy_cheetah-run_s123 |
+| 8 | cheetah-run | 456 | 4011380_8 | ⏳ PENDING | flowpolicy_cheetah-run_s456 |
+
+---
+
+### MT30 Full Training - Attempt 1 (2026-01-03 04:37 EST)
+- **Status**: ❌ **FAILED**
+- **Reason**: `omegaconf.errors.ConfigKeyError: Key 'notes' is not in struct`. The `create_wandb_run` function forced notes but they weren't provided in the config/overrides.
+- **Fix**: Modified `scripts/train_multitask.py` to use `wandb_cfg.get("notes", None)` to handle missing notes gracefully.
 
 **Baseline Array Job 4010895** (9 jobs: 3 tasks × 3 seeds)
 | Array ID | Task | Seed | Job ID | Status | WandB Name |
 |----------|------|------|--------|--------|------------|
-| 0 | reacher-easy | 42 | 4010895_0 | 🔄 RUNNING | baseline_reacher-easy_s42 |
-| 1 | reacher-easy | 123 | 4010895_1 | 🔄 RUNNING | baseline_reacher-easy_s123 |
-| 2 | reacher-easy | 456 | 4010895_2 | 🔄 RUNNING | baseline_reacher-easy_s456 |
-| 3 | walker-stand | 42 | 4010895_3 | 🔄 RUNNING | baseline_walker-stand_s42 |
-| 4 | walker-stand | 123 | 4010895_4 | 🔄 RUNNING | baseline_walker-stand_s123 |
-| 5 | walker-stand | 456 | 4010895_5 | 🔄 RUNNING | baseline_walker-stand_s456 |
-| 6 | cheetah-run | 42 | 4010895_6 | 🔄 RUNNING | baseline_cheetah-run_s42 |
-| 7 | cheetah-run | 123 | 4010895_7 | 🔄 RUNNING | baseline_cheetah-run_s123 |
-| 8 | cheetah-run | 456 | 4010895_8 | ⏳ PENDING | baseline_cheetah-run_s456 |
+| 0 | reacher-easy | 42 | 4010895_0 | ❌ FAILED | baseline_reacher-easy_s42 |
+| 1 | reacher-easy | 123 | 4010895_1 | ❌ FAILED | baseline_reacher-easy_s123 |
+| 2 | reacher-easy | 456 | 4010895_2 | ❌ FAILED | baseline_reacher-easy_s456 |
+| 3 | walker-stand | 42 | 4010895_3 | ❌ FAILED | baseline_walker-stand_s42 |
+| 4 | walker-stand | 123 | 4010895_4 | ❌ FAILED | baseline_walker-stand_s123 |
+| 5 | walker-stand | 456 | 4010895_5 | ❌ FAILED | baseline_walker-stand_s456 |
+| 6 | cheetah-run | 42 | 4010895_6 | ❌ FAILED | baseline_cheetah-run_s42 |
+| 7 | cheetah-run | 123 | 4010895_7 | ❌ FAILED | baseline_cheetah-run_s123 |
+| 8 | cheetah-run | 456 | 4010895_8 | ❌ FAILED | baseline_cheetah-run_s456 |
 
 **Flow Policy Array Job 4010896** (9 jobs: 3 tasks × 3 seeds)
 | Array ID | Task | Seed | Job ID | Status | WandB Name |
 |----------|------|------|--------|--------|------------|
-| 0 | reacher-easy | 42 | 4010896_0 | ⏳ PENDING | flowpolicy_reacher-easy_s42 |
-| 1 | reacher-easy | 123 | 4010896_1 | ⏳ PENDING | flowpolicy_reacher-easy_s123 |
-| 2 | reacher-easy | 456 | 4010896_2 | ⏳ PENDING | flowpolicy_reacher-easy_s456 |
-| 3 | walker-stand | 42 | 4010896_3 | ⏳ PENDING | flowpolicy_walker-stand_s42 |
-| 4 | walker-stand | 123 | 4010896_4 | ⏳ PENDING | flowpolicy_walker-stand_s123 |
-| 5 | walker-stand | 456 | 4010896_5 | ⏳ PENDING | flowpolicy_walker-stand_s456 |
-| 6 | cheetah-run | 42 | 4010896_6 | ⏳ PENDING | flowpolicy_cheetah-run_s42 |
-| 7 | cheetah-run | 123 | 4010896_7 | ⏳ PENDING | flowpolicy_cheetah-run_s123 |
-| 8 | cheetah-run | 456 | 4010896_8 | ⏳ PENDING | flowpolicy_cheetah-run_s456 |
+| 0 | reacher-easy | 42 | 4010896_0 | ❌ FAILED | flowpolicy_reacher-easy_s42 |
+| 1 | reacher-easy | 123 | 4010896_1 | ❌ FAILED | flowpolicy_reacher-easy_s123 |
+| 2 | reacher-easy | 456 | 4010896_2 | ❌ FAILED | flowpolicy_reacher-easy_s456 |
+| 3 | walker-stand | 42 | 4010896_3 | ❌ FAILED | flowpolicy_walker-stand_s42 |
+| 4 | walker-stand | 123 | 4010896_4 | ❌ FAILED | flowpolicy_walker-stand_s123 |
+| 5 | walker-stand | 456 | 4010896_5 | ❌ FAILED | flowpolicy_walker-stand_s456 |
+| 6 | cheetah-run | 42 | 4010896_6 | ❌ FAILED | flowpolicy_cheetah-run_s42 |
+| 7 | cheetah-run | 123 | 4010896_7 | ❌ FAILED | flowpolicy_cheetah-run_s123 |
+| 8 | cheetah-run | 456 | 4010896_8 | ❌ FAILED | flowpolicy_cheetah-run_s456 |
 
 **Cluster Resources**: ice-gpu partition, H100 GPUs, 450GB memory, 16h time limit
 

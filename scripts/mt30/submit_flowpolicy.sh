@@ -72,7 +72,7 @@ if [ ! -f "${CHECKPOINT}" ]; then
 fi
 
 # === RUN TRAINING ===
-python scripts/train_multitask.py -cn config_mt30 \
+python -u scripts/train_multitask.py -cn config_mt30 \
   alg=pwm_48M_mt_flowpolicy \
   task=${TASK} \
   general.seed=${SEED} \

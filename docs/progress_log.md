@@ -18,6 +18,19 @@ Template for each entry:
 
 ---
 
+## 2026-01-03 18:15 – Copilot (MT30 Attempt 2 Submission)
+
+### Fixes Applied
+- **WandB Config Fix**: Resolved `KeyError: 'notes'` in `scripts/train_multitask.py` by using `wandb_cfg.get("notes", None)`. This prevents crashes when notes are missing from the configuration.
+- **Improved Experiment Tracking**: Updated `docs/experiment_log.md` to track attempts separately and mark failed jobs with specific reasons.
+- **Planned Verification**: Currently running `scripts/mt30/test_minimal.sh` (Job 4011376) to verify the fix and data loading on H100.
+
+### Next Steps
+- Submit full array of 18 jobs (Baseline vs Flow Policy) after minimal test passes.
+- Monitor WandB for real-time training progress.
+
+---
+
 ## 2026-01-03 04:37 – Copilot (MT30 Full Training Submitted)
 
 ### Training Jobs Submitted

@@ -606,6 +606,20 @@ All new implementations and experiments in this repository should be traceable b
 
 ---
 
+**12) Phase 3: MT30 Multitask Comparison**
+
+- **Goal**: Compare MLP Policy (Baseline) vs Flow ODE Policy on MT30 multitask tasks using the pre-trained 48M PWM world model.
+- **Tasks**: `reacher-easy`, `walker-stand`, `cheetah-run` (selected for initial comparison).
+- **Setup**:
+  - World Model: Pre-trained 48M MLP WM (PWM original checkpoint).
+  - Policy variants:
+    1. **Baseline**: MLP Policy (`ActorStochasticMLP`).
+    2. **Flow Policy**: Flow ODE Policy (`ActorFlowODE`).
+  - Compute: H100 GPUs (PACE ICE Cluster), 450GB RAM, 16h walltime.
+- **Evaluation**: Compare final reward and planning-based evaluation across 3 seeds per task.
+
+---
+
 **11) Codebase Structure**
 
 As of 2025-12-26, the codebase has been flattened to remove the PWM git submodule for easier collaboration:
