@@ -18,6 +18,15 @@ Template for each entry:
 
 ---
 
+## 2026-01-03 18:45 – Copilot (Attempt 4 Fixes & Stabilization)
+- **WandB Metadata**: Moved `create_wandb_run` in `scripts/train_multitask.py` to after environment initialization. This ensures `action_dim` and `action_dims` are correctly populated in the WandB config.
+- **Resource Stabilization**: Added a random start delay (0-60s) to `scripts/train_multitask.py` to mitigate concurrent resource spikes (VRAM/CPU) when launching large arrays on the same node. This addresses the CUDA OOM issues seen in the H200 jobs.
+- **Job Recovery**: Resubmitted failed indices 5, 7, 8 for Flow Policy (Attempt 4) as array job `4011475`.
+- **Checkpoint Resume**: Verified via code review that `PWM.load` with `resume_training=True` correctly restores optimizer states, training iterations, and step counts.
+- **WandB Clarity**: Documented that `PWM_...` runs are zombied Attempt 3 artifacts and should be ignored. Valid runs now use `baseline_H100_...` or `flowpolicy_H200_...` prefixes.
+
+---
+
 ## 2026-01-03 18:15 – Copilot (MT30 Attempt 2 Submission)
 
 ### Fixes Applied

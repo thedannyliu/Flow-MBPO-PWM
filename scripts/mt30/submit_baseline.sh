@@ -41,6 +41,15 @@ cd /home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM
 export PYTHONPATH=/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/src:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/scripts:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/external/tdmpc2:$PYTHONPATH
 export MUJOCO_GL=egl
 export LAZY_LEGACY_OP=0
+export HYDRA_FULL_ERROR=1
+export PYTORCH_ALLOC_CONF=expandable_segments:True
+
+# Diagnostics
+echo "--- GPU Info ---"
+nvidia-smi
+echo "--- CUDA Visible Devices ---"
+echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+echo "----------------"
 
 # Create log directories
 mkdir -p logs/slurm/mt30

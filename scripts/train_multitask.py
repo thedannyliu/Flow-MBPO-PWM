@@ -192,14 +192,17 @@ def train(cfg: dict):
     """
     assert torch.cuda.is_available()
 
-    if cfg.general.run_wandb:
-        create_wandb_run(cfg.wandb, cfg)
-
     # patch code to make jobs log in the correct directory when doing multirun
     logdir = HydraConfig.get()["runtime"]["output_dir"]
     logdir = os.path.join(logdir, cfg.general.logdir)
 
     seeding(cfg.general.seed)
+    # Add random delay to prevent concurrent initialization spikes on the same node
+    import time, random
+    delay = random.uniform(0, 60)
+    print(f"Random start delay: {delay:.2f}s")
+    time.sleep(delay)
+
 
     task = cfg.task
     task_set = TASK_SET["mt80"] if "mt80" in cfg.general.data_dir else TASK_SET["mt30"]
@@ -222,6 +225,9 @@ def train(cfg: dict):
         cfg.obs_shape = {cfg.get("obs", "state"): env.observation_space.shape}
     cfg.action_dim = env.action_space.shape[0]
     cfg.episode_length = env.max_episode_steps
+
+    if cfg.general.run_wandb:
+        create_wandb_run(cfg.wandb, cfg)
 
     os.makedirs(logdir, exist_ok=True)
 
