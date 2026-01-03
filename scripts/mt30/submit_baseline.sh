@@ -83,8 +83,8 @@ python -u scripts/train_multitask.py -cn config_mt30 \
   general.eval_runs=10 \
   general.finetune_wm=False \
   general.run_wandb=True \
-  ++wandb.project=flow-mbpo-multitask \
+  ++wandb.project=MT30-multitasks \
   ++wandb.group=mt30_baseline \
-  ++wandb.name=baseline_${TASK}_s${SEED}
+  ++wandb.name=baseline_H100_${TASK}_s${SEED}
 
 echo "=== Training Complete ==="

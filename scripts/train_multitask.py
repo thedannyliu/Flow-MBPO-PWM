@@ -13,6 +13,7 @@ import torch
 from tqdm import tqdm
 
 import hydra
+from omegaconf import OmegaConf
 from time import time
 
 from envs import make_env
@@ -42,15 +43,15 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
     try:
         # Multirun config
         job_id = HydraConfig().get().job.num
-        name = f"{alg_name}_{task}_sweep_{job_config['general']['seed']}"
+        name = wandb_cfg.get("name", f"{alg_name}_{task}_sweep_{job_config['general']['seed']}")
         notes = wandb_cfg.get("notes", None)
     except:
         # Normal (singular) run config
-        name = f"{alg_name}_{task}"
+        name = wandb_cfg.get("name", f"{alg_name}_{task}")
         notes = wandb_cfg.get("notes", None)  # use .get to handle missing notes gracefully
     return wandb.init(
         project=wandb_cfg.project,
-        config=job_config,
+        config=OmegaConf.to_container(job_config, resolve=True),
         group=wandb_cfg.group,
         entity=wandb_cfg.entity,
         name=name,

@@ -2,7 +2,7 @@
 #SBATCH --job-name=mt30_flowpol
 #SBATCH --output=logs/slurm/mt30/flowpolicy_%A_%a.out
 #SBATCH --error=logs/slurm/mt30/flowpolicy_%A_%a.err
-#SBATCH --gres=gpu:H100:1
+#SBATCH --gres=gpu:H200:1
 #SBATCH --mem=450GB
 #SBATCH --cpus-per-task=16
 #SBATCH -t 16:00:00
@@ -83,8 +83,8 @@ python -u scripts/train_multitask.py -cn config_mt30 \
   general.eval_runs=10 \
   general.finetune_wm=False \
   general.run_wandb=True \
-  ++wandb.project=flow-mbpo-multitask \
+  ++wandb.project=MT30-multitasks \
   ++wandb.group=mt30_flowpolicy \
-  ++wandb.name=flowpolicy_${TASK}_s${SEED}
+  ++wandb.name=flowpolicy_H200_${TASK}_s${SEED}
 
 echo "=== Training Complete ==="

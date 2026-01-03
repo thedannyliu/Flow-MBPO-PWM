@@ -24,35 +24,101 @@
 
 ## Active / Recent Experiments
 
-### MT30 Full Training - Attempt 2 (2026-01-03 18:15 EST)
+### MT30 Full Training - Attempt 4 (2026-01-03 18:38 EST)
 - **Status**: 🔄 **RUNNING**
+- **Goal**: Compare Baseline (H100) vs Flow Policy (H200) with clear naming.
+- **Hardware**: H100 for Baseline, **H200 for Flow Policy**.
+
+**Baseline Array Job 4011449** (9 jobs: 3 tasks × 3 seeds)
+| Array ID | Task | Seed | Job ID | Status | Hardware | WandB Name |
+|----------|------|------|--------|--------|----------|------------|
+| 0 | reacher-easy | 42 | 4011449_0 | 🔄 RUNNING | H100 | `baseline_H100_reacher-easy_s42` |
+| 1 | reacher-easy | 123 | 4011449_1 | 🔄 RUNNING | H100 | `baseline_H100_reacher-easy_s123` |
+| 2 | reacher-easy | 456 | 4011449_2 | 🔄 RUNNING | H100 | `baseline_H100_reacher-easy_s456` |
+| 3 | walker-stand | 42 | 4011449_3 | 🔄 RUNNING | H100 | `baseline_H100_walker-stand_s42` |
+| 4 | walker-stand | 123 | 4011449_4 | 🔄 RUNNING | H100 | `baseline_H100_walker-stand_s123` |
+| 5 | walker-stand | 456 | 4011449_5 | 🔄 RUNNING | H100 | `baseline_H100_walker-stand_s456` |
+| 6 | cheetah-run | 42 | 4011449_6 | 🔄 RUNNING | H100 | `baseline_H100_cheetah-run_s42` |
+| 7 | cheetah-run | 123 | 4011449_7 | 🔄 RUNNING | H100 | `baseline_H100_cheetah-run_s123` |
+| 8 | cheetah-run | 456 | 4011449_8 | 🔄 RUNNING | H100 | `baseline_H100_cheetah-run_s456` |
+
+**Flow Policy Array Job 4011450** (9 jobs: 3 tasks × 3 seeds)
+| Array ID | Task | Seed | Job ID | Status | Hardware | WandB Name |
+|----------|------|------|--------|--------|----------|------------|
+| 0 | reacher-easy | 42 | 4011450_0 | 🔄 RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s42` |
+| 1 | reacher-easy | 123 | 4011450_1 | 🔄 RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s123` |
+| 2 | reacher-easy | 456 | 4011450_2 | 🔄 RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s456` |
+| 3 | walker-stand | 42 | 4011450_3 | 🔄 RUNNING | **H200** | `flowpolicy_H200_walker-stand_s42` |
+| 4 | walker-stand | 123 | 4011450_4 | 🔄 RUNNING | **H200** | `flowpolicy_H200_walker-stand_s123` |
+| 5 | walker-stand | 456 | 4011450_5 | 🔄 RUNNING | **H200** | `flowpolicy_H200_walker-stand_s456` |
+| 6 | cheetah-run | 42 | 4011450_6 | 🔄 RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s42` |
+| 7 | cheetah-run | 123 | 4011450_7 | 🔄 RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s123` |
+| 8 | cheetah-run | 456 | 4011450_8 | 🔄 RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s456` |
+
+---
+
+### MT30 Full Training - Attempt 3 (2026-01-03 18:30 EST)
+- **Status**: 🛑 **CANCELLED**
+- **Reason**: WandB run names were unclear (ignored CLI overrides). Fixed in `Attempt 4`.
+
+**Baseline Array Job 4011428** (9 jobs: 3 tasks × 3 seeds)
+| Array ID | Task | Seed | Job ID | Status | Hardware | Output Path |
+|----------|------|------|--------|--------|----------|-------------|
+| 0 | reacher-easy | 42 | 4011428_0 | � CANCELLED | H100 | `outputs/mt30/baseline/reacher-easy/seed42` |
+| 1 | reacher-easy | 123 | 4011428_1 | � CANCELLED | H100 | `outputs/mt30/baseline/reacher-easy/seed123` |
+| 2 | reacher-easy | 456 | 4011428_2 | � CANCELLED | H100 | `outputs/mt30/baseline/reacher-easy/seed456` |
+| 3 | walker-stand | 42 | 4011428_3 | � CANCELLED | H100 | `outputs/mt30/baseline/walker-stand/seed42` |
+| 4 | walker-stand | 123 | 4011428_4 | � CANCELLED | H100 | `outputs/mt30/baseline/walker-stand/seed123` |
+| 5 | walker-stand | 456 | 4011428_5 | � CANCELLED | H100 | `outputs/mt30/baseline/walker-stand/seed456` |
+| 6 | cheetah-run | 42 | 4011428_6 | � CANCELLED | H100 | `outputs/mt30/baseline/cheetah-run/seed42` |
+| 7 | cheetah-run | 123 | 4011428_7 | � CANCELLED | H100 | `outputs/mt30/baseline/cheetah-run/seed123` |
+| 8 | cheetah-run | 456 | 4011428_8 | � CANCELLED | H100 | `outputs/mt30/baseline/cheetah-run/seed456` |
+
+**Flow Policy Array Job 4011429** (9 jobs: 3 tasks × 3 seeds)
+| Array ID | Task | Seed | Job ID | Status | Hardware | Output Path |
+|----------|------|------|--------|--------|----------|-------------|
+| 0 | reacher-easy | 42 | 4011429_0 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/reacher-easy/seed42` |
+| 1 | reacher-easy | 123 | 4011429_1 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/reacher-easy/seed123` |
+| 2 | reacher-easy | 456 | 4011429_2 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/reacher-easy/seed456` |
+| 3 | walker-stand | 42 | 4011429_3 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/walker-stand/seed42` |
+| 4 | walker-stand | 123 | 4011429_4 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/walker-stand/seed123` |
+| 5 | walker-stand | 456 | 4011429_5 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/walker-stand/seed456` |
+| 6 | cheetah-run | 42 | 4011429_6 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/cheetah-run/seed42` |
+| 7 | cheetah-run | 123 | 4011429_7 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/cheetah-run/seed123` |
+| 8 | cheetah-run | 456 | 4011429_8 | 🛑 CANCELLED | H100 | `outputs/mt30/flowpolicy/cheetah-run/seed456` |
+
+---
+
+### MT30 Full Training - Attempt 2 (2026-01-03 18:15 EST)
+- **Status**: � **CANCELLED**
+- **Reason**: User requested change of WandB project name and more detailed run tracking.
 - **Goal**: Complete Baseline (MLP WM + MLP Policy) vs Flow Policy (MLP WM + Flow Policy) comparison.
 
 **Baseline Array Job 4011379** (9 jobs: 3 tasks × 3 seeds)
 | Array ID | Task | Seed | Job ID | Status | WandB Name |
 |----------|------|------|--------|--------|------------|
-| 0 | reacher-easy | 42 | 4011379_0 | 🔄 RUNNING | baseline_reacher-easy_s42 |
-| 1 | reacher-easy | 123 | 4011379_1 | 🔄 RUNNING | baseline_reacher-easy_s123 |
-| 2 | reacher-easy | 456 | 4011379_2 | 🔄 RUNNING | baseline_reacher-easy_s456 |
-| 3 | walker-stand | 42 | 4011379_3 | 🔄 RUNNING | baseline_walker-stand_s42 |
-| 4 | walker-stand | 123 | 4011379_4 | 🔄 RUNNING | baseline_walker-stand_s123 |
-| 5 | walker-stand | 456 | 4011379_5 | 🔄 RUNNING | baseline_walker-stand_s456 |
-| 6 | cheetah-run | 42 | 4011379_6 | 🔄 RUNNING | baseline_cheetah-run_s42 |
-| 7 | cheetah-run | 123 | 4011379_7 | 🔄 RUNNING | baseline_cheetah-run_s123 |
-| 8 | cheetah-run | 456 | 4011379_8 | 🔄 RUNNING | baseline_cheetah-run_s456 |
+| 0 | reacher-easy | 42 | 4011379_0 | � CANCELLED | baseline_reacher-easy_s42 |
+| 1 | reacher-easy | 123 | 4011379_1 | � CANCELLED | baseline_reacher-easy_s123 |
+| 2 | reacher-easy | 456 | 4011379_2 | � CANCELLED | baseline_reacher-easy_s456 |
+| 3 | walker-stand | 42 | 4011379_3 | � CANCELLED | baseline_walker-stand_s42 |
+| 4 | walker-stand | 123 | 4011379_4 | � CANCELLED | baseline_walker-stand_s123 |
+| 5 | walker-stand | 456 | 4011379_5 | � CANCELLED | baseline_walker-stand_s456 |
+| 6 | cheetah-run | 42 | 4011379_6 | � CANCELLED | baseline_cheetah-run_s42 |
+| 7 | cheetah-run | 123 | 4011379_7 | � CANCELLED | baseline_cheetah-run_s123 |
+| 8 | cheetah-run | 456 | 4011379_8 | � CANCELLED | baseline_cheetah-run_s456 |
 
 **Flow Policy Array Job 4011380** (9 jobs: 3 tasks × 3 seeds)
 | Array ID | Task | Seed | Job ID | Status | WandB Name |
 |----------|------|------|--------|--------|------------|
-| 0 | reacher-easy | 42 | 4011380_0 | ⏳ PENDING | flowpolicy_reacher-easy_s42 |
-| 1 | reacher-easy | 123 | 4011380_1 | ⏳ PENDING | flowpolicy_reacher-easy_s123 |
-| 2 | reacher-easy | 456 | 4011380_2 | ⏳ PENDING | flowpolicy_reacher-easy_s456 |
-| 3 | walker-stand | 42 | 4011380_3 | ⏳ PENDING | flowpolicy_walker-stand_s42 |
-| 4 | walker-stand | 123 | 4011380_4 | ⏳ PENDING | flowpolicy_walker-stand_s123 |
-| 5 | walker-stand | 456 | 4011380_5 | ⏳ PENDING | flowpolicy_walker-stand_s456 |
-| 6 | cheetah-run | 42 | 4011380_6 | ⏳ PENDING | flowpolicy_cheetah-run_s42 |
-| 7 | cheetah-run | 123 | 4011380_7 | ⏳ PENDING | flowpolicy_cheetah-run_s123 |
-| 8 | cheetah-run | 456 | 4011380_8 | ⏳ PENDING | flowpolicy_cheetah-run_s456 |
+| 0 | reacher-easy | 42 | 4011380_0 | 🛑 CANCELLED | flowpolicy_reacher-easy_s42 |
+| 1 | reacher-easy | 123 | 4011380_1 | 🛑 CANCELLED | flowpolicy_reacher-easy_s123 |
+| 2 | reacher-easy | 456 | 4011380_2 | 🛑 CANCELLED | flowpolicy_reacher-easy_s456 |
+| 3 | walker-stand | 42 | 4011380_3 | 🛑 CANCELLED | flowpolicy_walker-stand_s42 |
+| 4 | walker-stand | 123 | 4011380_4 | 🛑 CANCELLED | flowpolicy_walker-stand_s123 |
+| 5 | walker-stand | 456 | 4011380_5 | 🛑 CANCELLED | flowpolicy_walker-stand_s456 |
+| 6 | cheetah-run | 42 | 4011380_6 | 🛑 CANCELLED | flowpolicy_cheetah-run_s42 |
+| 7 | cheetah-run | 123 | 4011380_7 | 🛑 CANCELLED | flowpolicy_cheetah-run_s123 |
+| 8 | cheetah-run | 456 | 4011380_8 | 🛑 CANCELLED | flowpolicy_cheetah-run_s456 |
 
 ---
 
