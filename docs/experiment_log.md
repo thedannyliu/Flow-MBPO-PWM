@@ -45,8 +45,18 @@
 | 3139006 | Humanoid | FullFlow | 123 | � EVALUATED | `outputs/2026-01-03/09-00-09` | 26.67 |
 | 3139007 | Humanoid | FullFlow | 456 | 🔄 RUNNING | - | - |
 
-## Still Missing
-- Humanoid FlowPolicy s123 (failed - CUDA busy)
+## Still Running / Resubmitted
+| Job ID | Task | Variant | Seed | Status | Notes |
+|--------|------|---------|------|--------|-------|
+| 3142983 | Humanoid | FlowPolicy | 123 | 🔄 RUNNING | Resubmitted with --exclusive |
+| 3139007 | Humanoid | FullFlow | 456 | 🔄 RUNNING | Expected completion ~8h |
+
+## Eval Pipeline Location
+Scripts moved from scratch to main project:
+- `scripts/eval/eval_pwm.py` - Main evaluation script
+- `scripts/eval/aggregate_eval_results.py` - Aggregate CSVs
+- `scripts/eval/fix_variants.py` - Fix variant labels
+- `eval_results/` - All individual and final CSV files
 
 ---
 
