@@ -1,108 +1,210 @@
 # Experiment Log
 
-Purpose: Registry for all training jobs with Slurm IDs, configs, seeds, wandb links, and status.
+> **Purpose**: This document is the authoritative registry for all training, evaluation, and verification jobs in the Flow-MBPO project. It tracks SLURM job IDs, checkpoint paths, configurations, seeds, WandB links, and experiment status.
+>
+> **Usage Guidelines**:
+> - **Never delete entries** - only update status (Pending → Running → Completed/Failed → Evaluated)
+> - **Newest entries at top** for each section
+> - Each entry must include: Job ID, variant, seed, script path, checkpoint path, status
+> - Update with eval results once available
+>
+> **Status Legend**:
+> - 🕐 **PENDING** - Job submitted, waiting in queue
+> - 🔄 **RUNNING** - Job currently executing
+> - ✅ **COMPLETED** - Training finished, awaiting eval
+> - ❌ **FAILED** - Job failed, needs investigation
+> - 📊 **EVALUATED** - Eval complete, results recorded
 
 ---
 
-## Status Summary (Dec 29, 8:22 PM)
-
-### Experiment Overview
-| Environment | WandB Project | Total Jobs | Completed | Running |
-|-------------|---------------|------------|-----------|---------|
-| Anymal | flow-mbpo-single | 27 | 26 | 1 |
-| Ant | flow-mbpo-single-task-ant | 21 | 17 | 4 |
-| Humanoid | flow-mbpo-single-task-Humanoid | 22 | 4 (smoke) | 18 (queued) |
-
----
-
-# HUMANOID EXPERIMENTS (Dec 29)
-
-## WandB: flow-mbpo-single-task-Humanoid
-
-### Smoke Tests ✅ COMPLETED
-| Job ID | Variant | Status | Runtime |
-|--------|---------|--------|---------|
-| 3101822 | Baseline | ✅ | 0:00:46 |
-| 3101823 | Flow WM | ✅ | 0:01:45 |
-| 3101824 | Flow Policy | ✅ | 0:00:33 |
-| 3101825 | Full Flow | ✅ | 0:01:45 |
-
-### Training Jobs (18 jobs submitted)
-
-#### Baseline (MLP WM + MLP Policy)
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3101831 | 42 | Humanoid_Baseline_MLP_s42 |
-| 3101832 | 123 | Humanoid_Baseline_MLP_s123 |
-| 3101833 | 456 | Humanoid_Baseline_MLP_s456 |
-
-#### Flow WM K=4 Heun
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3101834 | 42 | Humanoid_FlowWM_K4Heun_s42 |
-| 3101835 | 123 | Humanoid_FlowWM_K4Heun_s123 |
-| 3101836 | 456 | Humanoid_FlowWM_K4Heun_s456 |
-
-#### Flow WM K=2 Heun
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3101837 | 42 | Humanoid_FlowWM_K2Heun_s42 |
-| 3101838 | 123 | Humanoid_FlowWM_K2Heun_s123 |
-| 3101839 | 456 | Humanoid_FlowWM_K2Heun_s456 |
-
-#### Flow WM K=8 Euler
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3101840 | 42 | Humanoid_FlowWM_K8Euler_s42 |
-| 3101841 | 123 | Humanoid_FlowWM_K8Euler_s123 |
-| 3101842 | 456 | Humanoid_FlowWM_K8Euler_s456 |
-
-#### MLP WM + Flow Policy
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3101843 | 42 | Humanoid_FlowPolicy_MLPWM_s42 |
-| 3101844 | 123 | Humanoid_FlowPolicy_MLPWM_s123 |
-| 3101845 | 456 | Humanoid_FlowPolicy_MLPWM_s456 |
-
-#### Full Flow
-| Job ID | Seed | WandB Name |
-|--------|------|------------|
-| 3101846 | 42 | Humanoid_FullFlow_FlowWM_FlowPol_s42 |
-| 3101847 | 123 | Humanoid_FullFlow_FlowWM_FlowPol_s123 |
-| 3101848 | 456 | Humanoid_FullFlow_FlowWM_FlowPol_s456 |
+## Resource Allocation (Standard)
+| Setting | Value |
+|---------|-------|
+| Account | gts-agarg35-ideas_l40s |
+| Partition | gpu-l40s |
+| GPU | L40s × 1 |
+| Memory | 400GB |
+| Time Limit | 40 hours |
+| Conda Env | pwm |
 
 ---
 
-# ANT EXPERIMENTS (Dec 29)
+# ACTIVE JOBS (Jan 3, 2026)
 
-## WandB: flow-mbpo-single-task-ant
-
-### Completed ✅ (17 jobs)
-- Smoke tests: 4 ✅ (3093139-3093142)
-- Baseline: 3 ✅ (3093165-3093167)
-- Flow WM K=4: 3 ✅ (3093168-3093170)
-- Flow WM K=2: 3 ✅ (3093171-3093173)
-- Flow WM K=8: 3 ✅ (3093174-3093176)
-- Flow Policy: 3 ✅ (3093177-3093179)
-
-### Running (4 jobs)
-- Full Flow: 3093180 (s42), 3099532 (s123), 3099534 (s456)
-
----
-
-# ANYMAL EXPERIMENTS (Dec 28-29)
-
-## WandB: flow-mbpo-single
-
-### Completed ✅ (26 jobs)
-All core experiments and ablations completed.
-
-### Running (1 job)
-- 3091999: Flow WM HighLR s456 (~15h elapsed)
+## Training Jobs (Submitted Jan 3, 2026)
+| Job ID | Task | Variant | Seed | Status | Script |
+|--------|------|---------|------|--------|--------|
+| 3138480 | Anymal | Baseline | 42 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138481 | Anymal | Baseline | 123 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138482 | Anymal | Baseline | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138483 | Humanoid | FlowWM K=8 | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138484 | Humanoid | FlowPolicy | 42 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138485 | Humanoid | FlowPolicy | 123 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138486 | Humanoid | FlowPolicy | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138487 | Humanoid | FullFlow | 42 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138488 | Humanoid | FullFlow | 123 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+| 3138489 | Humanoid | FullFlow | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
 
 ---
 
-## Resource Allocation
-- **Memory**: 400GB
-- **Time**: 40 hours
-- **Partition**: gpu-l40s
+# COMPLETED EXPERIMENTS
+
+## Humanoid (Dec 29-30, 2025)
+
+### Baseline ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| 3101831 | 42 | `outputs/2025-12-29/20-17-36/logs/best_policy.pt` | 37.82 | 📊 EVALUATED |
+| 3101832 | 123 | `outputs/2025-12-29/20-20-53/logs/best_policy.pt` | 65.52 | 📊 EVALUATED |
+| 3101833 | 456 | `outputs/2025-12-29/20-31-30/logs/best_policy.pt` | 82.93 | 📊 EVALUATED |
+
+### FlowWM K=4 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| 3104842 | 42 | `outputs/2025-12-29/22-54-39/logs/best_policy.pt` | 55.09 | 📊 EVALUATED |
+| 3104843 | 123 | `outputs/2025-12-29/22-54-42/logs/best_policy.pt` | 34.48 | 📊 EVALUATED |
+
+### FlowWM K=2 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| 3104846 | 123 | `outputs/2025-12-29/22-54-41/logs/best_policy.pt` | 34.09 | 📊 EVALUATED |
+
+### FlowWM K=8 ✅ PARTIAL
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| 3107946 | 42 | `outputs/2025-12-30/04-20-56/logs/best_policy.pt` | 36.76 | 📊 EVALUATED |
+| 3107947 | 123 | `outputs/2025-12-30/04-20-58/logs/best_policy.pt` | 30.70 | 📊 EVALUATED |
+| - | 456 | - | - | ❌ FAILED (CUDA busy) |
+
+### FlowPolicy ❌ PARTIAL
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| 3125488 | 42 | `outputs/2025-12-29/20-18-50/logs/best_policy.pt` | 58.90 | 📊 EVALUATED |
+| - | 123 | - | - | ❌ FAILED |
+| - | 456 | - | - | ❌ FAILED |
+
+### FullFlow K=4 ✅ PARTIAL
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/20-17-31/logs/best_policy.pt` | 39.99 | 📊 EVALUATED |
+| - | 123 | - | - | ❌ FAILED |
+| - | 456 | - | - | ❌ FAILED |
+
+---
+
+## Ant (Dec 29, 2025) ✅ COMPLETE
+
+### Baseline ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/07-10-46/logs/best_policy.pt` | 1170.49 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/08-18-33/logs/best_policy.pt` | 22.50 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-29/09-16-25/logs/best_policy.pt` | 85.45 | 📊 EVALUATED |
+
+### FlowWM K=2 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/11-03-10/logs/best_policy.pt` | 154.80 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/11-06-12/logs/best_policy.pt` | 1263.74 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-29/11-21-33/logs/best_policy.pt` | 871.15 | 📊 EVALUATED |
+
+### FlowWM K=4 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/09-17-18/logs/best_policy.pt` | 849.81 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/10-17-08/logs/best_policy.pt` | 1239.04 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-29/11-02-54/logs/best_policy.pt` | 823.06 | 📊 EVALUATED |
+
+### FlowWM K=8 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/11-22-48/logs/best_policy.pt` | 1107.08 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/13-55-00/logs/best_policy.pt` | 1197.42 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-29/14-27-09/logs/best_policy.pt` | 1244.37 | 📊 EVALUATED |
+
+### FlowPolicy ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/14-28-54/logs/best_policy.pt` | 45.77 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/14-46-31/logs/best_policy.pt` | 19.73 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-29/14-56-22/logs/best_policy.pt` | 217.09 | 📊 EVALUATED |
+
+### FullFlow K=4 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/15-43-12/logs/best_policy.pt` | 245.34 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/16-34-47/logs/best_policy.pt` | 220.51 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-29/16-53-26/logs/best_policy.pt` | 1089.82 | 📊 EVALUATED |
+
+---
+
+## Anymal (Dec 28-29, 2025) ⚠️ MISSING BASELINE
+
+> [!WARNING]
+> **Anymal Baseline checkpoints were deleted during disk cleanup on Dec 31.**
+> Original job IDs: 3080227, 3080228, 3080229
+> Need to retrain.
+
+### FlowPolicy ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-28/22-43-26/logs/best_policy.pt` | 33.13 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/00-10-02/logs/best_policy.pt` | 20.31 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-28/17-34-31/logs/best_policy.pt` | 47.05 | 📊 EVALUATED |
+
+### FlowWM K=4 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-28/06-54-04/logs/best_policy.pt` | 29.35 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-28/22-27-32/logs/best_policy.pt` | 15.33 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-28/22-28-56/logs/best_policy.pt` | 23.97 | 📊 EVALUATED |
+
+### FlowWM K=8 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-29/05-00-51/logs/best_policy.pt` | 14.76 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-29/03-24-05/logs/best_policy.pt` | 23.85 | 📊 EVALUATED |
+
+### FullFlow K=4 ✅ EVALUATED
+| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
+|--------|------|-----------------|-------------|--------|
+| - | 42 | `outputs/2025-12-28/21-42-56/logs/best_policy.pt` | 22.40 | 📊 EVALUATED |
+| - | 123 | `outputs/2025-12-28/23-27-25/logs/best_policy.pt` | 28.49 | 📊 EVALUATED |
+| - | 456 | `outputs/2025-12-29/02-14-20/logs/best_policy.pt` | 17.28 | 📊 EVALUATED |
+
+---
+
+# EVALUATION RESULTS
+
+## Final Aggregated CSV
+**Path**: `/storage/scratch1/9/eliu354/flow_mbpo/eval_results/final_eval_results.csv`
+
+### Summary by Task (as of Jan 1, 2026)
+
+| Task | Variant | Avg Reward | Std | Seeds |
+|------|---------|------------|-----|-------|
+| **Ant** | FlowWM_K8_euler | **1182.96** | 69.78 | 3 |
+| Ant | FlowWM_K4_heun | 970.64 | 232.83 | 3 |
+| Ant | FlowWM_K2_heun | 763.23 | 562.29 | 3 |
+| Ant | FullFlow_K4 | 518.56 | 494.88 | 3 |
+| Ant | Baseline | 426.15 | 645.39 | 3 |
+| **Anymal** | FlowPolicy | 33.50 | 13.37 | 3 |
+| Anymal | FlowWM_K4_heun | 22.88 | 7.07 | 3 |
+| Anymal | FullFlow_K4 | 22.72 | 5.61 | 3 |
+| **Humanoid** | Baseline | **62.09** | 22.75 | 3 |
+| Humanoid | FlowPolicy | 58.90 | - | 1 |
+| Humanoid | FlowWM_K4_heun | 44.78 | 14.57 | 2 |
+
+---
+
+# SCRIPTS REFERENCE
+
+## Training Scripts Location
+- Anymal: `scripts/anymal/`
+- Ant: `scripts/ant/`
+- Humanoid: `scripts/humanoid/`
+
+## Evaluation Scripts
+- Main eval: `/storage/scratch1/9/eliu354/flow_mbpo/scripts/eval_pwm.py`
+- Batch submit: `/storage/scratch1/9/eliu354/flow_mbpo/scripts/submit_all_evals.py`
+- Aggregate: `/storage/scratch1/9/eliu354/flow_mbpo/scripts/aggregate_eval_results.py`
