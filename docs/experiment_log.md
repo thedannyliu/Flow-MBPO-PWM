@@ -29,21 +29,24 @@
 
 ---
 
-# ACTIVE JOBS (Jan 3, 2026)
+# NEWLY COMPLETED JOBS (Jan 3, 2026)
 
-## Training Jobs (Submitted Jan 3, 2026)
-| Job ID | Task | Variant | Seed | Status | Script |
-|--------|------|---------|------|--------|--------|
-| 3138480 | Anymal | Baseline | 42 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138481 | Anymal | Baseline | 123 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138482 | Anymal | Baseline | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138483 | Humanoid | FlowWM K=8 | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138484 | Humanoid | FlowPolicy | 42 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138485 | Humanoid | FlowPolicy | 123 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138486 | Humanoid | FlowPolicy | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138487 | Humanoid | FullFlow | 42 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138488 | Humanoid | FullFlow | 123 | 🔄 RUNNING | `scripts/submit_missing.sh` |
-| 3138489 | Humanoid | FullFlow | 456 | 🔄 RUNNING | `scripts/submit_missing.sh` |
+## Training Completed ✅
+| Job ID | Task | Variant | Seed | Status | Checkpoint | Eval Result |
+|--------|------|---------|------|--------|------------|-------------|
+| 3138480 | Anymal | Baseline | 42 | � EVALUATED | `outputs/2026-01-03/02-00-06` | 24.84 |
+| 3138481 | Anymal | Baseline | 123 | � EVALUATED | `outputs/2026-01-03/02-02-33` | 25.75 |
+| 3139000 | Anymal | Baseline | 456 | � EVALUATED | `outputs/2026-01-03/03-30-22` | 35.12 |
+| 3139001 | Humanoid | FlowWM K=8 | 456 | ✅ COMPLETED | `outputs/2026-01-03/10-39-37` | 26.67 |
+| 3139002 | Humanoid | FlowPolicy | 42 | � EVALUATED | `outputs/2026-01-03/03-30-26` | 93.14 |
+| 3139003 | Humanoid | FlowPolicy | 123 | ❌ FAILED | - | - |
+| 3139004 | Humanoid | FlowPolicy | 456 | � EVALUATED | `outputs/2026-01-03/06-48-54` | 83.66 |
+| 3139005 | Humanoid | FullFlow | 42 | � EVALUATED | `outputs/2026-01-03/07-23-25` | 42.40 |
+| 3139006 | Humanoid | FullFlow | 123 | � EVALUATED | `outputs/2026-01-03/09-00-09` | 26.67 |
+| 3139007 | Humanoid | FullFlow | 456 | 🔄 RUNNING | - | - |
+
+## Still Missing
+- Humanoid FlowPolicy s123 (failed - CUDA busy)
 
 ---
 
