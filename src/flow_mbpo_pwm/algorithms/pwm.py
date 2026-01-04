@@ -131,6 +131,10 @@ class PWM:
         self.flow_substeps = flow_substeps
         self.flow_tau_sampling = flow_tau_sampling
 
+        # Training progress
+        self.iter_count = 0
+        self.step_count = 0
+        self.best_reward = -float('inf')
         self.obs_rms = None
         if obs_rms:
             self.obs_rms = RunningMeanStd(shape=(self.num_obs,), device=self.device)
@@ -1187,13 +1191,13 @@ class PWM:
             "value_loss": value_loss.item(),
             "actor_grad_norm": self.actor_grad_norm_before_clip.item(),
             "critic_grad_norm": critic_grad_norm.item(),
+            "actor_stddev": ac_stddev,
         }
         if finetune_wm:
-            metrics["wm_loss"] = wm_loss
-            metrics["dynamics_loss"] = dyn_loss
-            metrics["reward_loss"] = rew_loss
-            metrics["wm_grad_norm"] = wm_grad_norm
-        metrics = filter_dict(metrics)
+            metrics["wm_loss"] = wm_loss.item() if torch.is_tensor(wm_loss) else wm_loss
+            metrics["dynamics_loss"] = dyn_loss.item() if torch.is_tensor(dyn_loss) else dyn_loss
+            metrics["reward_loss"] = rew_loss.item() if torch.is_tensor(rew_loss) else rew_loss
+            metrics["wm_grad_norm"] = wm_grad_norm.item() if torch.is_tensor(wm_grad_norm) else wm_grad_norm
         return metrics
 
     def save(self, filename, log_dir=None, buffer=False):
@@ -1212,6 +1216,7 @@ class PWM:
                 # Training progress
                 "iter_count": getattr(self, 'iter_count', 0),
                 "step_count": getattr(self, 'step_count', 0),
+                "best_reward": getattr(self, 'best_reward', -float('inf')),
                 "best_policy_loss": getattr(self, 'best_policy_loss', float('inf')),
                 "mean_horizon": getattr(self, 'mean_horizon', 0.0),
             },
@@ -1269,25 +1274,23 @@ class PWM:
         if resume_training and "iter_count" in checkpoint:
             self.iter_count = checkpoint["iter_count"]
             self.step_count = checkpoint["step_count"]
+            self.best_reward = checkpoint.get("best_reward", -float('inf'))
             self.best_policy_loss = checkpoint.get("best_policy_loss", float('inf'))
             self.mean_horizon = checkpoint.get("mean_horizon", 0.0)
-            print(f"Resuming from epoch {self.iter_count}, step {self.step_count}")
+            print(f"Resumed from epoch {self.iter_count}, step {self.step_count}, best R: {self.best_reward:.2f}")
         else:
             print("Loaded checkpoint for evaluation/fine-tuning (training progress not restored)")
         
         # Load replay buffer if requested
         if buffer:
-            buffer_path = path.replace('.pt', '.buffer')
+            # Check for standard naming first: {filename}.buffer
+            buffer_path = str(path).replace('.pt', '.buffer')
             if os.path.exists(buffer_path):
                 self.buffer.load(buffer_path)
                 print(f"Loaded replay buffer from {buffer_path}")
+                self.buffer._num_eps = 100 # placeholder to avoid re-init
             else:
                 print(f"Warning: Buffer file not found at {buffer_path}")
-
-        if buffer:
-            print("Loading buffer too")
-            self.buffer.load(path.replace(".pt", ".buffer"))
-            self.buffer._num_eps = 100  # placeholder to avoid initialization
 
     def load_wm(self, path):
         print("Loading world model from", path)

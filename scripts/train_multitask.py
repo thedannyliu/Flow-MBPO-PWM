@@ -300,8 +300,14 @@ def train(cfg: dict):
             metrics.update(eval(agent, env, task_set, task_id, cfg.general.eval_runs))
             reward = metrics[f"episode_reward"]
             print(f"R: {reward:.2f}")
-            if i > 0:
+            if i > start_epoch: # Don't save on the very first iteration of a resume if it's the same
                 agent.save(f"model_{i}", logdir)
+            
+            # Save best model
+            if reward > agent.best_reward:
+                agent.best_reward = reward
+                agent.save("model_best", logdir)
+                print(f"New best reward: {agent.best_reward:.2f}, model saved to model_best.pt")
 
         if i % 100 == 0:
             if "wm_loss" not in metrics:
@@ -325,7 +331,9 @@ def train(cfg: dict):
                     **metrics,
                     "epoch": i,
                     "epoch_progress": i / cfg.general.epochs,
-                    "learning_rate": agent.actor_optimizer.param_groups[0]["lr"] if hasattr(agent, 'actor_optimizer') else 0,
+                    "lr_actor": agent.actor_optimizer.param_groups[0]["lr"] if hasattr(agent, 'actor_optimizer') else 0,
+                    "lr_critic": agent.critic_optimizer.param_groups[0]["lr"] if hasattr(agent, 'critic_optimizer') else 0,
+                    "lr_wm": agent.wm_optimizer.param_groups[0]["lr"] if hasattr(agent, 'wm_optimizer') else 0,
                 }
                 wandb.log(log_metrics, step=i)
 

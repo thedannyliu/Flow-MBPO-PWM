@@ -29,10 +29,14 @@ Template for each entry:
 
 ### Phase 4: Full Flow & Debugging (Ongoing)
 - **Date**: Jan 04, 2026
-- **Status**: Launched experiments to compare "Flow WM + Flow Policy" against baselines.
+- **Status**: Launched experiments with improved infrastructure.
+- **Improvements**:
+  - **Best Model Tracking**: Implemented `model_best.pt` saving based on eval reward.
+  - **Robust Resume**: Fixed `PWM.load` to restore iteration counts, optimizers, and `best_reward`.
+  - **Detailed Logging**: New WandB project `MT30-Detailed` with per-epoch LR and grad stats.
 - **Experiments**:
-  - `4011930`: Full Flow (reacher, walker, cheetah).
-  - `4011940`: Cheetah Debug (Horizon=30).
+  - `4011952`: Full Flow (reacher, walker, cheetah).
+  - `4011953`: Cheetah Debug (Horizon=30).
 
 ---
 

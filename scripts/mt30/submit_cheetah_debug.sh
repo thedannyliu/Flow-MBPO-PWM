@@ -69,7 +69,7 @@ python scripts/train_multitask.py -cn config_mt30 \
   general.eval_runs=10 \
   general.finetune_wm=True \
   general.run_wandb=True \
-  ++wandb.project=flow-mbpo-multitask \
+  ++wandb.project=MT30-Detailed \
   ++wandb.group=mt30_debug_h30 \
   ++wandb.name=debug_cheetah_h30_s${SEED} \
   hydra.run.dir="outputs/mt30_debug/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}" \

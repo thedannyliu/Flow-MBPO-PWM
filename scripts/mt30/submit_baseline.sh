@@ -94,6 +94,7 @@ python -u scripts/train_multitask.py -cn config_mt30 \
   general.run_wandb=True \
   ++wandb.project=MT30-multitasks \
   ++wandb.group=mt30_baseline \
-  ++wandb.name=baseline_H100_${TASK}_s${SEED}
+  ++wandb.name="baseline_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}" \
+  hydra.run.dir="outputs/mt30/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}"
 
 echo "=== Training Complete ==="

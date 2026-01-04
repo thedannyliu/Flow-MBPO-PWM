@@ -632,6 +632,21 @@ All new implementations and experiments in this repository should be traceable b
 
 ---
 
+**13) Phase 4: Full Flow & Dynamic Training (Ongoing)**
+
+- **Goal**: End-to-end training of "Flow World Model + Flow Policy" (from scratch).
+- **Status**: 🚧 **IN PROGRESS** (Jan 04).
+- **Infrastructure Improvements**:
+  - **Resume Support**: Robust state restoration (optimizers, LRS, iter count) to handle 16h walltime.
+  - **Best Model Saving**: Periodic evaluation-based `model_best.pt` saving.
+  - **Detailed Logging**: `MT30-Detailed` WandB project with comprehensive diagnostics.
+- **Experiments**:
+  - `4011986`: Main MT30 Full Flow (3 tasks, 3 seeds).
+  - `4011987`: Cheetah Debug (Horizon=30).
+- **Hypothesis**: The combination of Flow WM and Flow Policy will stabilize gradients (better ESNR) and potentially solve `cheetah-run` with extended horizons.
+
+---
+
 **11) Codebase Structure**
 
 As of 2025-12-26, the codebase has been flattened to remove the PWM git submodule for easier collaboration:

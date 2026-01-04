@@ -137,23 +137,19 @@
 
 ---
 
-#### Attempt 12: Cheetah Debug (Jan 04)
-- **Job ID**: `4011940` (Array 0-2)
+#### Attempt 12: Cheetah Debug (Jan 04 - Revised)
+- **Job ID**: `4011953` (Array 0-2)
 - **Status**: ⏳ PENDING
 - **Config**: `pwm_48M_mt_fullflow` + `horizon=30`
-- **Tasks**: `cheetah-run` (3 seeds)
-- **Notes**: Debugging run to see if longer horizon fixes failure.
+- **WandB**: `MT30-Detailed` / `mt30_debug_h30`
+- **Notes**: Added `model_best` saving and resume support.
 
-#### Attempt 11: Full Flow Model (Jan 04)
-- **Job ID**: `4011930` (Array 0-8)
+#### Attempt 11: Full Flow Model (Jan 04 - Revised)
+- **Job ID**: `4011952` (Array 0-8)
 - **Status**: ⏳ PENDING
 - **Config**: `pwm_48M_mt_fullflow` (Flow WM + Flow Policy)
-- **Tasks**: `reacher-easy`, `walker-stand`, `cheetah-run` (3 seeds each)
-- **Notes**: 
-  - Trained from scratch (`finetune_wm=True`).
-  - Comparing against Pretrained MLP Baseline.
-  - Time limit 16h (may need resume).
-  - Explicit `hydra.run.dir` to prevent collisions.
+- **WandB**: `MT30-Detailed` / `mt30_fullflow`
+- **Notes**: From scratch training. Added `model_best` saving and resume support.
 
 #### Phase 3: MT30 Multitask Comparison (Completed)
 **Goal**: Compare Baseline vs Flow Policy on 3 tasks (3 seeds each).
