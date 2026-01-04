@@ -18,6 +18,89 @@ Template for each entry:
 
 ---
 
+## 2026-01-03 – Copilot (Config Confound Fix + Aligned Experiments)
+
+### CRITICAL CONFOUND DISCOVERED AND FIXED:
+- **Issue**: Baseline used `rew_rms: True` but all Flow variants used `rew_rms: False`
+- **Impact**: Previous comparisons were NOT fair (different reward normalization)
+- **Fix**: Created aligned configs with `rew_rms: True` for all:
+  - `pwm_5M_flow_v3_aligned.yaml` (FlowWM K=8)
+  - `pwm_5M_flowpolicy_aligned.yaml` (FlowPolicy)
+
+### ALIGNED EXPERIMENTS SUBMITTED (60 jobs):
+| Task | Variant | Seeds | Job IDs |
+|------|---------|-------|---------|
+| Ant | Baseline | 0-9 | 3143565-3143574 |
+| Ant | FlowWM K=8 | 0-9 | 3143575-3143584 |
+| Anymal | Baseline | 0-9 | 3143585-3143594 |
+| Anymal | FlowPolicy | 0-9 | 3143595-3143604 |
+| Humanoid | Baseline | 0-9 | 3143623-3143634 |
+| Humanoid | FlowPolicy | 0-9 | 3143635-3143644 |
+
+### SMOKE TESTS PASSED:
+- Ant FlowWM K=8 aligned: ✅ (job 3143559)
+- Anymal FlowPolicy aligned: ✅ (job 3143563)
+- Humanoid FlowPolicy aligned: ✅ (job 3143561)
+
+### ANYMAL CONFIG NOTE:
+- `heigh_rew_scale` (typo) is intentional - dflex.AnymalEnv doesn't support `height_rew_scale`
+
+### WandB Projects:
+- `flow-mbpo-aligned-ant`
+- `flow-mbpo-aligned-anymal`
+- `flow-mbpo-aligned-humanoid`
+
+### Follow-ups:
+- [ ] Wait for 60 jobs to complete (~5-8 hours each)
+- [ ] Run evaluation on all checkpoints
+- [ ] Update master_plan.md with findings
+- [ ] Consider 48M model experiments
+
+## 2025-12-31 / 2026-01-01 – Copilot (Humanoid Experiments + Evaluation Pipeline)
+
+### HUMANOID EXPERIMENTS STATUS:
+- **COMPLETED (11 jobs):**
+  - Baseline: 3 jobs (3101831-3101833) - ~2h20m each ✅
+  - Flow WM K=4: 3 jobs (3104842-3104845) - ~5h each ✅
+  - Flow WM K=2: 3 jobs (3104846-3104848) - ~3h40m each ✅
+  - Flow WM K=8: 2 jobs (3107946-3107947) - ~5-6h each ✅
+- **STILL FAILING (7 jobs):**
+  - Flow WM K=8 s456, FlowPolicy×3, FullFlow×3
+  - Root cause: CUDA device busy errors (GPU contention on cluster)
+
+### EVALUATION PIPELINE DEVELOPMENT:
+1. **Created `evaluate_unified.py`:**
+   - Supports all 3 envs: dflex_ant, dflex_anymal, dflex_humanoid
+   - Uses REAL environment rewards (not WM predictions)
+   - Added module aliasing for backward compat with 'pwm' checkpoints
+2. **Disk Quota Issue:**
+   - Project directory 100% full (~21GB in outputs)
+   - Deleted wandb/ (3.2GB) and outputs/2025-12-27/ (3.7GB)
+   - WORKAROUND: Using scratch directory `/storage/scratch1/9/eliu354/flow_mbpo/`
+3. **Batch Eval Script:**
+   - Created but jobs failing due to disk quota
+   - Will retry after using scratch directory
+
+### DISK SPACE CLEANUP:
+- Removed `scripts/wandb/` (3.2GB) - already synced to cloud
+- Removed `scripts/outputs/2025-12-27/` (3.7GB) - old smoke tests
+- Kept Dec 28-30 outputs (checkpoints needed for eval)
+
+### SCRATCH DIRECTORY SETUP:
+- Created: `/storage/scratch1/9/eliu354/flow_mbpo/`
+  - `scripts/` - evaluation scripts
+  - `eval_results/` - CSV output
+  - `logs/` - SLURM logs
+
+### GIT COMMITS: TBD
+### NEXT STEPS:
+1. Resubmit remaining 7 Humanoid jobs with staggered timing
+2. Run batch evaluation using scratch directory
+3. Aggregate results into CSV
+4. Complete documentation updates
+
+---
+
 ## 2025-12-29 – Copilot (Ant Experiments Setup)
 - **ANT EXPERIMENTS LAUNCHED:**
   - Created `scripts/ant/` directory with smoke tests and full training scripts
