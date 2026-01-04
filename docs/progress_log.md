@@ -35,8 +35,8 @@ Template for each entry:
   - **Robust Resume**: Fixed `PWM.load` to restore iteration counts, optimizers, and `best_reward`.
   - **Detailed Logging**: New WandB project `MT30-Detailed` with per-epoch LR and grad stats.
 - **Experiments**:
-  - `4011952`: Full Flow (reacher, walker, cheetah).
-  - `4011953`: Cheetah Debug (Horizon=30).
+  - `4011967`: Full Flow (reacher, walker, cheetah).
+  - `4011968`: Cheetah Debug (Horizon=30).
 
 ---
 

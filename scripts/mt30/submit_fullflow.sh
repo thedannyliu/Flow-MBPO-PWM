@@ -31,11 +31,18 @@ DATA_DIR="${DATA_DIR:-/home/hice1/eliu354/scratch/Data/tdmpc2/mt30}"
 
 # === ENVIRONMENT ===
 source ~/.bashrc
+eval "$(conda shell.bash hook)"
 conda activate flow-mbpo
+export PATH=$CONDA_PREFIX/bin:$PATH
+
 cd /home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM
-export PYTHONPATH=src:$PYTHONPATH
+
+# Set PYTHONPATH with absolute paths
+export PYTHONPATH=/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/src:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/scripts:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/external/tdmpc2:$PYTHONPATH
 export MUJOCO_GL=egl
 export LAZY_LEGACY_OP=0
+export HYDRA_FULL_ERROR=1
+export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 mkdir -p logs/slurm/mt30
 mkdir -p outputs/mt30/fullflow/${TASK}/seed${SEED}
@@ -61,7 +68,7 @@ fi
 #     exit 1
 # fi
 
-python scripts/train_multitask.py -cn config_mt30 \
+python -u scripts/train_multitask.py -cn config_mt30 \
   alg=pwm_48M_mt_fullflow \
   task=${TASK} \
   general.seed=${SEED} \

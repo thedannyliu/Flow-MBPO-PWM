@@ -138,14 +138,14 @@
 ---
 
 #### Attempt 12: Cheetah Debug (Jan 04 - Revised)
-- **Job ID**: `4011953` (Array 0-2)
+- **Job ID**: `4011968` (Array 0-2)
 - **Status**: ⏳ PENDING
 - **Config**: `pwm_48M_mt_fullflow` + `horizon=30`
 - **WandB**: `MT30-Detailed` / `mt30_debug_h30`
 - **Notes**: Added `model_best` saving and resume support.
 
 #### Attempt 11: Full Flow Model (Jan 04 - Revised)
-- **Job ID**: `4011952` (Array 0-8)
+- **Job ID**: `4011967` (Array 0-8)
 - **Status**: ⏳ PENDING
 - **Config**: `pwm_48M_mt_fullflow` (Flow WM + Flow Policy)
 - **WandB**: `MT30-Detailed` / `mt30_fullflow`

@@ -641,8 +641,8 @@ All new implementations and experiments in this repository should be traceable b
   - **Best Model Saving**: Periodic evaluation-based `model_best.pt` saving.
   - **Detailed Logging**: `MT30-Detailed` WandB project with comprehensive diagnostics.
 - **Experiments**:
-  - `4011986`: Main MT30 Full Flow (3 tasks, 3 seeds).
-  - `4011987`: Cheetah Debug (Horizon=30).
+  - `4011967`: Main MT30 Full Flow (3 tasks, 3 seeds).
+  - `4011968`: Cheetah Debug (Horizon=30).
 - **Hypothesis**: The combination of Flow WM and Flow Policy will stabilize gradients (better ESNR) and potentially solve `cheetah-run` with extended horizons.
 
 ---
