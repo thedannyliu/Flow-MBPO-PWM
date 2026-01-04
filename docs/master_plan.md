@@ -617,6 +617,18 @@ All new implementations and experiments in this repository should be traceable b
     2. **Flow Policy**: Flow ODE Policy (`ActorFlowODE`).
   - Compute: H100 GPUs (PACE ICE Cluster), 450GB RAM, 16h walltime.
 - **Evaluation**: Compare final reward and planning-based evaluation across 3 seeds per task.
+- **Status (Jan 2026)**: Phase 3 experiments running (Attempt 8).
+  - **Collision Incident**: Attempt 7 (H100/H200) completed quickly (~27m) but log files for simultaneous array tasks collided.
+  - **Partial Results**: Recovered `cheetah-run` (R~115) and `walker-stand` (R~901).
+  - **Current Action**: Resubmitted full batch (Attempt 8) with fixed logging paths to ensure clean data for all seeds.
+  - **Hardware Incident**: Flow Policy jobs (seeds for walker/cheetah) failed on bad H200 node (ERR!/700W).
+  - **Status**: ✅ **COMPLETED** (Jan 04).
+  - **Results**:
+    - `reacher-easy`: Tie (~982).
+    - `walker-stand`: Baseline wins (+14%).
+    - `cheetah-run`: Tie (Both failed, R~100). Need hyperparameter tuning or more data.
+  - **Storage**: Weights deleted to respect quota. Metrics preserved.
+  - **Next Step**: Proceed to Phase 4 (Full Flow Model).
 
 ---
 

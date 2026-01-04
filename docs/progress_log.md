@@ -18,6 +18,38 @@ Template for each entry:
 
 ---
 
+## 2026-01-04 01:00 – Copilot (Phase 3 Complete)
+- **Status**: All MT30 Baseline and Flow Policy experiments finished successfully.
+- **Cleanup**: Processed resulting metrics and deleted all `.pt` weights to free **57.46 GB** (Total reclaimed: >100GB).
+- **Findings**:
+  - `reacher-easy`: Tie (Reward ~982).
+  - `walker-stand`: Baseline better (958 vs 840).
+  - `cheetah-run`: Both failed (112 vs 99). Previous high baseline score was an aggregation error.
+- **Next**: Proceed to Full Flow Model (Phase 4).
+
+---
+
+- **Action**: Monitored training progress. Attempt 8/9 verified running.
+- **Storage**: Scratch quota reached 84%. Ran `scripts/mt30/cleanup_weights.py` to delete `.pt` files from 10 completed runs (validating 10k epochs first).
+- **Result**: Reclaimed **44.21 GB**.
+- **Metrics**: Added partial evaluation table to `experiment_log.md`. Flow Policy showing strong results on `reacher-easy` (~980) and `walker-stand` (~890).
+
+---
+
+- **Incident**: Flow Policy jobs (Attempt 8, indices 3,5-8) failed immediately with `ERR! / 700W` on node `atl1-1-03-017-23-0`.
+- **Diagnosis**: Hardware failure (Bad GPU) on specific node.
+- **Recovery**: Resubmitted failed indices as **Attempt 9** (`4011740`) with `--exclude=atl1-1-03-017-23-0`.
+- **Status**: Baseline jobs (`4011713`) queueing/running. Flow jobs (`4011714`) partially running, partially resubmitted.
+
+---
+
+- **Incident**: Attempt 7 (Array Jobs 4011522, 4011523) completed successfully, but default Hydra output directory naming (1-second precision) caused collisions. Simultaneous array tasks overwrote each other's logs in the same directory.
+- **Outcome**: Only the last-writing seed per task survived. Partial data recovered (`cheetah-run` R~115, `walker-stand` R~901).
+- **Fix**: Updated `submit_*.sh` to explicitly set `hydra.run.dir="outputs/mt30/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}"` ensuring unique paths.
+- **Action**: Resubmitted full experiment batch as **Attempt 8** (Jobs `4011713`, `4011714`).
+
+---
+
 ## 2026-01-03 19:10 – Copilot (Attempt 7 - Confirmed Training)
 - **Root Cause**: Attempts 5-6 failed with `TypeError: 'module' object is not callable` because adding `import time, random` at line 201 shadowed the earlier `from time import time` at line 17.
 - **Fix**: Changed line 17 to `import time` and updated all `time()` calls to `time.time()` (lines 284, 294). Removed redundant import at line 201.

@@ -24,37 +24,75 @@
 
 ## Active / Recent Experiments
 
-### MT30 Full Training - Attempt 7 (2026-01-03 19:10 EST)
-- **Status**: ✅ **TRAINING IN PROGRESS**
-- **Goal**: Compare Baseline (H100) vs Flow Policy (H200).
-- **Hardware**: H100 for Baseline, **H200 for Flow Policy**.
-- **Fix Applied**: Fixed all `time()` calls to `time.time()` after Python import shadowing bug.
+### Attempt 8: 48M Multitask MT30 (Fixed Logging)
+- **Date**: 2026-01-03
+- **Job IDs**: 
+  - `4011713` (Baseline, H100)
+  - `4011714` (Flow Policy, H200)
+- **Status**: PARTIAL FAILURE
+- **Outcome**: 
+  - **Baseline (4011713)**: Index 0 Success (`cheetah-run` s42). Index 1 Running. Others Pending.
+  - **Flow Policy (4011714)**: 
+    - Indices 0, 1, 2, 4 Running/Success.
+### Attempt 10: 48M MT30 Final Status
+**All Phase 3 experiments are COMPLETED.** Weights have been cleaned up to save space.
+
+### Final Results Summary (Phase 3)
+*Deduplicated from 18 valid runs (Completed Jan 04)*
+
+| Task | Metric | Baseline (MLP) | Flow Policy (ODE) | Winner |
+|---|---|---|---|---|
+| **reacher-easy** | Reward | **982.30** | 980.67 | Tie (Solved) |
+| | Success | 1.00 | 1.00 | Tie |
+| **walker-stand** | Reward | **957.72** | 839.78 | Baseline (+14%) |
+| | Success | 1.00 | ~0.90 | Baseline |
+| **cheetah-run** | Reward | **112.48** | 98.74 | Tie (Both Failed) |
+| | Success | N/A | N/A | Failure |
+
+### Detailed Seed Metrics
+| Algo | Task | Seed | R | Plan R | Job ID |
+|---|---|---|---|---|---|
+| **Baseline** | `cheetah-run` | 42 | 93.69 | 88.13 | 4011771 |
+| **Baseline** | `cheetah-run` | 123 | 108.80 | 81.67 | Attempt 8 (4011772) |
+| **Baseline** | `cheetah-run` | 456 | 134.97 | 114.09 | 4011713 |
+| **Baseline** | `reacher-easy` | 42 | 981.20 | 981.70 | 4011715 |
+| **Baseline** | `reacher-easy` | 123 | 983.50 | 985.60 | 4011737 |
+| **Baseline** | `reacher-easy` | 456 | 982.20 | 985.50 | 4011758 |
+| **Baseline** | `walker-stand` | 42 | 972.32 | 943.97 | 4011759 |
+| **Baseline** | `walker-stand` | 123 | 923.48 | 933.11 | 4011760 |
+| **Baseline** | `walker-stand` | 456 | 977.35 | 978.33 | 4011761 |
+| **Flow** | `cheetah-run` | 42 | 80.97 | 82.31 | 4011744 |
+| **Flow** | `cheetah-run` | 123 | 94.75 | 73.21 | Attempt 8 (4011794) |
+| **Flow** | `cheetah-run` | 456 | 120.52 | 110.27 | 4011740 |
+| **Flow** | `reacher-easy` | 42 | 976.70 | 982.90 | 4011716 |
+| **Flow** | `reacher-easy` | 123 | 983.40 | 986.00 | 4011717 |
+| **Flow** | `reacher-easy` | 456 | 981.90 | 983.90 | 4011718 |
+| **Flow** | `walker-stand` | 42 | 854.53 | 864.39 | 4011741 |
+| **Flow** | `walker-stand` | 123 | 744.92 | 796.67 | 4011720 |
+| **Flow** | `walker-stand` | 456 | 919.90 | 933.66 | 4011743 |
+
+
+
+### Attempt 7: 48M Multitask MT30 (Collision Issue)
+- **Date**: 2026-01-03
+- **Job IDs**: 
+  - `4011522` (Baseline, H100)
+  - `4011523` (Flow Policy, H200) - Job `_5` failed (OOM/Bad Node), re-run as `4011712`.
+- **Status**: COMPLETED (PARTIAL LOGS)
+- **Outcome**: 
+  - Jobs completed successfully in ~27 mins.
+  - **Issue**: Default `hydra.run.dir` (1-second precision) caused output directory collisions for array jobs starting simultaneously. Only the last writing seed per task survived in the logs.
+  - **Recovered Metrics**:
+    - **Baseline (s456)**: `cheetah-run` R=107.15, PlanR=105.16
+    - **Baseline (s123)**: `cheetah-run` R=122.84, PlanR=132.98
+    - **Flow Policy (s123)**: `cheetah-run` R=83.38, PlanR=101.21
+    - **Flow Policy (s42)**: `walker-stand` R=901.05, PlanR=887.53 (Success!)
 
 **Baseline Array Job 4011522** (9 jobs: 3 tasks × 3 seeds)
-| Array ID | Task | Seed | Job ID | Status | Hardware | WandB Name |
-|----------|------|------|--------|--------|----------|------------|
-| 0 | reacher-easy | 42 | 4011522_0 | ✅ RUNNING | H100 | `baseline_H100_reacher-easy_s42` |
-| 1 | reacher-easy | 123 | 4011522_1 | ✅ RUNNING | H100 | `baseline_H100_reacher-easy_s123` |
-| 2 | reacher-easy | 456 | 4011522_2 | ✅ RUNNING | H100 | `baseline_H100_reacher-easy_s456` |
-| 3 | walker-stand | 42 | 4011522_3 | ✅ RUNNING | H100 | `baseline_H100_walker-stand_s42` |
-| 4 | walker-stand | 123 | 4011522_4 | ✅ RUNNING | H100 | `baseline_H100_walker-stand_s123` |
-| 5 | walker-stand | 456 | 4011522_5 | ✅ RUNNING | H100 | `baseline_H100_walker-stand_s456` |
-| 6 | cheetah-run | 42 | 4011522_6 | ✅ RUNNING | H100 | `baseline_H100_cheetah-run_s42` |
-| 7 | cheetah-run | 123 | 4011522_7 | ✅ RUNNING | H100 | `baseline_H100_cheetah-run_s123` |
-| 8 | cheetah-run | 456 | 4011522_8 | ✅ RUNNING | H100 | `baseline_H100_cheetah-run_s456` |
+- Logs polluted by array job collision. Re-running as Attempt 8 (`4011713`).
 
 **Flow Policy Array Job 4011523** (9 jobs: 3 tasks × 3 seeds)
-| Array ID | Task | Seed | Job ID | Status | Hardware | WandB Name |
-|----------|------|------|--------|--------|----------|------------|
-| 0 | reacher-easy | 42 | 4011523_0 | ✅ RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s42` |
-| 1 | reacher-easy | 123 | 4011523_1 | ✅ RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s123` |
-| 2 | reacher-easy | 456 | 4011523_2 | ✅ RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s456` |
-| 3 | walker-stand | 42 | 4011523_3 | ✅ RUNNING | **H200** | `flowpolicy_H200_walker-stand_s42` |
-| 4 | walker-stand | 123 | 4011523_4 | ✅ RUNNING | **H200** | `flowpolicy_H200_walker-stand_s123` |
-| 5 | walker-stand | 456 | 4011523_5 | ✅ RUNNING | **H200** | `flowpolicy_H200_walker-stand_s456` |
-| 6 | cheetah-run | 42 | 4011523_6 | ✅ RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s42` |
-| 7 | cheetah-run | 123 | 4011523_7 | ✅ RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s123` |
-| 8 | cheetah-run | 456 | 4011523_8 | ✅ RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s456` |
+- Logs polluted by array job collision. Job `_5` failed (OOM). Re-running as Attempt 8 (`4011714`).
 
 > [!IMPORTANT]
 > **Ghost Runs**: Runs named `PWM_reacher-easy`, `PWM_walker-stand`, etc., are artifacts from Attempt 3. **Please ignore them.** Valid Attempt 5 runs use `baseline_H100_` or `flowpolicy_H200_`.

@@ -1,0 +1,19 @@
+Algorithm,Task,Seed,Status,Iteration,Episode Reward,Planning Reward,Success,Planning Success,Path,RunDir
+pwm_48M_mt_baseline,cheetah-run,123,COMPLETED,9999.0,108.7988052368164,81.67097473144531,0.0,0.0,outputs/mt30/4011772/7_s123/logs/cheetah-run_results.csv,outputs/mt30/4011772/7_s123
+pwm_48M_mt_baseline,cheetah-run,42,COMPLETED,9999.0,93.68582153320312,88.12699890136719,0.0,0.0,outputs/mt30/4011771/6_s42/logs/cheetah-run_results.csv,outputs/mt30/4011771/6_s42
+pwm_48M_mt_baseline,cheetah-run,456,COMPLETED,9999.0,134.9657745361328,114.09173583984376,0.0,0.0,outputs/mt30/4011713/8_s456/logs/cheetah-run_results.csv,outputs/mt30/4011713/8_s456
+pwm_48M_mt_baseline,reacher-easy,123,COMPLETED,9999.0,983.5,985.5999755859376,0.0,0.0,outputs/mt30/4011737/1_s123/logs/reacher-easy_results.csv,outputs/mt30/4011737/1_s123
+pwm_48M_mt_baseline,reacher-easy,42,COMPLETED,9999.0,981.2000122070312,981.7000122070312,0.0,0.0,outputs/mt30/4011715/0_s42/logs/reacher-easy_results.csv,outputs/mt30/4011715/0_s42
+pwm_48M_mt_baseline,reacher-easy,456,COMPLETED,9999.0,982.2000122070312,985.5,0.0,0.0,outputs/mt30/4011758/2_s456/logs/reacher-easy_results.csv,outputs/mt30/4011758/2_s456
+pwm_48M_mt_baseline,walker-stand,123,COMPLETED,9999.0,923.4827880859376,933.1052856445312,0.0,0.0,outputs/mt30/4011760/4_s123/logs/walker-stand_results.csv,outputs/mt30/4011760/4_s123
+pwm_48M_mt_baseline,walker-stand,42,COMPLETED,9999.0,972.31591796875,943.9744873046876,0.0,0.0,outputs/mt30/4011759/3_s42/logs/walker-stand_results.csv,outputs/mt30/4011759/3_s42
+pwm_48M_mt_baseline,walker-stand,456,COMPLETED,9999.0,977.3486328125,978.3262939453124,0.0,0.0,outputs/mt30/4011761/5_s456/logs/walker-stand_results.csv,outputs/mt30/4011761/5_s456
+pwm_48M_mt_flowpolicy,cheetah-run,123,COMPLETED,9999.0,94.7455062866211,73.2148666381836,0.0,0.0,outputs/mt30/4011794/7_s123/logs/cheetah-run_results.csv,outputs/mt30/4011794/7_s123
+pwm_48M_mt_flowpolicy,cheetah-run,42,COMPLETED,9999.0,80.97091674804688,82.30543518066406,0.0,0.0,outputs/mt30/4011744/6_s42/logs/cheetah-run_results.csv,outputs/mt30/4011744/6_s42
+pwm_48M_mt_flowpolicy,cheetah-run,456,COMPLETED,9999.0,120.5177993774414,110.26863861083984,0.0,0.0,outputs/mt30/4011740/8_s456/logs/cheetah-run_results.csv,outputs/mt30/4011740/8_s456
+pwm_48M_mt_flowpolicy,reacher-easy,123,COMPLETED,9999.0,983.4000244140624,986.0,0.0,0.0,outputs/mt30/4011717/1_s123/logs/reacher-easy_results.csv,outputs/mt30/4011717/1_s123
+pwm_48M_mt_flowpolicy,reacher-easy,42,COMPLETED,9999.0,976.7000122070312,982.9000244140624,0.0,0.0,outputs/mt30/4011716/0_s42/logs/reacher-easy_results.csv,outputs/mt30/4011716/0_s42
+pwm_48M_mt_flowpolicy,reacher-easy,456,COMPLETED,9999.0,981.9000244140624,983.9000244140624,0.0,0.0,outputs/mt30/4011718/2_s456/logs/reacher-easy_results.csv,outputs/mt30/4011718/2_s456
+pwm_48M_mt_flowpolicy,walker-stand,123,COMPLETED,9999.0,744.9151000976562,796.6670532226562,0.0,0.0,outputs/mt30/4011720/4_s123/logs/walker-stand_results.csv,outputs/mt30/4011720/4_s123
+pwm_48M_mt_flowpolicy,walker-stand,42,COMPLETED,9999.0,854.533203125,864.3931884765625,0.0,0.0,outputs/mt30/4011741/3_s42/logs/walker-stand_results.csv,outputs/mt30/4011741/3_s42
+pwm_48M_mt_flowpolicy,walker-stand,456,COMPLETED,9999.0,919.9000854492188,933.6624145507812,0.0,0.0,outputs/mt30/4011743/5_s456/logs/walker-stand_results.csv,outputs/mt30/4011743/5_s456
