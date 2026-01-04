@@ -43,8 +43,10 @@ Template for each entry:
 - **Status**: Launched massive parallel experiments.
 - **Goal**: Establish fair "From Scratch" baseline and tune Flow params for performance.
 - **Experiments**:
-  - `4011987`: Baseline MLP (From Scratch) - 9 Jobs on `coc-gpu`.
-  - `4011988`: Flow Tuning (High Precision WM/Policy, Euler) - 18 Jobs on `ice-gpu`.
+  - `4011987`: Baseline MLP (From Scratch) - 9 Jobs on `coc-gpu`. Running Healthy.
+  - `4011988`: Flow Tuning (High Precision) - 18 Jobs on `ice-gpu`. Pending.
+  - `4012027`: Full Flow (Resubmitted) - 9 Jobs on `ice-gpu`. Replaces `4011967` (Fixed `tqdm` hang).
+  - `4012028`: Cheetah Debug (Resubmitted) - 3 Jobs on `ice-gpu`. Replaces `4011968` (Fixed `tqdm` hang).
 
 ---
 

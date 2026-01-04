@@ -264,8 +264,8 @@ def train(cfg: dict):
     fps = sorted(glob(str(fp)))
     assert len(fps) > 0, f"No data found at {fp}"
     print(f"Found {len(fps)} files in {fp}")
-    for fp in tqdm(fps, desc="Loading data"):
-        print("Loading", fp)
+    for fp in fps:
+        print(f"Loading {fp}", flush=True)
         td = torch.load(fp, weights_only=False)  # TD-MPC2 data uses TensorDict
         assert td.shape[1] == cfg.episode_length, (
             f"Expected episode length {td.shape[1]} to match config episode length {cfg.episode_length}, "

@@ -11,7 +11,7 @@
 > 3. Update to `COMPLETED`/`FAILED` with runtime and checkpoint path when finished
 > 4. After evaluation, update to `EVALUATED` with final metrics
 >
-> **Important fields to track**:
+> **Important fields to track (each run/job)**:
 > - `Job ID`: Slurm job ID for tracking
 > - `Config`: Algorithm config file used (e.g., `pwm_48M_mt_baseline.yaml`)
 > - `Task`: Task name (e.g., `reacher-easy`, `walker-stand`)
@@ -166,18 +166,24 @@
 ---
 
 #### Attempt 12: Cheetah Debug (Jan 04 - Revised)
-- **Job ID**: `4011968` (Array 0-2)
+- **Job ID**: `4012028` (Array 0-2)
 - **Status**: ⏳ PENDING
 - **Config**: `pwm_48M_mt_fullflow` + `horizon=30`
 - **WandB**: `MT30-Detailed` / `mt30_debug_h30`
-- **Notes**: Added `model_best` saving and resume support.
+- **Location**: `outputs/mt30_cheetah_h30/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}`
+- **Notes**: 
+  - Re-run of 4011968 (Stuck on loading).
+  - Fixed data loading hang by removing `tqdm` and flushing stdout.
 
 #### Attempt 11: Full Flow Model (Jan 04 - Revised)
-- **Job ID**: `4011967` (Array 0-8)
+- **Job ID**: `4012027` (Array 0-8)
 - **Status**: ⏳ PENDING
 - **Config**: `pwm_48M_mt_fullflow` (Flow WM + Flow Policy)
 - **WandB**: `MT30-Detailed` / `mt30_fullflow`
-- **Notes**: From scratch training. Added `model_best` saving and resume support.
+- **Location**: `outputs/mt30_fullflow/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}`
+- **Notes**: 
+  - Re-run of 4011967 (Stuck on loading). 
+  - Fixed data loading hang by removing `tqdm` and flushing stdout.
 
 #### Phase 3: MT30 Multitask Comparison (Completed)
 **Goal**: Compare Baseline vs Flow Policy on 3 tasks (3 seeds each).
