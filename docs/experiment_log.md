@@ -137,16 +137,36 @@
 
 ---
 
+#### Attempt 12: Cheetah Debug (Jan 04)
+- **Job ID**: `4011940` (Array 0-2)
+- **Status**: ⏳ PENDING
+- **Config**: `pwm_48M_mt_fullflow` + `horizon=30`
+- **Tasks**: `cheetah-run` (3 seeds)
+- **Notes**: Debugging run to see if longer horizon fixes failure.
+
+#### Attempt 11: Full Flow Model (Jan 04)
+- **Job ID**: `4011930` (Array 0-8)
+- **Status**: ⏳ PENDING
+- **Config**: `pwm_48M_mt_fullflow` (Flow WM + Flow Policy)
+- **Tasks**: `reacher-easy`, `walker-stand`, `cheetah-run` (3 seeds each)
+- **Notes**: 
+  - Trained from scratch (`finetune_wm=True`).
+  - Comparing against Pretrained MLP Baseline.
+  - Time limit 16h (may need resume).
+  - Explicit `hydra.run.dir` to prevent collisions.
+
+#### Phase 3: MT30 Multitask Comparison (Completed)
+**Goal**: Compare Baseline vs Flow Policy on 3 tasks (3 seeds each).
+**Status**: ✅ COMPLETED (Attempt 7-9)
+
 ### MT30 Full Training - Attempt 2 (2026-01-03 18:15 EST)
-- **Status**: � **CANCELLED**
+- **Status**:  **CANCELLED**
 - **Reason**: User requested change of WandB project name and more detailed run tracking.
 - **Goal**: Complete Baseline (MLP WM + MLP Policy) vs Flow Policy (MLP WM + Flow Policy) comparison.
 
 **Baseline Array Job 4011379** (9 jobs: 3 tasks × 3 seeds)
 | Array ID | Task | Seed | Job ID | Status | WandB Name |
 |----------|------|------|--------|--------|------------|
-| 0 | reacher-easy | 42 | 4011379_0 | � CANCELLED | baseline_reacher-easy_s42 |
-| 1 | reacher-easy | 123 | 4011379_1 | � CANCELLED | baseline_reacher-easy_s123 |
 | 2 | reacher-easy | 456 | 4011379_2 | � CANCELLED | baseline_reacher-easy_s456 |
 | 3 | walker-stand | 42 | 4011379_3 | � CANCELLED | baseline_walker-stand_s42 |
 | 4 | walker-stand | 123 | 4011379_4 | � CANCELLED | baseline_walker-stand_s123 |

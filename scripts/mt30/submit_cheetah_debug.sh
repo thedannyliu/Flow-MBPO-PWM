@@ -1,27 +1,25 @@
 #!/bin/bash
-#SBATCH --job-name=mt30_fullflow
-#SBATCH --output=logs/slurm/mt30/fullflow_%A_%a.out
-#SBATCH --error=logs/slurm/mt30/fullflow_%A_%a.err
+#SBATCH --job-name=mt30_cheetah_h30
+#SBATCH --output=logs/slurm/mt30/cheetah_h30_%A_%a.out
+#SBATCH --error=logs/slurm/mt30/cheetah_h30_%A_%a.err
 #SBATCH --gres=gpu:H100:1
 #SBATCH --mem=450GB
 #SBATCH --cpus-per-task=16
 #SBATCH -t 16:00:00
 #SBATCH -A coc
 #SBATCH --partition=ice-gpu
-#SBATCH --array=0-8
+#SBATCH --array=0-2
 
 # MT30 Full Flow: Flow World Model + Flow ODE Policy
 # Uses pwm_48M_mt_fullflow.yaml - Full Flow comparison (do after Policy-only)
 # NOTE: Higher memory allocation due to Flow WM ODE integration overhead
 
 # === CONFIGURATION ===
-TASKS=("reacher-easy" "walker-stand" "cheetah-run")
+TASKS=("cheetah-run")
 SEEDS=(42 123 456)
 
-TASK_IDX=$((SLURM_ARRAY_TASK_ID / 3))
-SEED_IDX=$((SLURM_ARRAY_TASK_ID % 3))
-TASK=${TASKS[$TASK_IDX]}
-SEED=${SEEDS[$SEED_IDX]}
+TASK=${TASKS[0]}
+SEED=${SEEDS[$SLURM_ARRAY_TASK_ID]}
 
 DATA_DIR="${DATA_DIR:-/home/hice1/eliu354/scratch/Data/tdmpc2/mt30}"
 # NOTE: For Full Flow, you need a FLOW WM checkpoint, not the baseline MLP WM
@@ -66,14 +64,15 @@ python scripts/train_multitask.py -cn config_mt30 \
   task=${TASK} \
   general.seed=${SEED} \
   general.data_dir=${DATA_DIR} \
-  general.epochs=10000 \
+  general.epochs=5000 \
   general.eval_freq=200 \
   general.eval_runs=10 \
   general.finetune_wm=True \
   general.run_wandb=True \
   ++wandb.project=flow-mbpo-multitask \
-  ++wandb.group=mt30_fullflow \
-  ++wandb.name=fullflow_${TASK}_s${SEED} \
-  hydra.run.dir="outputs/mt30/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}"
+  ++wandb.group=mt30_debug_h30 \
+  ++wandb.name=debug_cheetah_h30_s${SEED} \
+  hydra.run.dir="outputs/mt30_debug/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}" \
+  ++horizon=30
 
 echo "=== Training Complete ==="

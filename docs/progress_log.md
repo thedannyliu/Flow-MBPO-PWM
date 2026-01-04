@@ -27,6 +27,13 @@ Template for each entry:
   - `cheetah-run`: Both failed (112 vs 99). Previous high baseline score was an aggregation error.
 - **Next**: Proceed to Full Flow Model (Phase 4).
 
+### Phase 4: Full Flow & Debugging (Ongoing)
+- **Date**: Jan 04, 2026
+- **Status**: Launched experiments to compare "Flow WM + Flow Policy" against baselines.
+- **Experiments**:
+  - `4011930`: Full Flow (reacher, walker, cheetah).
+  - `4011940`: Cheetah Debug (Horizon=30).
+
 ---
 
 - **Action**: Monitored training progress. Attempt 8/9 verified running.
