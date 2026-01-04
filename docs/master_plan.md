@@ -641,8 +641,7 @@ All new implementations and experiments in this repository should be traceable b
   - **Best Model Saving**: Periodic evaluation-based `model_best.pt` saving.
   - **Detailed Logging**: `MT30-Detailed` WandB project with comprehensive diagnostics.
 - **Experiments**:
-  - `4012027`: Main MT30 Full Flow (Resubmission of 4011967). Fixed `tqdm` hang.
-  - `4012028`: Cheetah Debug (Resubmission of 4011968). Fixed `tqdm` hang.
+  - `4012433`: Main MT30 Full Flow (Array 0-8). Resubmitted after storage cleanup.
 - **Hypothesis**: The combination of Flow WM and Flow Policy will stabilize gradients (better ESNR) and potentially solve `cheetah-run` with extended horizons.
 
 ---
@@ -656,12 +655,12 @@ All new implementations and experiments in this repository should be traceable b
      - Partition: `coc-gpu` (L40S).
      - Status: Running (Job `4011987` array 0-8).
      - Tasks: `reacher-easy`, `walker-stand`, `cheetah-run` (3 seeds).
-  2. **Flow Tuning**:
+  2. **Flow Tuning** (Job `4012434` array 0-17):
      - `high_precision_wm`: Flow Substeps=8.
      - `high_precision_policy`: Policy Substeps=4.
      - `euler_fast`: Euler Integrator.
      - Partition: `ice-gpu` (H100).
-     - Status: Pending (Job `4011988` array 0-17).
+     - Status: QUEUED.
      - Tasks: `walker-stand`, `cheetah-run`.
 - **Infrastructure**: Using `ice-gpu` (H100) / `coc-gpu`. WandB `MT30-Detailed`.
 

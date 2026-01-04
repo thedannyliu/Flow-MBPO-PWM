@@ -18,6 +18,22 @@ Template for each entry:
 
 ---
 
+## 2026-01-04 17:30 – Copilot (Storage Cleanup & Resubmission)
+- **Issue**: All Phase 4/5 experiments failed due to disk quota exceeded (98.4% usage).
+- **Actions**:
+  1. Deleted all intermediate checkpoints (`model_*.pt` except best/last/final).
+  2. Identified 50 completed runs with `Final reward` in logs.
+  3. Deleted all weights from incomplete runs.
+  4. Storage reduced from 98.4% to 51.5% (freed ~145GB).
+- **Completed Experiments**: Phase 3 Baseline (18 runs) and Flow Policy (15 runs) fully completed.
+- **Resubmitted**:
+  - `4012433`: Full Flow Model (Array 0-8) - 9 jobs
+  - `4012434`: Flow Hyperparameter Tuning (Array 0-17) - 18 jobs
+- **Reorganized**: `experiment_log.md` completely rewritten for clarity.
+- **Next**: Monitor new jobs, verify completion.
+
+---
+
 ## 2026-01-04 01:00 – Copilot (Phase 3 Complete)
 - **Status**: All MT30 Baseline and Flow Policy experiments finished successfully.
 - **Cleanup**: Processed resulting metrics and deleted all `.pt` weights to free **57.46 GB** (Total reclaimed: >100GB).
