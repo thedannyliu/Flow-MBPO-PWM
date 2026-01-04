@@ -650,16 +650,20 @@ All new implementations and experiments in this repository should be traceable b
 **14) Phase 5: Baseline Comparison & Hyperparameter Tuning (New)**
 
 - **Goal**: Rigorous comparison of Flow vs MLP Baseline (both from scratch) and performance tuning.
-- **Status**: ⏳ **PENDING** (Jan 04).
+- **Status**: 🟢 **RUNNING** (Jan 04).
 - **Experiments**:
-  1. **Baseline From Scratch**: `pwm_48M_mt_baseline` with `finetune_wm=True` (no checkpoint).
+  1. **Baseline From Scratch**: `pwm_48M_mt_baseline` with `finetune_wm=True`.
+     - Partition: `coc-gpu` (L40S).
+     - Status: Running (Job `4011987` array 0-8).
      - Tasks: `reacher-easy`, `walker-stand`, `cheetah-run` (3 seeds).
   2. **Flow Tuning**:
-     - `high_precision_wm`: Flow Substeps=8 (Default 4).
-     - `high_precision_policy`: Policy Substeps=4 (Default 2).
-     - `euler_fast`: Euler Integrator (Efficiency test).
+     - `high_precision_wm`: Flow Substeps=8.
+     - `high_precision_policy`: Policy Substeps=4.
+     - `euler_fast`: Euler Integrator.
+     - Partition: `ice-gpu` (H100).
+     - Status: Pending (Job `4011988` array 0-17).
      - Tasks: `walker-stand`, `cheetah-run`.
-- **Infrastructure**: Using `ice-gpu` (H100) / `coe-gpu`. WandB `MT30-Detailed`.
+- **Infrastructure**: Using `ice-gpu` (H100) / `coc-gpu`. WandB `MT30-Detailed`.
 
 ---
 

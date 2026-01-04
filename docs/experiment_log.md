@@ -19,6 +19,7 @@
 > - `Checkpoint`: Path to saved model checkpoint
 > - `WandB`: Link to WandB run for visualization
 > - `Notes`: Any important observations or issues
+> - `Location`: Where the checkpoints locate
 
 ---
 
@@ -147,16 +148,19 @@
   - `high_precision_policy`: `actor_config.flow_substeps=4`.
   - `euler_fast`: `flow_integrator=euler` (WM+Policy).
 - **Tasks**: `walker-stand`, `cheetah-run` (3 seeds each).
+- **Location**: `outputs/mt30_tuning/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}`
 - **WandB**: `MT30-Detailed` / `mt30_tuning_X`
 
 #### Attempt 13: Baseline From Scratch (Jan 04)
 - **Job ID**: `4011987` (Array 0-8)
-- **Status**: ⏳ PENDING
+- **Status**: 🟢 RUNNING (Verified epoch 700+)
 - **Partition**: `coc-gpu` (L40S/A100)
 - **Config**: `pwm_48M_mt_baseline`
+- **Location**: `outputs/mt30_baseline_l40s/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}_s${SEED}`
 - **Notes**: 
   - Distributed to `coc-gpu` to free H100s.
   - Trained from scratch (`finetune_wm=True`).
+  - Strict "Apples-to-Apples" comparison for Phase 4.
   - No Checkpoint loaded.
 
 ---
