@@ -301,7 +301,7 @@ def train(cfg: dict):
             reward = metrics[f"episode_reward"]
             print(f"R: {reward:.2f}")
             if i > start_epoch: # Don't save on the very first iteration of a resume if it's the same
-                agent.save(f"model_{i}", logdir)
+                agent.save(f"model_last", logdir)
             
             # Save best model
             if reward > agent.best_reward:
