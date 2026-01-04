@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import hydra
 from omegaconf import OmegaConf
-from time import time
+import time
 
 from envs import make_env
 from flow_mbpo_pwm.utils.common import seeding
@@ -198,7 +198,7 @@ def train(cfg: dict):
 
     seeding(cfg.general.seed)
     # Add random delay to prevent concurrent initialization spikes on the same node
-    import time, random
+    import random
     delay = random.uniform(0, 60)
     print(f"Random start delay: {delay:.2f}s")
     time.sleep(delay)
@@ -281,7 +281,7 @@ def train(cfg: dict):
         raise ValueError("No data found for task", task)
 
     # train from dataset
-    start_time = time()
+    start_time = time.time()
     task_ids = torch.tensor([task_id] * cfg.buffer.batch_size, device=agent.device)
     metrics_log = []
     for i in range(start_epoch, cfg.general.epochs):
@@ -291,7 +291,7 @@ def train(cfg: dict):
 
         metrics = {
             "iteration": i,
-            "total_time": time() - start_time,
+            "total_time": time.time() - start_time,
         }
         metrics.update(train_metrics)
 

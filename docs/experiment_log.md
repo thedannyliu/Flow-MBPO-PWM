@@ -24,37 +24,37 @@
 
 ## Active / Recent Experiments
 
-### MT30 Full Training - Attempt 5 (2026-01-03 18:55 EST)
-- **Status**: 🔄 **RUNNING**
-- **Goal**: Compare Baseline (H100) vs Flow Policy (H200) with stabilized metadata and naming.
+### MT30 Full Training - Attempt 7 (2026-01-03 19:10 EST)
+- **Status**: ✅ **TRAINING IN PROGRESS**
+- **Goal**: Compare Baseline (H100) vs Flow Policy (H200).
 - **Hardware**: H100 for Baseline, **H200 for Flow Policy**.
-- **Fixes**: Fixed WandB metadata (`action_dim`, `action_dims`), improved run naming, and added random start delay (0-60s).
+- **Fix Applied**: Fixed all `time()` calls to `time.time()` after Python import shadowing bug.
 
-**Baseline Array Job 4011479** (9 jobs: 3 tasks × 3 seeds)
+**Baseline Array Job 4011522** (9 jobs: 3 tasks × 3 seeds)
 | Array ID | Task | Seed | Job ID | Status | Hardware | WandB Name |
 |----------|------|------|--------|--------|----------|------------|
-| 0 | reacher-easy | 42 | 4011479_0 | 🔄 RUNNING | H100 | `baseline_H100_reacher-easy_s42` |
-| 1 | reacher-easy | 123 | 4011479_1 | 🔄 RUNNING | H100 | `baseline_H100_reacher-easy_s123` |
-| 2 | reacher-easy | 456 | 4011479_2 | 🔄 RUNNING | H100 | `baseline_H100_reacher-easy_s456` |
-| 3 | walker-stand | 42 | 4011479_3 | 🔄 RUNNING | H100 | `baseline_H100_walker-stand_s42` |
-| 4 | walker-stand | 123 | 4011479_4 | 🔄 RUNNING | H100 | `baseline_H100_walker-stand_s123` |
-| 5 | walker-stand | 456 | 4011479_5 | 🔄 RUNNING | H100 | `baseline_H100_walker-stand_s456` |
-| 6 | cheetah-run | 42 | 4011479_6 | 🔄 RUNNING | H100 | `baseline_H100_cheetah-run_s42` |
-| 7 | cheetah-run | 123 | 4011479_7 | 🔄 RUNNING | H100 | `baseline_H100_cheetah-run_s123` |
-| 8 | cheetah-run | 456 | 4011479_8 | 🔄 RUNNING | H100 | `baseline_H100_cheetah-run_s456` |
+| 0 | reacher-easy | 42 | 4011522_0 | ✅ RUNNING | H100 | `baseline_H100_reacher-easy_s42` |
+| 1 | reacher-easy | 123 | 4011522_1 | ✅ RUNNING | H100 | `baseline_H100_reacher-easy_s123` |
+| 2 | reacher-easy | 456 | 4011522_2 | ✅ RUNNING | H100 | `baseline_H100_reacher-easy_s456` |
+| 3 | walker-stand | 42 | 4011522_3 | ✅ RUNNING | H100 | `baseline_H100_walker-stand_s42` |
+| 4 | walker-stand | 123 | 4011522_4 | ✅ RUNNING | H100 | `baseline_H100_walker-stand_s123` |
+| 5 | walker-stand | 456 | 4011522_5 | ✅ RUNNING | H100 | `baseline_H100_walker-stand_s456` |
+| 6 | cheetah-run | 42 | 4011522_6 | ✅ RUNNING | H100 | `baseline_H100_cheetah-run_s42` |
+| 7 | cheetah-run | 123 | 4011522_7 | ✅ RUNNING | H100 | `baseline_H100_cheetah-run_s123` |
+| 8 | cheetah-run | 456 | 4011522_8 | ✅ RUNNING | H100 | `baseline_H100_cheetah-run_s456` |
 
-**Flow Policy Array Job 4011480** (9 jobs: 3 tasks × 3 seeds)
+**Flow Policy Array Job 4011523** (9 jobs: 3 tasks × 3 seeds)
 | Array ID | Task | Seed | Job ID | Status | Hardware | WandB Name |
 |----------|------|------|--------|--------|----------|------------|
-| 0 | reacher-easy | 42 | 4011480_0 | 🔄 RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s42` |
-| 1 | reacher-easy | 123 | 4011480_1 | 🔄 RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s123` |
-| 2 | reacher-easy | 456 | 4011480_2 | 🔄 RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s456` |
-| 3 | walker-stand | 42 | 4011480_3 | 🔄 RUNNING | **H200** | `flowpolicy_H200_walker-stand_s42` |
-| 4 | walker-stand | 123 | 4011480_4 | 🔄 RUNNING | **H200** | `flowpolicy_H200_walker-stand_s123` |
-| 5 | walker-stand | 456 | 4011480_5 | 🔄 RUNNING | **H200** | `flowpolicy_H200_walker-stand_s456` |
-| 6 | cheetah-run | 42 | 4011480_6 | 🔄 RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s42` |
-| 7 | cheetah-run | 123 | 4011480_7 | 🔄 RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s123` |
-| 8 | cheetah-run | 456 | 4011480_8 | 🔄 RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s456` |
+| 0 | reacher-easy | 42 | 4011523_0 | ✅ RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s42` |
+| 1 | reacher-easy | 123 | 4011523_1 | ✅ RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s123` |
+| 2 | reacher-easy | 456 | 4011523_2 | ✅ RUNNING | **H200** | `flowpolicy_H200_reacher-easy_s456` |
+| 3 | walker-stand | 42 | 4011523_3 | ✅ RUNNING | **H200** | `flowpolicy_H200_walker-stand_s42` |
+| 4 | walker-stand | 123 | 4011523_4 | ✅ RUNNING | **H200** | `flowpolicy_H200_walker-stand_s123` |
+| 5 | walker-stand | 456 | 4011523_5 | ✅ RUNNING | **H200** | `flowpolicy_H200_walker-stand_s456` |
+| 6 | cheetah-run | 42 | 4011523_6 | ✅ RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s42` |
+| 7 | cheetah-run | 123 | 4011523_7 | ✅ RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s123` |
+| 8 | cheetah-run | 456 | 4011523_8 | ✅ RUNNING | **H200** | `flowpolicy_H200_cheetah-run_s456` |
 
 > [!IMPORTANT]
 > **Ghost Runs**: Runs named `PWM_reacher-easy`, `PWM_walker-stand`, etc., are artifacts from Attempt 3. **Please ignore them.** Valid Attempt 5 runs use `baseline_H100_` or `flowpolicy_H200_`.

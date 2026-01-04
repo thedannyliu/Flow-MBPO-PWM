@@ -18,6 +18,14 @@ Template for each entry:
 
 ---
 
+## 2026-01-03 19:10 – Copilot (Attempt 7 - Confirmed Training)
+- **Root Cause**: Attempts 5-6 failed with `TypeError: 'module' object is not callable` because adding `import time, random` at line 201 shadowed the earlier `from time import time` at line 17.
+- **Fix**: Changed line 17 to `import time` and updated all `time()` calls to `time.time()` (lines 284, 294). Removed redundant import at line 201.
+- **Resubmission**: Attempt 7 submitted as Baseline Job `4011522` and Flow Policy Job `4011523`.
+- **Verification**: Training confirmed working with `[0/10000] AL:-1.402 VL:0.818`, `R: 56.40` on reacher-easy.
+
+---
+
 ## 2026-01-03 18:45 – Copilot (Attempt 4 Fixes & Stabilization)
 - **WandB Metadata**: Moved `create_wandb_run` in `scripts/train_multitask.py` to after environment initialization. This ensures `action_dim` and `action_dims` are correctly populated in the WandB config.
 - **Resource Stabilization**: Added a random start delay (0-60s) to `scripts/train_multitask.py` to mitigate concurrent resource spikes (VRAM/CPU) when launching large arrays on the same node. This addresses the CUDA OOM issues seen in the H200 jobs.
