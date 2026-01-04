@@ -30,8 +30,16 @@ Template for each entry:
 - **Resolution**: Resubmitted 63 jobs with SSH `--exclusive` flag for ALL tasks (Ant, Anymal, Humanoid).
 - **Queue Behavior**: Only 4 jobs are running simultaneously due to the cluster's `QOSMaxGRESPerUser` limit (max 4 GPUs). The remaining 59 jobs are pending and will start automatically as running jobs complete.
 - **Health Check**: Log checks confirm running jobs (e.g., 3143914) are progressing correctly and achieving high rewards.
-- **Abatements**: Running 10 seeds (0-9) for best configs on each task.
-- **Scaling/Tuning**: Added 48M Ant FlowWM and K=16/32 sweep.
+
+### 2026-01-04 – Copilot (Throughput Optimization / V3 Packed Batches)
+
+- **Problem**: Per-user QOS limit (4 nodes/jobs) creates a bottleneck. Running 60 jobs one-by-one (4 concurrent) is too slow.
+- **Solution**: **"Packed Node" Strategy**.
+  - L40S nodes have 8 GPUs. Using `--exclusive` for 1 job wastes 7 GPUs.
+  - **Plan**: Submit 1 exclusive job that launches **7 parallel seeds** internally on the same node.
+  - **Impact**: One QOS credit (1 node) now runs 7 experiments instead of 1.
+  - **Status**: Submitted 7 packed batches (3150252-3150258).
+  - **Expected Throughput**: 28 concurrent seeds (4 nodes × 7 seeds).
 
 #### Current Job Status:
 - 63 jobs submitted (Exclusive node allocation).

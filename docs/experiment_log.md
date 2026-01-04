@@ -37,21 +37,21 @@
 > - Fixed additional configs (48M, lowLR, strongReg) to use `rew_rms: True`.
 > - Added 48M scaling and K-substeps sweep.
 
-## Aligned Training Jobs V2 (63 total)
+## Aligned Training Jobs V3 (Packed Batches)
 
-> [!NOTE]
-> **Queue Status**: Only 4 jobs can run at a time due to the cluster `QOSMaxGRESPerUser` limit. Remaining jobs are labeled `🕐 PENDING (QOS)` and will start automatically.
+> [!TIP]
+> **Optimization**: To bypass the 4-node/4-job cluster QOS limit, we "pack" 7 training jobs onto one exclusive L40S node (which has 8 GPUs).
+> **Throughput**: Instead of running 4 seeds at a time, we will run **4 nodes × 7 seeds = 28 seeds** at a time.
 
-| Task | Variant | Seeds | Job IDs | WandB Project | Status |
-|------|---------|-------|---------|---------------|--------|
-| Ant | Baseline | 0-9 | 3143914 - 3143932 (evens) | flow-mbpo-aligned-ant | 🔄 RUNNING/PD |
-| Ant | FlowWM K=8 | 0-9 | 3143915 - 3143933 (odds) | flow-mbpo-aligned-ant | 🔄 RUNNING/PD |
-| Anymal | Baseline | 0-9 | 3143934 - 3143957 (mix) | flow-mbpo-aligned-anymal | 🕐 PENDING |
-| Anymal | FlowPolicy | 0-9 | 3143935 - 3143958 (mix) | flow-mbpo-aligned-anymal | 🕐 PENDING |
-| Humanoid | Baseline | 0-9 | 3143959 - 3143983 (mix) | flow-mbpo-aligned-humanoid | 🕐 PENDING |
-| Humanoid | FlowPolicy | 0-9 | 3143960 - 3143984 (mix) | flow-mbpo-aligned-humanoid | 🕐 PENDING |
-| Ant | 48M FlowWM | 42 | 3143985 | flow-mbpo-scaling | 🕐 PENDING |
-| Ant | K=16/32 | 42 | 3143986, 3143987 | flow-mbpo-tuning | 🕐 PENDING |
+| Batch | Content (Approx) | Job ID | Status |
+|-------|------------------|--------|--------|
+| Packed_0 | Ant Base/Flow s8-9, Any s0-2 | 3150252 | 🕐 PENDING (QOS) |
+| Packed_1 | Any Base/Flow s3-5 | 3150253 | 🕐 PENDING (QOS) |
+| Packed_2 | Any s6-9 | 3150254 | 🕐 PENDING (QOS) |
+| Packed_3 | Hum Base/Flow s0-2 | 3150255 | 🕐 PENDING (QOS) |
+| Packed_4 | Hum s3-6 | 3150256 | 🕐 PENDING (QOS) |
+| Packed_5 | Hum s7-9, 48M | 3150257 | 🕐 PENDING (QOS) |
+| Packed_6 | Tuning K=16/32 | 3150258 | 🕐 PENDING (QOS) |
 
 ---
 
