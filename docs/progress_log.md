@@ -18,43 +18,28 @@ Template for each entry:
 
 ---
 
-## 2026-01-03 – Copilot (Config Confound Fix + Aligned Experiments)
+## 2026-01-03 – Copilot (Config Fixes + Aligned Experiments V2)
 
-### CRITICAL CONFOUND DISCOVERED AND FIXED:
-- **Issue**: Baseline used `rew_rms: True` but all Flow variants used `rew_rms: False`
-- **Impact**: Previous comparisons were NOT fair (different reward normalization)
-- **Fix**: Created aligned configs with `rew_rms: True` for all:
-  - `pwm_5M_flow_v3_aligned.yaml` (FlowWM K=8)
-  - `pwm_5M_flowpolicy_aligned.yaml` (FlowPolicy)
+### CRITICAL CONFOUND FIXED:
+- **Issue**: Baseline used `rew_rms: True` but Flow variants used `rew_rms: False`.
+- **Fix**: Aligned all configs to `rew_rms: True` for fair comparison.
+- **Affected Configs**: `pwm_5M_flow_v3_aligned`, `pwm_5M_flowpolicy_aligned`, `pwm_48M_flow`, `pwm_5M_flow_lowLR`, `pwm_5M_flow_strongReg`.
 
-### ALIGNED EXPERIMENTS SUBMITTED (60 jobs):
-| Task | Variant | Seeds | Job IDs |
-|------|---------|-------|---------|
-| Ant | Baseline | 0-9 | 3143565-3143574 |
-| Ant | FlowWM K=8 | 0-9 | 3143575-3143584 |
-| Anymal | Baseline | 0-9 | 3143585-3143594 |
-| Anymal | FlowPolicy | 0-9 | 3143595-3143604 |
-| Humanoid | Baseline | 0-9 | 3143623-3143634 |
-| Humanoid | FlowPolicy | 0-9 | 3143635-3143644 |
+### ALIGNED EXPERIMENTS V2 (Resubmitted):
+- **Issue with V1**: Most jobs (3143565-3143644) failed with `CUDA error: busy` due to shared nodes.
+- **Resolution**: Resubmitted 63 jobs with SSH `--exclusive` flag for ALL tasks (Ant, Anymal, Humanoid).
+- **Abatements**: Running 10 seeds (0-9) for best configs on each task.
+- **Scaling/Tuning**: Added 48M Ant FlowWM and K=16/32 sweep.
 
-### SMOKE TESTS PASSED:
-- Ant FlowWM K=8 aligned: ✅ (job 3143559)
-- Anymal FlowPolicy aligned: ✅ (job 3143563)
-- Humanoid FlowPolicy aligned: ✅ (job 3143561)
+#### Current Job Status:
+- 63 jobs submitted (Exclusive node allocation).
+- SMOKE TESTS PASSED for all aligned configs.
 
-### ANYMAL CONFIG NOTE:
-- `heigh_rew_scale` (typo) is intentional - dflex.AnymalEnv doesn't support `height_rew_scale`
+#### WandB Projects:
+- `flow-mbpo-aligned-ant`, `flow-mbpo-aligned-anymal`, `flow-mbpo-aligned-humanoid`
+- `flow-mbpo-scaling`, `flow-mbpo-tuning`
 
-### WandB Projects:
-- `flow-mbpo-aligned-ant`
-- `flow-mbpo-aligned-anymal`
-- `flow-mbpo-aligned-humanoid`
-
-### Follow-ups:
-- [ ] Wait for 60 jobs to complete (~5-8 hours each)
-- [ ] Run evaluation on all checkpoints
-- [ ] Update master_plan.md with findings
-- [ ] Consider 48M model experiments
+---
 
 ## 2025-12-31 / 2026-01-01 – Copilot (Humanoid Experiments + Evaluation Pipeline)
 

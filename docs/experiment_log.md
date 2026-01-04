@@ -29,33 +29,38 @@
 
 ---
 
-# ALIGNED EXPERIMENTS (Jan 3, 2026)
+# ALIGNED EXPERIMENTS V2 (Jan 3, 2026 - CURRENT)
 
 > [!IMPORTANT]
-> **Previous experiments had rew_rms confound**: Baseline used `rew_rms: True`, Flow variants used `rew_rms: False`.
-> These aligned experiments fix this issue - all use `rew_rms: True` for fair comparison.
+> **V2 Improvements**:
+> - All jobs use `--exclusive` node allocation to prevent "CUDA device busy" errors.
+> - Fixed additional configs (48M, lowLR, strongReg) to use `rew_rms: True`.
+> - Added 48M scaling and K-substeps sweep.
 
-## Config Fixes Applied
-- Created `pwm_5M_flow_v3_aligned.yaml`: FlowWM K=8 with rew_rms: True
-- Created `pwm_5M_flowpolicy_aligned.yaml`: FlowPolicy with rew_rms: True
-- All 60 jobs use aligned configs for fair comparison
-
-## Aligned Training Jobs (60 total)
+## Aligned Training Jobs V2 (63 total)
 | Task | Variant | Seeds | Job IDs | WandB Project | Status |
 |------|---------|-------|---------|---------------|--------|
-| Ant | Baseline | 0-9 | 3143565-3143574 | flow-mbpo-aligned-ant | 🔄 RUNNING |
-| Ant | FlowWM K=8 | 0-9 | 3143575-3143584 | flow-mbpo-aligned-ant | 🔄 RUNNING |
-| Anymal | Baseline | 0-9 | 3143585-3143594 | flow-mbpo-aligned-anymal | 🔄 RUNNING |
-| Anymal | FlowPolicy | 0-9 | 3143595-3143604 | flow-mbpo-aligned-anymal | 🔄 RUNNING |
-| Humanoid | Baseline | 0-9 | 3143623-3143634 | flow-mbpo-aligned-humanoid | 🔄 RUNNING |
-| Humanoid | FlowPolicy | 0-9 | 3143635-3143644 | flow-mbpo-aligned-humanoid | 🔄 RUNNING |
+| Ant | Baseline | 0-9 | 3143914 - 3143932 (evens) | flow-mbpo-aligned-ant | 🔄 RUNNING/PD |
+| Ant | FlowWM K=8 | 0-9 | 3143915 - 3143933 (odds) | flow-mbpo-aligned-ant | 🔄 RUNNING/PD |
+| Anymal | Baseline | 0-9 | 3143934 - 3143957 (mix) | flow-mbpo-aligned-anymal | 🕐 PENDING |
+| Anymal | FlowPolicy | 0-9 | 3143935 - 3143958 (mix) | flow-mbpo-aligned-anymal | 🕐 PENDING |
+| Humanoid | Baseline | 0-9 | 3143959 - 3143983 (mix) | flow-mbpo-aligned-humanoid | 🕐 PENDING |
+| Humanoid | FlowPolicy | 0-9 | 3143960 - 3143984 (mix) | flow-mbpo-aligned-humanoid | 🕐 PENDING |
+| Ant | 48M FlowWM | 42 | 3143985 | flow-mbpo-scaling | 🕐 PENDING |
+| Ant | K=16/32 | 42 | 3143986, 3143987 | flow-mbpo-tuning | 🕐 PENDING |
 
-## Smoke Tests ✅
-| Test | Job ID | Status |
-|------|--------|--------|
-| Ant FlowWM K=8 aligned | 3143559 | ✅ PASSED |
-| Anymal FlowPolicy aligned | 3143563 | ✅ PASSED |
-| Humanoid FlowPolicy aligned | 3143561 | ✅ PASSED |
+---
+
+# ALIGNED EXPERIMENTS V1 (Jan 3, 2026 - FAILED/CANCELED)
+
+> [!WARNING]
+> Most jobs in this batch failed with `CUDA error: busy` because they shared nodes without `--exclusive`.
+> These have been canceled and replaced by V2.
+
+| Task | Variant | Seeds | Job IDs | Status |
+|------|---------|-------|---------|--------|
+| Ant/Anymal/Hum | Aligned | 0-9 | 3143565-3143644 | ❌ FAILED/CANCELED |
+
 
 # NEWLY COMPLETED JOBS (Jan 3, 2026)
 
