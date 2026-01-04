@@ -43,11 +43,8 @@
 | Task | Metric | Baseline (MLP) | Flow Policy (ODE) | Winner |
 |---|---|---|---|---|
 | **reacher-easy** | Reward | **982.30** | 980.67 | Tie (Solved) |
-| | Success | 1.00 | 1.00 | Tie |
 | **walker-stand** | Reward | **957.72** | 839.78 | Baseline (+14%) |
-| | Success | 1.00 | ~0.90 | Baseline |
 | **cheetah-run** | Reward | **112.48** | 98.74 | Tie (Both Failed) |
-| | Success | N/A | N/A | Failure |
 
 ### Detailed Seed Metrics
 | Algo | Task | Seed | R | Plan R | Job ID |

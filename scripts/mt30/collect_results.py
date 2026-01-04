@@ -125,7 +125,7 @@ def main():
     
     # Save Clean Summary
     output_file = "mt30_results_summary.csv"
-    columns = ["Algorithm", "Task", "Seed", "Status", "Iteration", "Episode Reward", "Planning Reward", "Success", "Planning Success", "Path", "RunDir"]
+    columns = ["Algorithm", "Task", "Seed", "Status", "Iteration", "Episode Reward", "Planning Reward", "Path", "RunDir"]
     df_clean[columns].to_csv(output_file, index=False)
     
     print(f"\nSaved consolidated summary to {output_file} ({len(df_clean)} rows)")
