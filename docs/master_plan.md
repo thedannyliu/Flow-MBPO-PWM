@@ -647,6 +647,22 @@ All new implementations and experiments in this repository should be traceable b
 
 ---
 
+**14) Phase 5: Baseline Comparison & Hyperparameter Tuning (New)**
+
+- **Goal**: Rigorous comparison of Flow vs MLP Baseline (both from scratch) and performance tuning.
+- **Status**: ⏳ **PENDING** (Jan 04).
+- **Experiments**:
+  1. **Baseline From Scratch**: `pwm_48M_mt_baseline` with `finetune_wm=True` (no checkpoint).
+     - Tasks: `reacher-easy`, `walker-stand`, `cheetah-run` (3 seeds).
+  2. **Flow Tuning**:
+     - `high_precision_wm`: Flow Substeps=8 (Default 4).
+     - `high_precision_policy`: Policy Substeps=4 (Default 2).
+     - `euler_fast`: Euler Integrator (Efficiency test).
+     - Tasks: `walker-stand`, `cheetah-run`.
+- **Infrastructure**: Using `ice-gpu` (H100) / `coe-gpu`. WandB `MT30-Detailed`.
+
+---
+
 **11) Codebase Structure**
 
 As of 2025-12-26, the codebase has been flattened to remove the PWM git submodule for easier collaboration:

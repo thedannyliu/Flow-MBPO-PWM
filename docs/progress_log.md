@@ -38,6 +38,14 @@ Template for each entry:
   - `4011967`: Full Flow (reacher, walker, cheetah).
   - `4011968`: Cheetah Debug (Horizon=30).
 
+### Phase 5: Baseline Comparison & Tuning (Ongoing)
+- **Date**: Jan 04, 2026
+- **Status**: Launched massive parallel experiments.
+- **Goal**: Establish fair "From Scratch" baseline and tune Flow params for performance.
+- **Experiments**:
+  - `4011987`: Baseline MLP (From Scratch) - 9 Jobs on `coc-gpu`.
+  - `4011988`: Flow Tuning (High Precision WM/Policy, Euler) - 18 Jobs on `ice-gpu`.
+
 ---
 
 - **Action**: Monitored training progress. Attempt 8/9 verified running.

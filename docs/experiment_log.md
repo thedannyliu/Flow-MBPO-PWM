@@ -137,6 +137,30 @@
 
 ---
 
+#### Attempt 14: Flow Hyperparameter Tuning (Jan 04)
+- **Job ID**: `4011988` (Array 0-17)
+- **Status**: ⏳ PENDING
+- **Partition**: `ice-gpu` (H100)
+- **Config**: `pwm_48M_mt_fullflow` + Variations
+- **Variations**:
+  - `high_precision_wm`: `flow_substeps=8` (WM).
+  - `high_precision_policy`: `actor_config.flow_substeps=4`.
+  - `euler_fast`: `flow_integrator=euler` (WM+Policy).
+- **Tasks**: `walker-stand`, `cheetah-run` (3 seeds each).
+- **WandB**: `MT30-Detailed` / `mt30_tuning_X`
+
+#### Attempt 13: Baseline From Scratch (Jan 04)
+- **Job ID**: `4011987` (Array 0-8)
+- **Status**: ⏳ PENDING
+- **Partition**: `coc-gpu` (L40S/A100)
+- **Config**: `pwm_48M_mt_baseline`
+- **Notes**: 
+  - Distributed to `coc-gpu` to free H100s.
+  - Trained from scratch (`finetune_wm=True`).
+  - No Checkpoint loaded.
+
+---
+
 #### Attempt 12: Cheetah Debug (Jan 04 - Revised)
 - **Job ID**: `4011968` (Array 0-2)
 - **Status**: ⏳ PENDING
