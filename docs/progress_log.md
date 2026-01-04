@@ -28,6 +28,8 @@ Template for each entry:
 ### ALIGNED EXPERIMENTS V2 (Resubmitted):
 - **Issue with V1**: Most jobs (3143565-3143644) failed with `CUDA error: busy` due to shared nodes.
 - **Resolution**: Resubmitted 63 jobs with SSH `--exclusive` flag for ALL tasks (Ant, Anymal, Humanoid).
+- **Queue Behavior**: Only 4 jobs are running simultaneously due to the cluster's `QOSMaxGRESPerUser` limit (max 4 GPUs). The remaining 59 jobs are pending and will start automatically as running jobs complete.
+- **Health Check**: Log checks confirm running jobs (e.g., 3143914) are progressing correctly and achieving high rewards.
 - **Abatements**: Running 10 seeds (0-9) for best configs on each task.
 - **Scaling/Tuning**: Added 48M Ant FlowWM and K=16/32 sweep.
 

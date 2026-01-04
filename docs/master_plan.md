@@ -212,10 +212,8 @@ Implementation mapping:
   - World-model dynamics and reward losses.
   - ESNR for actor updates.
   - Actor/critic/wm gradient norms.
-  - Wall-clock time and number of velocity evaluations (via `substeps`).
-  - Offline diagnostics for canonical configs:
-    - Multi-step rollout error (e.g., 10–20 step latent rollouts vs. encoded true latents).
-    - Approximate model–environment reward gap for fixed policies (e.g., evaluating the same policy in the WM and in the real env).
+  - **10-seed Aligned Ablation**: As of Jan 4, we are running 10-seed stats for all primary variants (Baseline vs Flow) with aligned `rew_rms: True` to ensure rigorous comparisons.
+  - **Scaling & Tuning Extension**: Beyond the 5M MVP, we are testing 48M Ant FlowWM and large `K` (16, 32) sweep to identify upper performance bounds.
 - Acceptance
   - Flow WM is stable at both 5M and 48M for at least one configuration.
   - Under parameter parity, Flow WM matches or is within ~10% of PWM baseline reward on `dflex_ant`.

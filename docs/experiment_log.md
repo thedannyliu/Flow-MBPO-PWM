@@ -38,6 +38,10 @@
 > - Added 48M scaling and K-substeps sweep.
 
 ## Aligned Training Jobs V2 (63 total)
+
+> [!NOTE]
+> **Queue Status**: Only 4 jobs can run at a time due to the cluster `QOSMaxGRESPerUser` limit. Remaining jobs are labeled `🕐 PENDING (QOS)` and will start automatically.
+
 | Task | Variant | Seeds | Job IDs | WandB Project | Status |
 |------|---------|-------|---------|---------------|--------|
 | Ant | Baseline | 0-9 | 3143914 - 3143932 (evens) | flow-mbpo-aligned-ant | 🔄 RUNNING/PD |
