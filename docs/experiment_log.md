@@ -25,87 +25,141 @@
 
 ## 🟢 Active Experiments
 
+### Phase 8: 2×2 Factorial (WM × Policy) on Pretrained WM
+**Method**: **Pretrain WM → (Freeze / Fine-tune) → Train Policy**
+
+**Goal**: Compare Flow impact location with a clean 2×2:
+- **World Model**: `MLP` vs `Flow`
+- **Policy**: `MLP` vs `Flow ODE`
+
+| WM | Policy | `alg=` | Notes |
+|---|---|---|---|
+| MLP | MLP | `pwm_48M_mt_baseline` | Baseline |
+| MLP | Flow | `pwm_48M_mt_flowpolicy` | Flow policy only |
+| Flow | MLP | `pwm_48M_mt_flowwm` | Flow WM only |
+| Flow | Flow | `pwm_48M_mt_fullflow` | Full Flow |
+
+**WM checkpoints (must match architecture)**:
+| WM Type | Checkpoint | Status |
+|---|---|---|
+| MLP WM | `checkpoints/multitask/mt30_48M_4900000.pt` (original PWM) | ✅ Available |
+| Flow WM | `outputs/.../logs/flowwm_<iters>.pt` (from pretrain script) | ⏳ TBD |
+
+**WM pretraining (for Flow WM; optional for MLP WM)**:
+- Entry: `scripts/pretrain_multitask_wm.py -cn pretrain_mt30_wm`
+- Examples:
+  - Flow WM: `alg=pwm_48M_mt_flowwm general.out_name=flowwm general.wm_pretrain_iters=...`
+  - MLP WM: `alg=pwm_48M_mt_baseline general.out_name=mlpwm general.wm_pretrain_iters=...`
+
+**Policy training runs to queue (per task × seed)**:
+| Setting | `finetune_wm` | Quadrants | Notes |
+|---|---:|---|---|
+| Frozen WM | `False` | 4 | Primary 2×2 comparison |
+| Fine-tuned WM | `True` | 4 | Ablation: does WM adaptation change ranking? |
+
+---
+
 ### Phase 7: Flow Policy Fine-tuning (Pretrained WM)
-- **Date**: Jan 04, 2026
-- **Goal**: Investigate if **Fine-tuning** (`finetune_wm=True`) the Pretrained MLP World Model helps Flow Policy.
-- **Methodology**: Load Pretrained WM -> Enable Fine-tuning -> Train Policy + WM Jointly (15k epochs).
-- **Comparison**: 
-    1. **Baseline**: MLP Policy + MLP WM (Fine-tuning)
-    2. **Flow Std**: Flow Policy (Substeps=2) + MLP WM (Fine-tuning)
-    3. **Flow High**: Flow Policy (Substeps=4) + MLP WM (Fine-tuning)
-- **WandB**: `MT30-Detailed` (Group: `phase7_finetuning`)
+**Method**: **Load Pretrained Weight**
+**Pretrained Checkpoint**: `/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/checkpoints/multitask/mt30_48M_4900000.pt`
 
-| Job ID | Description | GPU | Status |
-|--------|-------------|-----|--------|
-| `4012601` | Array 0-26 (All 3 Variants) | H100 | ⏳ QUEUED |
+| Job ID | Status | Config | Variant | Task/Seed | Methodology | Notes |
+|--------|--------|--------|---------|-----------|-------------|-------|
+| `4012601` | ⏳ QUEUED | Multiple | Array 0-26 | 3 Variants × 3 Tasks × 3 Seeds | `finetune_wm=True` | H100, 15k Epochs. Testing if Fine-tuning helps Pretrained WM adaptability. |
 
-### Phase 6: Epoch Sweep (Baseline vs Full Flow)
-- **Date**: Jan 04, 2026
-- **Goal**: Determine optimal training duration for Flow vs Baseline (from scratch).
-- **Methodology**: Joint Training From Scratch (`finetune_wm=True`).
-- **Config Alignment**: All parameters match original PWM (`wm_batch_size=256`).
+<details>
+<summary>Job Detail Specifications (Phase 7)</summary>
 
-| Epochs | GPU | Baseline Job | Flow Job | Status |
-|--------|-----|--------------|----------|--------|
-| **15,000** | H100 | `4012533` | `4012534` | ⏳ QUEUED |
-| **50,000** | H100 | `4012535` | `4012536` | ⏳ QUEUED |
-| **100,000** | H200 | `4012537` | `4012538` | 🟢 RUNNING |
-| **150,000** | H200 | `4012555` | `4012556` | 🟢 RUNNING |
+- **Config Mappings**:
+  - **Baseline**: `pwm_48M_mt_baseline`
+  - **Flow Std**: `pwm_48M_mt_flowpolicy` (+ `substeps=2`)
+  - **Flow High**: `pwm_48M_mt_flowpolicy` (+ `substeps=4`)
+- **Common Params**: `finetune_wm=True`, `load_checkpoint=True`, `epochs=15000`
+- **Location**: `outputs/phase7/<variant>/<task>/<seed>`
+- **WandB Group**: `phase7_finetuning`
+</details>
 
-### Phase 5: Flow Tuning (Ongoing)
-- **Job ID**: `4012434` (Array 0-17)
-- **Status**: 🟢 **RUNNING** (14/18 complete)
-- **Methodology**: Full Flow (From Scratch), 15,000 epochs. Tuning `substeps` and `integrator`.
+---
+
+### Phase 6: Epoch Sweep (Baseline vs Flow)
+**Method**: **Joint Training (From Scratch)**
+**Pretrained Checkpoint**: **None** (Random Initialization)
+
+| Job ID | Status | Config | Epochs | Task/Seed | Methodology | Notes |
+|--------|--------|--------|--------|-----------|-------------|-------|
+| `4012555` | 🟢 RUNNING | `pwm_48M_mt_baseline` | 150,000 | Array 0-8 | `finetune_wm=True` | Baseline. H200. Long horizon test. |
+| `4012556` | ⏳ QUEUED | `pwm_48M_mt_fullflow` | 150,000 | Array 0-8 | `finetune_wm=True` | Flow. H200. High Precision (`substeps=8/4`). |
+| `4012537` | 🟢 RUNNING | `pwm_48M_mt_baseline` | 100,000 | Array 0-8 | `finetune_wm=True` | Baseline. H200. |
+| `4012538` | 🟢 RUNNING | `pwm_48M_mt_fullflow` | 100,000 | Array 0-8 | `finetune_wm=True` | Flow. H200. High Precision (`substeps=8/4`). |
+| `4012535` | ⏳ QUEUED | `pwm_48M_mt_baseline` | 50,000 | Array 0-8 | `finetune_wm=True` | Baseline. H100. |
+| `4012536` | ⏳ QUEUED | `pwm_48M_mt_fullflow` | 50,000 | Array 0-8 | `finetune_wm=True` | Flow. H100. High Precision. |
+| `4012533` | 🟢 RUNNING | `pwm_48M_mt_baseline` | 15,000 | Array 0-8 | `finetune_wm=True` | Baseline. H100. Control group for Short Horizon. |
+| `4012534` | ⏳ QUEUED | `pwm_48M_mt_fullflow` | 15,000 | Array 0-8 | `finetune_wm=True` | Flow. H100. |
+
+<details>
+<summary>Job Detail Specifications (Phase 6)</summary>
+
+- **Tasks**: `reacher-easy`, `walker-stand`, `cheetah-run`
+- **Seeds**: 42, 123, 456
+- **Common Params**: `wm_batch_size=256` (Aligned with Original PWM)
+- **Location**: `outputs/epoch_sweep/<variant>_<epochs>/<job_id>/`
+- **WandB Group**: `epoch_sweep_<epochs>k_<variant>`
+</details>
+
+---
+
+### Phase 5: Flow Tuning (Hyperparameters)
+**Method**: **Joint Training (From Scratch)**
+**Pretrained Checkpoint**: **None**
+
+| Job ID | Status | Config | Task/Seed | Methodology | Notes |
+|--------|--------|--------|-----------|-------------|-------|
+| `4012434` | 🟢 RUNNING | `pwm_48M_mt_fullflow` | Array 0-17 | `finetune_wm=True` | Testing `substeps` (4 vs 8) and `integrator` (Euler vs Heun). 15k Epochs. |
+
+<details>
+<summary>Job Detail Specifications (Phase 5)</summary>
+
+- **Variants**: High Prec WM, High Prec Policy, Euler Fast
+- **Location**: `outputs/mt30_tuning/<task>/<config>/<seed>`
+- **WandB Group**: `mt30_tuning_<config>`
+</details>
 
 ---
 
 ## ✅ Completed Phases
 
 ### Phase 4: Full Flow Training (Attempt 12)
-- **Goal**: End-to-end training of Flow WM + Flow Policy (From Scratch).
-- **Job ID**: `4012433` (Array 0-8)
-- **Status**: ✅ **COMPLETED** (Jan 04 2026)
-- **Methodology**: Joint Training From Scratch (`finetune_wm=True`), 10k epochs.
-- **Outcome**: Severely Undertrained.
+**Method**: **Joint Training (From Scratch)**
+**Pretrained Checkpoint**: **None**
 
-### Phase 3: Baseline vs Flow Policy (Pretrained WM)
-**Goal**: Isolate policy performance by using a FROZEN, PRETRAINED World Model.
-**Status**: ✅ **COMPLETED** (Jan 04 2026)
-**Methodology**: Policy Fine-tuning (Frozen WM, `finetune_wm=False`).
-**Results**: Baseline wins on `walker-stand` (-12%), tie on others.
+| Job ID | Status | Config | Epochs | Results | Notes |
+|--------|--------|--------|--------|---------|-------|
+| `4012433` | ✅ COMPLETED | `pwm_48M_mt_fullflow` | 10,000 | Reward ~112 | Severely Undertrained. 10k epochs insufficient for From-Scratch learning. |
 
-**Aggregate Results (Mean Reward)**:
-| Task | Baseline (MLP) | Flow Policy (ODE) | Diff | Winner |
-|------|---------------|-------------------|------|--------|
-| **reacher-easy** | **982.30** | 980.67 | -0.2% | Tie |
-| **walker-stand** | **957.72** | 839.78 | -12% | Baseline |
-| **cheetah-run** | **112.48** | 98.74 | -12% | Tie (Both Low) |
+### Phase 3: Baseline vs Flow Policy
+**Method**: **Load Pretrained Weight**
+**Pretrained Checkpoint**: `/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/checkpoints/multitask/mt30_48M_4900000.pt`
 
-<details>
-<summary>View Detailed Seed Metrics (Phase 3)</summary>
-
-| Algo | Task | Seed | Reward | Plan Reward | Job ID |
+| Job ID | Algo | Task | Seed | Reward | Checkpoint Location |
 |---|---|---|---|---|---|
-| **Baseline** | reacher-easy | 42 | 981.20 | 981.70 | 4011713 |
-| **Baseline** | reacher-easy | 123 | 983.50 | 985.60 | 4011713 |
-| **Baseline** | reacher-easy | 456 | 982.20 | 985.50 | 4011713 |
-| **Baseline** | walker-stand | 42 | 972.32 | 943.97 | 4011713 |
-| **Baseline** | walker-stand | 123 | 923.48 | 933.11 | 4011713 |
-| **Baseline** | walker-stand | 456 | 977.35 | 978.33 | 4011713 |
-| **Baseline** | cheetah-run | 42 | 93.69 | 88.13 | 4011713 |
-| **Baseline** | cheetah-run | 123 | 108.80 | 81.67 | 4011713 |
-| **Baseline** | cheetah-run | 456 | 134.97 | 114.09 | 4011713 |
-| **Flow** | reacher-easy | 42 | 976.70 | 982.90 | 4011714 |
-| **Flow** | reacher-easy | 123 | 983.40 | 986.00 | 4011714 |
-| **Flow** | reacher-easy | 456 | 981.90 | 983.90 | 4011714 |
-| **Flow** | walker-stand | 42 | 854.53 | 864.39 | 4011740 |
-| **Flow** | walker-stand | 123 | 744.92 | 796.67 | 4011714 |
-| **Flow** | walker-stand | 456 | 919.90 | 933.66 | 4011740 |
-| **Flow** | cheetah-run | 42 | 80.97 | 82.31 | 4011740 |
-| **Flow** | cheetah-run | 123 | 94.75 | 73.21 | 4011740 |
-| **Flow** | cheetah-run | 456 | 120.52 | 110.27 | 4011740 |
-
-</details>
+| `4011713` | Baseline | reacher-easy | 42 | 981.20 | `outputs/mt30/baseline/reacher-easy/seed42` |
+| `4011713` | Baseline | reacher-easy | 123 | 983.50 | `outputs/mt30/baseline/reacher-easy/seed123` |
+| `4011713` | Baseline | reacher-easy | 456 | 982.20 | `outputs/mt30/baseline/reacher-easy/seed456` |
+| `4011713` | Baseline | walker-stand | 42 | 972.32 | `outputs/mt30/baseline/walker-stand/seed42` |
+| `4011713` | Baseline | walker-stand | 123 | 923.48 | `outputs/mt30/baseline/walker-stand/seed123` |
+| `4011713` | Baseline | walker-stand | 456 | 977.35 | `outputs/mt30/baseline/walker-stand/seed456` |
+| `4011713` | Baseline | cheetah-run | 42 | 93.69 | `outputs/mt30/baseline/cheetah-run/seed42` |
+| `4011713` | Baseline | cheetah-run | 123 | 108.80 | `outputs/mt30/baseline/cheetah-run/seed123` |
+| `4011713` | Baseline | cheetah-run | 456 | 134.97 | `outputs/mt30/baseline/cheetah-run/seed456` |
+| `4011714` | Flow | reacher-easy | 42 | 976.70 | `outputs/mt30/flow_policy/reacher-easy/seed42` |
+| `4011714` | Flow | reacher-easy | 123 | 983.40 | `outputs/mt30/flow_policy/reacher-easy/seed123` |
+| `4011714` | Flow | reacher-easy | 456 | 981.90 | `outputs/mt30/flow_policy/reacher-easy/seed456` |
+| `4011740` | Flow | walker-stand | 42 | 854.53 | `outputs/mt30/flow_policy/walker-stand/seed42` |
+| `4011714` | Flow | walker-stand | 123 | 744.92 | `outputs/mt30/flow_policy/walker-stand/seed123` |
+| `4011740` | Flow | walker-stand | 456 | 919.90 | `outputs/mt30/flow_policy/walker-stand/seed456` |
+| `4011740` | Flow | cheetah-run | 42 | 80.97 | `outputs/mt30/flow_policy/cheetah-run/seed42` |
+| `4011740` | Flow | cheetah-run | 123 | 94.75 | `outputs/mt30/flow_policy/cheetah-run/seed123` |
+| `4011740` | Flow | cheetah-run | 456 | 120.52 | `outputs/mt30/flow_policy/cheetah-run/seed456` |
 
 ---
 
@@ -116,25 +170,23 @@
 
 ### Attempt 14: Flow Tuning (Jan 04)
 - **Job ID**: `4011988`
+- **Method**: Joint Training (From Scratch)
 - **Status**: ❌ **FAILED** (Storage Full)
 
 ### Attempt 13: Baseline From Scratch (Jan 04)
 - **Job ID**: `4011987`
+- **Method**: Joint Training (From Scratch)
 - **Status**: ❌ **FAILED** (Undertrained)
 
 ### Attempt 12 & 11: Full Flow & Debug (Jan 04)
 - **Job IDs**: `4012027`, `4012028`
+- **Method**: Joint Training (From Scratch)
 - **Status**: ❌ **FAILED** (Storage Full)
 
 ### Attempt 8 & 9: Phase 3 Production (Jan 03)
 - **Job IDs**: `4011713`, `4011714`, `4011740`
+- **Method**: Load Pretrained Weight
 - **Status**: ✅ **COMPLETED**
-
-### Attempt 7: MT30 Collision Incident
-- **Status**: ⚠️ **PARTIAL LOSS** (Hydra dir collision)
-
-### Attempt 1-6: Initial Setup
-- **Status**: ❌ **FAILED** / **CANCELLED**
 
 </details>
 
@@ -143,12 +195,11 @@
 ## 🛠 Resource & Config Reference
 
 ### Training Methodologies
-| Type | Pretrained WM | `finetune_wm` | Epochs | Purpose |
-|------|---------------|---------------|--------|---------|
-| **Policy Fine-tuning** | ✅ (Loaded) | `False` | 15k | Isolate Policy Performance (Phase 3) |
-| **Policy + WM Tuning** | ✅ (Loaded) | `True` | 15k | Phase 7: Can WM fine-tuning help Flow? |
-| **Joint Training** | ❌ (None) | `True` | 100k+ | Phase 4/6: Train WM + Policy From Scratch |
-| **Full Pretraining** | ❌ (None) | N/A | Millions | Original PWM Pretraining (Standard) |
+| Type | Checkpoint Strategy | `finetune_wm` | Purpose |
+|------|---------------------|---------------|---------|
+| **Policy Fine-tuning** | **Load Pretrained** | `False` | Isolate Policy (Phase 3) |
+| **Policy + WM Tuning** | **Load Pretrained** | `True` | Adapt WM to Policy (Phase 7) |
+| **Joint Training** | **None (From Scratch)** | `True` | Train WM+Policy (Phase 4/6) |
 
 ### Checkpoint Locations
 | Type | Path |

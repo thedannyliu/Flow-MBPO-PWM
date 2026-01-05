@@ -1294,20 +1294,32 @@ class PWM:
 
     def load_wm(self, path):
         print("Loading world model from", path)
-        checkpoint = torch.load(path)
-        checkpoint = checkpoint["model"]
-        new_odict = OrderedDict()
-        for key, value in checkpoint.items():
-            if "_pi" in key:
-                pass
-            elif "_Qs" in key:
-                pass
-            else:
+        checkpoint = torch.load(path, map_location=self.device)
+
+        # Native Flow-MBPO-PWM checkpoint format (from `self.save(...)` or
+        # `scripts/pretrain_multitask_wm.py`): contains `world_model` state dict.
+        if isinstance(checkpoint, dict) and "world_model" in checkpoint:
+            self.wm.load_state_dict(checkpoint["world_model"])
+            return
+
+        # Original PWM / TD-MPC2 multitask checkpoint format: contains `model`
+        # and includes actor/critic keys that must be filtered out.
+        if isinstance(checkpoint, dict) and "model" in checkpoint:
+            checkpoint = checkpoint["model"]
+            new_odict = OrderedDict()
+            for key, value in checkpoint.items():
+                if "_pi" in key or "_Qs" in key:
+                    continue
                 if "_encoder" in key:
                     key = key.replace("state.", "")
                 new_odict[key] = value
+            self.wm.load_state_dict(new_odict)
+            return
 
-        self.wm.load_state_dict(new_odict)
+        raise ValueError(
+            f"Unrecognized world model checkpoint format at {path}. "
+            "Expected keys: `world_model` (native) or `model` (original PWM)."
+        )
 
     def pretrain_wm(self, paths, num_iters, actually_train=True):
         if type(paths) != List:

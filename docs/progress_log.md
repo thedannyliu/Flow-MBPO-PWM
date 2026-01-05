@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-01-05 00:30 – 2×2 Factorial Setup + Multitask WM Pretraining Added
+- **Goal**: Enable fair 2×2 comparison: (MLP vs Flow) World Model × (MLP vs Flow) Policy, with WM pretraining and optional fine-tuning.
+- **Added 4th quadrant config**: Flow WM + MLP Policy (`scripts/cfg/alg/pwm_48M_mt_flowwm.yaml`) to complete the 2×2.
+- **Added WM pretraining entrypoint**: `scripts/pretrain_multitask_wm.py` (+ `scripts/cfg/pretrain_mt30_wm.yaml`) to pretrain Flow WM (and optionally MLP WM) on TD-MPC2 MT datasets.
+- **Fixed offline buffer episode ID bug**: `src/flow_mbpo_pwm/utils/buffer.py` now assigns unique `episode` ids across multiple `add_batch()` calls (prevents SliceSampler grouping corruption).
+- **Improved checkpoint compatibility**: `src/flow_mbpo_pwm/algorithms/pwm.py::load_wm()` now supports original PWM (`model`) and native (`world_model`) checkpoint formats.
+- **Docs update**: `docs/experiment_log.md` now includes Phase 8 (2×2 factorial plan + checkpoint requirements).
+
+---
+
 ## 2026-01-04 20:25 – Phase 7 Launched (Flow Fine-tuning)
 - **Goal**: Test if Fine-tuning the Pretrained MLP WM (`finetune_wm=True`) helps Flow Policy performance.
 - **Jobs**: Submitted array job `4012601` (27 tasks).

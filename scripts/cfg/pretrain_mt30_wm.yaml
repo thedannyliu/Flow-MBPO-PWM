@@ -1,0 +1,40 @@
+defaults:
+  - _self_
+  # Default to MLP WM pretraining; override with `alg=pwm_48M_mt_flowwm` for Flow WM.
+  - alg: pwm_48M_mt_baseline
+
+general:
+  logdir: logs
+  device: cuda:0
+  run_wandb: True
+  seed: 42
+  # TD-MPC2 multitask dataset directory (contains many `*.pt` files)
+  data_dir:
+  # Number of gradient updates for world model pretraining
+  wm_pretrain_iters: 200_000
+  # Logging / checkpointing cadence
+  log_every: 100
+  eval_every: 1000  # Best checkpoint evaluation frequency
+  # Output checkpoint basename (written under hydra output dir)
+  out_name: wm_pretrained
+
+# WandB configuration
+wandb:
+  project: WM-Pretrain
+  group: mt30_wm_pretrain
+  name: null  # Auto-generated if null
+
+# Placeholder; set by script from `common.TASK_SET`
+tasks: ???
+
+# Used for shaping the offline buffer (TD-MPC2 episode lengths)
+horizon: 16
+
+buffer:
+  _target_: flow_mbpo_pwm.utils.buffer.Buffer
+  buffer_size: ???
+  batch_size: 1024
+  horizon: ${horizon}
+  device: ${general.device}
+
+
