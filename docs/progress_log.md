@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-01-04 20:25 – Phase 7 Launched (Flow Fine-tuning)
+- **Goal**: Test if Fine-tuning the Pretrained MLP WM (`finetune_wm=True`) helps Flow Policy performance.
+- **Jobs**: Submitted array job `4012601` (27 tasks).
+- **Setup**: 
+    - **Baseline**: MLP Policy + MLP WM (Fine-tune)
+    - **Flow Std**: Flow Policy (Substeps=2) + MLP WM (Fine-tune)
+    - **Flow High**: Flow Policy (Substeps=4) + MLP WM (Fine-tune)
+- **GPU**: H100 (15k epochs ~4h)
+
+---
+
 ## 2026-01-04 20:15 – Documentation & Methodology Clarification
 
 ### Key Findings (Training Discrepancy)
@@ -41,10 +52,3 @@
 - Reduced storage from 98.4% to 47.8% (~145GB free)
 - Resubmitted Full Flow (`4012433`) and Tuning (`4012434`) jobs
 - Reorganized `experiment_log.md` for clarity
-
----
-
-## 2026-01-04 01:00 – Phase 3 Complete
-- All Baseline and Flow Policy experiments finished
-- Results: Baseline wins on `walker-stand` (+14%), tie on easy tasks
-- Weights cleaned up, metrics preserved in `mt30_results_summary.csv`

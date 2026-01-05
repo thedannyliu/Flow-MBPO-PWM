@@ -25,15 +25,25 @@
 
 ## 🟢 Active Experiments
 
+### Phase 7: Flow Policy Fine-tuning (Pretrained WM)
+- **Date**: Jan 04, 2026
+- **Goal**: Investigate if **Fine-tuning** (`finetune_wm=True`) the Pretrained MLP World Model helps Flow Policy.
+- **Methodology**: Load Pretrained WM -> Enable Fine-tuning -> Train Policy + WM Jointly (15k epochs).
+- **Comparison**: 
+    1. **Baseline**: MLP Policy + MLP WM (Fine-tuning)
+    2. **Flow Std**: Flow Policy (Substeps=2) + MLP WM (Fine-tuning)
+    3. **Flow High**: Flow Policy (Substeps=4) + MLP WM (Fine-tuning)
+- **WandB**: `MT30-Detailed` (Group: `phase7_finetuning`)
+
+| Job ID | Description | GPU | Status |
+|--------|-------------|-----|--------|
+| `4012601` | Array 0-26 (All 3 Variants) | H100 | ⏳ QUEUED |
+
 ### Phase 6: Epoch Sweep (Baseline vs Full Flow)
 - **Date**: Jan 04, 2026
 - **Goal**: Determine optimal training duration for Flow vs Baseline (from scratch).
-- **Methodology**:
-    - **Baseline**: MLP World Model + MLP Policy. `finetune_wm=True` (Train from scratch).
-    - **Flow**: Flow World Model + Flow Policy. `finetune_wm=True` (Train from scratch).
-    - **Note**: Original PWM pretraining takes ~2 weeks. We are testing if Flow can learn efficiently in shorter horizons (15k-150k).
+- **Methodology**: Joint Training From Scratch (`finetune_wm=True`).
 - **Config Alignment**: All parameters match original PWM (`wm_batch_size=256`).
-- **WandB Project**: `MT30-Detailed`
 
 | Epochs | GPU | Baseline Job | Flow Job | Status |
 |--------|-----|--------------|----------|--------|
@@ -55,20 +65,14 @@
 - **Goal**: End-to-end training of Flow WM + Flow Policy (From Scratch).
 - **Job ID**: `4012433` (Array 0-8)
 - **Status**: ✅ **COMPLETED** (Jan 04 2026)
-- **Methodology**:
-    - **Training**: Joint Training (WM + Policy) from scratch (`finetune_wm=True`).
-    - **Duration**: **10,000 Epochs**.
-    - **Outcome**: **Severely Undertrained**. Reacher Reward ~112 (vs ~980 Baseline).
-- **Analysis**: 10k epochs is insufficient for learning dynamics from scratch. Original PWM uses pretraining (millions of steps).
+- **Methodology**: Joint Training From Scratch (`finetune_wm=True`), 10k epochs.
+- **Outcome**: Severely Undertrained.
 
 ### Phase 3: Baseline vs Flow Policy (Pretrained WM)
 **Goal**: Isolate policy performance by using a FROZEN, PRETRAINED World Model.
 **Status**: ✅ **COMPLETED** (Jan 04 2026)
-**Data Source**: Results aggregated in **`mt30_results_summary.csv`**
-**Methodology**:
-    - **Training**: **Policy Only**. World Model was loaded from `mt30_48M_4900000.pt` and **Frozen** (`finetune_wm=False`).
-    - **Duration**: 15,000 Epochs (Standard for Policy Fine-tuning).
-    - **Outcome**: Flow Policy matches Baseline on easy tasks, but Baseline is more robust on complex tasks (`walker-stand`).
+**Methodology**: Policy Fine-tuning (Frozen WM, `finetune_wm=False`).
+**Results**: Baseline wins on `walker-stand` (-12%), tie on others.
 
 **Aggregate Results (Mean Reward)**:
 | Task | Baseline (MLP) | Flow Policy (ODE) | Diff | Winner |
@@ -105,7 +109,7 @@
 
 ---
 
-## 📂 Archived Experiments (Failed / Historical)
+## 📂 Archived Experiments
 
 <details>
 <summary>View Previous Attempts (Attempts 1-14)</summary>
@@ -113,13 +117,10 @@
 ### Attempt 14: Flow Tuning (Jan 04)
 - **Job ID**: `4011988`
 - **Status**: ❌ **FAILED** (Storage Full)
-- **Methodology**: Flow Tuning (From Scratch), 15k epochs.
 
 ### Attempt 13: Baseline From Scratch (Jan 04)
 - **Job ID**: `4011987`
 - **Status**: ❌ **FAILED** (Undertrained)
-- **Methodology**: Baseline (From Scratch). `finetune_wm=True`, 15k epochs.
-- **Outcome**: Confirmed that 15k epochs is insufficient for Baseline to learn dynamics from scratch.
 
 ### Attempt 12 & 11: Full Flow & Debug (Jan 04)
 - **Job IDs**: `4012027`, `4012028`
@@ -128,7 +129,6 @@
 ### Attempt 8 & 9: Phase 3 Production (Jan 03)
 - **Job IDs**: `4011713`, `4011714`, `4011740`
 - **Status**: ✅ **COMPLETED**
-- **Methodology**: Pretrained WM (Frozen) + Policy Training.
 
 ### Attempt 7: MT30 Collision Incident
 - **Status**: ⚠️ **PARTIAL LOSS** (Hydra dir collision)
@@ -146,19 +146,13 @@
 | Type | Pretrained WM | `finetune_wm` | Epochs | Purpose |
 |------|---------------|---------------|--------|---------|
 | **Policy Fine-tuning** | ✅ (Loaded) | `False` | 15k | Isolate Policy Performance (Phase 3) |
-| **Joint Training** | ❌ (None) | `True` | 100k+ | Train WM + Policy From Scratch (Full Flow) |
+| **Policy + WM Tuning** | ✅ (Loaded) | `True` | 15k | Phase 7: Can WM fine-tuning help Flow? |
+| **Joint Training** | ❌ (None) | `True` | 100k+ | Phase 4/6: Train WM + Policy From Scratch |
 | **Full Pretraining** | ❌ (None) | N/A | Millions | Original PWM Pretraining (Standard) |
-
-### Configuration Files
-| Config | World Model | Policy | Purpose |
-|--------|-------------|--------|---------|
-| `pwm_48M_mt_baseline.yaml` | MLP | MLP | Standard Baseline |
-| `pwm_48M_mt_flowpolicy.yaml` | MLP | Flow ODE | Policy Comparison |
-| `pwm_48M_mt_fullflow.yaml` | Flow | Flow ODE | Full Algorithm |
 
 ### Checkpoint Locations
 | Type | Path |
 |------|------|
 | **Pretrained WM** | `checkpoints/multitask/mt30_48M_4900000.pt` |
 | **MT30 Data** | `/home/hice1/eliu354/scratch/Data/tdmpc2/mt30/` |
-| **Epoch Sweep Output** | `outputs/epoch_sweep/<variant>_<epochs>/` |
+| **Output** | `outputs/<phase>/<job_id>/` |

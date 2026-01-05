@@ -9,32 +9,23 @@ Compare Flow World Model + Flow Policy against MLP Baseline on MT30 multitask be
 ## Experiment Phases Structure
 
 ### Phase 3: Policy Comparison (Frozen Pretrained WM)
-- **Methodology**: "Policy Fine-tuning"
-    - Load **Pretrained MLP World Model** (trained for weeks on MT30).
-    - **Freeze WM** (`finetune_wm=False`).
-    - Train Policy Only (15k epochs).
+- **Methodology**: "Policy Fine-tuning" (`finetune_wm=False`)
 - **Goal**: Isolate policy performance (Flow vs MLP) on a perfect model.
-- **Outcome**: ✅ **COMPLETED**. Baseline wins on hard tasks, tie on easy tasks.
+- **Outcome**: ✅ **COMPLETED**. Baseline wins on hard tasks.
 
-### Phase 4: Full Flow Feasibility (Joint Training)
-- **Methodology**: "Joint Training From Scratch"
-    - Initialize pure Flow WM and Flow Policy.
-    - Train **BOTH** simultaneously (`finetune_wm=True`) for 10k epochs.
-- **Goal**: Can Flow learn dynamics + policy in short horizons?
-- **Outcome**: ❌ **FAILED**. 10k epochs is insufficient (Original PWM uses millions of steps for pretraining).
+### Phase 7: Policy Comparison (Fine-tuned Pretrained WM)
+- **Methodology**: "Policy + WM Tuning" (`finetune_wm=True`)
+    - Load **Pretrained MLP World Model**.
+    - **Unfreeze and Fine-tune WM** alongside Policy.
+- **Goal**: Does allowing the WM to adapt help Flow Policy performance?
+- **Status**: 🟢 **RUNNING** (Job `4012601`).
 
-### Phase 6: Epoch Sweep (Current Focus)
-- **Methodology**: "Joint Training From Scratch" (Scaling Epochs)
-    - Train WM + Policy simultaneously (`finetune_wm=True`).
+### Phase 6: Epoch Sweep (Joint Training From Scratch)
+- **Methodology**: "Joint Training From Scratch" (`finetune_wm=True`)
+    - Train WM + Policy simultaneously from random initialization.
     - Test horizons: **15k, 50k, 100k, 150k**.
-- **Hypothesis**: Flow might learn faster than MLP, allowing "From Scratch" training to work within reasonable time (150k epochs ~16h).
-- **Jobs**:
-  | Epochs | Baseline | Flow | Status |
-  |--------|----------|------|--------|
-  | 15k | `4012533` | `4012534` | QUEUED |
-  | 50k | `4012535` | `4012536` | QUEUED |
-  | 100k | `4012537` | `4012538` | RUNNING |
-  | 150k | `4012555` | `4012556` | RUNNING |
+- **Goal**: Can Flow learn dynamics fast enough without pretraining?
+- **Status**: 🟢 **RUNNING** (100k/150k jobs).
 
 ---
 
