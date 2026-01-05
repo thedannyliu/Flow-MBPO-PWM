@@ -9,6 +9,19 @@ Primary objective is a fair **2×2 factorial** on MT30:
 
 ---
 
+## Config Alignment Verification
+
+Per [Original PWM README](baselines/original_pwm/README.md), critical parameters for WM pretraining:
+
+| Parameter | Original PWM | Our Config | Status |
+|-----------|--------------|------------|--------|
+| `horizon` | 16 | 16 | ✅ Aligned |
+| `batch_size` (pretraining) | 1024 | 1024 | ✅ Aligned |
+| `rho` | 0.99 | 0.99 | ✅ Aligned |
+| `wm_batch_size` (policy) | 256 | 256 | ✅ Aligned |
+
+---
+
 ## Experiment Phases Structure
 
 ### Phase 8: 2×2 Factorial (Pretrained WM; Primary)
@@ -23,25 +36,21 @@ Primary objective is a fair **2×2 factorial** on MT30:
 **Step 2: Policy Training** (After WM pretraining completes)
 Use pretrained checkpoints for 2×2 factorial policy training:
 
-| WM | Policy | Config | Checkpoint |
-|---|---|---|---|
-| MLP | MLP | `pwm_48M_mt_baseline` | `mlpwm_mt30_best.pt` |
-| MLP | Flow | `pwm_48M_mt_flowpolicy` | `mlpwm_mt30_best.pt` |
-| Flow | MLP | `pwm_48M_mt_flowwm` | `flowwm_mt30_best.pt` |
-| Flow | Flow | `pwm_48M_mt_fullflow` | `flowwm_mt30_best.pt` |
-
-**Settings**:
-- **Frozen WM**: `finetune_wm=False` (primary comparison)
-- **Fine-tuned WM**: `finetune_wm=True` (ablation)
+| WM | Policy | Config | Checkpoint | `finetune_wm` |
+|---|---|---|---|---|
+| MLP | MLP | `pwm_48M_mt_baseline` | `mlpwm_mt30_best.pt` | False (Primary) / True (Ablation) |
+| MLP | Flow | `pwm_48M_mt_flowpolicy` | `mlpwm_mt30_best.pt` | False / True |
+| Flow | MLP | `pwm_48M_mt_flowwm` | `flowwm_mt30_best.pt` | False / True |
+| Flow | Flow | `pwm_48M_mt_fullflow` | `flowwm_mt30_best.pt` | False / True |
 
 ---
 
 ### Phase 7: Policy Comparison (Fine-tuned Pretrained WM)
-- **Status**: ⏳ QUEUED (`4012601`)
+- **Status**: ⏳ QUEUED (`4012601`, 27 jobs)
 - **Methodology**: Load original PWM checkpoint → Enable Fine-tuning → Train Policy
 
 ### Phase 6: Epoch Sweep (From Scratch)
-- **Status**: 🟢 RUNNING (100k/150k on H200)
+- **Status**: 🟢 RUNNING (100k/150k on H200, 50k on H100)
 - **Methodology**: Joint Training From Scratch
 
 ### Phase 3: Policy Comparison (Frozen Pretrained WM)
@@ -58,17 +67,9 @@ Use pretrained checkpoints for 2×2 factorial policy training:
 3. Run the 4 quadrants with **frozen WM** (`finetune_wm=False`)
 4. Repeat the 4 quadrants with **fine-tuning** (`finetune_wm=True`) as ablation
 
-### Training Duration Discrepancy
-- **Original PWM Pretraining**: ~2 weeks on RTX 3090 (Millions of steps)
-- **Our Phase 8 Pretraining**: ~16h on H100 (200k iterations)
-- **Note**: Our budget is smaller but still substantial for fair comparison
-
-### Configuration Alignment (Original PWM)
-All experiments match `baselines/original_pwm`:
-- `wm_batch_size: 256` (Fair comparison)
-- `wm_iterations: 8`
-- `wm_buffer_size: 1_000_000`
-- `horizon: 16`
+### Training Budget
+- **Original PWM WM Pretraining**: ~2 weeks on RTX 3090
+- **Our Phase 8 WM Pretraining**: ~16h on H100 (200k iterations)
 
 ---
 
