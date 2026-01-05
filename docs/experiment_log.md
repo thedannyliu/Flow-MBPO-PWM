@@ -28,7 +28,11 @@
 ### Phase 6: Epoch Sweep (Baseline vs Full Flow)
 - **Date**: Jan 04, 2026
 - **Goal**: Determine optimal training duration for Flow vs Baseline (from scratch).
-- **Config Alignment**: All parameters match original PWM (`wm_batch_size=256`)
+- **Methodology**:
+    - **Baseline**: MLP World Model + MLP Policy. `finetune_wm=True` (Train from scratch).
+    - **Flow**: Flow World Model + Flow Policy. `finetune_wm=True` (Train from scratch).
+    - **Note**: Original PWM pretraining takes ~2 weeks. We are testing if Flow can learn efficiently in shorter horizons (15k-150k).
+- **Config Alignment**: All parameters match original PWM (`wm_batch_size=256`).
 - **WandB Project**: `MT30-Detailed`
 
 | Epochs | GPU | Baseline Job | Flow Job | Status |
@@ -36,20 +40,35 @@
 | **15,000** | H100 | `4012533` | `4012534` | ⏳ QUEUED |
 | **50,000** | H100 | `4012535` | `4012536` | ⏳ QUEUED |
 | **100,000** | H200 | `4012537` | `4012538` | 🟢 RUNNING |
-| **150,000** | H200 | `4012555` | `4012556` | ⏳ QUEUED |
+| **150,000** | H200 | `4012555` | `4012556` | 🟢 RUNNING |
 
 ### Phase 5: Flow Tuning (Ongoing)
 - **Job ID**: `4012434` (Array 0-17)
 - **Status**: 🟢 **RUNNING** (14/18 complete)
+- **Methodology**: Full Flow (From Scratch), 15,000 epochs. Tuning `substeps` and `integrator`.
 
 ---
 
 ## ✅ Completed Phases
 
+### Phase 4: Full Flow Training (Attempt 12)
+- **Goal**: End-to-end training of Flow WM + Flow Policy (From Scratch).
+- **Job ID**: `4012433` (Array 0-8)
+- **Status**: ✅ **COMPLETED** (Jan 04 2026)
+- **Methodology**:
+    - **Training**: Joint Training (WM + Policy) from scratch (`finetune_wm=True`).
+    - **Duration**: **10,000 Epochs**.
+    - **Outcome**: **Severely Undertrained**. Reacher Reward ~112 (vs ~980 Baseline).
+- **Analysis**: 10k epochs is insufficient for learning dynamics from scratch. Original PWM uses pretraining (millions of steps).
+
 ### Phase 3: Baseline vs Flow Policy (Pretrained WM)
 **Goal**: Isolate policy performance by using a FROZEN, PRETRAINED World Model.
 **Status**: ✅ **COMPLETED** (Jan 04 2026)
 **Data Source**: Results aggregated in **`mt30_results_summary.csv`**
+**Methodology**:
+    - **Training**: **Policy Only**. World Model was loaded from `mt30_48M_4900000.pt` and **Frozen** (`finetune_wm=False`).
+    - **Duration**: 15,000 Epochs (Standard for Policy Fine-tuning).
+    - **Outcome**: Flow Policy matches Baseline on easy tasks, but Baseline is more robust on complex tasks (`walker-stand`).
 
 **Aggregate Results (Mean Reward)**:
 | Task | Baseline (MLP) | Flow Policy (ODE) | Diff | Winner |
@@ -86,7 +105,7 @@
 
 ---
 
-## 📂 Archived Experiments
+## 📂 Archived Experiments (Failed / Historical)
 
 <details>
 <summary>View Previous Attempts (Attempts 1-14)</summary>
@@ -94,10 +113,13 @@
 ### Attempt 14: Flow Tuning (Jan 04)
 - **Job ID**: `4011988`
 - **Status**: ❌ **FAILED** (Storage Full)
+- **Methodology**: Flow Tuning (From Scratch), 15k epochs.
 
 ### Attempt 13: Baseline From Scratch (Jan 04)
 - **Job ID**: `4011987`
-- **Status**: ❌ **FAILED** (Undertrained @ 15k epochs)
+- **Status**: ❌ **FAILED** (Undertrained)
+- **Methodology**: Baseline (From Scratch). `finetune_wm=True`, 15k epochs.
+- **Outcome**: Confirmed that 15k epochs is insufficient for Baseline to learn dynamics from scratch.
 
 ### Attempt 12 & 11: Full Flow & Debug (Jan 04)
 - **Job IDs**: `4012027`, `4012028`
@@ -106,6 +128,7 @@
 ### Attempt 8 & 9: Phase 3 Production (Jan 03)
 - **Job IDs**: `4011713`, `4011714`, `4011740`
 - **Status**: ✅ **COMPLETED**
+- **Methodology**: Pretrained WM (Frozen) + Policy Training.
 
 ### Attempt 7: MT30 Collision Incident
 - **Status**: ⚠️ **PARTIAL LOSS** (Hydra dir collision)
@@ -118,6 +141,13 @@
 ---
 
 ## 🛠 Resource & Config Reference
+
+### Training Methodologies
+| Type | Pretrained WM | `finetune_wm` | Epochs | Purpose |
+|------|---------------|---------------|--------|---------|
+| **Policy Fine-tuning** | ✅ (Loaded) | `False` | 15k | Isolate Policy Performance (Phase 3) |
+| **Joint Training** | ❌ (None) | `True` | 100k+ | Train WM + Policy From Scratch (Full Flow) |
+| **Full Pretraining** | ❌ (None) | N/A | Millions | Original PWM Pretraining (Standard) |
 
 ### Configuration Files
 | Config | World Model | Policy | Purpose |

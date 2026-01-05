@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-01-04 20:15 – Documentation & Methodology Clarification
+
+### Key Findings (Training Discrepancy)
+- **Original PWM**: Uses a **2-week pretraining phase** for World Model (on RTX 3090) before Policy Training.
+- **Our Current Full Flow**: Attempts **Joint Training** (WM + Policy) from scratch in just hours (15k-150k epochs).
+- **Implication**: We are testing if Flow can learn dynamics significantly faster than MLP, or if "From Scratch" training is feasible without massive pretraining.
+
+### Actions
+- **Updated `experiment_log.md`**: Added explicit "Methodology" section for each phase (Policy Fine-tuning vs Joint Training).
+- **Updated `master_plan.md`**: Clarified the "Critical Distinction" between phases and the "Training Duration Discrepancy".
+
+---
+
 ## 2026-01-04 19:50 – Epoch Sweep Experiments Launched
 
 ### Actions
