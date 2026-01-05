@@ -28,32 +28,56 @@ def main():
                 if not rows:
                     continue
                 
-                # Assume columns: episode_reward, episode_length
-                rewards = []
-                lengths = []
-                for row in rows:
-                    if 'episode_reward' in row:
-                        rewards.append(float(row['episode_reward']))
-                    if 'episode_length' in row:
-                        lengths.append(float(row['episode_length']))
+                # Check columns
+                keys = rows[0].keys()
                 
-                if rewards:
-                    mean_reward = statistics.mean(rewards)
-                    mean_length = statistics.mean(lengths) if lengths else 0
+                if 'MeanReward' in keys:
+                    # Summary format
+                    mean_reward = float(rows[0]['MeanReward'])
+                    mean_length = float(rows[0]['MeanLength']) if 'MeanLength' in keys else 0
                     
-                    # Extract checkpoint ID from filename
-                    filename = f.name
-                    ckpt_id = filename.replace('eval_', '').replace('.csv', '')
+                    # Extract metadata if available
+                    task = rows[0].get('Task', 'Unknown')
+                    variant = rows[0].get('Variant', 'Unknown')
+                    seed = rows[0].get('Seed', 'Unknown')
                     
-                    # Try to parse Task/Variant/Seed from ckpt_id or path if possible
-                    # But for now just store ID and metrics
-                    
+                    # Construct ID from metadata if possible, else filename
+                    if task != 'Unknown':
+                        ckpt_id = f"{task}_{variant}_s{seed}"
+                    else:
+                        filename = f.name
+                        ckpt_id = filename.replace('eval_', '').replace('.csv', '')
+
                     all_results.append({
                         'CheckpointID': ckpt_id,
                         'MeanReward': mean_reward,
                         'MeanLength': mean_length,
                         'Path': str(f)
                     })
+                
+                else: 
+                    # Raw format (episode_reward) - legacy/fallback
+                    rewards = []
+                    lengths = []
+                    for row in rows:
+                        if 'episode_reward' in row:
+                            rewards.append(float(row['episode_reward']))
+                        if 'episode_length' in row:
+                            lengths.append(float(row['episode_length']))
+                    
+                    if rewards:
+                        mean_reward = statistics.mean(rewards)
+                        mean_length = statistics.mean(lengths) if lengths else 0
+                        
+                        filename = f.name
+                        ckpt_id = filename.replace('eval_', '').replace('.csv', '')
+                        
+                        all_results.append({
+                            'CheckpointID': ckpt_id,
+                            'MeanReward': mean_reward,
+                            'MeanLength': mean_length,
+                            'Path': str(f)
+                        })
         except Exception as e:
             print(f"Error reading {f}: {e}")
 

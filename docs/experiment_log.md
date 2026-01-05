@@ -40,17 +40,22 @@
 ## Aligned Training Jobs V2 (63 total)
 
 > [!CAUTION]
-> **Training Collapse**: Logs for completed Ant jobs (s0-7) show **severe reward collapse**.
-> - Early training (~5k steps): Reward ~1100.
-> - Final training (~15k steps): Reward ~25-30 (e.g., Job 3143914, 3143915).
-> - **Action**: Submitted evaluation (Job 31537XX) to verify if this is real collapse or logging artifact.
+> **Instability Detected**: Results show severe bifurcation. Some seeds achieve SOTA (~1200) while others collapse (~20).
+> - **Cause**: Likely `rew_rms: True` introducing variance or scaling issues.
+> - **Status**: Evaluations are ongoing to map which seeds survived.
 
-| Task | Variant | Seeds | Job IDs | Final Logged Reward | Status |
-|------|---------|-------|---------|---------------------|--------|
-| Ant | Baseline | 0-7 | 3143914-3143932 | ~29.7 (Collapse?) | ✅ COMPLETED |
-| Ant | FlowWM K=8 | 0-7 | 3143915-3143933 | ~25.2 (Collapse?) | ✅ COMPLETED |
-| Ant | Base/Flow | 8-9 | - | - | ❌ CANCELED |
-| Any/Hum | All | All | - | - | ❌ CANCELED |
+| Variant | High Performers (R > 1000) | Collapsed (R < 100) |
+|---------|----------------------------|---------------------|
+| Ant Baseline | s42 (1170) | s123 (22), s456 (85) |
+| Ant FlowPolicy | s7 (1234), s42 (1158) | s2 (23), s123 (19) |
+| Ant FlowWM K=8 | s456 (1244), s123 (1197) | - |
+
+| Task | Variant | Seeds | Job IDs | Status |
+|------|---------|-------|---------|--------|
+| Ant | Baseline | 0-7 | 3143914-3143932 | ✅ COMPLETED (Mixed) |
+| Ant | FlowWM K=8 | 0-7 | 3143915-3143933 | ✅ COMPLETED (Mixed) |
+| Ant | Base/Flow | 8-9 | - | ❌ CANCELED |
+| Any/Hum | All | All | - | ❌ CANCELED |
 
 ## Aligned Training Jobs V3 (Packed V4 - Safe Density)
 

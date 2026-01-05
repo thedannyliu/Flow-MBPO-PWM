@@ -63,7 +63,8 @@ def parse_variant(alg):
     integrator = alg.get('flow_integrator', 'heun')
     substeps = alg.get('flow_substeps', 4)
     actor_target = str(alg.get('actor_config', {}).get('_target_', ''))
-    flow_policy = 'FlowODE' in actor_target or 'flow' in actor_target.lower()
+    # Check specifically for FlowActor class or FlowODE, avoiding package name matches
+    flow_policy = 'FlowODE' in actor_target or 'FlowActor' in actor_target
     
     if use_flow and flow_policy:
         return f"FullFlow_K{substeps}"
@@ -144,20 +145,40 @@ def evaluate_checkpoint(ckpt_path, num_games=100, device='cuda:0'):
         _recursive_=True
     ).to(device)
     
-    # Instantiate actor
-    print("Creating actor...")
-    actor = instantiate(
-        alg.actor_config,
-        obs_dim=latent_dim,
-        action_dim=env.num_actions,
-        _recursive_=True
-    ).to(device)
-    
-    # Load checkpoint
+    # Load checkpoint first to detect actor type from weights
     print(f"Loading checkpoint: {ckpt_path}")
-    ckpt = torch.load(ckpt_path, map_location=device)
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+    
+    actor_state = ckpt['actor']
+    is_flow_actor = any('velocity_net' in k for k in actor_state.keys())
+    
+    # Instantiate actor based on checkpoint content, NOT config
+    print(f"Creating actor... (Detected FlowActor: {is_flow_actor})")
+    
+    if is_flow_actor:
+        from flow_mbpo_pwm.models.actor import FlowActor
+        # For FlowActor, we need flow-specific args. 
+        # Attempt to get them from config, or reasonable defaults if missing/mismatched.
+        actor = FlowActor(
+            obs_dim=latent_dim,
+            action_dim=env.num_actions,
+            # If config is mismatched (says Baseline), these might be missing.
+            # We assume defaults or try to read from alg if available.
+            flow_model_config=alg.get('flow_model_config', {'_target_': 'flow_mbpo_pwm.models.mlp.MLP', 'units': [400, 200, 100]}),
+            t_embedding_dim=alg.get('t_embedding_dim', 32),
+            use_flow_dynamics=True # Force true for evaluation if it is a FlowActor
+        ).to(device)
+    else:
+        # Baseline Actor
+        actor = instantiate(
+            alg.actor_config,
+            obs_dim=latent_dim,
+            action_dim=env.num_actions,
+            _recursive_=True
+        ).to(device)
+
     wm.load_state_dict(ckpt['world_model'])
-    actor.load_state_dict(ckpt['actor'])
+    actor.load_state_dict(actor_state)
     wm.eval()
     actor.eval()
     

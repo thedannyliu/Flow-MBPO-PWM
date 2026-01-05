@@ -29,20 +29,16 @@ Template for each entry:
 - **Issue with V1**: Most jobs (3143565-3143644) failed with `CUDA error: busy` due to shared nodes.
 - **Resolution**: Resubmitted 63 jobs with SSH `--exclusive` flag for ALL tasks (Ant, Anymal, Humanoid).
 - **Queue Behavior**: Only 4 jobs are running simultaneously due to the cluster's `QOSMaxGRESPerUser` limit (max 4 GPUs). The remaining 59 jobs are pending and will start automatically as running jobs complete.
-- **Health Check**: Log checks confirm running jobs (e.g., 3143914) are progressing correctly and achieving high rewards.
-
-### 2026-01-04 – Copilot (Throughput Optimization / V3 Packed Batches)
-
-- **Problem**: Per-user QOS limit (4 nodes/jobs) creates a bottleneck. Running 60 jobs one-by-one (4 concurrent) is too slow.
-- **Solution**: **"Packed Node" Strategy**.
-  - L40S nodes have 8 GPUs. Using `--exclusive` for 1 job wastes 7 GPUs.
-  - **Plan**: Submit 1 exclusive job that launches **7 parallel seeds** internally on the same node.
-  - **Impact**: One QOS credit (1 node) now runs 7 experiments instead of 1.
-  - **Status**: Submitted 7 packed batches (3150252-3150258).
-  - **Expected Throughput**: 28 concurrent seeds (4 nodes × 7 seeds).
+- **Health Check (Update)**: Results show **Instability/Bifurcation**:
+  - Some seeds achieve SOTA (~1200) (e.g., Ant FlowPolicy s7).
+  - Others collapse completely (~20) (e.g., Ant FlowPolicy s2).
+  - This affects both Baseline and Flow runs, likely due to `rew_rms: True` scaling issues.
+- **Dev Fixes**:
+  - Fixed `eval_pwm.py` crash by auto-detecting `FlowActor` from checkpoint weights (bypassed config mismatch).
+  - Fixed metadata bug where Baseline was mislabeled as FlowPolicy due to package name substring match.
 
 #### Current Job Status:
-- **Completed (Suspicious)**: Ant Aligned s0-7 (16 jobs). Evaluation pending. Logs show reward collapse (1100 -> 30).
+- **Completed (Mixed)**: Ant Aligned s0-7 (16 jobs). Evaluation confirms bifurcation.
 - **Pending (Queue)**: 12 Packed Batches (48 seeds total) waiting for QOS slots. Resubmitted with 4 jobs/node to fix OOM.
 
 #### WandB Projects:
