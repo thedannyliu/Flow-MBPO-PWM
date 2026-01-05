@@ -52,7 +52,7 @@ tasks.append({
 })
 
 # Parameters
-JOBS_PER_NODE = 7  # Safe limit for memory (400GB / 7 approx 57GB per job)
+JOBS_PER_NODE = 4  # Reduced from 7 to prevent OOM
 PROJECT_ROOT = "/storage/home/hcoda1/9/eliu354/r-agarg35-0/projects/Flow-MBPO-PWM"
 LOG_DIR = f"{PROJECT_ROOT}/logs/slurm/packed"
 os.makedirs(LOG_DIR, exist_ok=True)

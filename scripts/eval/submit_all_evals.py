@@ -9,53 +9,62 @@ PROJECT = Path("/storage/home/hcoda1/9/eliu354/r-agarg35-0/projects/Flow-MBPO-PW
 SCRATCH = Path("/storage/scratch1/9/eliu354/flow_mbpo")
 RESULTS_DIR = SCRATCH / "eval_results"
 LOG_DIR = SCRATCH / "logs"
-EVAL_SCRIPT = SCRATCH / "scripts" / "eval_pwm.py"
+EVAL_SCRIPT = PROJECT / "scripts" / "eval" / "eval_pwm.py"  # Correct path to eval script
+SEARCH_DIR = PROJECT / "scripts" / "outputs"  # Correct path to outputs
 
 # Ensure directories exist
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Read all checkpoint directories
-checkpoints = []
-for task_file in ['ant_dirs.txt', 'anymal_dirs.txt', 'humanoid_dirs.txt']:
-    filepath = SCRATCH / "checkpoints_to_eval" / task_file
-    if filepath.exists():
-        with open(filepath) as f:
-            for line in f:
-                dir_path = line.strip()
-                if dir_path:
-                    checkpoints.append(dir_path)
-
-print(f"Found {len(checkpoints)} checkpoints to evaluate")
+# Find all best_policy.pt files recursively
+print(f"Searching for checkpoints in {SEARCH_DIR}...")
+checkpoints = sorted(list(SEARCH_DIR.rglob("best_policy.pt"))) # Sort for consistency
+print(f"Found {len(checkpoints)} checkpoints (total)")
 
 job_count = 0
-for dir_path in checkpoints:
-    ckpt_path = PROJECT / "scripts" / dir_path / "logs" / "best_policy.pt"
-    if not ckpt_path.exists():
-        continue
+for ckpt_path in checkpoints:
+    # ckpt_path is like .../outputs/2026-01-04/01-11-20/logs/best_policy.pt
+    # We want a unique ID. 
+    # Let's use date_time relative to outputs
+    # e.g. 2026-01-04_01-11-20
     
-    # Parse date and time
-    parts = dir_path.split('/')
-    date = parts[1]  # e.g., 2025-12-29
-    time = parts[2]  # e.g., 07-10-46
-    ckpt_id = f"{date}_{time}"
+    try:
+        # relative path from outputs
+        rel_path = ckpt_path.relative_to(SEARCH_DIR)
+        # parts: [date, time, logs, best_policy.pt] or [date, time, best_policy.pt] depending on structure
+        # Standard structure seems to be date/time/logs/best_policy.pt or date/time/best_policy.pt
+        parts = rel_path.parts
+        if len(parts) >= 2:
+            ckpt_id = f"{parts[0]}_{parts[1]}"
+        else:
+            ckpt_id = str(rel_path).replace('/', '_').replace('.pt', '')
+            
+    except ValueError:
+        ckpt_id = ckpt_path.name
+
     output_file = RESULTS_DIR / f"eval_{ckpt_id}.csv"
     
     # Skip if already evaluated
     if output_file.exists():
-        print(f"SKIP: {ckpt_id} (already done)")
-        continue
+        # Check size to ensure it's not empty
+        if output_file.stat().st_size > 10:
+             print(f"SKIP: {ckpt_id} (already evaluated)")
+             continue
     
     # Create SLURM script
+    # Use exclusive if possible or just request enough resources. 
+    # Eval is cpu-heavy for simulation but lightweight on GPU. 
+    # But we want to be safe.
+    
     script_content = f'''#!/bin/bash
 #SBATCH --job-name=eval_{ckpt_id}
 #SBATCH --account=gts-agarg35-ideas_l40s
 #SBATCH --partition=gpu-l40s
 #SBATCH --gres=gpu:1
-#SBATCH --mem=300GB
-#SBATCH --time=01:00:00
+#SBATCH --mem=50GB
+#SBATCH --time=00:30:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --output={LOG_DIR}/eval_{ckpt_id}_%j.out
 #SBATCH --error={LOG_DIR}/eval_{ckpt_id}_%j.err
 
@@ -64,7 +73,8 @@ source ~/.bashrc
 conda activate pwm
 export PYTHONPATH={PROJECT}/src
 
-python {EVAL_SCRIPT} --checkpoint "{ckpt_path}" --num-games 100 --output "{output_file}"
+# Run evaluation
+python {EVAL_SCRIPT} --checkpoint "{ckpt_path}" --num-games 20 --output "{output_file}"
 '''
     
     # Write to temp file and submit

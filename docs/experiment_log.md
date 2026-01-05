@@ -37,21 +37,31 @@
 > - Fixed additional configs (48M, lowLR, strongReg) to use `rew_rms: True`.
 > - Added 48M scaling and K-substeps sweep.
 
-## Aligned Training Jobs V3 (Packed Batches)
+## Aligned Training Jobs V2 (63 total)
+
+> [!CAUTION]
+> **Training Collapse**: Logs for completed Ant jobs (s0-7) show **severe reward collapse**.
+> - Early training (~5k steps): Reward ~1100.
+> - Final training (~15k steps): Reward ~25-30 (e.g., Job 3143914, 3143915).
+> - **Action**: Submitted evaluation (Job 31537XX) to verify if this is real collapse or logging artifact.
+
+| Task | Variant | Seeds | Job IDs | Final Logged Reward | Status |
+|------|---------|-------|---------|---------------------|--------|
+| Ant | Baseline | 0-7 | 3143914-3143932 | ~29.7 (Collapse?) | ✅ COMPLETED |
+| Ant | FlowWM K=8 | 0-7 | 3143915-3143933 | ~25.2 (Collapse?) | ✅ COMPLETED |
+| Ant | Base/Flow | 8-9 | - | - | ❌ CANCELED |
+| Any/Hum | All | All | - | - | ❌ CANCELED |
+
+## Aligned Training Jobs V3 (Packed V4 - Safe Density)
 
 > [!TIP]
-> **Optimization**: To bypass the 4-node/4-job cluster QOS limit, we "pack" 7 training jobs onto one exclusive L40S node (which has 8 GPUs).
-> **Throughput**: Instead of running 4 seeds at a time, we will run **4 nodes × 7 seeds = 28 seeds** at a time.
+> **Optimization**: Reduced packing density to **4 jobs/node** (from 7) to fix OOM crashes.
+> **Throughput**: 48 seeds running in batches of 4.
 
-| Batch | Content (Approx) | Job ID | Status |
-|-------|------------------|--------|--------|
-| Packed_0 | Ant Base/Flow s8-9, Any s0-2 | 3150252 | 🕐 PENDING (QOS) |
-| Packed_1 | Any Base/Flow s3-5 | 3150253 | 🕐 PENDING (QOS) |
-| Packed_2 | Any s6-9 | 3150254 | 🕐 PENDING (QOS) |
-| Packed_3 | Hum Base/Flow s0-2 | 3150255 | 🕐 PENDING (QOS) |
-| Packed_4 | Hum s3-6 | 3150256 | 🕐 PENDING (QOS) |
-| Packed_5 | Hum s7-9, 48M | 3150257 | 🕐 PENDING (QOS) |
-| Packed_6 | Tuning K=16/32 | 3150258 | 🕐 PENDING (QOS) |
+| Batch | Content | Job ID | Status |
+|-------|---------|--------|--------|
+| Packed_0 | Ant s8-9, Any s0-1 | 3153741 | 🕐 PENDING (QOS) |
+| Packed_1-11 | Remaining Any/Hum/Scaling | 3153742-3153752 | 🕐 PENDING (QOS) |
 
 ---
 

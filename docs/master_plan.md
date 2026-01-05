@@ -212,7 +212,7 @@ Implementation mapping:
   - World-model dynamics and reward losses.
   - ESNR for actor updates.
   - Actor/critic/wm gradient norms.
-  - **10-seed Aligned Ablation**: As of Jan 4, we are running 10-seed stats for all primary variants (Baseline vs Flow) with aligned `rew_rms: True` to ensure rigorous comparisons.
+  - **10-seed Aligned Ablation**: As of Jan 4, we are running 10-seed stats for all primary variants (Baseline vs Flow) with aligned `rew_rms: True`. **Warning**: Early logs indicate potential reward collapse (1100 -> 30) for this setting.
   - **Scaling & Tuning Extension**: Beyond the 5M MVP, we are testing 48M Ant FlowWM and large `K` (16, 32) sweep to identify upper performance bounds.
 - Acceptance
   - Flow WM is stable at both 5M and 48M for at least one configuration.

@@ -1,56 +1,83 @@
 #!/usr/bin/env python3
-"""Aggregate all evaluation CSV results into a single master CSV."""
-import os, glob, pandas as pd
+"""Aggregate all evaluation CSV results into a single master CSV using standard libraries."""
+import os
+import glob
+import csv
+import statistics
 from pathlib import Path
 
 RESULTS_DIR = Path("/storage/scratch1/9/eliu354/flow_mbpo/eval_results")
+OUTPUT_CSV = RESULTS_DIR / "final_eval_results.csv"
 
 def main():
-    csv_files = list(RESULTS_DIR.glob("eval_*.csv"))
-    print(f"Found {len(csv_files)} result files")
-    
-    if not csv_files:
-        print("No results found!")
+    if not RESULTS_DIR.exists():
+        print(f"Results directory {RESULTS_DIR} does not exist.")
         return
+
+    csv_files = list(RESULTS_DIR.glob("eval_*.csv"))
+    print(f"Found {len(csv_files)} evaluation CSVs.")
+
+    all_results = []
     
-    dfs = []
     for f in csv_files:
         try:
-            df = pd.read_csv(f)
-            dfs.append(df)
+            with open(f, 'r') as csvfile:
+                reader = csv.DictReader(csvfile)
+                # Check for empty file
+                rows = list(reader)
+                if not rows:
+                    continue
+                
+                # Assume columns: episode_reward, episode_length
+                rewards = []
+                lengths = []
+                for row in rows:
+                    if 'episode_reward' in row:
+                        rewards.append(float(row['episode_reward']))
+                    if 'episode_length' in row:
+                        lengths.append(float(row['episode_length']))
+                
+                if rewards:
+                    mean_reward = statistics.mean(rewards)
+                    mean_length = statistics.mean(lengths) if lengths else 0
+                    
+                    # Extract checkpoint ID from filename
+                    filename = f.name
+                    ckpt_id = filename.replace('eval_', '').replace('.csv', '')
+                    
+                    # Try to parse Task/Variant/Seed from ckpt_id or path if possible
+                    # But for now just store ID and metrics
+                    
+                    all_results.append({
+                        'CheckpointID': ckpt_id,
+                        'MeanReward': mean_reward,
+                        'MeanLength': mean_length,
+                        'Path': str(f)
+                    })
         except Exception as e:
             print(f"Error reading {f}: {e}")
-    
-    if not dfs:
-        print("No valid results!")
-        return
-    
-    combined = pd.concat(dfs, ignore_index=True)
-    combined = combined.sort_values(['Task', 'Variant', 'Seed'])
-    
-    # Remove duplicates (keep best result per Task/Variant/Seed)
-    combined = combined.drop_duplicates(subset=['Task', 'Variant', 'Seed'], keep='first')
-    
-    output = RESULTS_DIR / "final_eval_results.csv"
-    combined.to_csv(output, index=False)
-    
-    print(f"\n{'='*80}")
-    print(f"FINAL EVALUATION RESULTS ({len(combined)} experiments)")
-    print('='*80)
-    print(combined.to_string(index=False))
-    print(f"\nSaved to: {output}")
-    
-    # Summary stats by variant
-    print(f"\n{'='*80}")
-    print("SUMMARY BY TASK AND VARIANT")
-    print('='*80)
-    
-    summary = combined.groupby(['Task', 'Variant']).agg({
-        'MeanReward': ['mean', 'std', 'count'],
-        'MeanLength': 'mean'
-    }).round(2)
-    summary.columns = ['AvgReward', 'StdReward', 'NumSeeds', 'AvgLength']
-    print(summary)
 
-if __name__ == '__main__':
+    # Write aggregated results
+    if all_results:
+        # Sort by CheckpointID
+        all_results.sort(key=lambda x: x['CheckpointID'])
+        
+        with open(OUTPUT_CSV, 'w') as csvfile:
+            fieldnames = ['CheckpointID', 'MeanReward', 'MeanLength', 'Path']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in all_results:
+                writer.writerow(r)
+        
+        print(f"\nAggregated results written to {OUTPUT_CSV}")
+        print(f"{'='*80}")
+        print(f"{'CheckpointID':<40} | {'Reward':<10} | {'Length':<10}")
+        print(f"{'-'*80}")
+        for r in all_results:
+            print(f"{r['CheckpointID']:<40} | {r['MeanReward']:.2f}       | {r['MeanLength']:.2f}")
+        print(f"{'='*80}")
+    else:
+        print("No results to aggregate.")
+
+if __name__ == "__main__":
     main()

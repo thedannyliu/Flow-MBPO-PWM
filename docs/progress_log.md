@@ -42,8 +42,8 @@ Template for each entry:
   - **Expected Throughput**: 28 concurrent seeds (4 nodes × 7 seeds).
 
 #### Current Job Status:
-- 63 jobs submitted (Exclusive node allocation).
-- SMOKE TESTS PASSED for all aligned configs.
+- **Completed (Suspicious)**: Ant Aligned s0-7 (16 jobs). Evaluation pending. Logs show reward collapse (1100 -> 30).
+- **Pending (Queue)**: 12 Packed Batches (48 seeds total) waiting for QOS slots. Resubmitted with 4 jobs/node to fix OOM.
 
 #### WandB Projects:
 - `flow-mbpo-aligned-ant`, `flow-mbpo-aligned-anymal`, `flow-mbpo-aligned-humanoid`
