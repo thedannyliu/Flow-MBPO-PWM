@@ -1,80 +1,70 @@
-# Master Plan: Flow-MBPO MT30 Experiments (2×2 Factorial)
+# Master Plan: Flow-MBPO MT30 Experiments
 
 ## Overview
-Primary objective is a fair **2×2 factorial** on MT30:
-- **World Model**: `MLP` vs `Flow`
-- **Policy**: `MLP` vs `Flow ODE`
-
-**Critical Distinction**: Results are not comparable if you mix **pretrained+frozen WM** with **from-scratch joint training** without stating it explicitly.
+**Goal**: Fair 2×2 factorial comparison on MT30:
+- **World Model**: MLP vs Flow
+- **Policy**: MLP vs Flow ODE
 
 ---
 
-## Config Alignment Verification
+## Current Status (2026-01-05)
 
-Per [Original PWM README](baselines/original_pwm/README.md), critical parameters for WM pretraining:
+### ✅ Completed
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 3 | Pretrained MLP WM + Policy | ✅ Best results (~980 reacher) |
+| Phase 4 | Full Flow 10k epochs | ✅ Undertrained |
+| Phase 5 | Flow Tuning 15k | ✅ Walker ~156, Cheetah <5 |
+| Phase 6 15k | Baseline/Flow 15k | ✅ All completed |
+| Phase 6 50k | Baseline | ✅ All 9 completed |
+| Phase 6 100k | Baseline | ✅ All 9 completed |
+| Phase 7 | Fine-tune WM | ✅ All 27 completed |
 
-| Parameter | Original PWM | Our Config | Status |
-|-----------|--------------|------------|--------|
-| `horizon` | 16 | 16 | ✅ Aligned |
-| `batch_size` (pretraining) | 1024 | 1024 | ✅ Aligned |
-| `rho` | 0.99 | 0.99 | ✅ Aligned |
-| `wm_batch_size` (policy) | 256 | 256 | ✅ Aligned |
+### ⏳ In Progress / Queued
+| Phase | Description | Status | Notes |
+|-------|-------------|--------|-------|
+| Phase 8 WM Pretrain | Flow/MLP WM | ⏳ QUEUED | 4013702/03, Fixed script |
 
----
-
-## Experiment Phases Structure
-
-### Phase 8: 2×2 Factorial (Pretrained WM; Primary)
-**Methodology**: **Pretrain WM → Train Policy**
-
-**Step 1: WM Pretraining** (Current)
-| Job ID | WM Type | Status | Output |
-|--------|---------|--------|--------|
-| `4012664` | Flow WM | ⏳ QUEUED | `flowwm_mt30_best.pt` |
-| `4012665` | MLP WM | ⏳ QUEUED | `mlpwm_mt30_best.pt` |
-
-**Step 2: Policy Training** (After WM pretraining completes)
-Use pretrained checkpoints for 2×2 factorial policy training:
-
-| WM | Policy | Config | Checkpoint | `finetune_wm` |
-|---|---|---|---|---|
-| MLP | MLP | `pwm_48M_mt_baseline` | `mlpwm_mt30_best.pt` | False (Primary) / True (Ablation) |
-| MLP | Flow | `pwm_48M_mt_flowpolicy` | `mlpwm_mt30_best.pt` | False / True |
-| Flow | MLP | `pwm_48M_mt_flowwm` | `flowwm_mt30_best.pt` | False / True |
-| Flow | Flow | `pwm_48M_mt_fullflow` | `flowwm_mt30_best.pt` | False / True |
+### ❌ Failed/Timeout
+| Phase | Issue | Resolution |
+|-------|-------|------------|
+| 6-50k Flow | TIMEOUT 8h | Needs 16h+ time limit |
+| 6-100k Flow | TIMEOUT 16h | Needs 20h+ time limit |
+| 6-150k | CUDA OOM | Reduce batch or use H200 |
 
 ---
 
-### Phase 7: Policy Comparison (Fine-tuned Pretrained WM)
-- **Status**: ⏳ QUEUED (`4012601`, 27 jobs)
-- **Methodology**: Load original PWM checkpoint → Enable Fine-tuning → Train Policy
+## Next Steps (Priority Order)
 
-### Phase 6: Epoch Sweep (From Scratch)
-- **Status**: 🟢 RUNNING (100k/150k on H200, 50k on H100)
-- **Methodology**: Joint Training From Scratch
+### 1. Wait for Phase 8 WM Pretraining
+- Monitor jobs `4013702` (Flow WM) and `4013703` (MLP WM)
+- Expected ~16h on H100
 
-### Phase 3: Policy Comparison (Frozen Pretrained WM)
-- **Status**: ✅ COMPLETED
-- **Result**: Baseline wins on walker-stand, tie on others
+### 2. Run 2×2 Factorial Policy Training (After WM Pretrain)
+Use pretrained checkpoints for fair comparison:
+| WM | Policy | Config | Checkpoint |
+|---|---|---|---|
+| MLP | MLP | `pwm_48M_mt_baseline` | `mlpwm_mt30_best.pt` |
+| MLP | Flow | `pwm_48M_mt_flowpolicy` | `mlpwm_mt30_best.pt` |
+| Flow | MLP | `pwm_48M_mt_flowwm` | `flowwm_mt30_best.pt` |
+| Flow | Flow | `pwm_48M_mt_fullflow` | `flowwm_mt30_best.pt` |
+
+### 3. Optional: Resubmit Flow Epoch Sweep
+- 50k Flow: Increase time limit to 16h
+- 100k Flow: Increase time limit to 24h
 
 ---
 
-## Technical Details
+## Key Findings
 
-### Recommended Execution Order (Phase 8)
-1. **Pretrain Flow WM** on MT30 offline dataset (Job `4012664`)
-2. **Pretrain MLP WM** for control (Job `4012665`)
-3. Run the 4 quadrants with **frozen WM** (`finetune_wm=False`)
-4. Repeat the 4 quadrants with **fine-tuning** (`finetune_wm=True`) as ablation
-
-### Training Budget
-- **Original PWM WM Pretraining**: ~2 weeks on RTX 3090
-- **Our Phase 8 WM Pretraining**: ~16h on H100 (200k iterations)
+1. **Pretrained WM is critical**: Phase 3 (~980 reward) >> From-scratch (~150-400)
+2. **Flow needs more training time**: 2-3x slower than baseline
+3. **Fine-tuning WM (Phase 7)** doesn't help Flow policy (baseline still wins)
+4. **Cheetah-run is hardest**: Most from-scratch runs fail (<1 reward)
 
 ---
 
 ## Resources
 - **Original PWM Checkpoint**: `checkpoints/multitask/mt30_48M_4900000.pt`
-- **Flow WM Pretraining**: `scripts/pretrain_multitask_wm.py` + `scripts/cfg/pretrain_mt30_wm.yaml`
+- **WM Pretraining Script**: `scripts/pretrain_multitask_wm.py`
 - **Data**: `/home/hice1/eliu354/scratch/Data/tdmpc2/mt30/`
-- **WandB**: `WM-Pretrain` (pretraining), `MT30-Detailed` (policy training)

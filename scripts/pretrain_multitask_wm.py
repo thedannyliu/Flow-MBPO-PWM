@@ -74,12 +74,14 @@ def pretrain(cfg):
     # TD-MPC2 episode lengths are fixed for MT30/MT80.
     episode_length = 101 if "mt80" in str(cfg.general.data_dir).lower() else 501
     
-    # Use open_struct to allow adding new keys to frozen config
-    with OmegaConf.open_struct(cfg):
-        cfg.episode_length = episode_length
-        cfg.buffer.buffer_size = 24000 * episode_length
+    # Temporarily disable struct mode to add new keys
+    OmegaConf.set_struct(cfg, False)
+    cfg.episode_length = episode_length
+    cfg.buffer.buffer_size = 24000 * episode_length
+    OmegaConf.set_struct(cfg, True)
     
     buffer = instantiate(cfg.buffer)
+
 
 
     print(f"Found {len(fps)} files in {cfg.general.data_dir}")

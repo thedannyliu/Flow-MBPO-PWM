@@ -1,45 +1,45 @@
 # Progress Log
 
-> Purpose: Chronicle day-to-day development progress. Newest entries at top.
+> Newest entries at top.
 
 ---
 
-## 2026-01-05 03:18 – Comprehensive Experiment Audit
+## 2026-01-05 19:00 – Final Comprehensive Audit
 
-### Actions
-- Audited **all running/completed jobs** across Phase 3-8
-- Extracted final rewards from completed runs
-- Fixed `pretrain_multitask_wm.py` OmegaConf.open_struct error
-- Resubmitted Phase 8 WM pretraining: `4012915` (Flow), `4012916` (MLP)
+### Completed
+- **All Phase 7** (27 jobs): Baseline ~1-284, Flow Std ~0.5-119, Flow High ~1-135
+- **All Phase 6 Baseline** (50k, 100k): Completed
+- **All Phase 6 15k**: Baseline and Flow completed
 
-### Failed Jobs Identified
-| Job ID | Phase | Failure Reason | Resolution |
-|--------|-------|----------------|------------|
-| `4012664/65` | Phase 8 | ConfigAttributeError | Fixed & resubmitted |
-| `4012555/56` (mostly) | Phase 6 150k | CUDA OOM | Need smaller batch or different config |
-| `4012538_1` | Phase 6 100k | 1min exit | Check logs |
+### Failed/Timeout
+- **Phase 6 Flow 50k** (4012536): All 9 TIMEOUT at 8h
+- **Phase 6 Flow 100k** (4012538): All 8 TIMEOUT at 16h
+- **Phase 8 WM Pretrain** (4012664/65/915/16): OmegaConf errors
 
-### Resume Capability Analysis
-- **`train_multitask.py`**: ✅ Supports resume via `general.resume_from=<ckpt>`
-- **`pretrain_multitask_wm.py`**: ❌ No resume support (would need to add)
-
-### Completed Results Summary
-| Phase | Epochs | Reacher (best) | Walker (best) | Cheetah (best) |
-|-------|--------|----------------|---------------|----------------|
-| 3 (Pretrained) | 15k | ~982 | ~977 | ~135 |
-| 6-100k (Baseline) | 100k | 438.50 | 213.53 | 2.50 |
-| 6-50k (Baseline) | 50k | 188.60 | 147.34 | 44.35 |
-| 6-15k (Baseline) | 15k | 153.40 | 156.05 | 0.19 |
-| 7 (Fine-tune) | 15k | 54.00 | 284.19 | 56.44 |
+### Actions Taken
+- Fixed `pretrain_multitask_wm.py`: OmegaConf.set_struct
+- Resubmitted WM pretrain: `4013702` (Flow), `4013703` (MLP)
+- Cleaned weights for runs < 4h: 69GB → 40GB
+- Updated all documentation
 
 ---
 
-## 2026-01-04 22:00 – Documentation Update & Config Verification
-- Updated experiment_log.md with all running jobs
-- Verified config alignment with original PWM README
+## 2026-01-05 03:18 – WM Pretrain Fix Attempt
+- Fixed OmegaConf.open_struct (wrong API) → should be set_struct
+- Resubmitted 4012915/16 - still failed
 
 ---
 
 ## 2026-01-04 21:50 – Phase 8 WM Pretraining Launched
-- Submitted Flow WM (`4012664`) and MLP WM (`4012665`) - FAILED
-- Created submission scripts for WM pretraining
+- First attempt 4012664/65 - FAILED (ConfigAttributeError)
+
+---
+
+## 2026-01-04 20:25 – Phase 7 Launched
+- Array job 4012601 (27 tasks) - All completed
+
+---
+
+## 2026-01-04 19:50 – Phase 6 Epoch Sweep Launched
+- 72 jobs for 15k/50k/100k/150k epochs
+- Baseline completed, Flow mostly timeout
