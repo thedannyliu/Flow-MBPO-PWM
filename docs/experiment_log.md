@@ -8,62 +8,35 @@
 ## 🟢 Active Experiments
 
 ### Phase 8: WM Pretraining
-**Method**: Pretrain WM From Scratch
-**Purpose**: Create matched Flow WM and MLP WM checkpoints for fair 2×2 factorial comparison.
-
 | Job ID | WM Type | Config | Iters | Hardware | Runtime | Status | Best Loss | Checkpoint |
 |--------|---------|--------|-------|----------|---------|--------|-----------|------------|
 | `4013702` | Flow WM | `pwm_48M_mt_flowwm` | 200k | H100 | ~8h36m | 🟢 RUNNING | 1.3040 | `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt` |
 | `4013703` | MLP WM | `pwm_48M_mt_baseline` | 200k | H100 | 2h28m | ✅ COMPLETED | 0.0009 | `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt` |
 
----
-
-## ⏸️ Incomplete Runs (Can Resume)
-
-### Phase 6: Flow 100k (TIMEOUT at 16h)
-**Progress**: Reached ~78k/100k epochs (78%)
-**Checkpoints exist**: Yes (`model_last.pt`)
-**Need**: Additional 8h+ to complete
-
-| Job ID | Config | Task | Seed | Hardware | Progress | Checkpoint |
-|--------|--------|------|------|----------|----------|------------|
-| `4012538_0` | FullFlow | reacher-easy | 42 | H200 | 78200/100k | `outputs/epoch_sweep/flow_100k/4012547/0_s42/logs/model_last.pt` |
-| `4012538_2-8` | FullFlow | All | * | H200 | ~78k/100k | `outputs/epoch_sweep/flow_100k/*/logs/model_last.pt` |
-
-### Phase 6: Flow 50k (TIMEOUT at 8h)
-**Progress**: Reached ~39k/50k epochs (78%)
-**Checkpoints exist**: Yes
-**Need**: Additional 3h+ to complete
-
-| Job ID | Config | Task | Seed | Hardware | Progress |
-|--------|--------|------|------|----------|----------|
-| `4012536_0-8` | FullFlow | All | * | H100 | 39k/50k |
-
-### Phase 6: 150k (CUDA OOM)
-**Status**: Cannot resume (failed at startup)
-**Reason**: CUDA Out of Memory on H200
-**Resolution**: Need to reduce `wm_batch_size` or use smaller model
+### Phase 6: Resume/New Epoch Sweep (Just Submitted)
+| Job ID | Config | Epochs | Hardware | Time Limit | Status | Notes |
+|--------|--------|--------|----------|------------|--------|-------|
+| `4015240` | FullFlow | 50k | H200 | 16h | ⏳ QUEUED | Resume from 39k/50k |
+| `4015250` | FullFlow | 100k | H200 | 16h | ⏳ QUEUED | Resume from 78k/100k |
+| `4015251_0-8` | Baseline | 150k | H200 | 16h | ⏳ QUEUED | wm_batch_size=128 |
+| `4015251_9-17` | FullFlow | 150k | H200 | 16h | ⏳ QUEUED | wm_batch_size=128 |
 
 ---
 
 ## ✅ Completed Phases
 
 ### Phase 7: Flow Policy Fine-tuning (27 runs)
-**Method**: Load Pretrained MLP WM + `finetune_wm=True`
 - See `results/phase7_results.csv` for full details
 - Best: baseline walker-stand 284.19
 
-### Phase 6: Epoch Sweep (Baseline Complete, Flow Incomplete)
-- **15k Baseline**: ✅ 9 runs completed
-- **15k FullFlow**: ✅ 9 runs completed
-- **50k Baseline**: ✅ 9 runs completed
-- **50k FullFlow**: ⏸️ 9 runs TIMEOUT (can resume)
-- **100k Baseline**: ✅ 9 runs completed
-- **100k FullFlow**: ⏸️ 8 runs TIMEOUT (can resume)
-- **150k**: ❌ OOM (cannot resume)
+### Phase 6: Epoch Sweep (Baseline Complete)
+- **15k Baseline**: ✅ 9 runs
+- **15k FullFlow**: ✅ 9 runs
+- **50k Baseline**: ✅ 9 runs
+- **100k Baseline**: ✅ 9 runs
 
 ### Phase 5: Flow Tuning (18 runs)
-- All completed, see `results/phase5_flow_tuning.csv`
+- All completed
 
 ### Phase 4: Full Flow 10k (9 runs)
 - All completed
@@ -73,18 +46,10 @@
 
 ---
 
-## 📂 Failed Runs Summary
+## 📂 Previous Failed Runs
 | Phase | Job IDs | Issue | Resolution |
 |-------|---------|-------|------------|
-| 6-100k Flow | 4012538 | TIMEOUT 16h | ⏸️ Resume with 10h+ |
-| 6-50k Flow | 4012536 | TIMEOUT 8h | ⏸️ Resume with 5h+ |
-| 6-150k | 4012555/56 | CUDA OOM | ❌ Need config change |
+| 6-100k Flow | 4012538 | TIMEOUT 16h | ✅ Resume → 4015250 |
+| 6-50k Flow | 4012536 | TIMEOUT 8h | ✅ Resume → 4015240 |
+| 6-150k | 4012555/56 | CUDA OOM | ✅ Retry → 4015251 (batch=128) |
 | 8 WM | 4012664/65/915/16 | Config error | ✅ Fixed → 4013702/03 |
-
----
-
-## Next Steps (Priority Order)
-
-1. **Wait for Phase 8 Flow WM** to complete (~8h more)
-2. **Resume Flow 50k/100k** with longer time limits
-3. **Run 2×2 factorial** with pretrained WMs
