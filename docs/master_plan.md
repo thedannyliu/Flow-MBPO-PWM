@@ -1,47 +1,29 @@
 # Master Plan: Flow-MBPO MT30 Experiments
 
-## Overview
-**Goal**: Fair 2×2 factorial comparison on MT30:
-- **World Model**: MLP vs Flow
-- **Policy**: MLP vs Flow ODE
+## Current Status (2026-01-06 03:45)
 
----
+### ✅ Phase 8 MLP WM Pretrain - COMPLETED
+- **Job**: `4013703`
+- **Runtime**: 2h28m
+- **Best Loss**: 0.0009
+- **Checkpoint**: `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt`
 
-## Current Status (2026-01-05)
-
-### ✅ Completed
-| Phase | Description | Status |
-|-------|-------------|--------|
-| Phase 3 | Pretrained MLP WM + Policy | ✅ Best results (~980 reacher) |
-| Phase 4 | Full Flow 10k epochs | ✅ Undertrained |
-| Phase 5 | Flow Tuning 15k | ✅ Walker ~156, Cheetah <5 |
-| Phase 6 15k | Baseline/Flow 15k | ✅ All completed |
-| Phase 6 50k | Baseline | ✅ All 9 completed |
-| Phase 6 100k | Baseline | ✅ All 9 completed |
-| Phase 7 | Fine-tune WM | ✅ All 27 completed |
-
-### ⏳ In Progress / Queued
-| Phase | Description | Status | Notes |
-|-------|-------------|--------|-------|
-| Phase 8 WM Pretrain | Flow/MLP WM | ⏳ QUEUED | 4013702/03, Fixed script |
-
-### ❌ Failed/Timeout
-| Phase | Issue | Resolution |
-|-------|-------|------------|
-| 6-50k Flow | TIMEOUT 8h | Needs 16h+ time limit |
-| 6-100k Flow | TIMEOUT 16h | Needs 20h+ time limit |
-| 6-150k | CUDA OOM | Reduce batch or use H200 |
+### 🟢 Phase 8 Flow WM Pretrain - RUNNING
+- **Job**: `4013702`
+- **Runtime**: ~8h36m (ongoing)
+- **Best Loss**: 1.3040
+- **Checkpoint**: `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt`
 
 ---
 
 ## Next Steps (Priority Order)
 
-### 1. Wait for Phase 8 WM Pretraining
-- Monitor jobs `4013702` (Flow WM) and `4013703` (MLP WM)
-- Expected ~16h on H100
+### 1. Wait for Flow WM Pretrain to Complete
+Expected ~8h more based on current progress.
 
-### 2. Run 2×2 Factorial Policy Training (After WM Pretrain)
-Use pretrained checkpoints for fair comparison:
+### 2. Run 2×2 Factorial Policy Training
+After both WM checkpoints are ready:
+
 | WM | Policy | Config | Checkpoint |
 |---|---|---|---|
 | MLP | MLP | `pwm_48M_mt_baseline` | `mlpwm_mt30_best.pt` |
@@ -50,21 +32,23 @@ Use pretrained checkpoints for fair comparison:
 | Flow | Flow | `pwm_48M_mt_fullflow` | `flowwm_mt30_best.pt` |
 
 ### 3. Optional: Resubmit Flow Epoch Sweep
-- 50k Flow: Increase time limit to 16h
-- 100k Flow: Increase time limit to 24h
+- 50k Flow: 16h time limit
+- 100k Flow: 24h time limit
 
 ---
 
-## Key Findings
-
-1. **Pretrained WM is critical**: Phase 3 (~980 reward) >> From-scratch (~150-400)
-2. **Flow needs more training time**: 2-3x slower than baseline
-3. **Fine-tuning WM (Phase 7)** doesn't help Flow policy (baseline still wins)
-4. **Cheetah-run is hardest**: Most from-scratch runs fail (<1 reward)
+## Completed Phases Summary
+| Phase | Runs | Best Reward (Reacher) | Best (Walker) | Best (Cheetah) |
+|-------|------|----------------------|---------------|----------------|
+| 3 (Pretrained) | 18 | 983.50 | 977.35 | 134.97 |
+| 4 (10k) | 9 | 112.20 | 141.68 | 1.40 |
+| 5 (Tuning) | 18 | - | 156.10 | 4.08 |
+| 6 (Epoch Sweep) | 36 | 438.50 | 213.53 | 44.35 |
+| 7 (Fine-tune) | 27 | 54.00 | 284.19 | 56.44 |
 
 ---
 
 ## Resources
-- **Original PWM Checkpoint**: `checkpoints/multitask/mt30_48M_4900000.pt`
-- **WM Pretraining Script**: `scripts/pretrain_multitask_wm.py`
-- **Data**: `/home/hice1/eliu354/scratch/Data/tdmpc2/mt30/`
+- **MLP WM Checkpoint**: `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt`
+- **Flow WM Checkpoint**: `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt` (in progress)
+- **Original PWM**: `checkpoints/multitask/mt30_48M_4900000.pt`

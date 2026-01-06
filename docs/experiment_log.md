@@ -11,10 +11,10 @@
 **Method**: Pretrain WM From Scratch
 **Purpose**: Create matched Flow WM and MLP WM checkpoints for fair 2×2 factorial comparison.
 
-| Job ID | WM Type | Config | Iters | Hardware | Status | Notes |
-|--------|---------|--------|-------|----------|--------|-------|
-| `4013702` | Flow WM | `pwm_48M_mt_flowwm` | 200k | H100 | ⏳ QUEUED | Fixed OmegaConf.set_struct |
-| `4013703` | MLP WM | `pwm_48M_mt_baseline` | 200k | H100 | ⏳ QUEUED | Fixed |
+| Job ID | WM Type | Config | Iters | Hardware | Runtime | Status | Best Loss | Checkpoint |
+|--------|---------|--------|-------|----------|---------|--------|-----------|------------|
+| `4013702` | Flow WM | `pwm_48M_mt_flowwm` | 200k | H100 | ~8h36m | 🟢 RUNNING | 1.3040 | `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt` |
+| `4013703` | MLP WM | `pwm_48M_mt_baseline` | 200k | H100 | 2h28m | ✅ COMPLETED | 0.0009 | `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt` |
 
 **Failed Runs (Fixed)**:
 | Job ID | Status | Reason |
