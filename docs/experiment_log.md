@@ -1,275 +1,97 @@
 # Experiment Log
 
-> **Purpose**: This document is the authoritative registry for all training, evaluation, and verification jobs in the Flow-MBPO project. It tracks SLURM job IDs, checkpoint paths, configurations, seeds, WandB links, and experiment status.
->
-> **Usage Guidelines**:
-> - **Never delete entries** - only update status (Pending → Running → Completed/Failed → Evaluated)
-> - **Newest entries at top** for each section
-> - Each entry must include: Job ID, variant, seed, script path, checkpoint path, status
-> - Update with eval results once available
->
-> **Status Legend**:
-> - 🕐 **PENDING** - Job submitted, waiting in queue
-> - 🔄 **RUNNING** - Job currently executing
-> - ✅ **COMPLETED** - Training finished, awaiting eval
-> - ❌ **FAILED** - Job failed, needs investigation
-> - 📊 **EVALUATED** - Eval complete, results recorded
-
----
-
-## Resource Allocation (Standard)
-| Setting | Value |
-|---------|-------|
-| Account | gts-agarg35-ideas_l40s |
-| Partition | gpu-l40s |
-| GPU | L40s × 1 |
-| Memory | 400GB |
-| Time Limit | 40 hours |
-| Conda Env | pwm |
-
----
-
-# ALIGNED EXPERIMENTS V2 (Jan 3, 2026 - CURRENT)
-
-> [!IMPORTANT]
-> **V2 Improvements**:
-> - All jobs use `--exclusive` node allocation to prevent "CUDA device busy" errors.
-> - Fixed additional configs (48M, lowLR, strongReg) to use `rew_rms: True`.
-> - Added 48M scaling and K-substeps sweep.
-
-## Aligned Training Jobs V2 (63 total)
+> **Purpose**: The authoritative registry for all Flow-MBPO experiments.
+> **Last Updated**: Jan 5, 2026
 
 > [!CAUTION]
-> **Instability Detected**: Results show severe bifurcation. Some seeds achieve SOTA (~1200) while others collapse (~20).
-> - **Cause**: Likely `rew_rms: True` introducing variance or scaling issues.
-> - **Status**: Evaluations are ongoing to map which seeds survived.
-
-| Variant | High Performers (R > 1000) | Collapsed (R < 100) |
-|---------|----------------------------|---------------------|
-| Ant Baseline | s42 (1170) | s123 (22), s456 (85) |
-| Ant FlowPolicy | s7 (1234), s42 (1158) | s2 (23), s123 (19) |
-| Ant FlowWM K=8 | s456 (1244), s123 (1197) | - |
-
-| Task | Variant | Seeds | Job IDs | Status |
-|------|---------|-------|---------|--------|
-| Ant | Baseline | 0-7 | 3143914-3143932 | ✅ COMPLETED (Mixed) |
-| Ant | FlowWM K=8 | 0-7 | 3143915-3143933 | ✅ COMPLETED (Mixed) |
-| Ant | Base/Flow | 8-9 | - | ❌ CANCELED |
-| Any/Hum | All | All | - | ❌ CANCELED |
-
-## Aligned Training Jobs V3 (Packed V4 - Safe Density)
-
-> [!TIP]
-> **Optimization**: Reduced packing density to **4 jobs/node** (from 7) to fix OOM crashes.
-> **Throughput**: 48 seeds running in batches of 4.
-
-| Batch | Content | Job ID | Status |
-|-------|---------|--------|--------|
-| Packed_0 | Ant s8-9, Any s0-1 | 3153741 | 🕐 PENDING (QOS) |
-| Packed_1-11 | Remaining Any/Hum/Scaling | 3153742-3153752 | 🕐 PENDING (QOS) |
+> **Hardware Alert**: Node **atl1-1-03-004** is defective (ECC Errors). All jobs/evals on this node fail immediately.
+> **Training Alert**: Ant experiments show bifurcation (R~1200 vs R~20). Likely due to `rew_rms: True`.
 
 ---
 
-# ALIGNED EXPERIMENTS V1 (Jan 3, 2026 - FAILED/CANCELED)
+# ACTIVE EXPERIMENTS (Jan 3-5, 2026)
 
-> [!WARNING]
-> Most jobs in this batch failed with `CUDA error: busy` because they shared nodes without `--exclusive`.
-> These have been canceled and replaced by V2.
+## Aligned V5 (Resubmission - Recovery)
+> **Goal**: Resubmit jobs that hung or OOM'd in V2/V4.
+> **Config**: Packed 3 jobs/node (Safe).
 
-| Task | Variant | Seeds | Job IDs | Status |
-|------|---------|-------|---------|--------|
-| Ant/Anymal/Hum | Aligned | 0-9 | 3143565-3143644 | ❌ FAILED/CANCELED |
+| Batch | Content (Seeds) | Job ID | Status | Notes |
+|-------|-----------------|--------|--------|-------|
+| V5_Batch0 | Ant Flow s5, Ant Base s8, Ant Flow s8 | 3162639 | 🕐 PENDING | 3 seeds |
+| V5_Batch1 | Ant Base s9, Ant Flow s9, Any Base s0 | 3162640 | 🕐 PENDING | 3 seeds |
+| V5_Batch2 | Any Flow s0, Any Base s1, Any Flow s1 | 3162641 | 🕐 PENDING | 3 seeds |
 
+## Aligned V4 (Packed - 4 jobs/node)
+> **Goal**: Run remaining Anymal/Humanoid/Scaling jobs safely.
+> **Status**: Mix of Completed, Running, and Pending.
 
-# NEWLY COMPLETED JOBS (Jan 3, 2026)
+| Batch | Job ID | Status | Runtime | Hardware | Notes |
+|-------|--------|--------|---------|----------|-------|
+| Packed_0 | 3153741 | ❌ FAILED (OOM) | 04:56:46 | atl1-1-03-004 | Resubmitted in V5 |
+| Packed_1 | 3153742 | ✅ COMPLETED | 02:31:56 | atl1-1-03-004 | Evaluated |
+| Packed_2 | 3153743 | ✅ COMPLETED | 02:31:23 | atl1-1-03-004 | Evaluated |
+| Packed_3 | 3153744 | ✅ COMPLETED | 02:32:09 | atl1-1-03-004 | Evaluated |
+| Packed_4 | 3153745 | ✅ COMPLETED | 02:31:41 | atl1-1-03-004 | Evaluated |
+| Packed_5 | 3153746 | ✅ COMPLETED | 02:32:17 | atl1-1-03-004 | Evaluated |
+| Packed_6 | 3153747 | ✅ COMPLETED | 02:35:47 | atl1-1-03-004 | Evaluated |
+| Packed_7 | 3153748 | ✅ COMPLETED | 02:35:33 | atl1-1-03-004 | Evaluated |
+| Packed_8 | 3153749 | ✅ COMPLETED | 02:37:06 | atl1-1-03-004 | Evaluated |
+| Packed_9 | 3153750 | ✅ COMPLETED | 02:36:05 | atl1-1-03-004 | Evaluated |
+| Packed_10 | 3153751 | ✅ COMPLETED | 02:35:41 | atl1-1-03-007 | Evaluated |
+| Packed_11 | 3153752 | 🔄 RUNNING | 02:20:20+ | atl1-1-03-004 | Last batch |
 
-## Training Completed ✅
-| Job ID | Task | Variant | Seed | Status | Checkpoint | Eval Result |
-|--------|------|---------|------|--------|------------|-------------|
-| 3138480 | Anymal | Baseline | 42 | � EVALUATED | `outputs/2026-01-03/02-00-06` | 24.84 |
-| 3138481 | Anymal | Baseline | 123 | � EVALUATED | `outputs/2026-01-03/02-02-33` | 25.75 |
-| 3139000 | Anymal | Baseline | 456 | � EVALUATED | `outputs/2026-01-03/03-30-22` | 35.12 |
-| 3139001 | Humanoid | FlowWM K=8 | 456 | ✅ COMPLETED | `outputs/2026-01-03/10-39-37` | 26.67 |
-| 3139002 | Humanoid | FlowPolicy | 42 | � EVALUATED | `outputs/2026-01-03/03-30-26` | 93.14 |
-| 3139003 | Humanoid | FlowPolicy | 123 | ❌ FAILED | - | - |
-| 3139004 | Humanoid | FlowPolicy | 456 | � EVALUATED | `outputs/2026-01-03/06-48-54` | 83.66 |
-| 3139005 | Humanoid | FullFlow | 42 | � EVALUATED | `outputs/2026-01-03/07-23-25` | 42.40 |
-| 3139006 | Humanoid | FullFlow | 123 | � EVALUATED | `outputs/2026-01-03/09-00-09` | 26.67 |
-| 3139007 | Humanoid | FullFlow | 456 | 🔄 RUNNING | - | - |
+## Aligned V2 (Ant Exclusive)
+> **Goal**: Ant 10-seed ablation.
+> **Status**: Completed (Mixed Success).
 
-## Still Running / Resubmitted
-| Job ID | Task | Variant | Seed | Status | Notes |
-|--------|------|---------|------|--------|-------|
-| 3142983 | Humanoid | FlowPolicy | 123 | 🔄 RUNNING | Resubmitted with --exclusive |
-| 3139007 | Humanoid | FullFlow | 456 | 🔄 RUNNING | Expected completion ~8h |
-
-## Eval Pipeline Location
-Scripts moved from scratch to main project:
-- `scripts/eval/eval_pwm.py` - Main evaluation script
-- `scripts/eval/aggregate_eval_results.py` - Aggregate CSVs
-- `scripts/eval/fix_variants.py` - Fix variant labels
-- `eval_results/` - All individual and final CSV files
-
----
-
-# COMPLETED EXPERIMENTS
-
-## Humanoid (Dec 29-30, 2025)
-
-### Baseline ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| 3101831 | 42 | `outputs/2025-12-29/20-17-36/logs/best_policy.pt` | 37.82 | 📊 EVALUATED |
-| 3101832 | 123 | `outputs/2025-12-29/20-20-53/logs/best_policy.pt` | 65.52 | 📊 EVALUATED |
-| 3101833 | 456 | `outputs/2025-12-29/20-31-30/logs/best_policy.pt` | 82.93 | 📊 EVALUATED |
-
-### FlowWM K=4 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| 3104842 | 42 | `outputs/2025-12-29/22-54-39/logs/best_policy.pt` | 55.09 | 📊 EVALUATED |
-| 3104843 | 123 | `outputs/2025-12-29/22-54-42/logs/best_policy.pt` | 34.48 | 📊 EVALUATED |
-
-### FlowWM K=2 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| 3104846 | 123 | `outputs/2025-12-29/22-54-41/logs/best_policy.pt` | 34.09 | 📊 EVALUATED |
-
-### FlowWM K=8 ✅ PARTIAL
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| 3107946 | 42 | `outputs/2025-12-30/04-20-56/logs/best_policy.pt` | 36.76 | 📊 EVALUATED |
-| 3107947 | 123 | `outputs/2025-12-30/04-20-58/logs/best_policy.pt` | 30.70 | 📊 EVALUATED |
-| - | 456 | - | - | ❌ FAILED (CUDA busy) |
-
-### FlowPolicy ❌ PARTIAL
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| 3125488 | 42 | `outputs/2025-12-29/20-18-50/logs/best_policy.pt` | 58.90 | 📊 EVALUATED |
-| - | 123 | - | - | ❌ FAILED |
-| - | 456 | - | - | ❌ FAILED |
-
-### FullFlow K=4 ✅ PARTIAL
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/20-17-31/logs/best_policy.pt` | 39.99 | 📊 EVALUATED |
-| - | 123 | - | - | ❌ FAILED |
-| - | 456 | - | - | ❌ FAILED |
+| Job ID | Variant | Seed | Status | Runtime | Hardware | Eval Reward |
+|--------|---------|------|--------|---------|----------|-------------|
+| 3143914 | Baseline | 0 | ✅ COMPLETED | 03:00:02 | atl1-1-03-004 | ~29.7 |
+| 3143915 | FlowWM K=8 | 0 | ✅ COMPLETED | 07:44:34 | atl1-1-01-010 | ~25.2 |
+| 3143916 | Baseline | 1 | ✅ COMPLETED | 03:00:30 | atl1-1-01-010 | - |
+| 3143917 | FlowWM K=8 | 1 | ✅ COMPLETED | 07:32:14 | atl1-1-03-004 | - |
+| 3143918 | Baseline | 2 | ✅ COMPLETED | 03:05:19 | atl1-1-03-004 | - |
+| 3143919 | FlowWM K=8 | 2 | ✅ COMPLETED | 07:46:42 | atl1-1-03-007 | - |
+| 3143920 | Baseline | 3 | ✅ COMPLETED | 03:02:55 | atl1-1-03-004 | - |
+| 3143921 | FlowWM K=8 | 3 | ✅ COMPLETED | 07:45:52 | atl1-1-03-004 | - |
+| 3143924 | Baseline | 4 | ✅ COMPLETED | 02:59:28 | atl1-1-03-007 | - |
+| 3143925 | FlowWM K=8 | 5 | ❌ CANCELED | 34h+ | atl1-1-01-010 | HUNG (Resubmitted V5) |
+| 3143926 | Baseline | 5 | ✅ COMPLETED | 03:03:46 | atl1-1-03-007 | - |
+| 3143927 | FlowWM K=8 | 6 | ✅ COMPLETED | 07:46:42 | atl1-1-03-004 | - |
+| 3143930 | Baseline | 7 | ✅ COMPLETED | - | - | - |
+| 3143931 | FlowWM K=8 | 7 | ✅ COMPLETED | - | - | - |
 
 ---
 
-## Ant (Dec 29, 2025) ✅ COMPLETE
+# EVALUATION RESULTS (Aggregated)
 
-### Baseline ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/07-10-46/logs/best_policy.pt` | 1170.49 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/08-18-33/logs/best_policy.pt` | 22.50 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-29/09-16-25/logs/best_policy.pt` | 85.45 | 📊 EVALUATED |
+**Latest CSV**: `/storage/scratch1/9/eliu354/flow_mbpo/eval_results/final_eval_results.csv`
 
-### FlowWM K=2 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/11-03-10/logs/best_policy.pt` | 154.80 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/11-06-12/logs/best_policy.pt` | 1263.74 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-29/11-21-33/logs/best_policy.pt` | 871.15 | 📊 EVALUATED |
-
-### FlowWM K=4 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/09-17-18/logs/best_policy.pt` | 849.81 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/10-17-08/logs/best_policy.pt` | 1239.04 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-29/11-02-54/logs/best_policy.pt` | 823.06 | 📊 EVALUATED |
-
-### FlowWM K=8 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/11-22-48/logs/best_policy.pt` | 1107.08 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/13-55-00/logs/best_policy.pt` | 1197.42 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-29/14-27-09/logs/best_policy.pt` | 1244.37 | 📊 EVALUATED |
-
-### FlowPolicy ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/14-28-54/logs/best_policy.pt` | 45.77 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/14-46-31/logs/best_policy.pt` | 19.73 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-29/14-56-22/logs/best_policy.pt` | 217.09 | 📊 EVALUATED |
-
-### FullFlow K=4 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/15-43-12/logs/best_policy.pt` | 245.34 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/16-34-47/logs/best_policy.pt` | 220.51 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-29/16-53-26/logs/best_policy.pt` | 1089.82 | 📊 EVALUATED |
+| Task | Variant | Seed | Result Info |
+|------|---------|------|-------------|
+| **Ant** | **Baseline** | 123 | R=22.50 (Collapsed) |
+| Ant | Baseline | 42 | **R=1170.49 (SOTA)** |
+| Ant | Baseline | 456 | R=85.45 (Collapsed) |
+| **Ant** | **FlowPolicy** | 7 | **R=1234.27 (SOTA)** |
+| Ant | FlowPolicy | 42 | **R=1157.68 (SOTA)** |
+| Ant | FlowPolicy | 2 | R=23.63 (Collapsed) |
+| Ant | FlowPolicy | 3 | R=203.62 (Poor) |
+| **Ant** | **FlowWM K=8** | 456 | **R=1244.37 (SOTA)** |
+| Ant | FlowWM K=8 | 123 | **R=1197.42 (SOTA)** |
 
 ---
 
-## Anymal (Dec 28-29, 2025) ⚠️ MISSING BASELINE
+# ARCHIVE (Failures)
 
-> [!WARNING]
-> **Anymal Baseline checkpoints were deleted during disk cleanup on Dec 31.**
-> Original job IDs: 3080227, 3080228, 3080229
-> Need to retrain.
+## Aligned V3 (Packed - 7 jobs/node)
+> **Status**: ❌ FAILED (OOM). Too aggressive.
+> **Resolution**: Reduced to 4 jobs/node in V4.
 
-### FlowPolicy ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-28/22-43-26/logs/best_policy.pt` | 33.13 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/00-10-02/logs/best_policy.pt` | 20.31 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-28/17-34-31/logs/best_policy.pt` | 47.05 | 📊 EVALUATED |
+| Job ID | Status | Runtime | Outcome |
+|--------|--------|---------|---------|
+| 3150252 | ❌ FAILED | 05:25:22 | OOM (Replaced by V4/V5) |
+| 3150258 | ❌ FAILED | 13:24:28 | OOM (Replaced by V4) |
+| 3150253-57| ✅ COMPLETED | ~2.5h | Successful runs kept |
 
-### FlowWM K=4 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-28/06-54-04/logs/best_policy.pt` | 29.35 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-28/22-27-32/logs/best_policy.pt` | 15.33 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-28/22-28-56/logs/best_policy.pt` | 23.97 | 📊 EVALUATED |
-
-### FlowWM K=8 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-29/05-00-51/logs/best_policy.pt` | 14.76 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-29/03-24-05/logs/best_policy.pt` | 23.85 | 📊 EVALUATED |
-
-### FullFlow K=4 ✅ EVALUATED
-| Job ID | Seed | Checkpoint Path | Mean Reward | Status |
-|--------|------|-----------------|-------------|--------|
-| - | 42 | `outputs/2025-12-28/21-42-56/logs/best_policy.pt` | 22.40 | 📊 EVALUATED |
-| - | 123 | `outputs/2025-12-28/23-27-25/logs/best_policy.pt` | 28.49 | 📊 EVALUATED |
-| - | 456 | `outputs/2025-12-29/02-14-20/logs/best_policy.pt` | 17.28 | 📊 EVALUATED |
-
----
-
-# EVALUATION RESULTS
-
-## Final Aggregated CSV
-**Path**: `/storage/scratch1/9/eliu354/flow_mbpo/eval_results/final_eval_results.csv`
-
-### Summary by Task (as of Jan 1, 2026)
-
-| Task | Variant | Avg Reward | Std | Seeds |
-|------|---------|------------|-----|-------|
-| **Ant** | FlowWM_K8_euler | **1182.96** | 69.78 | 3 |
-| Ant | FlowWM_K4_heun | 970.64 | 232.83 | 3 |
-| Ant | FlowWM_K2_heun | 763.23 | 562.29 | 3 |
-| Ant | FullFlow_K4 | 518.56 | 494.88 | 3 |
-| Ant | Baseline | 426.15 | 645.39 | 3 |
-| **Anymal** | FlowPolicy | 33.50 | 13.37 | 3 |
-| Anymal | FlowWM_K4_heun | 22.88 | 7.07 | 3 |
-| Anymal | FullFlow_K4 | 22.72 | 5.61 | 3 |
-| **Humanoid** | Baseline | **62.09** | 22.75 | 3 |
-| Humanoid | FlowPolicy | 58.90 | - | 1 |
-| Humanoid | FlowWM_K4_heun | 44.78 | 14.57 | 2 |
-
----
-
-# SCRIPTS REFERENCE
-
-## Training Scripts Location
-- Anymal: `scripts/anymal/`
-- Ant: `scripts/ant/`
-- Humanoid: `scripts/humanoid/`
-
-## Evaluation Scripts
-- Main eval: `/storage/scratch1/9/eliu354/flow_mbpo/scripts/eval_pwm.py`
-- Batch submit: `/storage/scratch1/9/eliu354/flow_mbpo/scripts/submit_all_evals.py`
-- Aggregate: `/storage/scratch1/9/eliu354/flow_mbpo/scripts/aggregate_eval_results.py`
+## Aligned V1
+> **Status**: ❌ FAILED (CUDA Busy). Replaced by V2.

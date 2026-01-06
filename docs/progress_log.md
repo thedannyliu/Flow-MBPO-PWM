@@ -37,9 +37,15 @@ Template for each entry:
   - Fixed `eval_pwm.py` crash by auto-detecting `FlowActor` from checkpoint weights (bypassed config mismatch).
   - Fixed metadata bug where Baseline was mislabeled as FlowPolicy due to package name substring match.
 
+- **Hardware Failure**: Node **atl1-1-03-004** identified as defective (ECC errors). All jobs on this node fail evaluation. Marked as "Do Not Use".
+- **Hung Job**: Ant Flow s5 (3143925) hung for >34h. Canceled.
+- **Recovery (V5)**: Resubmitted 9 seeds (Failed OOM + Hung Job) in `submit_resubmit_v5.py` (Batches 3162639-41) with safe 3 jobs/node density.
+
 #### Current Job Status:
 - **Completed (Mixed)**: Ant Aligned s0-7 (16 jobs). Evaluation confirms bifurcation.
-- **Pending (Queue)**: 12 Packed Batches (48 seeds total) waiting for QOS slots. Resubmitted with 4 jobs/node to fix OOM.
+- **Pending (Queue)**: 
+  - 12 Packed V4 Batches (Running/Pending).
+  - 3 Packed V5 Batches (Pending).
 
 #### WandB Projects:
 - `flow-mbpo-aligned-ant`, `flow-mbpo-aligned-anymal`, `flow-mbpo-aligned-humanoid`

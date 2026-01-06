@@ -212,6 +212,11 @@ Implementation mapping:
   - World-model dynamics and reward losses.
   - ESNR for actor updates.
   - Actor/critic/wm gradient norms.
+  - **2026-01-05**: Audit & Recovery.
+  - Identified defective node `atl1-1-03-004` causing ECC errors.
+  - Identified hung job `3143925`.
+  - Resubmitted 9 failed/hung seeds as **Aligned V5** (Packed 3 jobs/node).
+  - Evaluations confirm reward bifurcation in Ant experiments.
   - **10-seed Aligned Ablation**: As of Jan 4, we are running 10-seed stats for all primary variants (Baseline vs Flow) with aligned `rew_rms: True`. **Warning**: Early logs indicate potential reward collapse (1100 -> 30) for this setting.
   - **Scaling & Tuning Extension**: Beyond the 5M MVP, we are testing 48M Ant FlowWM and large `K` (16, 32) sweep to identify upper performance bounds.
 - Acceptance
