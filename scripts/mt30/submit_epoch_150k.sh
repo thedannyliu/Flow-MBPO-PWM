@@ -9,19 +9,20 @@
 #SBATCH --time=16:00:00
 #SBATCH --array=0-17
 
-# 150k Epoch experiments
-# Array 0-8: Baseline, Array 9-17: FullFlow
-# Using H200 with 30h time limit
-# Reduced wm_batch_size to avoid OOM
+# 150k Epoch experiments (Baseline 0-8, FullFlow 9-17)
+# Using H200 with 16h time limit, reduced batch size to avoid OOM
 
+# === ENVIRONMENT === (same as working pretrain script)
 source ~/.bashrc
+eval "$(conda shell.bash hook)"
 conda activate flow-mbpo
-
-export PYTHONPATH="${PYTHONPATH}:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/src"
-export MUJOCO_GL=egl
-export HYDRA_FULL_ERROR=1
+export PATH=$CONDA_PREFIX/bin:$PATH
 
 cd /home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM
+
+export PYTHONPATH=/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/src:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/scripts:/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/external/tdmpc2:$PYTHONPATH
+export MUJOCO_GL=egl
+export HYDRA_FULL_ERROR=1
 
 TASKS=("reacher-easy" "reacher-easy" "reacher-easy" "walker-stand" "walker-stand" "walker-stand" "cheetah-run" "cheetah-run" "cheetah-run")
 SEEDS=(42 123 456 42 123 456 42 123 456)
