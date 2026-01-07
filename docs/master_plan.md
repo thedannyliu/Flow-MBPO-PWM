@@ -1,48 +1,33 @@
 # Master Plan: Flow-MBPO MT30 Experiments
 
-## Current Status (2026-01-07 03:50)
-
-### ✅ Completed Milestones
-- **Phase 3**: Pretrained WM + Policy (Best Performance)
-- **Phase 4**: 10k Flow from Scratch (Undertrained)
-- **Phase 5**: Flow Tuning
-- **Phase 6 (Partial)**: Baseline Epoch Sweep (15k, 50k, 100k)
-- **Phase 7**: Fine-tuning Pretrained WM
-- **Phase 8 (WM Pretraining)**:
-    - Flow WM: `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt` (Loss: 1.3040)
-    - MLP WM: `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt` (Loss: 0.0009)
+## Current Status (2026-01-07 03:55)
 
 ### 🟢 Active Experiments
 | Phase | Job ID | Description | Status | Target |
 |-------|--------|-------------|--------|--------|
-| Phase 6 | `4018450` | Resume Flow 50k | ⏳ QUEUED | 50k epochs (from checkpoint) |
-| Phase 6 | `4018451` | Resume Flow 100k | ⏳ QUEUED | 100k epochs (from checkpoint) |
-| Phase 6 | `4018452` | 150k Baseline/Flow | ⏳ QUEUED | 150k epochs (Batch 128) |
+| Phase 6 | `4018496` | Resume Flow 50k | 🟢 RUNNING | 50k epochs (from checkpoint) |
+| Phase 6 | `4018497` | Resume Flow 100k | ⏳ QUEUED | 100k epochs (from checkpoint) |
+| Phase 6 | `4018498` | 150k Baseline/Flow | ⏳ QUEUED | 150k epochs (Batch 128) |
+
+### ✅ Completed Milestones
+- **Phase 8 (WM Pretraining)**:
+    - Flow WM: `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt` (Loss: 1.3040)
+    - MLP WM: `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt` (Loss: 0.0009)
 
 ---
 
 ## Next Steps
 
 ### 1. Execute Phase 9: 2x2 Factorial Design
-**Goal**: Isolate the benefit of Flow WM vs. Flow Policy.
-**Dependencies**: Phase 8 Checkpoints (Ready).
+(Blocked on Queue/Job Completion)
 
-**Configurations**:
-1.  **MLP WM + MLP Policy**: Control (Baseline)
-    - `checkpoint=outputs/.../mlpwm_mt30_best.pt`
-    - `alg=pwm_48M_mt_baseline`
-2.  **MLP WM + Flow Policy**: Test Flow Policy benefit
-    - `checkpoint=outputs/.../mlpwm_mt30_best.pt`
-    - `alg=pwm_48M_mt_flowpolicy`
-3.  **Flow WM + MLP Policy**: Test Flow WM benefit
-    - `checkpoint=outputs/.../flowwm_mt30_best.pt`
-    - `alg=pwm_48M_mt_flowwm`
-4.  **Flow WM + Flow Policy**: Full Method
-    - `checkpoint=outputs/.../flowwm_mt30_best.pt`
-    - `alg=pwm_48M_mt_fullflow`
+**Hypothesis**: Flow WM + Flow Policy > Flow WM + MLP Policy > MLP WM + MLP Policy.
 
-**Action**: Create submission script `scripts/mt30/submit_phase9_factorial.sh` once queue clears or is stable.
+**Plan**:
+Run 4 variants on H100/H200:
+1.  `alg=pwm_48M_mt_baseline` + MLP WM Checkpoint
+2.  `alg=pwm_48M_mt_flowpolicy` + MLP WM Checkpoint
+3.  `alg=pwm_48M_mt_flowwm` + Flow WM Checkpoint
+4.  `alg=pwm_48M_mt_fullflow` + Flow WM Checkpoint
 
-### 2. Analysis & Plotting
-- Generate aggregate plots comparing all phases.
-- Create final results table merging `all_experiments.csv` with new data.
+**Script**: `scripts/mt30/submit_phase9_factorial.sh` (To be created)
