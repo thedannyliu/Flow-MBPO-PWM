@@ -40,6 +40,7 @@ python scripts/train_multitask.py \
     task=dmcontrol-${TASK} \
     seed=${SEED} \
     general.epochs=100000 \
+    general.data_dir="/home/hice1/eliu354/scratch/Data/tdmpc2/mt30" \
     general.run_wandb=True \
     +wandb.project=MT30-Detailed \
     +wandb.name="resume_flow_100k_${TASK}_s${SEED}"

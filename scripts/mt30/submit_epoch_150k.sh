@@ -52,6 +52,7 @@ python scripts/train_multitask.py \
     seed=${SEED} \
     general.epochs=150000 \
     alg.wm_batch_size=128 \
+    general.data_dir="/home/hice1/eliu354/scratch/Data/tdmpc2/mt30" \
     general.run_wandb=True \
     +wandb.project=MT30-Detailed \
     +wandb.name="${NAME}"

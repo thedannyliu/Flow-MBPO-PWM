@@ -7,15 +7,28 @@
 
 ## 🟢 Active Experiments
 
-### Phase 6: Resume/New Epoch Sweep (Third Attempt - SUCCESS)
-**Fix**: Fixed `+wandb.name` in `resume_flow_50k.sh` (previously missed).
-**Fix**: All scripts have both Conda activation and correct Hydra syntax.
+### Phase 9: 2x2 Factorial Design
+(Factorial of WM Type x Policy Type)
+
+| Job ID | Configuration | Checkpoint | Status | Notes |
+|--------|---------------|------------|--------|-------|
+| `4018569` | (36 runs) | MLP/Flow WM | ⏳ QUEUED | 4 Conditions x 9 Task-Seeds |
+| `Condition 0` | MLP WM + MLP Policy | MLP CKPT | - | Control |
+| `Condition 1` | MLP WM + Flow Policy | MLP CKPT | - | Flow Policy Benefit |
+| `Condition 2` | Flow WM + MLP Policy | Flow CKPT | - | Flow WM Benefit |
+| `Condition 3` | Flow WM + Flow Policy | Flow CKPT | - | Full Method |
+
+### Phase 6: Resume/New Epoch Sweep (Fourth Attempt - SUCCESS)
+**Fixes**:
+1. Added explicit `conda` activation.
+2. Added `+` prefix to Hydra overrides.
+3. Added `general.data_dir` path to scripts.
 
 | Job ID | Configuration | Epochs | Hardware | Runtime | Status | Notes |
 |--------|---------------|--------|----------|---------|--------|-------|
-| `4018496` | Resume Flow 50k | 50k | H100 | < 1h | 🟢 RUNNING | Logs clean (Gym warnings only) |
-| `4018497` | Resume Flow 100k | 100k | H200 | - | ⏳ QUEUED | Resume from 78k checkpoint |
-| `4018498` | 150k Sweep (Baseline/Flow) | 150k | H200 | - | ⏳ QUEUED | Batch size 128 to fix OOM |
+| `4018554` | Resume Flow 50k | 50k | H100 | < 1h | 🟢 RUNNING | Verified Logs Clean |
+| `4018563` | Resume Flow 100k | 100k | H200 | < 1h | 🟢 RUNNING | Verified Logs Clean |
+| `4018564` | 150k Sweep (Baseline/Flow) | 150k | H200 | - | ⏳ QUEUED | Batch size 128 |
 
 ---
 
@@ -27,28 +40,18 @@
 | `4013702` | Flow WM | `pwm_48M_mt_flowwm` | 200k | H100 | ~12.5h | ✅ COMPLETED | 1.3040 | `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt` |
 | `4013703` | MLP WM | `pwm_48M_mt_baseline` | 200k | H100 | 2h28m | ✅ COMPLETED | 0.0009 | `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt` |
 
-### Phase 7: Flow Policy Fine-tuning (27 runs)
-- See `results/phase7_results.csv` for full details.
-
-### Phase 6: Baseline Epoch Sweep
-- **15k/50k/100k Baseline**: All completed successfully.
-
-### Phase 3, 4, 5
-- All completed. See `results/all_experiments.csv`.
-
 ---
 
 ## 📂 Failed Runs Diagnostics
 | Job ID | Phase | Issue | Resolution |
 |--------|-------|-------|------------|
-| `4018450` | Resume Flow 50k | `ConfigCompositionException` | Forgot `+` in wandb name. Fixed in `4018496`. |
-| `4015342/43/44` | Resume/150k | `ConfigCompositionException` | Added `+` to wandb overrides in submit scripts |
-| `4015240/50/51` | Resume/150k | `python codec error` | Fixed conda activation in scripts |
+| `4018496/97/98` | Resume/150k | `TypeError: NoneType` (missing data_dir) | Added `general.data_dir` to scripts |
+| `4018450` | Resume Flow 50k | `ConfigCompositionException` | Forgot `+` in wandb name. Fixed. |
+| `4015342/43/44` | Resume/150k | `ConfigCompositionException` | Added `+` to wandb overrides |
+| `4015240/50/51` | Resume/150k | `python codec error` | Fixed conda activation |
 
 ---
 
-## Next Steps (Priority Order)
-
-1.  **Monitor Jobs**: Ensure `4018496+` continue running past initialization.
-2.  **Phase 9: 2x2 Factorial Policy Training**:
-    *   Launch using Phase 8 checkpoints once cluster allows.
+## Next Steps
+1.  **Monitor**: Wait for results.
+2.  **Analysis**: Once Phase 9 completes, generate comparison plots.

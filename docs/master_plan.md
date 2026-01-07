@@ -1,33 +1,35 @@
 # Master Plan: Flow-MBPO MT30 Experiments
 
-## Current Status (2026-01-07 03:55)
+## Current Status (2026-01-07 04:10)
 
-### 🟢 Active Experiments
-| Phase | Job ID | Description | Status | Target |
-|-------|--------|-------------|--------|--------|
-| Phase 6 | `4018496` | Resume Flow 50k | 🟢 RUNNING | 50k epochs (from checkpoint) |
-| Phase 6 | `4018497` | Resume Flow 100k | ⏳ QUEUED | 100k epochs (from checkpoint) |
-| Phase 6 | `4018498` | 150k Baseline/Flow | ⏳ QUEUED | 150k epochs (Batch 128) |
+### 🟢 Active Experiments (Total ~63 jobs)
+| Phase | Job ID | Description | Status |
+|-------|--------|-------------|--------|
+| **Phase 9** | `4018569` | **2x2 Factorial Design** (36 runs) | ⏳ QUEUED |
+| Phase 6 | `4018554` | Resume Flow 50k (9 runs) | 🟢 RUNNING |
+| Phase 6 | `4018563` | Resume Flow 100k (9 runs) | 🟢 RUNNING |
+| Phase 6 | `4018564` | 150k Baseline/Flow (18 runs) | ⏳ QUEUED |
 
 ### ✅ Completed Milestones
-- **Phase 8 (WM Pretraining)**:
-    - Flow WM: `outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt` (Loss: 1.3040)
-    - MLP WM: `outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt` (Loss: 0.0009)
+- **Phase 8 (WM Pretraining)**: Flow WM (Loss: 1.3040), MLP WM (Loss: 0.0009). Both checkpoints ready.
+- **Phase 3-5, 7**: Complete.
+
+---
+
+## Phase 9: 2x2 Factorial Design (Executing)
+**Conditions**:
+1.  MLP WM + MLP Policy
+2.  MLP WM + Flow Policy
+3.  Flow WM + MLP Policy
+4.  Flow WM + Flow Policy
+
+**Hypothesis**: Full Flow (Cond 4) > Mixed (2/3) > Baseline (1).
 
 ---
 
 ## Next Steps
-
-### 1. Execute Phase 9: 2x2 Factorial Design
-(Blocked on Queue/Job Completion)
-
-**Hypothesis**: Flow WM + Flow Policy > Flow WM + MLP Policy > MLP WM + MLP Policy.
-
-**Plan**:
-Run 4 variants on H100/H200:
-1.  `alg=pwm_48M_mt_baseline` + MLP WM Checkpoint
-2.  `alg=pwm_48M_mt_flowpolicy` + MLP WM Checkpoint
-3.  `alg=pwm_48M_mt_flowwm` + Flow WM Checkpoint
-4.  `alg=pwm_48M_mt_fullflow` + Flow WM Checkpoint
-
-**Script**: `scripts/mt30/submit_phase9_factorial.sh` (To be created)
+1.  **Monitor**: Ensure Phase 9 jobs start successfully when resources become available.
+2.  **Analysis**:
+    - Collect results from Phase 9.
+    - Compare with Phase 6 (longer epochs).
+    - Generate final paper plots.

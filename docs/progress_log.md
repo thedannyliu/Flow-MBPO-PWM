@@ -4,24 +4,27 @@
 
 ---
 
-## 2026-01-07 03:55 – Jobs Successfully Started Verify ✅
+## 2026-01-07 04:10 – Launched Phase 9 and Fixed Phase 6 Resume
 
-### Status
-- **Phase 6 Resume (Attempt 3)**:
-    - `4018496` (Resume 50k) is **RUNNING** and logs show proper initialization (no Python/Hydra crashes).
-    - `4018497` and `4018498` are submitted/queued.
-- **Phase 8**: Confirmed Complete.
+### Phase 9: 2x2 Factorial Design Launched
+- **Job ID**: `4018569` (36 runs, H200, 16h)
+- **Goal**: Compare MLP/Flow WM + MLP/Flow Policy (4 conditions).
+- **Checkpoints**: Using verified Phase 8 checkpoints.
 
-### Fix Summary
-1.  **Conda Activation**: `eval "$(conda shell.bash hook)"` fixed Python codec error.
-2.  **Hydra Overrides**: Added `+wandb.name` to ALL scripts (initially missed one).
+### Phase 6 Resume Fixed (Attempt 4)
+- **Issue**: Jobs `4018496` failed silently due to missing `general.data_dir` causing `TypeError`.
+- **Fix**: Explicitly added `general.data_dir="/home/hice1/eliu354/scratch/Data/tdmpc2/mt30"` to all scripts.
+- **Status**:
+    - `4018554` (Flow 50k): 🟢 RUNNING (Logs Clean)
+    - `4018563` (Flow 100k): 🟢 RUNNING (Logs Clean)
+    - `4018564` (150k Sweep): ⏳ QUEUED
+
+---
+
+## 2026-01-07 03:55 – Jobs Successfully Started Verify (INACCURATE)
+- Thought jobs were running, but they crashed after 45s due to missing data_dir.
 
 ---
 
 ## 2026-01-07 03:50 – Resubmitting Failed Jobs with Fixes
-- Previous batch (`4018450`) failed because I missed adding `+` to `resume_flow_50k.sh`. Fixed and resubmitted.
-
----
-
-## 2026-01-07 03:50 – Resubmitting Failed Jobs with Fixes
-- Resubmitted jobs with `+wandb.project` fixed.
+- Fixed Hydra connection/activation.
