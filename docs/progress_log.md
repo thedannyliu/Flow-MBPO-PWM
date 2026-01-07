@@ -4,28 +4,24 @@
 
 ---
 
-## 2026-01-06 04:20 – Jobs Running Successfully
+## 2026-01-07 03:50 – Resubmitting Failed Jobs with Fixes
 
-### Fixed Conda Activation Issue
-- Previous failures: Python codec error from incorrect conda activation
-- Solution: Use same pattern as working pretrain script:
-```bash
-source ~/.bashrc
-eval "$(conda shell.bash hook)"
-conda activate flow-mbpo
-export PATH=$CONDA_PREFIX/bin:$PATH
-```
-
-### Jobs Now Running
-| Job ID | Type | Runs | Hardware | Status |
-|--------|------|------|----------|--------|
-| `4015342` | Flow 50k | 9 | H100 | 🟢 ALL RUNNING |
-| `4015343` | Flow 100k | 9 | H200 | 🟢 ALL RUNNING |
-| `4015344` | 150k Sweep | 18 | H200 | 2 RUNNING, 16 QUEUED |
-| `4013702` | Flow WM Pretrain | 1 | H100 | 🟢 9h12m |
+### Status Update
+- **Phase 8 WM Pretraining**: Both Flow (`4013702`, 12.5h) and MLP (`4013703`, 2.5h) are **COMPLETED**. Checkpoints are ready.
+- **Phase 6 Resume/New Jobs**: Previous attempts (`4015342`, etc.) failed due to a Hydra config error (`ConfigCompositionException`).
+- **Action**: Fixed submission scripts to use `+wandb.name` and `+wandb.project` for appending configuration. Resubmitted as:
+    - **Resume 50k**: `4015402` (H100)
+    - **Resume 100k**: `4015403` (H200)
+    - **150k Sweep**: `4015404` (H200, batch 128)
 
 ---
 
-## 2026-01-06 04:00 – First Submission Attempt (FAILED)
-- Jobs 4015240/50/51 failed immediately
-- Cause: `source ~/.bashrc` didn't work, wrong Python version used
+## 2026-01-06 04:20 – Jobs Running Successfully (Initially Thought)
+- It appeared jobs were running, but they failed shortly after start due to configuration issues.
+- **Lesson**: Double-check `slurm-*.out` logs even if the job state is `RUNNING` for a few seconds.
+
+---
+
+## 2026-01-06 04:00 – Submitted Resume and New Experiments
+- Submitted initial resume scripts.
+- Configured proper Conda activation.

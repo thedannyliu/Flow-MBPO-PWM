@@ -42,4 +42,4 @@ python scripts/train_multitask.py \
     general.epochs=50000 \
     general.run_wandb=True \
     wandb.project=MT30-Detailed \
-    wandb.name="flow_50k_${TASK}_s${SEED}"
+    wandb.name="resume_flow_50k_${TASK}_s${SEED}"

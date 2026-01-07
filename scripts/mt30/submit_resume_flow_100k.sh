@@ -41,5 +41,5 @@ python scripts/train_multitask.py \
     seed=${SEED} \
     general.epochs=100000 \
     general.run_wandb=True \
-    wandb.project=MT30-Detailed \
-    wandb.name="flow_100k_${TASK}_s${SEED}"
+    +wandb.project=MT30-Detailed \
+    +wandb.name="resume_flow_100k_${TASK}_s${SEED}"

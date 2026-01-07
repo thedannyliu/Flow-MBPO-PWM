@@ -53,7 +53,7 @@ python scripts/train_multitask.py \
     general.epochs=150000 \
     alg.wm_batch_size=128 \
     general.run_wandb=True \
-    wandb.project=MT30-Detailed \
-    wandb.name="${NAME}"
+    +wandb.project=MT30-Detailed \
+    +wandb.name="${NAME}"
 
 echo "=== Training Complete ==="
