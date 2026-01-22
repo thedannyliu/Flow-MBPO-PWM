@@ -1217,7 +1217,7 @@ class PWM:
             },
             str(log_dir / f"{filename}.pt"),
         )
-        if buffer:
+        if buffer and self.buffer.num_eps > 0:
             self.buffer.save(str(log_dir / f"{filename}.buffer"))
 
     def load(self, path, buffer=False, resume_training=False):
