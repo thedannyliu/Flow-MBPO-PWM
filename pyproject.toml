@@ -1,0 +1,42 @@
+[project]
+name = "flow-mbpo-pwm"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "hydra-core",
+    "omegaconf",
+    "wandb",
+    "gymnasium",
+    "jax[cuda12]",
+    "absl-py",
+    "brax>=0.12.5",
+    "etils",
+    "flax",
+    "lxml",
+    "mediapy",
+    "ml_collections",
+    "mujoco-mjx",
+    "mujoco",
+    "warp-lang>=1.11",
+    "orbax-checkpoint>=0.11.22",
+    "tqdm",
+    "rsl-rl-lib>=3.0.0",
+    "tensordict",
+    "playground",
+]
+
+[[tool.uv.index]]
+name = "mujoco"
+url = "https://py.mujoco.org"
+explicit = true
+
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+explicit = true
+
+[tool.uv.sources]
+mujoco = { index = "mujoco" }
+warp-lang = { index = "nvidia" }
+playground = { path = "mujoco_playground", editable = true }
