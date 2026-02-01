@@ -13,7 +13,8 @@ import torch
 from tqdm import tqdm
 
 import hydra
-from time import time
+from omegaconf import OmegaConf
+import time
 
 from envs import make_env
 from flow_mbpo_pwm.utils.common import seeding
@@ -26,9 +27,9 @@ from pathlib import Path
 from glob import glob
 import pandas as pd
 
-from IPython.core import ultratb
-
-sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=1)
+# Removed: IPython ultratb debug hook not compatible with newer versions
+# from IPython.core import ultratb
+# sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=1)
 
 torch.backends.cudnn.benchmark = True
 
@@ -42,15 +43,15 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
     try:
         # Multirun config
         job_id = HydraConfig().get().job.num
-        name = f"{alg_name}_{task}_sweep_{job_config['general']['seed']}"
+        name = wandb_cfg.get("name", f"{alg_name}_{task}_sweep_{job_config['general']['seed']}")
         notes = wandb_cfg.get("notes", None)
     except:
         # Normal (singular) run config
-        name = f"{alg_name}_{task}"
-        notes = wandb_cfg["notes"]  # force user to make notes
+        name = wandb_cfg.get("name", f"{alg_name}_{task}")
+        notes = wandb_cfg.get("notes", None)  # use .get to handle missing notes gracefully
     return wandb.init(
         project=wandb_cfg.project,
-        config=job_config,
+        config=OmegaConf.to_container(job_config, resolve=True),
         group=wandb_cfg.group,
         entity=wandb_cfg.entity,
         name=name,
@@ -191,14 +192,17 @@ def train(cfg: dict):
     """
     assert torch.cuda.is_available()
 
-    if cfg.general.run_wandb:
-        create_wandb_run(cfg.wandb, cfg)
-
     # patch code to make jobs log in the correct directory when doing multirun
     logdir = HydraConfig.get()["runtime"]["output_dir"]
     logdir = os.path.join(logdir, cfg.general.logdir)
 
     seeding(cfg.general.seed)
+    # Add random delay to prevent concurrent initialization spikes on the same node
+    import random
+    delay = random.uniform(0, 60)
+    print(f"Random start delay: {delay:.2f}s")
+    time.sleep(delay)
+
 
     task = cfg.task
     task_set = TASK_SET["mt80"] if "mt80" in cfg.general.data_dir else TASK_SET["mt30"]
@@ -222,6 +226,9 @@ def train(cfg: dict):
     cfg.action_dim = env.action_space.shape[0]
     cfg.episode_length = env.max_episode_steps
 
+    if cfg.general.run_wandb:
+        create_wandb_run(cfg.wandb, cfg)
+
     os.makedirs(logdir, exist_ok=True)
 
     # Make algorithm
@@ -237,7 +244,15 @@ def train(cfg: dict):
     )
 
     # load model
-    if cfg.general.checkpoint:
+    start_epoch = 0
+    if cfg.general.get("resume_from"):
+        # Resume from a full checkpoint (actor, critic, WM, optimizers, training state)
+        print(f"Resuming training from checkpoint: {cfg.general.resume_from}")
+        agent.load(cfg.general.resume_from, buffer=False, resume_training=True)
+        start_epoch = agent.iter_count
+        print(f"Resuming from epoch {start_epoch}")
+    elif cfg.general.checkpoint:
+        # Load only the world model (for fresh policy training with pretrained WM)
         agent.load_wm(cfg.general.checkpoint)
         agent.wm_bootstrapped = True
 
@@ -249,9 +264,9 @@ def train(cfg: dict):
     fps = sorted(glob(str(fp)))
     assert len(fps) > 0, f"No data found at {fp}"
     print(f"Found {len(fps)} files in {fp}")
-    for fp in tqdm(fps, desc="Loading data"):
-        print("Loading", fp)
-        td = torch.load(fp)
+    for fp in fps:
+        print(f"Loading {fp}", flush=True)
+        td = torch.load(fp, weights_only=False)  # TD-MPC2 data uses TensorDict
         assert td.shape[1] == cfg.episode_length, (
             f"Expected episode length {td.shape[1]} to match config episode length {cfg.episode_length}, "
             f"please double-check your config."
@@ -266,17 +281,17 @@ def train(cfg: dict):
         raise ValueError("No data found for task", task)
 
     # train from dataset
-    start_time = time()
+    start_time = time.time()
     task_ids = torch.tensor([task_id] * cfg.buffer.batch_size, device=agent.device)
     metrics_log = []
-    for i in range(cfg.general.epochs):
+    for i in range(start_epoch, cfg.general.epochs):
         agent.update_lrs(i)
         obs, act, rew = buffer.sample()
         train_metrics = agent.update(obs, act, rew, task_ids, cfg.general.finetune_wm)
 
         metrics = {
             "iteration": i,
-            "total_time": time() - start_time,
+            "total_time": time.time() - start_time,
         }
         metrics.update(train_metrics)
 
@@ -285,8 +300,14 @@ def train(cfg: dict):
             metrics.update(eval(agent, env, task_set, task_id, cfg.general.eval_runs))
             reward = metrics[f"episode_reward"]
             print(f"R: {reward:.2f}")
-            if i > 0:
-                agent.save(f"model_{i}", logdir)
+            if i > start_epoch: # Don't save on the very first iteration of a resume if it's the same
+                agent.save(f"model_last", logdir)
+            
+            # Save best model
+            if reward > agent.best_reward:
+                agent.best_reward = reward
+                agent.save("model_best", logdir)
+                print(f"New best reward: {agent.best_reward:.2f}, model saved to model_best.pt")
 
         if i % 100 == 0:
             if "wm_loss" not in metrics:
@@ -303,8 +324,18 @@ def train(cfg: dict):
 
             metrics_log.append(metrics)
 
+            # Log to WandB every 100 iterations (detailed metrics)
             if cfg.general.run_wandb:
-                wandb.log(metrics)
+                # Add additional training context
+                log_metrics = {
+                    **metrics,
+                    "epoch": i,
+                    "epoch_progress": i / cfg.general.epochs,
+                    "lr_actor": agent.actor_optimizer.param_groups[0]["lr"] if hasattr(agent, 'actor_optimizer') else 0,
+                    "lr_critic": agent.critic_optimizer.param_groups[0]["lr"] if hasattr(agent, 'critic_optimizer') else 0,
+                    "lr_wm": agent.wm_optimizer.param_groups[0]["lr"] if hasattr(agent, 'wm_optimizer') else 0,
+                }
+                wandb.log(log_metrics, step=i)
 
     agent.save(f"model_final", logdir)
     print("Final evaluation")

@@ -110,21 +110,43 @@ class Buffer:
         eps_that_fit = min(num_eps, max_eps)
         print(f"Can fit {eps_that_fit} episodes into buffer")
         td = td[torch.randint(0, num_eps, (eps_that_fit,))]
+        # Ensure episode IDs are unique across multiple `add_batch` calls.
+        # SliceSampler groups transitions by `episode`, so collisions here would
+        # corrupt sampling by stitching unrelated episodes together.
+        start = int(self._num_eps)
         episodes = torch.ones_like(td["reward"], dtype=torch.int32) * torch.arange(
-            0, eps_that_fit, dtype=torch.int32
+            start, start + eps_that_fit, dtype=torch.int32
         ).view((-1, 1))
         td["episode"] = episodes
         td = td.flatten()  # faltten to easy ading
         if self._num_eps == 0:
             self._buffer = self._init(td[0 : ep_len + 1])
         self._buffer.extend(td)
-        self._num_eps += num_eps
+        self._num_eps += eps_that_fit
         return self._num_eps
 
     def sample(self):
         """Sample a batch of subsequences from the buffer."""
         td = self._buffer.sample().view(-1, self._horizon + 1).permute(1, 0)
         return self._prepare_batch(td)
+
+    def sample_with_task(self):
+        """
+        Sample a batch of subsequences from the buffer, returning task IDs too.
+
+        Expects the underlying dataset to include a `task` field (as in TD-MPC2
+        multitask datasets). The returned `task` tensor is the per-slice task
+        label (typically constant across the slice).
+        """
+        td = self._buffer.sample().view(-1, self._horizon + 1).permute(1, 0)
+        if "task" not in td.keys():
+            raise KeyError(
+                "Buffer does not contain `task`; load TD-MPC2 multitask data or store task IDs."
+            )
+        task = td["task"][0]
+        obs, action, reward = self._prepare_batch(td)
+        (task,) = self._to_device(task)
+        return obs, action, reward, task
 
     def save(self, filepath):
         self._buffer.dumps(filepath)

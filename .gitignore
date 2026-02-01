@@ -57,6 +57,7 @@ eval_results*/
 *.safetensors
 data/
 datasets/
+checkpoints/
 
 # OS
 .DS_Store
@@ -71,3 +72,4 @@ temp/
 # docs/
 # baselines/
 # hf_pwm_repo/
+# docs/external/tdmpc2/

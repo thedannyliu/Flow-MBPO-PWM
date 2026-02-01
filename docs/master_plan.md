@@ -1,4 +1,26 @@
-Title: Flow-MBPO / PWM Master Plan — Flow World Models and Flow Policies
+# Flow-MBPO / PWM Master Plan — Flow World Models and Flow Policies
+
+## Current Status (2026-01-31 19:10)
+
+### ✅ Phase 8 WM Checkpoints Verified (Jan 31)
+| Checkpoint | Iterations | obs_dim | act_dim | Horizon | Ready |
+|------------|-----------|---------|---------|---------|-------|
+| `flowwm_mt30_best.pt` | 133k | 24 | 6 | 16 | ✅ |
+| `mlpwm_mt30_best.pt` | 197k | 24 | 6 | 16 | ✅ |
+
+### 🟢 Phase 9: 2x2 Factorial RUNNING (Jan 31 Launch)
+- Flow WM + MLP Policy (Cond 0)
+- MLP WM + Flow Policy (Cond 1)
+- Flow WM + MLP Policy (Cond 2)
+- Flow WM + Flow Policy (Cond 3)
+
+### ✅ Completed Milestones
+- **Phase 3-5**: All completed (see `results/all_experiments.csv`)
+- **Phase 6**: Baseline Epoch Sweep (15k, 50k, 100k completed)
+- **Phase 7**: Fine-tuning Pretrained WM
+- **Phase 8**: WM Pretraining (Flow: 1.3040 loss, MLP: 0.0009 loss)
+
+---
 
 This document is the development reference for this repository: code should follow this plan, but we intentionally avoid over-specifying low-level engineering details (e.g., exact directory layouts or script names).
 
@@ -590,4 +612,3 @@ Key changes from previous structure:
 - Source code moved from `PWM/src/pwm/` to `src/pwm/`
 - Scripts moved from `PWM/scripts/` to `scripts/`
 - Original baseline preserved in `baselines/original_pwm/` for comparison
-
