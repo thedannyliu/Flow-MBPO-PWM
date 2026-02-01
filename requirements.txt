@@ -1,0 +1,22 @@
+# mj warp reqs
+torch
+hydra-core
+omegaconf
+wandb
+gym
+jax[cuda12]
+absl-py
+brax>=0.12.5
+etils
+flax
+lxml
+mediapy
+ml_collections
+mujoco-mjx>=3.4.dev
+mujoco>=3.4.dev
+warp-lang>=1.11
+orbax-checkpoint>=0.11.22
+tqdm
+rsl-rl-lib>=3.0.0
+tensordict
+torchrl
