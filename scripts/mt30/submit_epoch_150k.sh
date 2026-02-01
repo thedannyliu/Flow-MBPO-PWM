@@ -48,7 +48,7 @@ echo "=============================="
 # Reduced batch size to avoid OOM
 python scripts/train_multitask.py \
     alg=${CONFIG} \
-    task=dmcontrol-${TASK} \
+    task=${TASK} \
     seed=${SEED} \
     general.epochs=150000 \
     alg.wm_batch_size=128 \

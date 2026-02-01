@@ -29,8 +29,8 @@ TASKS=("reacher-easy" "reacher-easy" "reacher-easy" "walker-stand" "walker-stand
 SEEDS=(42 123 456 42 123 456 42 123 456)
 
 # === CHECKPOINTS ===
-MLP_WM_CKPT="/storage/ice1/2/9/eliu354/Projects/Flow-MBPO-PWM/outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt"
-FLOW_WM_CKPT="/storage/ice1/2/9/eliu354/Projects/Flow-MBPO-PWM/outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt"
+MLP_WM_CKPT="/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/outputs/2026-01-05/19-10-40/logs/mlpwm_mt30_best.pt"
+FLOW_WM_CKPT="/home/hice1/eliu354/scratch/Projects/Flow-MBPO-PWM/outputs/2026-01-05/19-10-40/logs/flowwm_mt30_best.pt"
 
 # === JOB CONFIGURATION ===
 # idx % 4 selects condition
@@ -80,11 +80,11 @@ echo "========================="
 
 python scripts/train_multitask.py \
     alg=${CONFIG} \
-    task=dmcontrol-${TASK} \
+    task=${TASK} \
     seed=${SEED} \
     general.checkpoint=${CKPT} \
-    general.checkpoint_with_buffer=False \
-    general.resume_training=False \
+    +general.checkpoint_with_buffer=False \
+    +general.resume_training=False \
     general.data_dir="/home/hice1/eliu354/scratch/Data/tdmpc2/mt30" \
     general.epochs=50000 \
     general.run_wandb=True \

@@ -4,27 +4,39 @@
 
 ---
 
+## 2026-01-31 19:10 – Checkpoint Verification Complete
+
+### Phase 8 WM Checkpoints Verified
+Ran inspection job (`4044875`) to confirm Phase 8 checkpoints are valid and ready for Phase 9.
+
+**Flow WM Checkpoint** (`flowwm_mt30_best.pt`):
+- Iterations: 133,000
+- Keys: `world_model` (39 keys), `world_model_opt`, `iter`, `obs_dim=24`, `act_dim=6`, `horizon=16`
+- Status: `is_best=True`
+
+**MLP WM Checkpoint** (`mlpwm_mt30_best.pt`):
+- Iterations: 197,000
+- Keys: Same structure as Flow WM
+- Status: `is_best=True`
+
+### Next Steps
+1. Launch Phase 9 2x2 factorial experiment using these checkpoints.
+2. Update documentation after successful launch.
+
+---
+
+## 2026-01-22 03:00 – Post-Failure Analysis & Fixes
+
+### Status Check (Jan 7th Jobs)
+- **Phase 9 (`4018569`)**: **FAILED** immediately.
+    - **Cause**: `hydra.errors.ConfigCompositionException`. Keys `checkpoint_with_buffer` and `resume_training` were missing in `config_mt30.yaml`, requiring `+` prefix in overrides.
+    - **Fix**: Updated `submit_phase9_factorial.sh` with `+general.checkpoint_with_buffer` and `+general.resume_training`.
+
+- **Phase 6 (`4018554`, `4018563`)**: **FAILED** immediately.
+    - **Cause**: `ValueError: 'dmcontrol-reacher-easy' is not in list`. The script passed `task=dmcontrol-${TASK}`, but `common.py` expects `reacher-easy` (no prefix).
+    - **Fix**: Updated usage to `task=${TASK}` in all Phase 6 scripts.
+
+---
+
 ## 2026-01-07 04:10 – Launched Phase 9 and Fixed Phase 6 Resume
-
-### Phase 9: 2x2 Factorial Design Launched
-- **Job ID**: `4018569` (36 runs, H200, 16h)
-- **Goal**: Compare MLP/Flow WM + MLP/Flow Policy (4 conditions).
-- **Checkpoints**: Using verified Phase 8 checkpoints.
-
-### Phase 6 Resume Fixed (Attempt 4)
-- **Issue**: Jobs `4018496` failed silently due to missing `general.data_dir` causing `TypeError`.
-- **Fix**: Explicitly added `general.data_dir="/home/hice1/eliu354/scratch/Data/tdmpc2/mt30"` to all scripts.
-- **Status**:
-    - `4018554` (Flow 50k): 🟢 RUNNING (Logs Clean)
-    - `4018563` (Flow 100k): 🟢 RUNNING (Logs Clean)
-    - `4018564` (150k Sweep): ⏳ QUEUED
-
----
-
-## 2026-01-07 03:55 – Jobs Successfully Started Verify (INACCURATE)
-- Thought jobs were running, but they crashed after 45s due to missing data_dir.
-
----
-
-## 2026-01-07 03:50 – Resubmitting Failed Jobs with Fixes
-- Fixed Hydra connection/activation.
+- (These jobs failed shortly after launch)

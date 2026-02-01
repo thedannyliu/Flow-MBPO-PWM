@@ -37,7 +37,7 @@ echo "========================"
 
 python scripts/train_multitask.py \
     alg=pwm_48M_mt_fullflow \
-    task=dmcontrol-${TASK} \
+    task=${TASK} \
     seed=${SEED} \
     general.epochs=100000 \
     general.data_dir="/home/hice1/eliu354/scratch/Data/tdmpc2/mt30" \
