@@ -18,6 +18,89 @@ Template for each entry:
 
 ---
 
+## 2026-01-22 – Copilot (V7 Audit & Documentation Update)
+
+### V7 RESUBMISSION OUTCOME (Jan 7 Runs):
+- **Status**: Partial Success.
+- **Completed (9 runs)**:
+  - Ant FlowWM: s8 ✅
+  - Anymal Baseline: s3, s8 ✅
+  - Anymal Flow: s6 ✅
+  - Humanoid Baseline: s2, s5, s7 ✅
+  - Humanoid Flow: s0, s9 ✅
+- **Missing/Failed (15 runs)**:
+  - Jobs likely failed silently or OOM'd during batch execution.
+  - Missing: Ant s0; Anymal Base s2,4-7; Flow s2; Hum Base s0-1,8-9; Flow s2-3,5,7.
+
+### ACTIONS TAKEN:
+- **Evaluations**: Submitted eval jobs for all 9 new checkpoints.
+- **Documentation**: Updated `experiment_log.md` with detailed seed-by-seed status for all Aligned variants.
+
+### NEXT STEPS:
+- **Resubmit Missing 15 Seeds**: Switch to strict sequential submission (1 job/node) or use a robust job array to avoid batch failures.
+- **Analyze Bifurcation**: Ant results still show high variance.
+
+---
+
+## 2026-01-07 – Copilot (Comprehensive Aligned Audit)
+
+### ALIGNED SINGLE-TASK EXPERIMENTS STATUS:
+All V6 training batches completed. Full audit of aligned experiments:
+
+| Task | Variant | Completed | Evaluated | Status |
+|------|---------|-----------|-----------|--------|
+| **Ant** | Baseline | 10/10 | 10 | ✅ Complete |
+| **Ant** | FlowWM_K8 | 8/10 | 8 | 🔄 2 failed (s0, s8) |
+| **Anymal** | Baseline | 3/10 | 1 | ❌ 7 failed |
+| **Anymal** | FlowPolicy | 8/10 | 6 | 🔄 2 failed |
+| **Humanoid** | Baseline | 4/10 | 3 | ❌ 6 failed |
+| **Humanoid** | FlowPolicy | 5/10 | 5 | ❌ 5 failed |
+
+### KEY FINDINGS:
+1. **Ant Bifurcation**: Mean ~613, Std ~538. Some seeds hit 1265, others collapse to 17.
+2. **Humanoid FlowPolicy**: Outperforms Baseline (65 vs 59.45).
+3. **Anymal**: Low performance across all variants (~21-23).
+
+### MISSING RUNS TO RESUBMIT:
+- Ant FlowWM_K8: s0, s8
+- Anymal Baseline: s2-8
+- Anymal FlowPolicy: s2, s6
+- Humanoid Baseline: s0-2, s5, s7-9
+- Humanoid FlowPolicy: s0, s2-3, s5, s7, s9
+
+### DOCUMENTATION UPDATED:
+- `experiment_log.md`: Detailed seed-by-seed registry
+- Report: `all_dflex_experiments.csv` (93 runs)
+
+---
+
+## 2026-01-06 – Copilot (Consolidated Results + Next Steps)
+
+### CONSOLIDATED EVALUATION REPORT:
+- **Generated**: `scripts/eval/all_dflex_experiments.csv` (93 runs total).
+- **Breakdown**:
+  - **Aligned Phase** (with `rew_rms: True`): 23 runs (Ant: 17, Anymal: 3, Humanoid: 3).
+  - **Legacy Phase**: 70 runs (various experiments from Dec 2025).
+- **Key Findings**:
+  - Ant Baseline shows high variance (Mean: 612-724, Std: 500+).
+  - Humanoid FullFlow outperforms Baseline (67.07 vs 46.20).
+  - Anymal results are stable but low (~20-30 across all variants).
+
+### JOB STATUS (Jan 6 03:47):
+| Batch | Status | Details |
+|-------|--------|---------|
+| V6_Batch0 | ✅ COMPLETED | Ant Flow s5, Ant Base s8, Ant Flow s8 |
+| V6_Batch1 | 🔄 RUNNING | Ant Base s9, Ant Flow s9, Any Base s0 (4h12m) |
+| V6_Batch2 | 🕐 PENDING | Any Flow s0, Any Base s1, Any Flow s1 |
+
+### NEXT STEPS:
+1. **Wait for V6 Batch 1 & 2 completion** (~4-8h remaining).
+2. **Evaluate new checkpoints**: 22 eval jobs submitted for recent runs.
+3. **Analyze bifurcation**: Investigate `rew_rms` impact on training stability.
+4. **Consider**: Run more Humanoid Aligned experiments (currently only 3 runs).
+
+---
+
 ## 2026-01-03 – Copilot (Config Fixes + Aligned Experiments V2)
 
 ### CRITICAL CONFOUND FIXED:
@@ -38,14 +121,14 @@ Template for each entry:
   - Fixed metadata bug where Baseline was mislabeled as FlowPolicy due to package name substring match.
 
 - **Hardware Failure**: Node **atl1-1-03-004** identified as defective (ECC errors). All jobs on this node fail evaluation. Marked as "Do Not Use".
-- **Hung Job**: Ant Flow s5 (3143925) hung for >34h. Canceled.
-- **Recovery (V5)**: Resubmitted 9 seeds (Failed OOM + Hung Job) in `submit_resubmit_v5.py` (Batches 3162639-41) with safe 3 jobs/node density.
+- **Recovery (V5)**: Resubmitted 9 seeds (Batches 3162639-41). **FAILED IMMEDIATELY**.
+  - **Cause**: Script error (`conda init`) AND SLURM assigned the defective node `atl1-1-03-004` to ALL 3 batches.
+  - **Action Required**: Must use `--exclude=atl1-1-03-004` and fix script environment.
 
 #### Current Job Status:
 - **Completed (Mixed)**: Ant Aligned s0-7 (16 jobs). Evaluation confirms bifurcation.
-- **Pending (Queue)**: 
-  - 12 Packed V4 Batches (Running/Pending).
-  - 3 Packed V5 Batches (Pending).
+- **Failed/Hung**: V5 Recovery Batches (Need Retry).
+- **Running (At Risk)**: Packed V4 Batch 11 (3153752) is running on bad node `atl1-1-03-004`.
 
 #### WandB Projects:
 - `flow-mbpo-aligned-ant`, `flow-mbpo-aligned-anymal`, `flow-mbpo-aligned-humanoid`
