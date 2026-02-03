@@ -228,7 +228,8 @@ class PWM:
 
         # counting variables
         self.iter_count = 0
-        self.step_count = 0
+        self.step_count = 0  # simulated world model rollout steps
+        self.env_steps = 0  # actual environment steps collected
 
         print(self.actor)
         print(self.critic)
@@ -436,6 +437,8 @@ class PWM:
                     for j in gt_done_env_ids:
                         td = torch.cat(self.episode_data[j])
                         self.buffer.add(td)
+                        # Track actual environment steps
+                        self.env_steps += len(td)
 
                         # reinint data tracker with with nan action and rewards
                         a = torch.full_like(
@@ -1033,28 +1036,28 @@ class PWM:
                 }
             )
             if self.visualizer:
-                self.visualizer.add_data(self.step_count, metrics)
+                self.visualizer.add_data(self.env_steps, metrics)
             
             # Enhanced WandB logging
             if self.log and (self.iter_count % 50 == 0):
-                wandb.log(metrics, step=self.step_count)
+                wandb.log(metrics, step=self.env_steps)
                 
                 # Log gradient histograms every 200 epochs
                 if self.wandb_logger and (self.iter_count % 200 == 0):
                     self.wandb_logger.log_gradient_distributions(
                         self.actor,
                         prefix='actor_gradients',
-                        step=self.step_count
+                        step=self.env_steps
                     )
                     self.wandb_logger.log_gradient_distributions(
                         self.critic,
                         prefix='critic_gradients',
-                        step=self.step_count
+                        step=self.env_steps
                     )
                     self.wandb_logger.log_gradient_distributions(
                         self.wm,
                         prefix='wm_gradients',
-                        step=self.step_count
+                        step=self.env_steps
                     )
 
             print(
@@ -1088,7 +1091,7 @@ class PWM:
         if self.wandb_logger:
             self.wandb_logger.log(
                 {'training_time_total': timing_stats['total_time']},
-                step=self.step_count
+                step=self.env_steps
             )
         
         # Save visualizer data for later analysis
