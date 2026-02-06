@@ -396,6 +396,9 @@ class PWM:
                 gt_trunc = info["truncation"]
                 real_obs = info["obs_before_reset"]
                 primal = info["primal"]
+                
+                # Track actual environment steps (num_envs steps per iteration)
+                self.env_steps += self.num_envs
 
                 # sanity check; remove?
                 if (~torch.isfinite(obs)).sum() > 0:
@@ -437,8 +440,6 @@ class PWM:
                     for j in gt_done_env_ids:
                         td = torch.cat(self.episode_data[j])
                         self.buffer.add(td)
-                        # Track actual environment steps
-                        self.env_steps += len(td)
 
                         # reinint data tracker with with nan action and rewards
                         a = torch.full_like(
