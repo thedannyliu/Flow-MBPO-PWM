@@ -1,9 +1,10 @@
+import math
 import os, time
 import wandb
 from pathlib import Path
 from omegaconf import DictConfig
 from hydra.utils import instantiate
-from typing import Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple
 
 # Disable torch compile to avoid ONNX import errors
 os.environ['TORCH_COMPILE_DISABLE'] = '1'
@@ -25,7 +26,7 @@ from flow_mbpo_pwm.utils.time_report import TimeReport
 from flow_mbpo_pwm.utils.average_meter import AverageMeter
 from flow_mbpo_pwm.models.model_utils import Ensemble
 from flow_mbpo_pwm.utils.buffer import Buffer
-from flow_mbpo_pwm.utils.monitoring import TrainingMonitor, WandBLogger, compute_gradient_stats
+from flow_mbpo_pwm.utils.monitoring import TrainingMonitor
 from flow_mbpo_pwm.utils.reproducibility import set_seed, ExperimentConfig, DatasetVerifier
 import pickle
 
@@ -79,6 +80,7 @@ class PWM:
         flow_integrator: str = "heun",  # 'heun' or 'euler'
         flow_substeps: int = 2,
         flow_tau_sampling: str = "uniform",  # 'uniform' or 'midpoint'
+        wandb_log_every_epoch: bool = True,
     ):
         # sanity check parameters
         assert horizon > 0
@@ -130,6 +132,7 @@ class PWM:
         self.flow_integrator = flow_integrator
         self.flow_substeps = flow_substeps
         self.flow_tau_sampling = flow_tau_sampling
+        self.wandb_log_every_epoch = wandb_log_every_epoch
 
         # Training progress
         self.iter_count = 0
@@ -311,6 +314,58 @@ class PWM:
     def mean_horizon(self):
         return self.horizon_length_meter.get_mean()
 
+    def _start_timer_if_exists(self, name: str):
+        if hasattr(self, "time_report") and name in self.time_report.timers:
+            self.time_report.start_timer(name)
+
+    def _end_timer_if_exists(self, name: str):
+        if hasattr(self, "time_report") and name in self.time_report.timers:
+            self.time_report.end_timer(name)
+
+    def _safe_float(self, value):
+        if torch.is_tensor(value):
+            if value.numel() == 0:
+                return float("nan")
+            if value.numel() == 1:
+                return float(value.detach().cpu().item())
+            return float(value.detach().cpu().mean().item())
+        try:
+            return float(value)
+        except Exception:
+            return value
+
+    def _collect_env_diagnostics(self) -> Dict[str, float]:
+        if self.env is None or not hasattr(self.env, "get_diagnostics"):
+            return {}
+        try:
+            diagnostics = self.env.get_diagnostics(reset=False)
+        except Exception:
+            return {}
+
+        results = {}
+        for key, val in diagnostics.items():
+            val = self._safe_float(val)
+            if isinstance(val, float) and math.isfinite(val):
+                results[f"env/{key}"] = val
+        return results
+
+    def _compute_profile_metrics(
+        self,
+        prev_timer_totals: Dict[str, float],
+        epoch_wall_seconds: float,
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        cur_timer_totals = self.time_report.get_timer_totals()
+        profile = {"profile/epoch_wall_seconds": float(epoch_wall_seconds)}
+
+        denom = max(epoch_wall_seconds, 1e-8)
+        for timer_name, cur_total in cur_timer_totals.items():
+            delta = max(0.0, cur_total - prev_timer_totals.get(timer_name, 0.0))
+            safe_name = timer_name.replace(" ", "_")
+            profile[f"profile/{safe_name}_seconds"] = delta
+            profile[f"profile/{safe_name}_pct"] = 100.0 * delta / denom
+
+        return profile, cur_timer_totals
+
     def compute_actor_loss(self, obs=None, task=None):
 
         if obs is None:
@@ -393,7 +448,9 @@ class PWM:
                 rew = torch.nan_to_num(rew, 0.0, 0.0, 0.0)
 
             if self.env:
+                self._start_timer_if_exists("env step")
                 obs, gt_rew, gt_done, info = self.env.step(actions)
+                self._end_timer_if_exists("env step")
                 term = info["termination"]
                 gt_term = info["termination"]
                 gt_trunc = info["truncation"]
@@ -724,6 +781,7 @@ class PWM:
         self.time_report.add_timer("algorithm")
         self.time_report.add_timer("compute actor loss")
         self.time_report.add_timer("forward simulation")
+        self.time_report.add_timer("env step")
         self.time_report.add_timer("backward simulation")
         self.time_report.add_timer("prepare critic dataset")
         self.time_report.add_timer("actor training")
@@ -816,12 +874,23 @@ class PWM:
 
             return actor_loss
 
+        prev_timer_totals = self.time_report.get_timer_totals()
+
         # main training process
         for epoch in range(self.max_epochs):
 
             if self.buffer.num_eps == 0:
                 with torch.no_grad():
                     self.compute_actor_loss()
+                prev_timer_totals = self.time_report.get_timer_totals()
+
+                if self.log and self.wandb_log_every_epoch:
+                    warmup_metrics = {
+                        "warmup/buffer_num_eps": float(self.buffer.num_eps),
+                        "warmup/step_count": float(self.step_count),
+                    }
+                    warmup_metrics.update(self._collect_env_diagnostics())
+                    wandb.log(warmup_metrics, step=self.step_count)
                 continue
 
             time_start_epoch = time.time()
@@ -970,12 +1039,19 @@ class PWM:
 
             self.iter_count += 1
             time_end_epoch = time.time()
-            fps = self.horizon * self.num_envs / (time_end_epoch - time_start_epoch)
+            epoch_wall_seconds = time_end_epoch - time_start_epoch
+            fps = self.horizon * self.num_envs / max(epoch_wall_seconds, 1e-8)
             mean_episode_length = self.episode_length_meter.get_mean()
             mean_policy_loss = self.episode_loss_meter.get_mean()
             mean_policy_discounted_loss = self.episode_discounted_loss_meter.get_mean()
             mean_episode_primal = self.episode_primal_meter.get_mean()
             ac_stddev = self.actor.get_logstd().exp().mean().detach().cpu().item()
+            actor_loss_val = self._safe_float(actor_loss)
+            value_loss_val = self._safe_float(value_loss)
+            actor_grad_norm_before = self._safe_float(self.actor_grad_norm_before_clip)
+            actor_grad_norm_after = self._safe_float(self.actor_grad_norm_after_clip)
+            critic_grad_norm_val = self._safe_float(critic_grad_norm)
+            wm_grad_norm_val = self._safe_float(wm_grad_norm)
 
             if mean_policy_loss < self.best_policy_loss:
                 print_info("save best policy with loss {:.2f}".format(mean_policy_loss))
@@ -984,8 +1060,8 @@ class PWM:
 
             metrics = {
                 "actor_lr": lr,
-                "actor_loss": actor_loss,
-                "value_loss": value_loss,
+                "actor_loss": actor_loss_val,
+                "value_loss": value_loss_val,
                 "wm_loss": tot_wm_loss,
                 "dynamics_loss": tot_dynamics_loss,
                 "reward_loss": tot_reward_loss,
@@ -999,9 +1075,10 @@ class PWM:
                 "best_policy_loss": self.best_policy_loss,
                 "episode_lengths": mean_episode_length,
                 "actor_std": ac_stddev,
-                "actor_grad_norm": self.actor_grad_norm_before_clip,
-                "critic_grad_norm": critic_grad_norm,
-                "wm_grad_norm": wm_grad_norm,
+                "actor_grad_norm": actor_grad_norm_before,
+                "actor_grad_norm_after_clip": actor_grad_norm_after,
+                "critic_grad_norm": critic_grad_norm_val,
+                "wm_grad_norm": wm_grad_norm_val,
                 "episode_end": self.episode_end,
                 "early_termination": self.early_termination,
                 "sample_rew_mean": sample_rew_mean,
@@ -1024,42 +1101,31 @@ class PWM:
                         ret_rms_var=self.ret_rms.var.item(),
                     )
                 )
+            profile_metrics, prev_timer_totals = self._compute_profile_metrics(
+                prev_timer_totals,
+                epoch_wall_seconds,
+            )
+            metrics.update(profile_metrics)
+            metrics.update(self._collect_env_diagnostics())
+
             metrics = filter_dict(metrics)
             
             # Update training monitor and visualizer
             self.training_monitor.update(
                 epoch=epoch,
                 metrics={
-                    'reward': -mean_policy_loss,
-                    'actor_loss': actor_loss.item() if hasattr(actor_loss, 'item') else actor_loss,
-                    'value_loss': value_loss.item() if hasattr(value_loss, 'item') else value_loss,
+                    'rewards': -mean_policy_loss,
+                    'actor_loss': actor_loss_val,
+                    'value_loss': value_loss_val,
                     'wm_loss': tot_wm_loss,
                 }
             )
             if self.visualizer:
                 self.visualizer.add_data(self.step_count, metrics)
             
-            # Enhanced WandB logging
-            if self.log and (self.iter_count % 50 == 0):
+            # Log all scalar metrics each epoch.
+            if self.log and self.wandb_log_every_epoch:
                 wandb.log(metrics, step=self.step_count)
-                
-                # Log gradient histograms every 200 epochs
-                if self.wandb_logger and (self.iter_count % 200 == 0):
-                    self.wandb_logger.log_gradient_distributions(
-                        self.actor,
-                        prefix='actor_gradients',
-                        step=self.step_count
-                    )
-                    self.wandb_logger.log_gradient_distributions(
-                        self.critic,
-                        prefix='critic_gradients',
-                        step=self.step_count
-                    )
-                    self.wandb_logger.log_gradient_distributions(
-                        self.wm,
-                        prefix='wm_gradients',
-                        step=self.step_count
-                    )
 
             print(
                 "[{:}/{:}]  R:{:.2f}  T:{:.1f}  H:{:.1f}  S:{:}  FPS:{:0.0f}  pi_loss:{:.2f}  pi_grad:{:.2f}/{:.2f}  v_loss:{:.2f}  wm_loss:{:.2f}  rew_loss:{:.2f}  dyn_loss:{:.2f}".format(
@@ -1070,10 +1136,10 @@ class PWM:
                     self.mean_horizon,
                     self.step_count,
                     fps,
-                    actor_loss,
-                    self.actor_grad_norm_before_clip,
-                    self.actor_grad_norm_after_clip,
-                    value_loss,
+                    actor_loss_val,
+                    actor_grad_norm_before,
+                    actor_grad_norm_after,
+                    value_loss_val,
                     tot_wm_loss,
                     tot_reward_loss,
                     tot_dynamics_loss,
@@ -1089,11 +1155,19 @@ class PWM:
 
         # Close training monitor and log timing stats
         timing_stats = self.training_monitor.close()
-        if self.wandb_logger:
-            self.wandb_logger.log(
-                {'training_time_total': timing_stats['total_time']},
-                step=self.step_count
-            )
+        if self.log:
+            final_timers = self.time_report.get_timer_totals()
+            timing_metrics = {
+                "profile/training_time_total_seconds": timing_stats["total_time"],
+                "profile/training_time_avg_epoch_seconds": timing_stats["avg_epoch_time"],
+                "profile/training_time_median_epoch_seconds": timing_stats[
+                    "median_epoch_time"
+                ],
+            }
+            for timer_name, timer_total in final_timers.items():
+                safe_name = timer_name.replace(" ", "_")
+                timing_metrics[f"profile/total_{safe_name}_seconds"] = timer_total
+            wandb.log(timing_metrics, step=self.step_count)
         
         # Save visualizer data for later analysis
         visualizer_path = Path(self.log_dir) / 'visualizer_data.pkl'

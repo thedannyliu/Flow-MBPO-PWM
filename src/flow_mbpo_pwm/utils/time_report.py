@@ -65,6 +65,13 @@ class TimeReport:
             for timer_name in self.timers.keys():
                 self.timers[timer_name].clear()
 
+    def get_time(self, name):
+        assert name in self.timers, "Timer {} does not exist!".format(name)
+        return self.timers[name].time_total
+
+    def get_timer_totals(self):
+        return {name: timer.time_total for name, timer in self.timers.items()}
+
     def pop_timer(self, name=None):
         if name is not None:
             assert name in self.timers, "Timer {} does not exist!".format(name)

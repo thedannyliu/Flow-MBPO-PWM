@@ -37,6 +37,20 @@ sys.path.insert(0, str(PWM_DIR / "src"))
 from flow_mbpo_pwm.algorithms.pwm import PWM
 
 
+def create_env_from_cfg_name(env_name: str, device: str = 'cuda:0', num_envs: int = 1):
+    """Instantiate environment from scripts/cfg/env/<env_name>.yaml."""
+    cfg_path = PWM_DIR / "scripts" / "cfg" / "env" / f"{env_name}.yaml"
+    if not cfg_path.exists():
+        raise ValueError(f"Unknown environment '{env_name}'. Missing config: {cfg_path}")
+
+    env_cfg = OmegaConf.load(cfg_path).config
+    env_cfg.device = device
+    env_cfg.num_envs = num_envs
+    if "no_grad" in env_cfg:
+        env_cfg.no_grad = True
+    return instantiate(env_cfg, logdir=str(PWM_DIR / "logs" / "eval"))
+
+
 def load_checkpoint(checkpoint_path, env_name, device='cuda:0'):
     """Load PWM checkpoint"""
     print(f"Loading checkpoint from: {checkpoint_path}")
@@ -46,29 +60,11 @@ def load_checkpoint(checkpoint_path, env_name, device='cuda:0'):
     ckpt_data = torch.load(checkpoint_path, map_location=device)
     print(f"Checkpoint keys: {list(ckpt_data.keys())}")
     
-    # Create environment using Hydra
-    if env_name == 'dflex_ant':
-        # Import dflex environment
-        from dflex.envs import AntEnv
-        
-        environment = AntEnv(
-            render=False,
-            device=device,
-            num_envs=1,  # Single env for evaluation
-            stochastic_init=True,
-            no_grad=True,
-            episode_length=1000,
-            MM_caching_frequency=1,
-            early_termination=True,
-            termination_height=0.27,
-            action_penalty=0.0,
-            joint_vel_obs_scaling=0.1,
-            up_rew_scale=0.1,
-        )
-    else:
-        raise ValueError(f"Unknown environment: {env_name}")
+    environment = create_env_from_cfg_name(env_name, device=device, num_envs=1)
     
-    print(f"Environment: {environment.num_obs} obs, {environment.num_actions} actions")
+    obs_dim = getattr(environment, "num_obs", environment.observation_space.shape[0])
+    act_dim = getattr(environment, "num_actions", environment.action_space.shape[0])
+    print(f"Environment: {obs_dim} obs, {act_dim} actions")
     
     # Determine model type from path
     is_flow = 'flow' in str(checkpoint_path)
@@ -93,7 +89,7 @@ def load_checkpoint(checkpoint_path, env_name, device='cuda:0'):
     
     actor = ActorStochasticMLP(
         obs_dim=latent_dim,
-        action_dim=environment.num_actions,
+        action_dim=act_dim,
         units=[400, 200, 100],
         activation_class=torch.nn.ELU,
     ).to(device)
@@ -115,8 +111,8 @@ def load_checkpoint(checkpoint_path, env_name, device='cuda:0'):
     # Instantiate world model
     wm = instantiate(
         alg_config.world_model_config,
-        observation_dim=environment.num_obs,
-        action_dim=environment.num_actions,
+        observation_dim=obs_dim,
+        action_dim=act_dim,
         latent_dim=latent_dim,
     ).to(device)
     
@@ -180,7 +176,11 @@ def evaluate_policy(agent, env, num_episodes=100, render=False, verbose=True):
                 env.render()
             
             # Check termination
-            if done:
+            if isinstance(done, torch.Tensor):
+                done_flag = bool(done.reshape(-1)[0].item())
+            else:
+                done_flag = bool(done)
+            if done_flag:
                 break
         
         episode_rewards.append(episode_reward)

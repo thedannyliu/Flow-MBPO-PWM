@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""
-Simple evaluation script - loads actor and world model directly, runs eval loop.
-"""
+"""Simple evaluation script for PWM checkpoints."""
 import argparse, sys, os, torch, numpy as np, pandas as pd
 from pathlib import Path
 from omegaconf import OmegaConf
 from hydra.utils import instantiate
 
-PROJECT_ROOT = Path("/storage/home/hcoda1/9/eliu354/r-agarg35-0/projects/Flow-MBPO-PWM")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 # Import and create module aliases
@@ -24,38 +22,31 @@ sys.modules['pwm.models.world_model'] = flow_mbpo_pwm.models.world_model
 sys.modules['pwm.models.flow_world_model'] = flow_mbpo_pwm.models.flow_world_model
 
 
-def create_env(env_name, device='cuda:0', num_envs=128):
-    if env_name == 'dflex_ant':
-        from dflex.envs import AntEnv
-        return AntEnv(render=False, device=device, num_envs=num_envs, stochastic_init=True,
-                      no_grad=True, episode_length=1000, MM_caching_frequency=1,
-                      early_termination=True, termination_height=0.27, action_penalty=0.0,
-                      joint_vel_obs_scaling=0.1, up_rew_scale=0.1)
-    elif env_name == 'dflex_anymal':
-        from dflex.envs import AnymalEnv
-        return AnymalEnv(render=False, device=device, num_envs=num_envs, stochastic_init=True,
-                         no_grad=True, episode_length=1000, MM_caching_frequency=16, 
-                         early_termination=True)
-    elif env_name == 'dflex_humanoid':
-        from dflex.envs import HumanoidEnv
-        return HumanoidEnv(render=False, device=device, num_envs=num_envs, stochastic_init=True,
-                           no_grad=True, episode_length=1000, MM_caching_frequency=48,
-                           early_termination=True, termination_height=0.74, 
-                           action_penalty=-0.002, joint_vel_obs_scaling=0.1,
-                           termination_tolerance=0.1, height_rew_scale=10.0,
-                           up_rew_scale=0.1, heading_rew_scale=1.0)
-    raise ValueError(f"Unknown env: {env_name}")
+def instantiate_eval_env(cfg, device='cuda:0', num_envs=128):
+    """Instantiate env directly from the run Hydra config."""
+    env_cfg = OmegaConf.create(
+        OmegaConf.to_container(cfg.env.config, resolve=True)
+    )
+    env_cfg.device = device
+    env_cfg.num_envs = num_envs
+    if "no_grad" in env_cfg:
+        env_cfg.no_grad = True
+
+    return instantiate(env_cfg, logdir=str(PROJECT_ROOT / "logs" / "eval"))
 
 
 def detect_env(config):
     env_target = str(config.get('env', {}).get('config', {}).get('_target_', ''))
+    task_id = str(config.get('env', {}).get('config', {}).get('task_id', '')).strip()
+    if 'create_mjlab_pwm_env' in env_target:
+        return f"mjlab_{task_id}" if task_id else "mjlab"
     if 'AnymalEnv' in env_target:
         return 'dflex_anymal'
     elif 'HumanoidEnv' in env_target:
         return 'dflex_humanoid'
     elif 'AntEnv' in env_target:
         return 'dflex_ant'
-    return None
+    return env_target.split('.')[-1] if env_target else "unknown_env"
 
 
 def parse_variant(alg):
@@ -126,21 +117,22 @@ def evaluate_checkpoint(ckpt_path, num_games=100, device='cuda:0'):
     
     cfg = OmegaConf.load(config_path)
     env_name = detect_env(cfg)
-    if not env_name:
-        raise ValueError("Could not detect environment")
     
     alg = cfg.alg
     latent_dim = alg.get('latent_dim', 64)
     
-    print(f"Loading env: {env_name}")
-    env = create_env(env_name, device)
+    print(f"Loading env from config: {env_name}")
+    env = instantiate_eval_env(cfg, device=device, num_envs=128)
+
+    obs_dim = getattr(env, "num_obs", env.observation_space.shape[0])
+    act_dim = getattr(env, "num_actions", env.action_space.shape[0])
     
     # Instantiate world model with all required args
     print("Creating world model...")
     wm = instantiate(
         alg.world_model_config,
-        observation_dim=env.num_obs,
-        action_dim=env.num_actions,
+        observation_dim=obs_dim,
+        action_dim=act_dim,
         latent_dim=latent_dim,
         _recursive_=True
     ).to(device)
@@ -161,7 +153,7 @@ def evaluate_checkpoint(ckpt_path, num_games=100, device='cuda:0'):
         # Attempt to get them from config, or reasonable defaults if missing/mismatched.
         actor = FlowActor(
             obs_dim=latent_dim,
-            action_dim=env.num_actions,
+            action_dim=act_dim,
             # If config is mismatched (says Baseline), these might be missing.
             # We assume defaults or try to read from alg if available.
             flow_model_config=alg.get('flow_model_config', {'_target_': 'flow_mbpo_pwm.models.mlp.MLP', 'units': [400, 200, 100]}),
@@ -173,7 +165,7 @@ def evaluate_checkpoint(ckpt_path, num_games=100, device='cuda:0'):
         actor = instantiate(
             alg.actor_config,
             obs_dim=latent_dim,
-            action_dim=env.num_actions,
+            action_dim=act_dim,
             _recursive_=True
         ).to(device)
 
