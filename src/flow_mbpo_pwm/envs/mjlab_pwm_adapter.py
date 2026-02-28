@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import os
 from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -379,6 +381,26 @@ class MJLabPWMAdapter:
         if callable(close_fn):
             close_fn()
 
+    def render(self, *args, **kwargs):
+        """
+        Forward render calls to the wrapped mjlab env when available.
+
+        This is needed for evaluation-time rollout video capture.
+        """
+        render_fn = getattr(self._env, "render", None)
+        if not callable(render_fn):
+            return None
+        try:
+            return render_fn(*args, **kwargs)
+        except TypeError:
+            # Some envs expose render() without kwargs such as mode.
+            try:
+                return render_fn()
+            except Exception:
+                return None
+        except Exception:
+            return None
+
 
 def _filter_kwargs_for_callable(fn: Any, kwargs: Dict[str, Any]) -> Dict[str, Any]:
     sig = inspect.signature(fn)
@@ -414,6 +436,72 @@ def _resolve_mjlab_constructor():
     )
 
 
+def _build_mjlab_env_from_registry(
+    task_id: str,
+    num_envs: int,
+    device: str,
+    seed: int,
+    episode_length: int,
+    render_mode: Optional[str] = None,
+    motion_file: Optional[str] = None,
+):
+    """
+    Build mjlab env via task registry (newer mjlab API).
+
+    This path is used when `mjlab.make(...)`-style constructors are unavailable.
+    """
+    import mjlab.tasks  # noqa: F401 - ensures task registry is populated
+    from mjlab.envs import ManagerBasedRlEnv
+    from mjlab.tasks.registry import load_env_cfg
+
+    env_cfg = load_env_cfg(task_id)
+    # Match vectorization and seed to PWM/Hydra inputs.
+    if hasattr(env_cfg, "scene") and hasattr(env_cfg.scene, "num_envs"):
+        env_cfg.scene.num_envs = int(num_envs)
+    if hasattr(env_cfg, "seed"):
+        env_cfg.seed = int(seed)
+
+    # Convert step-based episode length into seconds if config supports it.
+    if (
+        episode_length is not None
+        and episode_length > 0
+        and hasattr(env_cfg, "sim")
+        and hasattr(env_cfg.sim, "mujoco")
+        and hasattr(env_cfg.sim.mujoco, "timestep")
+        and hasattr(env_cfg, "decimation")
+        and hasattr(env_cfg, "episode_length_s")
+    ):
+        env_dt = float(env_cfg.sim.mujoco.timestep) * float(env_cfg.decimation)
+        env_cfg.episode_length_s = float(episode_length) * env_dt
+
+    commands = getattr(env_cfg, "commands", None)
+    motion_cmd = commands.get("motion") if isinstance(commands, dict) else None
+    if motion_cmd is not None and hasattr(motion_cmd, "motion_file"):
+        motion_file_to_use = (motion_file or "").strip()
+        if not motion_file_to_use:
+            motion_file_to_use = os.environ.get("MJLAB_MOTION_FILE", "").strip()
+        if motion_file_to_use and Path(motion_file_to_use).is_file():
+            motion_cmd.motion_file = motion_file_to_use
+            print(f"[MJLabPWMAdapter] using motion file override: {motion_file_to_use}")
+        elif str(getattr(motion_cmd, "motion_file", "")).strip() == "":
+            try:
+                from mjlab.scripts.gcs import ensure_default_motion
+
+                resolved_motion_file = ensure_default_motion()
+                motion_cmd.motion_file = resolved_motion_file
+                print(
+                    "[MJLabPWMAdapter] resolved tracking motion file via "
+                    f"mjlab default asset: {resolved_motion_file}"
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    "Tracking task requires a valid motion file. "
+                    "Set env.config.mjlab_env_kwargs.motion_file or MJLAB_MOTION_FILE."
+                ) from exc
+
+    return ManagerBasedRlEnv(cfg=env_cfg, device=device, render_mode=render_mode)
+
+
 def _build_mjlab_env(
     constructor: Any,
     task_id: str,
@@ -446,6 +534,7 @@ def _build_mjlab_env(
 
 def create_mjlab_pwm_env(
     task_id: str,
+    task_id_fallbacks: Optional[Sequence[str]] = None,
     num_envs: int = 64,
     device: str = "cuda",
     episode_length: int = 500,
@@ -472,7 +561,6 @@ def create_mjlab_pwm_env(
     """
     del no_grad, logdir
 
-    constructor, module_name, attr_name = _resolve_mjlab_constructor()
     ctor_kwargs: Dict[str, Any] = {
         "num_envs": num_envs,
         "device": device,
@@ -485,11 +573,53 @@ def create_mjlab_pwm_env(
     if kwargs:
         ctor_kwargs.update(kwargs)
 
-    env = _build_mjlab_env(
-        constructor=constructor,
-        task_id=task_id,
-        base_kwargs=ctor_kwargs,
-    )
+    candidate_task_ids: List[str] = [task_id]
+    if task_id_fallbacks:
+        candidate_task_ids.extend([tid for tid in task_id_fallbacks if tid and tid not in candidate_task_ids])
+
+    module_name = "mjlab.tasks.registry"
+    attr_name = "load_env_cfg+ManagerBasedRlEnv"
+    env = None
+    used_task_id = task_id
+    last_error: Optional[Exception] = None
+
+    try:
+        constructor, module_name, attr_name = _resolve_mjlab_constructor()
+        for candidate_task_id in candidate_task_ids:
+            try:
+                env = _build_mjlab_env(
+                    constructor=constructor,
+                    task_id=candidate_task_id,
+                    base_kwargs=ctor_kwargs,
+                )
+                used_task_id = candidate_task_id
+                break
+            except Exception as err:
+                last_error = err
+                continue
+    except ImportError:
+        for candidate_task_id in candidate_task_ids:
+            try:
+                env = _build_mjlab_env_from_registry(
+                    task_id=candidate_task_id,
+                    num_envs=num_envs,
+                    device=device,
+                    seed=seed,
+                    episode_length=episode_length,
+                    render_mode=ctor_kwargs.get("render_mode"),
+                    motion_file=ctor_kwargs.get("motion_file"),
+                )
+                used_task_id = candidate_task_id
+                break
+            except Exception as err:
+                last_error = err
+                continue
+
+    if env is None:
+        raise RuntimeError(
+            f"Failed to create mjlab env for task candidates {candidate_task_ids}. "
+            f"Last error: {last_error}"
+        )
 
     # If constructor returns wrapped env tuple-like, keep only env object.
     if isinstance(env, tuple) and len(env) > 0:
@@ -510,7 +640,7 @@ def create_mjlab_pwm_env(
 
     print(
         f"[MJLabPWMAdapter] initialized via {module_name}.{attr_name} "
-        f"(task_id={task_id}, num_envs={adapter.num_envs}, "
+        f"(task_id={used_task_id}, requested_task_id={task_id}, num_envs={adapter.num_envs}, "
         f"obs_dim={adapter.num_obs}, act_dim={adapter.num_actions})"
     )
     return adapter
