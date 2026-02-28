@@ -81,6 +81,10 @@ class PWM:
         flow_substeps: int = 2,
         flow_tau_sampling: str = "uniform",  # 'uniform' or 'midpoint'
         wandb_log_every_epoch: bool = True,
+        save_init_policy: bool = False,
+        save_latest_checkpoint: bool = True,
+        save_final_with_buffer: bool = False,
+        prune_checkpoints_to_best_final: bool = True,
     ):
         # sanity check parameters
         assert horizon > 0
@@ -133,6 +137,10 @@ class PWM:
         self.flow_substeps = flow_substeps
         self.flow_tau_sampling = flow_tau_sampling
         self.wandb_log_every_epoch = wandb_log_every_epoch
+        self.save_init_policy = bool(save_init_policy)
+        self.save_latest_checkpoint = bool(save_latest_checkpoint)
+        self.save_final_with_buffer = bool(save_final_with_buffer)
+        self.prune_checkpoints_to_best_final = bool(prune_checkpoints_to_best_final)
 
         # Training progress
         self.iter_count = 0
@@ -252,6 +260,24 @@ class PWM:
         else:
             print_info("Using Baseline MLP Dynamics")
 
+    def _prune_checkpoint_files(self) -> None:
+        """
+        Keep only best/final checkpoints and their optional replay buffers.
+
+        This runs at the end of training so interrupted runs still retain
+        intermediate checkpoints for resume.
+        """
+        keep_files = {"best_policy.pt", "final_policy.pt", "best_policy.buffer", "final_policy.buffer"}
+        for pattern in ("*.pt", "*.buffer"):
+            for file_path in self.log_dir.glob(pattern):
+                if file_path.name in keep_files:
+                    continue
+                try:
+                    file_path.unlink()
+                    print_info(f"Removed extra checkpoint artifact: {file_path.name}")
+                except Exception as exc:
+                    print_warning(f"Could not remove {file_path}: {exc}")
+
     def init_buffers(self):
         # replay buffer
         self.obs_buf = torch.zeros(
@@ -348,6 +374,43 @@ class PWM:
             if isinstance(val, float) and math.isfinite(val):
                 results[f"env/{key}"] = val
         return results
+
+    def _collect_buffer_metrics(self) -> Dict[str, float]:
+        if not hasattr(self, "buffer") or self.buffer is None:
+            return {}
+        num_eps = float(getattr(self.buffer, "num_eps", 0.0))
+        capacity_steps = float(getattr(self.buffer, "capacity", 0.0))
+        episode_len = float(getattr(self.env, "episode_length", 1.0)) if self.env else 1.0
+        capacity_eps = max(1.0, capacity_steps / max(1.0, episode_len))
+        return {
+            "buffer/num_episodes": num_eps,
+            "buffer/capacity_steps": capacity_steps,
+            "buffer/capacity_episodes_estimate": capacity_eps,
+            "buffer/fill_ratio_estimate": min(1.0, num_eps / capacity_eps),
+        }
+
+    def _collect_gpu_metrics(self) -> Dict[str, float]:
+        if not torch.cuda.is_available():
+            return {}
+        device_idx = self.device.index if self.device.index is not None else 0
+        try:
+            props = torch.cuda.get_device_properties(device_idx)
+            total_bytes = float(props.total_memory)
+            allocated = float(torch.cuda.memory_allocated(device_idx))
+            reserved = float(torch.cuda.memory_reserved(device_idx))
+            max_allocated = float(torch.cuda.max_memory_allocated(device_idx))
+            max_reserved = float(torch.cuda.max_memory_reserved(device_idx))
+            return {
+                "gpu/memory_allocated_bytes": allocated,
+                "gpu/memory_reserved_bytes": reserved,
+                "gpu/memory_allocated_ratio": allocated / max(1.0, total_bytes),
+                "gpu/memory_reserved_ratio": reserved / max(1.0, total_bytes),
+                "gpu/max_memory_allocated_bytes": max_allocated,
+                "gpu/max_memory_reserved_bytes": max_reserved,
+                "gpu/total_memory_bytes": total_bytes,
+            }
+        except Exception:
+            return {}
 
     def _compute_profile_metrics(
         self,
@@ -772,8 +835,9 @@ class PWM:
 
         self.init_buffers()
 
-        # save initial policy for reproducibility
-        self.save("init_policy")
+        # Optional initial snapshot for debugging/reproducibility.
+        if self.save_init_policy:
+            self.save("init_policy")
 
         self.start_time = time.time()
 
@@ -877,7 +941,10 @@ class PWM:
         prev_timer_totals = self.time_report.get_timer_totals()
 
         # main training process
-        for epoch in range(self.max_epochs):
+        start_epoch = int(self.iter_count)
+        if start_epoch > 0:
+            print_info(f"Resuming training loop from epoch {start_epoch}/{self.max_epochs}")
+        for epoch in range(start_epoch, self.max_epochs):
 
             if self.buffer.num_eps == 0:
                 with torch.no_grad():
@@ -890,6 +957,8 @@ class PWM:
                         "warmup/step_count": float(self.step_count),
                     }
                     warmup_metrics.update(self._collect_env_diagnostics())
+                    warmup_metrics.update(self._collect_buffer_metrics())
+                    warmup_metrics.update(self._collect_gpu_metrics())
                     wandb.log(warmup_metrics, step=self.step_count)
                 continue
 
@@ -1059,6 +1128,8 @@ class PWM:
                 self.best_policy_loss = mean_policy_loss
 
             metrics = {
+                "train/iter_count": float(self.iter_count),
+                "train/epoch_index_zero_based": float(epoch),
                 "actor_lr": lr,
                 "actor_loss": actor_loss_val,
                 "value_loss": value_loss_val,
@@ -1107,6 +1178,8 @@ class PWM:
             )
             metrics.update(profile_metrics)
             metrics.update(self._collect_env_diagnostics())
+            metrics.update(self._collect_buffer_metrics())
+            metrics.update(self._collect_gpu_metrics())
 
             metrics = filter_dict(metrics)
             
@@ -1148,7 +1221,7 @@ class PWM:
 
             # Save checkpoint at specified intervals (default 500 iters)
             # Note: We also save 'best_policy' when policy improves and 'final_policy' at end
-            if self.iter_count % self.save_interval == 0:
+            if self.save_latest_checkpoint and self.iter_count % self.save_interval == 0:
                 self.save("latest_checkpoint")
 
         self.time_report.end_timer("algorithm")
@@ -1188,7 +1261,9 @@ class PWM:
 
         self.time_report.report()
 
-        self.save("final_policy", buffer=True)
+        self.save("final_policy", buffer=self.save_final_with_buffer)
+        if self.prune_checkpoints_to_best_final:
+            self._prune_checkpoint_files()
 
     def update(self, obs, act, rew, task, finetune_wm=False):
 
@@ -1309,7 +1384,7 @@ class PWM:
             resume_training: Whether to restore training progress (iter_count, step_count, etc.)
         """
         print("Loading checkpoint from", path)
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         
         # Load model states
         self.actor.load_state_dict(checkpoint["actor"])
@@ -1350,7 +1425,7 @@ class PWM:
             self.step_count = checkpoint["step_count"]
             self.best_reward = checkpoint.get("best_reward", -float('inf'))
             self.best_policy_loss = checkpoint.get("best_policy_loss", float('inf'))
-            self.mean_horizon = checkpoint.get("mean_horizon", 0.0)
+            self.last_log_steps = checkpoint.get("step_count", 0)
             print(f"Resumed from epoch {self.iter_count}, step {self.step_count}, best R: {self.best_reward:.2f}")
         else:
             print("Loaded checkpoint for evaluation/fine-tuning (training progress not restored)")
@@ -1368,7 +1443,7 @@ class PWM:
 
     def load_wm(self, path):
         print("Loading world model from", path)
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
 
         # Native Flow-MBPO-PWM checkpoint format (from `self.save(...)` or
         # `scripts/pretrain_multitask_wm.py`): contains `world_model` state dict.
@@ -1400,7 +1475,7 @@ class PWM:
             paths = [paths]
         for path in paths:
             print("loading", path)
-            td = torch.load(path).to("cpu")
+            td = torch.load(path, map_location="cpu", weights_only=False).to("cpu")
 
             # fetch stats for normalizing
             if self.obs_rms:

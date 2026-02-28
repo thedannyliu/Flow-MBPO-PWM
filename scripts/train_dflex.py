@@ -22,6 +22,89 @@ import sys
 sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=1)
 
 
+def _resolve_dflex_cuda_arch() -> str:
+    """
+    Resolve CUDA arch used by dflex kernel JIT.
+
+    dflex hardcodes `compute_50`, which fails on modern H100/H200 toolchains.
+    We derive the active GPU capability at runtime and fall back to sm_90.
+    """
+    arch_override = os.environ.get("DFLEX_CUDA_ARCH", "").strip()
+    if arch_override:
+        return arch_override.replace(".", "").replace("sm_", "")
+
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            major, minor = torch.cuda.get_device_capability(0)
+            return f"{major}{minor}"
+    except Exception:
+        pass
+    return "90"
+
+
+def _patch_dflex_load_inline() -> None:
+    """
+    Monkey-patch torch load_inline to rewrite dflex's legacy CUDA flags.
+
+    This patch is intentionally narrow: only dflex's `kernels` extension is
+    affected, leaving other JIT extensions untouched.
+    """
+    try:
+        from torch.utils import cpp_extension
+    except Exception:
+        return
+
+    if getattr(cpp_extension.load_inline, "_flow_mbpo_dflex_patch", False):
+        return
+
+    original_load_inline = cpp_extension.load_inline
+
+    def _patched_load_inline(*args, **kwargs):
+        name = args[0] if args else kwargs.get("name", "")
+        if name == "kernels":
+            cuda_flags = list(kwargs.get("extra_cuda_cflags", []) or [])
+            if any("compute_50" in str(flag) for flag in cuda_flags):
+                arch = _resolve_dflex_cuda_arch()
+                rewritten_flags = [
+                    f"-gencode=arch=compute_{arch},code=sm_{arch}",
+                    f"-gencode=arch=compute_{arch},code=compute_{arch}",
+                    "-U__CUDA_NO_HALF_OPERATORS__",
+                    "-U__CUDA_NO_HALF_CONVERSIONS__",
+                    "-U__CUDA_NO_BFLOAT16_CONVERSIONS__",
+                    "-U__CUDA_NO_HALF2_OPERATORS__",
+                ]
+                print(
+                    f"[dflex patch] Rewriting CUDA flags for kernels: "
+                    f"{cuda_flags} -> {rewritten_flags}"
+                )
+                kwargs["extra_cuda_cflags"] = rewritten_flags
+
+            # dflex adds Windows-only `-Z` flag on Linux; remove it.
+            extra_cflags = list(kwargs.get("extra_cflags", []) or [])
+            if "-Z" in extra_cflags:
+                kwargs["extra_cflags"] = [flag for flag in extra_cflags if flag != "-Z"]
+
+        return original_load_inline(*args, **kwargs)
+
+    _patched_load_inline._flow_mbpo_dflex_patch = True
+    cpp_extension.load_inline = _patched_load_inline
+
+
+def _normalize_wandb_tags(tags):
+    if tags is None:
+        return None
+    if isinstance(tags, str):
+        if not tags.strip():
+            return None
+        return [tag.strip() for tag in tags.split(",") if tag.strip()]
+    if isinstance(tags, (list, tuple)):
+        normalized = [str(tag).strip() for tag in tags if str(tag).strip()]
+        return normalized or None
+    return [str(tags)]
+
+
 def create_wandb_run(wandb_cfg, job_config, run_id=None):
     """Create a WandB run with proper naming.
     
@@ -50,6 +133,19 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
     
     # Get notes from config
     notes = getattr(wandb_cfg, 'notes', '') if hasattr(wandb_cfg, 'notes') else ''
+    tags = _normalize_wandb_tags(getattr(wandb_cfg, "tags", None))
+    job_type = getattr(wandb_cfg, "job_type", "train")
+
+    # Record scheduler/runtime metadata in config for reproducibility.
+    job_config.setdefault("runtime", {})
+    job_config["runtime"]["slurm"] = {
+        "job_id": os.environ.get("SLURM_JOB_ID", ""),
+        "array_job_id": os.environ.get("SLURM_ARRAY_JOB_ID", ""),
+        "array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID", ""),
+        "node_name": os.environ.get("SLURMD_NODENAME", ""),
+        "cluster_name": os.environ.get("SLURM_CLUSTER_NAME", ""),
+        "partition": os.environ.get("SLURM_JOB_PARTITION", ""),
+    }
     
     print(f"Initializing WandB run: name='{name}', project='{wandb_cfg.project}'")
     
@@ -58,6 +154,8 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
         config=job_config,
         group=wandb_cfg.group if wandb_cfg.group else None,
         entity=wandb_cfg.entity if wandb_cfg.entity else None,
+        tags=tags,
+        job_type=job_type,
         name=name,
         notes=notes,
         id=run_id,
@@ -67,6 +165,7 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
 
 @hydra.main(config_path="cfg", config_name="config.yaml", version_base="1.2")
 def train(cfg: DictConfig):
+    _patch_dflex_load_inline()
     cfg_full = OmegaConf.to_container(cfg, resolve=True)
 
     if cfg.general.run_wandb:
@@ -130,7 +229,7 @@ def train(cfg: DictConfig):
             traceback.print_exc()
             raise RuntimeError(f"Self-check failed, eval() is broken: {e}")
         
-        print("✓ 驗證完成，開始完整訓練...")
+        print("Self-check completed, starting full training...")
         print("=" * 80 + "\n")
     
     if cfg.general.train:
@@ -141,6 +240,19 @@ def train(cfg: DictConfig):
     print(
         f"mean episode loss = {loss:.2f}, mean discounted loss = {discounted_loss:.2f}, mean episode length = {ep_len:.2f}"
     )
+
+    if cfg.general.run_wandb:
+        final_eval_metrics = {
+            "eval/final_episode_loss": float(loss),
+            "eval/final_discounted_loss": float(discounted_loss),
+            "eval/final_episode_length": float(ep_len),
+            "eval/final_mean_reward_proxy": float(-loss),
+            "eval/final_num_games": float(cfg.general.eval_runs),
+        }
+        if hasattr(agent, "step_count"):
+            wandb.log(final_eval_metrics, step=agent.step_count)
+        else:
+            wandb.log(final_eval_metrics)
 
     if cfg.general.run_wandb:
         wandb.finish()
