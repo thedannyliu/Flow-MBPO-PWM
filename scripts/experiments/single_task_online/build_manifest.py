@@ -98,6 +98,10 @@ HPARAM_PROFILES: Dict[str, List[str]] = {
 }
 
 TASK_EXTRA_OVERRIDES: Dict[str, List[str]] = {
+    # Hopper can produce very short episodes (8–12 steps) in early training.
+    # Default horizon=16 requires 17-step trajectories; set to 7 so the
+    # sampler only needs 8 steps, matching worst-case episode length.
+    "hopper": ["alg.horizon=7"],
     # Motion-imitation tracking can produce very short episodes in early training.
     # Keep rollout slices valid for replay sampling during smoke/pilot bring-up.
     "tracking_rough_unitree_g1": ["alg.horizon=1"],
