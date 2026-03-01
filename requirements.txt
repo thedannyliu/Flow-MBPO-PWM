@@ -3,6 +3,8 @@ torch
 hydra-core
 omegaconf
 wandb
+imageio
+imageio-ffmpeg
 gym
 jax[cuda12]
 absl-py

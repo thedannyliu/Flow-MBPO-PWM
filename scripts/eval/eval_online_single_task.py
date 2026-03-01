@@ -196,6 +196,8 @@ def collect_rollouts(
     save_video: bool,
     video_path: Path,
     video_fps: int,
+    require_mp4: bool = False,
+    allow_gif_fallback: bool = True,
 ):
     rollout_rows: List[Dict[str, float]] = []
     episode_summaries: List[Dict[str, float]] = []
@@ -304,13 +306,25 @@ def collect_rollouts(
 
     if save_video and frames:
         video_path.parent.mkdir(parents=True, exist_ok=True)
+        mp4_written = False
         try:
             import imageio.v3 as iio
 
-            iio.imwrite(video_path, frames, fps=video_fps)
-        except Exception as exc:
-            print(f"MP4 video export skipped: {exc}")
-            # Fallback for clusters without ffmpeg/pyav backends.
+            # Prefer ffmpeg backend explicitly for stable MP4 output on clusters.
+            iio.imwrite(video_path, frames, fps=video_fps, plugin="ffmpeg")
+            mp4_written = True
+        except Exception as ffmpeg_exc:
+            print(f"MP4 export with ffmpeg plugin failed: {ffmpeg_exc}")
+            try:
+                import imageio.v3 as iio
+
+                iio.imwrite(video_path, frames, fps=video_fps)
+                mp4_written = True
+            except Exception as generic_exc:
+                print(f"Generic MP4 export skipped: {generic_exc}")
+
+        if not mp4_written and allow_gif_fallback:
+            # Fallback for environments without working MP4 backend.
             try:
                 import imageio.v2 as iio_v2
 
@@ -319,6 +333,12 @@ def collect_rollouts(
                 print(f"Saved GIF rollout fallback: {gif_path}")
             except Exception as gif_exc:
                 print(f"GIF video export skipped: {gif_exc}")
+
+        if require_mp4 and not video_path.exists():
+            raise RuntimeError(
+                f"require_mp4=True but MP4 file was not produced at {video_path}. "
+                "Install imageio-ffmpeg (or pyav) in the runtime environment."
+            )
 
     return rollout_rows, episode_summaries
 
@@ -353,7 +373,7 @@ def maybe_log_to_wandb(
     rollout_video_mp4 = output_dir / "rollout.mp4"
     rollout_video_gif = output_dir / "rollout.gif"
     rollout_video_path = rollout_video_mp4 if rollout_video_mp4.exists() else rollout_video_gif
-    if rollout_video_path.exists():
+    if args.wandb_log_video and rollout_video_path.exists():
         video_format = "mp4" if rollout_video_path.suffix.lower() == ".mp4" else "gif"
         try:
             wandb.log(
@@ -366,23 +386,29 @@ def maybe_log_to_wandb(
         except Exception as exc:
             print(f"WandB video logging skipped: {exc}")
 
-    artifact = wandb.Artifact(
-        name=f"eval-{metadata['run_name']}",
-        type="evaluation",
-        metadata=summary,
-    )
-    for filename in (
-        "eval_summary.json",
-        "episode_metrics.csv",
-        "rollout_steps.csv",
-        "rollout_summary.csv",
-        "rollout.mp4",
-        "rollout.gif",
-    ):
-        filepath = output_dir / filename
-        if filepath.exists():
-            artifact.add_file(str(filepath))
-    wandb.log_artifact(artifact)
+    if args.wandb_log_artifact:
+        artifact_name = metadata.get("run_key") or metadata["run_name"]
+        artifact = wandb.Artifact(
+            name=f"eval-{artifact_name}",
+            type="evaluation",
+            metadata=summary,
+        )
+        for filename in (
+            "eval_summary.json",
+            "episode_metrics.csv",
+            "rollout_steps.csv",
+            "rollout_summary.csv",
+        ):
+            filepath = output_dir / filename
+            if filepath.exists():
+                artifact.add_file(str(filepath))
+        # Video files can be large; upload them only when explicitly enabled.
+        if args.wandb_log_video:
+            for filename in ("rollout.mp4", "rollout.gif"):
+                filepath = output_dir / filename
+                if filepath.exists():
+                    artifact.add_file(str(filepath))
+        wandb.log_artifact(artifact)
     run.finish()
 
 
@@ -408,12 +434,51 @@ def main() -> None:
     parser.add_argument("--rollout-episodes", type=int, default=3)
     parser.add_argument("--rollout-max-steps", type=int, default=1000)
     parser.add_argument("--save-video", action="store_true")
+    parser.add_argument(
+        "--require-mp4",
+        action="store_true",
+        help="Fail evaluation if MP4 video cannot be generated.",
+    )
+    parser.add_argument(
+        "--allow-gif-fallback",
+        action="store_true",
+        help="Allow GIF fallback when MP4 backend is unavailable.",
+    )
+    parser.add_argument(
+        "--wandb-log-video",
+        dest="wandb_log_video",
+        action="store_true",
+        help="Upload rollout video to W&B (default: enabled).",
+    )
+    parser.add_argument(
+        "--no-wandb-log-video",
+        dest="wandb_log_video",
+        action="store_false",
+        help="Disable rollout video upload to W&B.",
+    )
+    parser.add_argument(
+        "--wandb-log-artifact",
+        dest="wandb_log_artifact",
+        action="store_true",
+        help="Upload eval artifact files to W&B (default: enabled).",
+    )
+    parser.add_argument(
+        "--no-wandb-log-artifact",
+        dest="wandb_log_artifact",
+        action="store_false",
+        help="Disable eval artifact upload to W&B.",
+    )
     parser.add_argument("--video-fps", type=int, default=30)
     parser.add_argument("--wandb-project", default="")
     parser.add_argument("--wandb-entity", default="")
     parser.add_argument("--wandb-group", default="")
     parser.add_argument("--wandb-name", default="")
     parser.add_argument("--wandb-tags", default="")
+    parser.set_defaults(
+        wandb_log_video=True,
+        wandb_log_artifact=True,
+        allow_gif_fallback=True,
+    )
     args = parser.parse_args()
 
     checkpoint = args.checkpoint.resolve()
@@ -457,6 +522,8 @@ def main() -> None:
             save_video=args.save_video,
             video_path=args.output_dir / "rollout.mp4",
             video_fps=args.video_fps,
+            require_mp4=args.require_mp4,
+            allow_gif_fallback=args.allow_gif_fallback,
         )
         if hasattr(rollout_env, "close"):
             rollout_env.close()
@@ -492,6 +559,7 @@ def main() -> None:
         "checkpoint": str(checkpoint),
         "run_name": run_dir.name,
         "config_path": str(config_path),
+        "run_key": str(cfg.get("experiment", {}).get("run_key", "")),
         "stage": str(cfg.get("experiment", {}).get("stage", "")),
         "suite": str(cfg.get("experiment", {}).get("suite", "")),
         "task": str(cfg.get("experiment", {}).get("task", "")),

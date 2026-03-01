@@ -199,9 +199,23 @@ def main() -> None:
     }
     enable_video = os.environ.get("ENABLE_ROLLOUT_VIDEO", "1") != "0"
     strict_video = os.environ.get("STRICT_EVAL_VIDEO", "0") == "1"
+    require_mp4 = os.environ.get("REQUIRE_EVAL_MP4", "0") == "1"
+    # Default off: rollout videos are large and should not be uploaded unless requested.
+    wandb_log_video = os.environ.get("WANDB_LOG_EVAL_VIDEO", "0") != "0"
+    wandb_log_artifact = os.environ.get("WANDB_LOG_EVAL_ARTIFACT", "1") != "0"
     eval_cmd_with_video = list(eval_cmd)
+    if not wandb_log_video:
+        eval_cmd.append("--no-wandb-log-video")
+    if not wandb_log_artifact:
+        eval_cmd.append("--no-wandb-log-artifact")
+    if not wandb_log_video:
+        eval_cmd_with_video.append("--no-wandb-log-video")
+    if not wandb_log_artifact:
+        eval_cmd_with_video.append("--no-wandb-log-artifact")
     if enable_video:
         eval_cmd_with_video.append("--save-video")
+    if require_mp4:
+        eval_cmd_with_video.append("--require-mp4")
 
     if enable_video:
         rc = run_command(
@@ -225,12 +239,16 @@ def main() -> None:
             )
             if rc != 0:
                 raise subprocess.CalledProcessError(rc, eval_cmd)
-        video_exists = (eval_output_dir / "rollout.mp4").exists() or (
-            eval_output_dir / "rollout.gif"
-        ).exists()
+        if require_mp4:
+            video_exists = (eval_output_dir / "rollout.mp4").exists()
+        else:
+            video_exists = (eval_output_dir / "rollout.mp4").exists() or (
+                eval_output_dir / "rollout.gif"
+            ).exists()
         if strict_video and not video_exists:
             raise RuntimeError(
-                f"STRICT_EVAL_VIDEO=1 but no rollout video found for run {run_key}."
+                f"STRICT_EVAL_VIDEO=1 but required rollout video was not found "
+                f"(run={run_key}, require_mp4={require_mp4})."
             )
         if not video_exists:
             print(

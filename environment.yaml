@@ -26,6 +26,8 @@ dependencies:
       - black==24.4.*
       - termcolor==2.4.*
       - tqdm==4.66.*
+      - imageio>=2.34.0
+      - imageio-ffmpeg>=0.5.1
       # - rl_games # used as a baseline for comparison. Not required!
       # dflex simulator is used for examples. It is not required for the library.
       - git+https://github.com/imgeorgiev/DiffRL.git/#subdirectory=dflex

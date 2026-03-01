@@ -96,3 +96,8 @@ Practical defaults:
 - Eval runs attempt rollout video (`.mp4`) and fallback to `.gif`.
 - Resume is automatic if `latest/final/best` checkpoints exist.
 - End-of-training checkpoint pruning keeps only `best_policy.*` and `final_policy.*`.
+
+Useful runtime flags:
+- `REQUIRE_EVAL_MP4=1`: fail eval if `.mp4` cannot be generated.
+- `WANDB_LOG_EVAL_VIDEO=1`: upload eval video to W&B (default is `0` / disabled).
+- `WANDB_LOG_EVAL_ARTIFACT=0`: keep W&B scalar metrics but skip eval artifact upload.
