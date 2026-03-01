@@ -1,190 +1,155 @@
-# 正式訓練（Confirm）實驗監測紀錄
+# 正式訓練（Confirm）監測紀錄
 
-> **最後更新**：2026-02-28 22:10 EST  
-> **分支**：`dev/unified-pwm-resume-20260223` (commit `5ec8b4a`)  
-> **叢集**：PACE-ICE (`ice-gpu` partition, 16h time limit)  
-> **WandB Project（正式訓練）**：[`flow-mbpo-formal-training`](https://wandb.ai/danny010324/flow-mbpo-formal-training)  
-> **WandB Project（Smoke）**：[`flow-mbpo-formal-experiments`](https://wandb.ai/danny010324/flow-mbpo-formal-experiments)
+> **最後更新**：2026-03-01 06:15 EST  
+> **分支**：`dev/unified-pwm-resume-20260223` (commit `e1e98ba`)  
+> **WandB（正式）**：[`flow-mbpo-formal-training`](https://wandb.ai/danny010324/flow-mbpo-formal-training)  
+> **WandB（Smoke）**：[`flow-mbpo-formal-experiments`](https://wandb.ai/danny010324/flow-mbpo-formal-experiments)
 
 ---
 
-## 1. 當前 Job 總覽
+## 1. 目前 Job 狀態
 
-### 1.1 正式訓練（Confirm）
-
-| GPU 類型 | Job ID | 狀態 | Rows | 備註 |
-|----------|--------|------|------|------|
-| **H100** | `4137131` | 🕐 PENDING | 320 | H100 節點近滿（58/64 CPUs used），等候排程 |
+| GPU | Job ID | 狀態 | 已完成 | 執行中 | 失敗 | 待排 | 備註 |
+|-----|--------|------|--------|--------|------|------|------|
+| **L40S** | `4137162` | 🔄 RUNNING | 138 | 24 | **0** | 158 | 主要 Job，%16 concurrency |
 
 > [!NOTE]
-> H200 提交被 `QOSMaxSubmitJobPerUserLimit` 擋住（一次只能有一個 320-row array job）。  
-> 若 H100 長時間無法排到，可考慮取消改投 L40S（有 24 idle GPUs）。
-
-### 1.2 Smoke 驗證結果
-
-| 項目 | 結果 |
-|------|------|
-| 第一次 Smoke（無 horizon fix） | L40S `4136884` — 32/32 ✅ ALL COMPLETED |
-| Hopper horizon fix 驗證 | L40S `4137103` — hopper rows RUNNING（非 trajectory 失敗），8 rows因 WandB init_timeout 失敗（transient） |
-| Hopper Fix | `alg.horizon=7` 成功解決 replay buffer trajectory 長度問題 |
+> QOS 限制每位使用者只能同時提交一個 320-row array job（`QOSMaxSubmitJobPerUserLimit`），  
+> H100/H200 無法同時提交。L40S 是目前的唯一 Job。
 
 ---
 
-## 2. 實驗設計
+## 2. 任務完成統計（06:15 EST 快照）
 
-### 2.1 基本參數
+| Task | Suite | DONE | RUN | FAIL | PEND | Wall-clock/row |
+|------|-------|------|-----|------|------|----------------|
+| **hopper** | gym | **40** ✅ | 0 | 0 | 0 | ~1h 20m |
+| **ant** | gym | 6 | 8 | 0 | 26 | ~2h 33m |
+| anymal | mjlab_proxy | 0 | 0 | 0 | 40 | 待排隊 |
+| humanoid | gym | 0 | 0 | 0 | 40 | 待排隊 |
+| snu_humanoid | mjlab_proxy | 0 | 0 | 0 | 40 | 待排隊 |
+| leap_left_grasp | mjlab | 0 | 0 | 0 | 40 | 待排隊 |
+| tracking_rough | mjlab | 0 | 0 | 0 | 40 | 待排隊 |
+| inhand_pen_twirl | mjlab | 0 | 0 | 0 | 40 | 待排隊 |
+| **TOTAL** | | **46** | **8** | **0** | **266** | |
 
-| 項目 | 值 |
-|------|-----|
-| **階段** | Confirm（正式訓練） |
-| **Manifest** | `manifests/confirm_all_4methods_10seeds_20260301.csv` |
-| **總行數** | 320 = 8 tasks × 4 methods × 10 seeds |
-| **Epochs** | 15,000 |
-| **Eval Runs** | 40 |
-| **WandB Project** | `flow-mbpo-formal-training` |
-| **Time Limit** | 16h（支援 checkpoint resume 續跑） |
-
-### 2.2 方法矩陣
-
-| Method Key | World Model | Policy | Alg Config |
-|------------|-------------|--------|------------|
-| `mlpwm_mlppolicy` | MLP | MLP | `pwm_5M_baseline_final` |
-| `flowwm_mlppolicy` | Flow | MLP | `pwm_5M_flow_v2_substeps4` |
-| `mlpwm_flowpolicy` | MLP | Flow | `pwm_5M_flowpolicy` |
-| `flowwm_flowpolicy` | Flow | Flow | `pwm_5M_fullflow` |
-
-### 2.3 任務矩陣
-
-| Task | Suite | Env Config | `num_envs` | `alg.horizon` | Complexity |
-|------|-------|-----------|------------|---------------|------------|
-| hopper | gym | `gym_hopper_mujoco` | 64 | **7** | low |
-| ant | gym | `gym_ant_mujoco` | 64 | 16 (default) | medium |
-| anymal | mjlab_proxy | `mjlab_velocity_flat_unitree_go2` | 128 | 16 | medium |
-| humanoid | gym | `gym_humanoid_mujoco` | 64 | 16 | medium_high |
-| snu_humanoid | mjlab_proxy | `mjlab_velocity_flat_unitree_g1` | 128 | 16 | high |
-| leap_left_grasp | mjlab | `mjlab_leap_left_grasp_asymmetric` | 128 | 16 | medium |
-| tracking_rough | mjlab | `mjlab_tracking_rough_unitree_g1` | 96 | **1** | medium_high |
-| inhand_pen_twirl | mjlab | `mjlab_leap_left_inhand_pen_twirl` | 64 | 16 | high |
-
-### 2.4 Row → Task 對照（每 40 行一組）
-
-| Row 範圍 | Task | 方法排列（每 10 行一個 method × 10 seeds） |
-|----------|------|-------------------------------------------|
-| 0–39 | hopper | mlpwm→flowwm→mlpwm_flow→fullflow |
-| 40–79 | ant | 同上 |
-| 80–119 | anymal | 同上 |
-| 120–159 | humanoid | 同上 |
-| 160–199 | snu_humanoid | 同上 |
-| 200–239 | leap_left_grasp | 同上 |
-| 240–279 | tracking_rough | 同上 |
-| 280–319 | inhand_pen_twirl | 同上 |
+> 注：`sacct` 僅顯示已排程過的 rows，PEND 數字為估算。
 
 ---
 
-## 3. WandB 標注系統
+## 3. 修復歷程（重要錯誤一覽）
 
-### 3.1 自動產生的 Tags
+| 錯誤 | 原因 | 修復 | Commit |
+|------|------|------|--------|
+| Hopper replay buffer fail | `alg.horizon=16` 需 17-step trajectory，但 episode 僅 8-12 steps | `alg.horizon=7`（加到 `build_manifest.py:TASK_EXTRA_OVERRIDES`） | `5ec8b4a` |
+| WandB notes 解析錯誤 | GPU metadata 在 `hydra_quote()` 之外，導致空格破壞 override | 移入 `hydra_quote()` 內 | `dea298b` |
+| WandB pydantic tag 64 字元超限 | 整個 tag list 當一個字串傳入 pydantic | 改在 `train_dflex.py:create_wandb_run()` 自動從 `experiment.*` 建 tags | `dea298b` |
+| WandB init timeout（偶發） | 多 run 同時 init，網路壅塞 | Transient — 下次 resume 可用 checkpoint 繼續 | — |
 
-每個 WandB run 由 `train_dflex.py:create_wandb_run()` 自動從 `experiment.*` config 建立 tags：
+---
 
-| Tag 格式 | 用途 |
-|----------|------|
-| `stage_confirm` | 實驗階段 |
-| `suite_gym` / `suite_mjlab` | 任務套件 |
-| `task_hopper` | 具體任務 |
-| `method_flowwm_mlppolicy` | 方法組合 |
-| `gpu_type_H100` | GPU 類型（自動偵測） |
-| `hparam_profile_default` | 超參配置 |
-| `seed_0` | 隨機種子 |
-| `single_task_online` | 實驗類型 |
+## 4. WandB 標注系統
 
-### 3.2 常用 WandB 篩選
+每個 run 自動產生（`train_dflex.py:create_wandb_run()`）：
 
 ```
-# 比較四種方法在 ant 上
+Tags:    stage_confirm, suite_gym, task_hopper, method_mlpwm_mlppolicy,
+         gpu_type_L40S, hparam_profile_default, seed_0,
+         single_task_online, online_rl, from_scratch
+Group:   single_task_online_confirm_gym
+Name:    confirm_gym_hopper_mlpwm_mlppolicy_s0_default
+Notes:   ...task=hopper, method=mlpwm_mlppolicy... | GPU=L40S node=... job=4137162
+Config:  experiment.{stage, suite, task, method, gpu_type, slurm_job_id, slurm_node}
+         runtime.slurm.{job_id, array_task_id, node_name, partition}
+```
+
+### WandB 篩選範例
+
+```
+# 比較 4 種方法在 ant 上的表現
 tags: task_ant
 Group by: config.experiment.method
 
-# 看 Flow WM 所有結果
+# 所有 Flow WM 實驗
 tags: method_flowwm_mlppolicy OR method_flowwm_flowpolicy
 
-# 看 H100 vs L40S 速度差異
-tags: gpu_type_H100 OR gpu_type_L40S
+# 只看特定 seed 的穩定性
+tags: seed_3
+
+# 交叉（e.g., hopper + MLP policy）
+tags: task_hopper AND (method_mlpwm_mlppolicy OR method_flowwm_mlppolicy)
 ```
-
----
-
-## 4. 已知問題與修復
-
-| 問題 | 原因 | 修復 | 狀態 |
-|------|------|------|------|
-| Hopper trajectory 太短 | `alg.horizon=16` 需 17-step, episode 只有 8-12 steps | `alg.horizon=7` (只需 8 steps) | ✅ 已修復 |
-| WandB init timeout | 多 run 同時 init, 網路壅塞 | Transient, 自動 retry 或 resume | ⚠️ 偶發 |
-| QOS 限制 | 一次只能有一個 320-row array job | 無法繞過, 選擇最佳 GPU 提交 | ℹ️ 限制 |
 
 ---
 
 ## 5. 監測指令
 
-### 5.1 快速狀態
-
 ```bash
-# 總覽
-sacct -j 4137131 --format=State --noheader | grep -v "^$" | sort | uniq -c
+# 快速總覽
+sacct -j 4137162 --format=State --noheader | grep -v "^$" | sort | uniq -c
 
-# 看失敗
-sacct -j 4137131 --format=JobID%20,State%12,ExitCode --noheader | grep -v "extern\|batch" | grep FAILED
+# 查看失敗
+sacct -j 4137162 --format=JobID%20,State%12,ExitCode,Elapsed%12 --noheader \
+  | grep -v "extern\|batch" | grep FAILED
 
-# 排隊
-squeue -u $USER --format="%.12i %.9P %.25j %.2t %.10M %.25R" --noheader
-```
+# 排隊查看
+squeue -u $USER --format="%.12i %.9P %.25j %.2t %.10M %.6D %.25R" --noheader
 
-### 5.2 訓練進度
+# 訓練 log（Row 47 例，snu_humanoid）
+tail -5 logs/slurm/single_task_online/confirm/sto_confirm_L40S_4137162_47.out
 
-```bash
-# 看特定 row（例如 row 40 = ant mlpwm_mlppolicy seed=0）
-tail -20 logs/slurm/single_task_online/confirm/sto_confirm_H100_4137131_40.out
-tail -20 logs/slurm/single_task_online/confirm/sto_confirm_H100_4137131_40.err
-```
+# Checkpoint 數量
+find scripts/outputs/single_task_online/confirm/ -name "final_policy.pt" | wc -l
+du -sh scripts/outputs/single_task_online/confirm/
 
-### 5.3 Checkpoint 統計
-
-```bash
-find scripts/outputs/single_task_online/confirm/ -name "final_policy.pt" | wc -l   # 完成數
-find scripts/outputs/single_task_online/confirm/ -name "best_policy.pt" | wc -l    # 最佳策略
-du -sh scripts/outputs/single_task_online/confirm/                                  # 總大小
-```
-
-### 5.4 GPU 資源
-
-```bash
-sinfo -p ice-gpu -t idle,mix --format="%N %G %T %e %C" | grep -E "(h100|h200|l40s)"
+# GPU 資源
+sinfo -p ice-gpu -t idle,mix --format="%N %G %T %C" | grep -E "(l40s|h100|h200)"
 ```
 
 ---
 
 ## 6. Checkpoint Resume 機制
 
-`run_manifest_job.py` 內建自動 resume：重新提交同一 manifest，已完成的 row 會跳過（如果 `final_policy.pt` 存在），未完成的會從 `latest_checkpoint.pt` 續跑。
+每個 row 的 `run_manifest_job.py` 在啟動時自動檢查：
+
+1. `logs/latest_checkpoint.pt` → 從此續跑（最優先）
+2. `logs/final_policy.pt` → 已完成，跳過
+3. 都沒有 → 從頭訓練
+
+**16h 到期後的重新提交**（自動 resume）：
 
 ```bash
-# 16h 到期後重新提交（自動 resume）
 bash scripts/experiments/single_task_online/submit_manifest_array.sh \
   --manifest scripts/experiments/single_task_online/manifests/confirm_all_4methods_10seeds_20260301.csv \
-  --gpu-type H100 --time 16:00:00 \
+  --gpu-type L40S --time 16:00:00 \
   --conda-env flow-mbpo \
   --python-bin /storage/ice1/2/9/eliu354/conda_envs/flow-mbpo/bin/python
 ```
+
+> 已完成的 row 會因有 `final_policy.pt` 而快速跳過，不會重新訓練。
 
 ---
 
 ## 7. 時間線
 
-| 時間 | 事件 |
-|------|------|
-| 21:00 | 提交 Smoke（L40S `4136884`）— 32/32 PASS |
-| 21:25 | 提交第一次 Confirm（L40S `4136966`）— 9 hopper failures |
-| 21:45 | 識別 hopper replay buffer trajectory 長度問題 |
-| 21:55 | 加入 `alg.horizon=7` fix, 驗證 smoke pass |
-| 22:00 | 提交正式 Confirm（H100 `4137131`）— 320 rows |
-| 22:05 | H200 提交被 QOS 限制擋住 |
+| 時間（EST） | 事件 |
+|-------------|------|
+| 02/28 21:00 | 提交 Smoke（L40S `4136884`）— 32/32 PASS |
+| 02/28 21:25 | 提交第一次 Confirm（L40S `4136966`）— 9 hopper 失敗 |
+| 02/28 21:45 | 識別 replay buffer trajectory 問題 |
+| 02/28 21:55 | 加入 `alg.horizon=7` fix，commit `5ec8b4a` |
+| 02/28 22:06 | 提交正式 Confirm（L40S `4137162`）— 320 rows |
+| 02/28 22:22+ | 前 16 rows 開始 RUNNING（hopper rows 0-15） |
+| 03/01 00:36 | hopper 全部 40 rows COMPLETED ✅ |
+| 03/01 01:30 | ant rows 開始執行 |
+| 03/01 06:15 | 138 rows COMPLETE, 24 RUNNING, 0 FAILED |
+
+---
+
+## 8. 後續行動
+
+| 行動 | 時間點 | 指令 |
+|------|--------|------|
+| 16h job 到期，重新提交 resume | ~03/01 14:00 EST | 同上 `submit_manifest_array.sh` |
+| 採集 WandB 結果 | 所有 320 rows 完成後 | `wandb api` or download csv |
+| 統計分析 | 320 rows 全完成 | 見 `results/` 目錄 |
