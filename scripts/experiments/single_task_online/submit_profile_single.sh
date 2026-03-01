@@ -13,7 +13,10 @@ TIME_LIMIT="04:00:00"
 MEMORY="128G"
 CPUS=16
 ACCOUNT=""
+PARTITION_OVERRIDE=""
+QOS="${SLURM_QOS_OVERRIDE:-}"
 PYTHON_BIN="python"
+CONDA_ENV="${CONDA_ENV_NAME:-}"
 
 usage() {
   cat <<'EOF'
@@ -30,7 +33,10 @@ Options:
   --mem SIZE                   (default: 128G)
   --cpus N                     (default: 16)
   --account NAME               Account override
+  --partition NAME             Slurm partition override
+  --qos NAME                   Optional Slurm QoS (default: cluster default)
   --python-bin PATH            Python binary (default: python)
+  --conda-env NAME             Optional conda env to activate before launch
 EOF
 }
 
@@ -43,7 +49,10 @@ while [[ $# -gt 0 ]]; do
     --mem) MEMORY="$2"; shift 2 ;;
     --cpus) CPUS="$2"; shift 2 ;;
     --account) ACCOUNT="$2"; shift 2 ;;
+    --partition) PARTITION_OVERRIDE="$2"; shift 2 ;;
+    --qos) QOS="$2"; shift 2 ;;
     --python-bin) PYTHON_BIN="$2"; shift 2 ;;
+    --conda-env) CONDA_ENV="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1"; usage; exit 1 ;;
   esac
@@ -61,19 +70,19 @@ fi
 
 case "${GPU_TYPE}" in
   H100)
-    PARTITION="gpu-h100"
-    GRES="gpu:H100:1"
-    DEFAULT_ACCOUNT="gts-agarg35"
+    PARTITION="ice-gpu"
+    GRES="gpu:h100:1"
+    DEFAULT_ACCOUNT="coc"
     ;;
   H200)
-    PARTITION="gpu-h200"
+    PARTITION="ice-gpu"
     GRES="gpu:h200:1"
-    DEFAULT_ACCOUNT="gts-agarg35"
+    DEFAULT_ACCOUNT="coc"
     ;;
   L40S)
-    PARTITION="gpu-l40s"
+    PARTITION="ice-gpu"
     GRES="gpu:l40s:1"
-    DEFAULT_ACCOUNT="gts-agarg35-ideas_l40s"
+    DEFAULT_ACCOUNT="coc"
     ;;
   *)
     echo "Error: unsupported GPU type ${GPU_TYPE}"
@@ -84,14 +93,22 @@ esac
 if [[ -z "${ACCOUNT}" ]]; then
   ACCOUNT="${DEFAULT_ACCOUNT}"
 fi
+if [[ -n "${PARTITION_OVERRIDE}" ]]; then
+  PARTITION="${PARTITION_OVERRIDE}"
+fi
 
 PROFILE_LOG_DIR="${PROJECT_ROOT}/logs/slurm/single_task_online/profile"
 mkdir -p "${PROFILE_LOG_DIR}"
 
+ACTIVATE_SNIPPET=""
+if [[ -n "${CONDA_ENV}" ]]; then
+  ACTIVATE_SNIPPET="conda activate ${CONDA_ENV}"
+fi
+
 SBATCH_WRAP=$(cat <<EOF
 cd ${PROJECT_ROOT}
 source ~/.bashrc
-conda activate pwm
+${ACTIVATE_SNIPPET}
 export PYTHONPATH=${PROJECT_ROOT}/src:\$PYTHONPATH
 export ENABLE_ROLLOUT_VIDEO=0
 
@@ -108,17 +125,23 @@ fi
 EOF
 )
 
-sbatch \
-  --job-name="sto_profile_${ROW_INDEX}" \
-  --account="${ACCOUNT}" \
-  --partition="${PARTITION}" \
-  --qos=inferno \
-  --gres="${GRES}" \
-  --nodes=1 \
-  --ntasks=1 \
-  --cpus-per-task="${CPUS}" \
-  --mem="${MEMORY}" \
-  --time="${TIME_LIMIT}" \
-  --output="${PROFILE_LOG_DIR}/profile_${ROW_INDEX}_%j.out" \
-  --error="${PROFILE_LOG_DIR}/profile_${ROW_INDEX}_%j.err" \
+SBATCH_CMD=(
+  sbatch
+  --job-name="sto_profile_${ROW_INDEX}"
+  --account="${ACCOUNT}"
+  --partition="${PARTITION}"
+  --gres="${GRES}"
+  --nodes=1
+  --ntasks=1
+  --cpus-per-task="${CPUS}"
+  --mem="${MEMORY}"
+  --time="${TIME_LIMIT}"
+  --output="${PROFILE_LOG_DIR}/profile_${ROW_INDEX}_%j.out"
+  --error="${PROFILE_LOG_DIR}/profile_${ROW_INDEX}_%j.err"
   --wrap="${SBATCH_WRAP}"
+)
+if [[ -n "${QOS}" ]]; then
+  SBATCH_CMD+=(--qos="${QOS}")
+fi
+
+"${SBATCH_CMD[@]}"

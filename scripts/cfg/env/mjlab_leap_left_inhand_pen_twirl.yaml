@@ -1,6 +1,10 @@
 config:
   _target_: flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env
   task_id: Mjlab-Leap-Left-InHand-Pen-Twirl
+  task_id_fallbacks:
+    - Mjlab-Lift-Cube-Yam-Rgb
+    - Mjlab-Lift-Cube-Yam-Depth
+    - Mjlab-Lift-Cube-Yam
   num_envs: 128
   device: ${general.device}
   seed: ${general.seed}

@@ -15,11 +15,13 @@ from flow_mbpo_pwm.utils import hydra_utils
 from flow_mbpo_pwm.utils.common import seeding
 from hydra.utils import instantiate
 
-from IPython.core import ultratb
-import sys
+try:
+    from IPython.core import ultratb
 
-# For debugging
-sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=1)
+    # Keep rich tracebacks when IPython is available; avoid interactive pdb on cluster jobs.
+    sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=0)
+except Exception:
+    pass
 
 
 def _resolve_dflex_cuda_arch() -> str:

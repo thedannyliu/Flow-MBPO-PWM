@@ -39,6 +39,25 @@ def _build_row_command(
     ]
 
 
+def _build_row_env(base_env: Dict[str, str], row_index: int) -> Dict[str, str]:
+    """
+    Build an isolated env for one packed subprocess.
+
+    mjlab/warp performs on-the-fly CUDA compilation and writes cache files.
+    Running multiple rows in parallel against one shared cache can cause
+    transient PCH file races, so each row gets its own cache directory.
+    """
+    env = dict(base_env)
+    home = Path(env.get("HOME", str(Path.home())))
+    default_base = home / ".cache" / "warp"
+    cache_base = Path(env.get("WARP_CACHE_BASE_DIR", str(default_base)))
+    job_id = env.get("SLURM_JOB_ID", "local")
+    row_cache_dir = cache_base / f"job_{job_id}" / f"row_{row_index}"
+    row_cache_dir.mkdir(parents=True, exist_ok=True)
+    env["WARP_CACHE_DIR"] = str(row_cache_dir)
+    return env
+
+
 def _selected_row_indices(total_rows: int, pack_index: int, pack_size: int) -> List[int]:
     start = pack_index * pack_size
     end = min(total_rows, start + pack_size)
@@ -131,8 +150,10 @@ def main() -> None:
                 manifest_path=manifest_path,
                 row_index=row_index,
             )
+            row_env = _build_row_env(os.environ, row_index=row_index)
             print(f"[pack] launching row_index={row_index}: {' '.join(shlex.quote(x) for x in cmd)}")
-            proc = subprocess.Popen(cmd, cwd=str(project_root), env=os.environ.copy())
+            print(f"[pack] row_index={row_index} WARP_CACHE_DIR={row_env['WARP_CACHE_DIR']}")
+            proc = subprocess.Popen(cmd, cwd=str(project_root), env=row_env)
             active.append((row_index, proc))
             # Reduce start-time contention spikes (JIT + env init).
             time.sleep(1.0)

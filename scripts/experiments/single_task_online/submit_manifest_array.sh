@@ -13,7 +13,10 @@ TIME_LIMIT="24:00:00"
 MEMORY="128G"
 CPUS=16
 ACCOUNT=""
+PARTITION_OVERRIDE=""
+QOS="${SLURM_QOS_OVERRIDE:-}"
 PYTHON_BIN="python"
+CONDA_ENV="${CONDA_ENV_NAME:-}"
 DRY_RUN=0
 
 usage() {
@@ -31,7 +34,10 @@ Options:
   --mem SIZE                   Memory per task (default: 128G)
   --cpus N                     CPUs per task (default: 16)
   --account NAME               Slurm account override
+  --partition NAME             Slurm partition override
+  --qos NAME                   Optional Slurm QoS (default: cluster default)
   --python-bin PATH            Python executable (default: python)
+  --conda-env NAME             Optional conda env to activate before launch
   --dry-run                    Print sbatch command without submitting
 
 Example:
@@ -50,7 +56,10 @@ while [[ $# -gt 0 ]]; do
     --mem) MEMORY="$2"; shift 2 ;;
     --cpus) CPUS="$2"; shift 2 ;;
     --account) ACCOUNT="$2"; shift 2 ;;
+    --partition) PARTITION_OVERRIDE="$2"; shift 2 ;;
+    --qos) QOS="$2"; shift 2 ;;
     --python-bin) PYTHON_BIN="$2"; shift 2 ;;
+    --conda-env) CONDA_ENV="$2"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1"; usage; exit 1 ;;
@@ -70,19 +79,19 @@ fi
 
 case "${GPU_TYPE}" in
   H100)
-    PARTITION="gpu-h100"
-    GRES="gpu:H100:1"
-    DEFAULT_ACCOUNT="gts-agarg35"
+    PARTITION="ice-gpu"
+    GRES="gpu:h100:1"
+    DEFAULT_ACCOUNT="coc"
     ;;
   H200)
-    PARTITION="gpu-h200"
+    PARTITION="ice-gpu"
     GRES="gpu:h200:1"
-    DEFAULT_ACCOUNT="gts-agarg35"
+    DEFAULT_ACCOUNT="coc"
     ;;
   L40S)
-    PARTITION="gpu-l40s"
+    PARTITION="ice-gpu"
     GRES="gpu:l40s:1"
-    DEFAULT_ACCOUNT="gts-agarg35-ideas_l40s"
+    DEFAULT_ACCOUNT="coc"
     ;;
   *)
     echo "Error: unsupported --gpu-type ${GPU_TYPE}. Use H100, H200, or L40S."
@@ -92,6 +101,9 @@ esac
 
 if [[ -z "${ACCOUNT}" ]]; then
   ACCOUNT="${DEFAULT_ACCOUNT}"
+fi
+if [[ -n "${PARTITION_OVERRIDE}" ]]; then
+  PARTITION="${PARTITION_OVERRIDE}"
 fi
 
 NUM_ROWS="$("${PYTHON_BIN}" - <<'PY' "${MANIFEST}"
@@ -119,12 +131,23 @@ JOB_NAME="sto_${STAGE_NAME}_${GPU_TYPE}"
 LOG_DIR="${PROJECT_ROOT}/logs/slurm/single_task_online/${STAGE_NAME}"
 mkdir -p "${LOG_DIR}"
 
+WRAP_CMD="cd ${PROJECT_ROOT} && source ~/.bashrc"
+if [[ -n "${CONDA_ENV}" ]]; then
+  WRAP_CMD+=" && conda activate ${CONDA_ENV}"
+fi
+WRAP_CMD+=" && export PYTHONPATH=${PROJECT_ROOT}/src:\$PYTHONPATH"
+WRAP_CMD+=" && export MUJOCO_GL=\${MUJOCO_GL:-egl}"
+WRAP_CMD+=" && export PYOPENGL_PLATFORM=\${PYOPENGL_PLATFORM:-egl}"
+WRAP_CMD+=" && export EGL_PLATFORM=\${EGL_PLATFORM:-surfaceless}"
+WRAP_CMD+=" && \$PYTHON_BIN scripts/experiments/single_task_online/run_manifest_job.py"
+WRAP_CMD+=" --manifest \$MANIFEST --row-index \$SLURM_ARRAY_TASK_ID"
+WRAP_CMD+=" --project-root ${PROJECT_ROOT} --python-bin \$PYTHON_BIN"
+
 SBATCH_CMD=(
   sbatch
   --job-name="${JOB_NAME}"
   --account="${ACCOUNT}"
   --partition="${PARTITION}"
-  --qos=inferno
   --gres="${GRES}"
   --nodes=1
   --ntasks=1
@@ -135,8 +158,11 @@ SBATCH_CMD=(
   --output="${LOG_DIR}/${JOB_NAME}_%A_%a.out"
   --error="${LOG_DIR}/${JOB_NAME}_%A_%a.err"
   --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},MANIFEST=${MANIFEST},PYTHON_BIN=${PYTHON_BIN}"
-  --wrap="cd ${PROJECT_ROOT} && source ~/.bashrc && conda activate pwm && export PYTHONPATH=${PROJECT_ROOT}/src:\$PYTHONPATH && export MUJOCO_GL=\${MUJOCO_GL:-egl} && export PYOPENGL_PLATFORM=\${PYOPENGL_PLATFORM:-egl} && export EGL_PLATFORM=\${EGL_PLATFORM:-surfaceless} && \$PYTHON_BIN scripts/experiments/single_task_online/run_manifest_job.py --manifest \$MANIFEST --row-index \$SLURM_ARRAY_TASK_ID --project-root ${PROJECT_ROOT} --python-bin \$PYTHON_BIN"
+  --wrap="${WRAP_CMD}"
 )
+if [[ -n "${QOS}" ]]; then
+  SBATCH_CMD+=(--qos="${QOS}")
+fi
 
 echo "Submitting manifest array:"
 echo "  Manifest: ${MANIFEST}"
@@ -144,6 +170,12 @@ echo "  Rows: ${NUM_ROWS}"
 echo "  GPU: ${GPU_TYPE} (${GRES})"
 echo "  Partition: ${PARTITION}"
 echo "  Account: ${ACCOUNT}"
+if [[ -n "${QOS}" ]]; then
+  echo "  QoS: ${QOS}"
+fi
+if [[ -n "${CONDA_ENV}" ]]; then
+  echo "  Conda env: ${CONDA_ENV}"
+fi
 echo "  Array: ${ARRAY_RANGE}"
 echo "  Logs: ${LOG_DIR}"
 

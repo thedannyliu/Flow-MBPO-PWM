@@ -27,6 +27,10 @@ def split_overrides(raw: str) -> List[str]:
     return [token.strip() for token in raw.split(";") if token.strip()]
 
 
+def has_hydra_override(overrides: List[str], key: str) -> bool:
+    return any(token.startswith(f"{key}=") for token in overrides)
+
+
 def hydra_quote(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
@@ -120,6 +124,18 @@ def main() -> None:
                 )
                 break
 
+    row_overrides = split_overrides(row.get("overrides", ""))
+    if stage == "smoke" and not has_hydra_override(row_overrides, "alg.horizon"):
+        smoke_force_horizon = os.environ.get("SMOKE_FORCE_HORIZON", "1").strip()
+        if smoke_force_horizon:
+            row_overrides.append(f"alg.horizon={smoke_force_horizon}")
+
+    max_epochs = row["max_epochs"]
+    if stage == "smoke":
+        smoke_max_epochs = os.environ.get("SMOKE_MAX_EPOCHS_OVERRIDE", "").strip()
+        if smoke_max_epochs:
+            max_epochs = smoke_max_epochs
+
     train_cmd = [
         args.python_bin,
         "scripts/train_dflex.py",
@@ -133,7 +149,7 @@ def main() -> None:
         f"general.checkpoint_with_buffer={'true' if checkpoint_with_buffer else 'false'}",
         "general.run_wandb=true",
         f"general.eval_runs={row['eval_runs']}",
-        f"alg.max_epochs={row['max_epochs']}",
+        f"alg.max_epochs={max_epochs}",
         f"env.config.num_envs={row['num_envs']}",
         f"hydra.run.dir={output_dir}",
         f"++wandb.project={row['wandb_project']}",
@@ -148,7 +164,7 @@ def main() -> None:
         f"++experiment.method={method_key}",
         f"++experiment.hparam_profile={hparam_profile}",
     ]
-    train_cmd.extend(split_overrides(row.get("overrides", "")))
+    train_cmd.extend(row_overrides)
 
     run_command(train_cmd, cwd=project_root)
 
