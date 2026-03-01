@@ -14,7 +14,6 @@ Run the **PACE-Phoenix** portion of the single-task online RL campaign
 - `hopper`
 - `ant`
 - `anymal` (proxy via `mjlab_velocity_flat_unitree_go2`)
-- `velocity_flat_unitree_go2`
 
 Do **not** run tasks assigned to PACE-ICE.
 

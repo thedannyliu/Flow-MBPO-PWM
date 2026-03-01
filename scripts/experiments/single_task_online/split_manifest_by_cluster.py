@@ -18,6 +18,10 @@ from typing import Dict, List
 PACE_ICE_TASKS = {
     "humanoid",
     "snu_humanoid",
+    "leap_left_grasp_asymmetric",
+    "tracking_rough_unitree_g1",
+    "leap_left_inhand_pen_twirl",
+    # Backward compatibility for older manifests.
     "velocity_flat_unitree_g1",
     "tracking_flat_unitree_g1",
     "leap_left_handcube_rotate",
@@ -28,6 +32,7 @@ PACE_PHOENIX_TASKS = {
     "hopper",
     "ant",
     "anymal",
+    # Backward compatibility for older manifests.
     "velocity_flat_unitree_go2",
 }
 

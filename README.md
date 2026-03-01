@@ -80,9 +80,8 @@ Flow-MBPO-PWM/
 │   ├── algorithms/          # PWM training algorithm
 │   ├── models/              # WorldModel, FlowWorldModel, Actor
 │   └── utils/               # Helpers, integrators, monitoring
-├── scripts/                 # Active single-task scripts + legacy archive
-│   ├── experiments/single_task_online/
-│   └── legacy/
+├── scripts/                 # Active single-task training/eval/experiment scripts
+│   └── experiments/single_task_online/
 └── environment.yaml         # Conda environment
 ```
 

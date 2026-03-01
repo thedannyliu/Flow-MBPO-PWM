@@ -10,10 +10,9 @@ This directory is the active pipeline for the single-task online RL comparison
 - `anymal` (proxy via `mjlab_velocity_flat_unitree_go2`)
 - `humanoid`
 - `snu_humanoid` (proxy via `mjlab_velocity_flat_unitree_g1`)
-- `velocity_flat_unitree_go2`
-- `velocity_flat_unitree_g1`
-- `tracking_flat_unitree_g1`
-- `leap_left_handcube_rotate`
+- `leap_left_grasp_asymmetric`
+- `tracking_rough_unitree_g1`
+- `leap_left_inhand_pen_twirl`
 
 ## Core Files
 

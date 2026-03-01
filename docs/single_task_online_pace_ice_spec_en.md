@@ -11,8 +11,9 @@ Build a reproducible, high-throughput experiment system to compare PWM-style bas
 
 - dFlex tasks (PWM-compatible, GPU accelerated): Hopper / Ant / Anymal / Humanoid / SNU Humanoid
 - mjlab tasks (MuJoCo Warp backend, GPU accelerated):  
-  `Mjlab-Velocity-Flat-Unitree-Go2`, `Mjlab-Velocity-Flat-Unitree-G1`,  
-  `Mjlab-Tracking-Flat-Unitree-G1` (motion imitation), `Mjlab-Leap-Left-HandCube-Rotate` (in-hand manipulation)
+  `Mjlab-Leap-Left-Grasp-Asymmetric`,  
+  `Mjlab-Tracking-Rough-Unitree-G1` (motion imitation on stochastic rough terrain),  
+  `Mjlab-Leap-Left-InHand-Pen-Twirl` (high-frequency in-hand manipulation)
 
 Primary comparison target is PWM family only:
 
@@ -37,10 +38,9 @@ Primary comparison target is PWM family only:
 | dFlex | anymal | `dflex_anymal` | Medium | 1000 |
 | dFlex | humanoid | `dflex_humanoid` | Medium-High | 1000 |
 | dFlex | snu_humanoid | `dflex_snu_humanoid` | High | 1000 |
-| mjlab | velocity_flat_unitree_go2 | `mjlab_velocity_flat_unitree_go2` | Medium | 1000 |
-| mjlab | velocity_flat_unitree_g1 | `mjlab_velocity_flat_unitree_g1` | Medium | 1000 |
-| mjlab | tracking_flat_unitree_g1 | `mjlab_tracking_flat_unitree_g1` | Medium-High | 1000 |
-| mjlab | leap_left_handcube_rotate | `mjlab_leap_left_handcube_rotate` | High | 500 |
+| mjlab | leap_left_grasp_asymmetric | `mjlab_leap_left_grasp_asymmetric` | Medium | 500 |
+| mjlab | tracking_rough_unitree_g1 | `mjlab_tracking_rough_unitree_g1` | Medium-High | 1000 |
+| mjlab | leap_left_inhand_pen_twirl | `mjlab_leap_left_inhand_pen_twirl` | High | 500 |
 
 Notes:
 - mjlab task IDs can change between releases. Smoke stage is mandatory for ID/API validation before pilot/confirm stages.
@@ -180,10 +180,9 @@ Manifest and launcher:
 - `scripts/experiments/single_task_online/submit_profile_single.sh`
 
 Task configs:
-- `scripts/cfg/env/mjlab_velocity_flat_unitree_go2.yaml`
-- `scripts/cfg/env/mjlab_velocity_flat_unitree_g1.yaml`
-- `scripts/cfg/env/mjlab_tracking_flat_unitree_g1.yaml`
-- `scripts/cfg/env/mjlab_leap_left_handcube_rotate.yaml`
+- `scripts/cfg/env/mjlab_leap_left_grasp_asymmetric.yaml`
+- `scripts/cfg/env/mjlab_tracking_rough_unitree_g1.yaml`
+- `scripts/cfg/env/mjlab_leap_left_inhand_pen_twirl.yaml`
 
 Evaluation:
 - `scripts/eval/eval_online_single_task.py`

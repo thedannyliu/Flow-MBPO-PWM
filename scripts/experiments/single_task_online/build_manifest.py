@@ -38,32 +38,24 @@ TASK_SPECS: List[TaskSpec] = [
     TaskSpec("mjlab_proxy", "snu_humanoid", "mjlab_velocity_flat_unitree_g1", "high", 1000, {"smoke": 32, "pilot": 64, "confirm": 128}),
     TaskSpec(
         "mjlab",
-        "velocity_flat_unitree_go2",
-        "mjlab_velocity_flat_unitree_go2",
+        "leap_left_grasp_asymmetric",
+        "mjlab_leap_left_grasp_asymmetric",
         "medium",
-        1000,
+        500,
         {"smoke": 32, "pilot": 64, "confirm": 128},
     ),
     TaskSpec(
         "mjlab",
-        "velocity_flat_unitree_g1",
-        "mjlab_velocity_flat_unitree_g1",
-        "medium",
-        1000,
-        {"smoke": 32, "pilot": 64, "confirm": 128},
-    ),
-    TaskSpec(
-        "mjlab",
-        "tracking_flat_unitree_g1",
-        "mjlab_tracking_flat_unitree_g1",
+        "tracking_rough_unitree_g1",
+        "mjlab_tracking_rough_unitree_g1",
         "medium_high",
         1000,
         {"smoke": 32, "pilot": 48, "confirm": 96},
     ),
     TaskSpec(
         "mjlab",
-        "leap_left_handcube_rotate",
-        "mjlab_leap_left_handcube_rotate",
+        "leap_left_inhand_pen_twirl",
+        "mjlab_leap_left_inhand_pen_twirl",
         "high",
         500,
         {"smoke": 16, "pilot": 32, "confirm": 64},
@@ -108,7 +100,7 @@ HPARAM_PROFILES: Dict[str, List[str]] = {
 TASK_EXTRA_OVERRIDES: Dict[str, List[str]] = {
     # Motion-imitation tracking can produce very short episodes in early training.
     # Keep rollout slices valid for replay sampling during smoke/pilot bring-up.
-    "tracking_flat_unitree_g1": ["alg.horizon=1"],
+    "tracking_rough_unitree_g1": ["alg.horizon=1"],
 }
 
 

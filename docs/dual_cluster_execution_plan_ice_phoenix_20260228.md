@@ -27,16 +27,15 @@ Tasks are pinned to one cluster only (no cross-cluster resume/checkpoint merge).
 
 - `humanoid`
 - `snu_humanoid` (proxy: `mjlab_velocity_flat_unitree_g1`)
-- `velocity_flat_unitree_g1`
-- `tracking_flat_unitree_g1`
-- `leap_left_handcube_rotate`
+- `leap_left_grasp_asymmetric`
+- `tracking_rough_unitree_g1`
+- `leap_left_inhand_pen_twirl`
 
 ### PACE-Phoenix (throughput-oriented tasks)
 
 - `hopper`
 - `ant`
 - `anymal` (proxy: `mjlab_velocity_flat_unitree_go2`)
-- `velocity_flat_unitree_go2`
 
 ## Why This Split
 
