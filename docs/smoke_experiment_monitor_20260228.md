@@ -1,242 +1,152 @@
 # 正式訓練實驗監測紀錄
 
-> **最後更新**：2026-02-28 21:15 EST  
-> **分支**：`dev/unified-pwm-resume-20260223` (commit `c063efb`)  
-> **叢集**：PACE-ICE (`ice-gpu` partition)
+> **最後更新**：2026-02-28 21:32 EST  
+> **分支**：`dev/unified-pwm-resume-20260223` (commit `dea298b`)  
+> **叢集**：PACE-ICE (`ice-gpu` partition)  
+> **WandB Project**：[`flow-mbpo-formal-experiments`](https://wandb.ai/danny010324/flow-mbpo-formal-experiments)
 
 ---
 
-## 1. 實驗提交總覽
+## 1. 當前 Smoke 實驗狀態
 
-### 1.1 Smoke 階段（Stage 1）
+| GPU 類型 | Slurm Job ID | 狀態 | 已完成 | 執行中 | 待排隊 |
+|----------|-------------|------|--------|--------|--------|
+| **H100** | `4136881` | 🕐 PENDING | 0 | 0 | 32 |
+| **H200** | `4136882` | 🕐 PENDING | 0 | 0 | 32 |
+| **L40S** | `4136884` | 🔄 RUNNING | 4 | 6+ | ~22 |
 
-| GPU 類型 | Slurm Job ID | 總行數 | 併行上限 | 時間限制 | 提交時間 | 狀態 |
-|----------|-------------|--------|---------|---------|---------|------|
-| **H100** | `4136626` | 32 | %16 | 8h | 2026-02-28 21:12 | 🕐 PENDING |
-| **H200** | `4136628` | 32 | %16 | 8h | 2026-02-28 21:12 | 🕐 PENDING |
-| **L40S** | `4136632` | 32 | %16 | 8h | 2026-02-28 21:12 | 🔄 RUNNING (3/32) |
+### Manifest 設定
 
-### 1.2 Manifest 資訊
-
-- **檔案**：`scripts/experiments/single_task_online/manifests/smoke_formal_all_4methods_20260301.csv`
-- **組合**：8 任務 × 4 方法 × 1 seed (seed=0) = 32 行
-- **Epoch 數**：200
-- **Eval runs**：8
-- **WandB Project**：`flow-mbpo-single-task-online-smoke-formal-20260301`
+- **檔案**：`manifests/smoke_formal_all_4methods_20260301.csv`
+- **總行數**：32（8 任務 × 4 方法 × seed=0）
+- **Epochs**：200
+- **WandB Project**：`flow-mbpo-formal-experiments`（統一專案）
 
 ---
 
-## 2. 設定對齊驗證（已通過）
+## 2. WandB 實驗標注
 
-### 2.1 Manifest 參數
+每個 WandB run 自動包含以下資訊：
 
-| 參數 | 值 | 狀態 |
-|------|-----|------|
-| Stage | `smoke` | ✅ |
-| Seeds | `0` | ✅ |
-| Max epochs | `200` | ✅ |
-| Eval runs | `8` | ✅ |
-| Hparam profile | `default` | ✅ |
-| Method→Alg 映射 | 4/4 正確 | ✅ |
-| 任務覆蓋 | 8/8 完整 | ✅ |
-| Factorial 完整性 | 32/32 無重複 | ✅ |
+### 2.1 WandB Tags（自動產生）
 
-### 2.2 算法配置確認
+由 `train_dflex.py` 根據 `experiment.*` config 自動建立：
 
-| 方法 | 配置檔 | World Model | Policy | Actor units | WM units |
-|------|--------|-------------|--------|-------------|----------|
-| `mlpwm_mlppolicy` | `pwm_5M_baseline_final` | MLP `WorldModel` | MLP `ActorStochasticMLP` | [400,200,100] | [512,512] |
-| `flowwm_mlppolicy` | `pwm_5M_flow_v2_substeps4` | Flow `FlowWorldModel` | MLP `ActorStochasticMLP` | [400,200,100] | [512,512] |
-| `mlpwm_flowpolicy` | `pwm_5M_flowpolicy` | MLP `WorldModel` | Flow `ActorFlowODE` | [400,200,100] | [512,512] |
-| `flowwm_flowpolicy` | `pwm_5M_fullflow` | Flow `FlowWorldModel` | Flow `ActorFlowODE` | [400,200,100] | [512,512] |
+| Tag 格式 | 範例 | 用途 |
+|----------|------|------|
+| `stage_<X>` | `stage_smoke` | 實驗階段 |
+| `suite_<X>` | `suite_gym`, `suite_mjlab` | 任務套件 |
+| `task_<X>` | `task_hopper`, `task_anymal` | 具體任務 |
+| `method_<X>` | `method_flowwm_mlppolicy` | 方法組合 |
+| `gpu_type_<X>` | `gpu_type_L40S` | GPU 類型 |
+| `hparam_profile_<X>` | `hparam_profile_default` | 超參配置 |
+| `seed_<N>` | `seed_0` | 隨機種子 |
+| `single_task_online` | - | 實驗類型 |
+| `online_rl` | - | 訓練方式 |
+| `from_scratch` | - | 從頭訓練 |
 
-> ✅ 所有配置共用 critic=[400,200], encoder=[256], num_bins=101。僅 WM type 和 Policy type 有差異，實驗設計公平。
+### 2.2 WandB Config（自動記錄）
 
-### 2.3 Slurm 提交設定一致性
+```yaml
+experiment:
+  run_key: "smoke_gym_hopper_mlpwm_mlppolicy_s0_default"
+  stage: "smoke"
+  suite: "gym"
+  task: "hopper"
+  method: "mlpwm_mlppolicy"
+  hparam_profile: "default"
+  gpu_type: "L40S"           # ← 自動偵測
+  slurm_job_id: "4136884"
+  slurm_node: "atl1-1-03-004-21-0"
 
-| 參數 | H100 | H200 | L40S |
-|------|------|------|------|
-| Partition | `ice-gpu` | `ice-gpu` | `ice-gpu` |
-| Account | `coc` | `coc` | `coc` |
-| GRES | `gpu:h100:1` | `gpu:h200:1` | `gpu:l40s:1` |
-| Time | 8h | 8h | 8h |
-| Memory | 128G | 128G | 128G |
-| CPUs | 16 | 16 | 16 |
-| Conda env | `flow-mbpo` | `flow-mbpo` | `flow-mbpo` |
-| Array concurrency | %16 | %16 | %16 |
+runtime.slurm:
+  job_id: "..."
+  array_job_id: "..."
+  array_task_id: "0"
+  node_name: "atl1-1-03-004-21-0"
+  cluster_name: "..."
+  partition: "ice-gpu"
+```
 
----
+### 2.3 WandB Notes（自動附加 GPU 資訊）
 
-## 3. 任務 × 方法 矩陣
+`Single-task online RL from scratch on PACE-ICE. task=hopper, method=mlpwm_mlppolicy, profile=default | GPU=L40S node=atl1-1-03-004-21-0 job=4136884`
 
-### 3.1 Row Index 對照表
+### 2.4 WandB Run Name
 
-| Row | Task | Method | Run Key |
-|-----|------|--------|---------|
-| 0 | hopper | mlpwm_mlppolicy | smoke_gym_hopper_mlpwm_mlppolicy_s0_default |
-| 1 | hopper | flowwm_mlppolicy | smoke_gym_hopper_flowwm_mlppolicy_s0_default |
-| 2 | hopper | mlpwm_flowpolicy | smoke_gym_hopper_mlpwm_flowpolicy_s0_default |
-| 3 | hopper | flowwm_flowpolicy | smoke_gym_hopper_flowwm_flowpolicy_s0_default |
-| 4 | ant | mlpwm_mlppolicy | smoke_gym_ant_mlpwm_mlppolicy_s0_default |
-| 5 | ant | flowwm_mlppolicy | smoke_gym_ant_flowwm_mlppolicy_s0_default |
-| 6 | ant | mlpwm_flowpolicy | smoke_gym_ant_mlpwm_flowpolicy_s0_default |
-| 7 | ant | flowwm_flowpolicy | smoke_gym_ant_flowwm_flowpolicy_s0_default |
-| 8 | anymal | mlpwm_mlppolicy | smoke_mjlab_proxy_anymal_mlpwm_mlppolicy_s0_default |
-| 9 | anymal | flowwm_mlppolicy | smoke_mjlab_proxy_anymal_flowwm_mlppolicy_s0_default |
-| 10 | anymal | mlpwm_flowpolicy | smoke_mjlab_proxy_anymal_mlpwm_flowpolicy_s0_default |
-| 11 | anymal | flowwm_flowpolicy | smoke_mjlab_proxy_anymal_flowwm_flowpolicy_s0_default |
-| 12 | humanoid | mlpwm_mlppolicy | smoke_gym_humanoid_mlpwm_mlppolicy_s0_default |
-| 13 | humanoid | flowwm_mlppolicy | smoke_gym_humanoid_flowwm_mlppolicy_s0_default |
-| 14 | humanoid | mlpwm_flowpolicy | smoke_gym_humanoid_mlpwm_flowpolicy_s0_default |
-| 15 | humanoid | flowwm_flowpolicy | smoke_gym_humanoid_flowwm_flowpolicy_s0_default |
-| 16 | snu_humanoid | mlpwm_mlppolicy | smoke_mjlab_proxy_snu_humanoid_mlpwm_mlppolicy_s0_default |
-| 17 | snu_humanoid | flowwm_mlppolicy | smoke_mjlab_proxy_snu_humanoid_flowwm_mlppolicy_s0_default |
-| 18 | snu_humanoid | mlpwm_flowpolicy | smoke_mjlab_proxy_snu_humanoid_mlpwm_flowpolicy_s0_default |
-| 19 | snu_humanoid | flowwm_flowpolicy | smoke_mjlab_proxy_snu_humanoid_flowwm_flowpolicy_s0_default |
-| 20 | leap_left_grasp | mlpwm_mlppolicy | smoke_mjlab_leap_left_grasp_asymmetric_mlpwm_mlppolicy_s0_default |
-| 21 | leap_left_grasp | flowwm_mlppolicy | smoke_mjlab_leap_left_grasp_asymmetric_flowwm_mlppolicy_s0_default |
-| 22 | leap_left_grasp | mlpwm_flowpolicy | smoke_mjlab_leap_left_grasp_asymmetric_mlpwm_flowpolicy_s0_default |
-| 23 | leap_left_grasp | flowwm_flowpolicy | smoke_mjlab_leap_left_grasp_asymmetric_flowwm_flowpolicy_s0_default |
-| 24 | tracking_rough | mlpwm_mlppolicy | smoke_mjlab_tracking_rough_unitree_g1_mlpwm_mlppolicy_s0_default |
-| 25 | tracking_rough | flowwm_mlppolicy | smoke_mjlab_tracking_rough_unitree_g1_flowwm_mlppolicy_s0_default |
-| 26 | tracking_rough | mlpwm_flowpolicy | smoke_mjlab_tracking_rough_unitree_g1_mlpwm_flowpolicy_s0_default |
-| 27 | tracking_rough | flowwm_flowpolicy | smoke_mjlab_tracking_rough_unitree_g1_flowwm_flowpolicy_s0_default |
-| 28 | inhand_pen_twirl | mlpwm_mlppolicy | smoke_mjlab_leap_left_inhand_pen_twirl_mlpwm_mlppolicy_s0_default |
-| 29 | inhand_pen_twirl | flowwm_mlppolicy | smoke_mjlab_leap_left_inhand_pen_twirl_flowwm_mlppolicy_s0_default |
-| 30 | inhand_pen_twirl | mlpwm_flowpolicy | smoke_mjlab_leap_left_inhand_pen_twirl_mlpwm_flowpolicy_s0_default |
-| 31 | inhand_pen_twirl | flowwm_flowpolicy | smoke_mjlab_leap_left_inhand_pen_twirl_flowwm_flowpolicy_s0_default |
+格式：`<stage>_<suite>_<task>_<method>_s<seed>_<profile>`  
+範例：`smoke_gym_hopper_mlpwm_mlppolicy_s0_default`
+
+### 2.5 WandB Group
+
+格式：`single_task_online_<stage>_<suite>`  
+範例：`single_task_online_smoke_gym`
 
 ---
 
-## 4. 即時監測指令
+## 3. 在 WandB 中如何篩選實驗
 
-### 4.1 查看所有 Job 狀態
+### 按方法篩選
+```
+tags: method_flowwm_mlppolicy
+```
+
+### 按任務篩選
+```
+tags: task_hopper
+```
+
+### 按 GPU 類型篩選
+```
+tags: gpu_type_H100
+```
+
+### 交叉篩選（例：H100 上的 Flow WM + MLP Policy 在 humanoid 上）
+```
+tags: gpu_type_H100 AND method_flowwm_mlppolicy AND task_humanoid
+```
+
+---
+
+## 4. 監測指令
 
 ```bash
-# 總覽
+# 查看所有 job 狀態
 squeue -u $USER --format="%.12i %.9P %.25j %.2t %.10M %.6D %.25R"
 
-# 看特定 array job 詳細
-squeue -j 4136626   # H100
-squeue -j 4136628   # H200
-squeue -j 4136632   # L40S
-
-# 看已完成的 job 結果（含失敗）
-sacct -j 4136626 --format=JobID,State,ExitCode,Elapsed,MaxRSS --parsable2
-sacct -j 4136628 --format=JobID,State,ExitCode,Elapsed,MaxRSS --parsable2
-sacct -j 4136632 --format=JobID,State,ExitCode,Elapsed,MaxRSS --parsable2
-```
-
-### 4.2 GPU 使用率監測
-
-若某個 job 正在跑，可以登入該節點查看 GPU 使用率：
-```bash
-# 找出跑在哪個節點
-squeue -j <JOB_ID> --format="%N"
-
-# SSH 到節點後
-nvidia-smi
-# 或者使用 srun
-srun --jobid=<JOB_ID> nvidia-smi
-```
-
-### 4.3 Log 檔案路徑
-
-```bash
-# Stdout / Stderr
-ls logs/slurm/single_task_online/smoke/
-
-# H100 的 task 0 log
-cat logs/slurm/single_task_online/smoke/sto_smoke_H100_4136626_0.out
-
-# H200 的 task 5 log
-cat logs/slurm/single_task_online/smoke/sto_smoke_H200_4136628_5.out
-
-# L40S 的 task 10 log
-cat logs/slurm/single_task_online/smoke/sto_smoke_L40S_4136632_10.out
-```
-
-### 4.4 快速統計完成情況
-
-```bash
-# 統計各 job 的完成/失敗/執行中狀態
-for JOB in 4136626 4136628 4136632; do
+# 統計各 job 完成數
+for JOB in 4136881 4136882 4136884; do
   echo "=== Job $JOB ==="
-  sacct -j $JOB --format=State --noheader | sort | uniq -c | sort -rn
+  sacct -j $JOB --format=State --noheader | grep -v "^$" | sort | uniq -c
 done
-```
 
-### 4.5 檢查產出是否完整
-
-```bash
-# 搜尋所有 smoke 訓練產出
-find outputs/ -name "eval_summary.json" -newer scripts/experiments/single_task_online/manifests/smoke_formal_all_4methods_20260301.csv 2>/dev/null | wc -l
-
-# 檢查特定 run 的完整度
-for dir in outputs/2026-03-*/; do
-  ckpt=$(ls "$dir"/{best_policy,final_policy}.pt 2>/dev/null | head -1)
-  eval_json=$(ls "$dir"/eval/eval_summary.json 2>/dev/null)
-  echo "$dir: ckpt=${ckpt:-(missing)} eval=${eval_json:-(missing)}"
-done
+# 查看特定 task 的 log
+cat logs/slurm/single_task_online/smoke/sto_smoke_L40S_4136884_<TASK_ID>.out
+cat logs/slurm/single_task_online/smoke/sto_smoke_L40S_4136884_<TASK_ID>.err
 ```
 
 ---
 
-## 5. 進度追蹤表
+## 5. Row → Task × Method 對照表
 
-以下表格需手動更新（或等 job 完成後用指令填入）：
-
-### H100 Job `4136626`
-
-| Task ID | Row | Task × Method | 狀態 | 節點 | 時長 | 備註 |
-|---------|-----|---------------|------|------|------|------|
-| 0 | 0 | hopper × mlpwm_mlppolicy | 🕐 PENDING | - | - | - |
-| 1 | 1 | hopper × flowwm_mlppolicy | 🕐 PENDING | - | - | - |
-| ... | ... | ... | ... | ... | ... | ... |
-
-### H200 Job `4136628`
-
-| Task ID | Row | Task × Method | 狀態 | 節點 | 時長 | 備註 |
-|---------|-----|---------------|------|------|------|------|
-| 0 | 0 | hopper × mlpwm_mlppolicy | 🕐 PENDING | - | - | - |
-| ... | ... | ... | ... | ... | ... | ... |
-
-### L40S Job `4136632`
-
-| Task ID | Row | Task × Method | 狀態 | 節點 | 時長 | 備註 |
-|---------|-----|---------------|------|------|------|------|
-| 0 | 0 | hopper × mlpwm_mlppolicy | 🔄 RUNNING | atl1-1-03-004-21-0 | 0:01 | 初始化中 |
-| 1 | 1 | hopper × flowwm_mlppolicy | 🔄 RUNNING | atl1-1-03-004-21-0 | 0:01 | 初始化中 |
-| 2 | 2 | hopper × mlpwm_flowpolicy | 🔄 RUNNING | atl1-1-03-004-23-0 | 0:01 | 初始化中 |
-| 3–31 | 3–31 | 其餘 | 🕐 PENDING | - | - | 排隊中 |
+| Row | Task | Method |
+|-----|------|--------|
+| 0–3 | hopper | mlpwm→flowwm→mlpwm_flow→fullflow |
+| 4–7 | ant | 同上 |
+| 8–11 | anymal | 同上 |
+| 12–15 | humanoid | 同上 |
+| 16–19 | snu_humanoid | 同上 |
+| 20–23 | leap_left_grasp | 同上 |
+| 24–27 | tracking_rough | 同上 |
+| 28–31 | inhand_pen_twirl | 同上 |
 
 ---
 
-## 6. 異常處理 SOP
+## 6. 已知問題與修復
 
-| 問題 | 檢查方式 | 處理方式 |
-|------|---------|---------|
-| Job FAILED (exit ≠ 0) | `sacct -j <JOB_ID>` | 查 `.err` log，修復後用 `sbatch` 重跑單行 |
-| OOM | log 中出現 `CUDA out of memory` | 降低 `num_envs` 或改用更大 VRAM 的 GPU |
-| Timeout | Job state = `TIMEOUT` | 增加 `--time` 或用 packed mode 分批 |
-| WandB 未接收指標 | 登入 WandB project 查看 | 檢查 `WANDB_API_KEY` 和網路 |
-| Checkpoint 缺失 | `ls outputs/*/best_policy.pt` | 檢查 `alg.save_interval` 設定 |
-| Eval artifacts 缺失 | `ls outputs/*/eval/` | 檢查 eval script 是否被跳過 |
-
----
-
-## 7. 後續計畫
-
-1. **Smoke 完成後**（預計 3–6 小時內）
-   - 統計所有 32 行的完成情況
-   - 確認所有 checkpoint + eval artifacts 產出
-   - 檢查 WandB 指標
-
-2. **GPU 使用率評估**
-   - 若 smoke 期間 GPU 使用率 < 50%，考慮 Confirm 階段使用 Packed mode
-   - 目標：最大化 GPU 利用率與實驗迭代次數
-
-3. **直接進入 Confirm**（跳過 Pilot）
-   - 生成 Confirm manifest（10 seeds × 4 methods × 8 tasks = 320 行）
-   - 根據 smoke 結果決定使用哪種 GPU 類型
-   - 提交正式訓練
+| 問題 | 原因 | 修復 | Commit |
+|------|------|------|--------|
+| Hydra notes 解析錯誤 | GPU 資訊在 quotes 外 | 移入 `hydra_quote()` 內 | `dea298b` |
+| Hydra tags 列表歧義 | `a,b,c` 需 `[a,b,c]` | 移至 `train_dflex.py` 自動建立 | `dea298b` |
+| WandB pydantic tag 64 字元限制 | 整個列表當成單一 tag | 從 `experiment.*` 拆分建立 | `dea298b` |
+| 舊 checkpoint 導致意外 resume | 前次失敗留下 outputs | 清除 `scripts/outputs/` | 手動 |
