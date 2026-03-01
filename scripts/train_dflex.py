@@ -111,6 +111,8 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
     """Create a WandB run with proper naming.
     
     Supports name and notes from config override (e.g., ++wandb.name=XXX).
+    Auto-generates tags from experiment.* config fields for clear experiment
+    identification in the WandB dashboard.
     """
     env_name = job_config["env"]["config"]["_target_"].split(".")[-1]
     try:
@@ -135,8 +137,29 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
     
     # Get notes from config
     notes = getattr(wandb_cfg, 'notes', '') if hasattr(wandb_cfg, 'notes') else ''
-    tags = _normalize_wandb_tags(getattr(wandb_cfg, "tags", None))
     job_type = getattr(wandb_cfg, "job_type", "train")
+
+    # Auto-build tags from experiment.* config fields for clear WandB identification.
+    # This avoids Hydra override issues with list-valued tags.
+    experiment = job_config.get("experiment", {})
+    tags = []
+    for key in ("stage", "suite", "task", "method", "hparam_profile", "gpu_type"):
+        val = experiment.get(key, "")
+        if val:
+            tags.append(f"{key}_{val}")
+    seed_val = experiment.get("run_key", "")
+    if seed_val:
+        # Extract seed from run_key (e.g., smoke_gym_hopper_mlpwm_mlppolicy_s0_default)
+        import re
+        seed_match = re.search(r'_s(\d+)_', seed_val)
+        if seed_match:
+            tags.append(f"seed_{seed_match.group(1)}")
+    # Add base project tags
+    tags.extend(["single_task_online", "online_rl", "from_scratch"])
+    # Merge with any explicit tags from config (if provided)
+    explicit_tags = _normalize_wandb_tags(getattr(wandb_cfg, "tags", None))
+    if explicit_tags:
+        tags.extend(t for t in explicit_tags if t not in tags)
 
     # Record scheduler/runtime metadata in config for reproducibility.
     job_config.setdefault("runtime", {})
@@ -149,7 +172,7 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
         "partition": os.environ.get("SLURM_JOB_PARTITION", ""),
     }
     
-    print(f"Initializing WandB run: name='{name}', project='{wandb_cfg.project}'")
+    print(f"Initializing WandB run: name='{name}', project='{wandb_cfg.project}', tags={tags}")
     
     return wandb.init(
         project=wandb_cfg.project,

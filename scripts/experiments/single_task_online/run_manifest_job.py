@@ -36,6 +36,35 @@ def hydra_quote(value: str) -> str:
     return f'"{escaped}"'
 
 
+def detect_gpu_type() -> str:
+    """Auto-detect GPU type from CUDA device properties or Slurm GRES."""
+    # Try Slurm GRES first (e.g. gpu:h100:1)
+    gres = os.environ.get("SLURM_JOB_GPUS", "") or os.environ.get("SLURM_GRES", "")
+    for keyword in ("h100", "h200", "l40s", "a100", "v100", "a40", "rtx"):
+        if keyword in gres.lower():
+            return keyword.upper()
+    # Try Slurm node name pattern
+    node = os.environ.get("SLURMD_NODENAME", "")
+    if node:
+        # ICE node naming may not encode GPU type; fall through to CUDA
+        pass
+    # Try CUDA device name
+    try:
+        import torch
+        if torch.cuda.is_available():
+            gpu_name = torch.cuda.get_device_name(0).lower()
+            for keyword, label in [
+                ("h100", "H100"), ("h200", "H200"), ("l40s", "L40S"),
+                ("a100", "A100"), ("v100", "V100"), ("a40", "A40"),
+            ]:
+                if keyword in gpu_name:
+                    return label
+            return gpu_name.replace(" ", "_")[:20]
+    except Exception:
+        pass
+    return "unknown"
+
+
 def run_command(
     cmd: List[str],
     cwd: Path,
@@ -92,6 +121,13 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     logs_dir = output_dir / "logs"
 
+    # Detect GPU type and Slurm metadata for detailed WandB annotation
+    gpu_type = detect_gpu_type()
+    slurm_job_id = os.environ.get("SLURM_ARRAY_JOB_ID", os.environ.get("SLURM_JOB_ID", ""))
+    slurm_task_id = os.environ.get("SLURM_ARRAY_TASK_ID", "")
+    slurm_node = os.environ.get("SLURMD_NODENAME", "")
+    slurm_partition = os.environ.get("SLURM_JOB_PARTITION", "")
+
     wandb_tag_list = [
         "single_task_online",
         "online_rl",
@@ -102,7 +138,13 @@ def main() -> None:
         f"method_{method_key}",
         f"profile_{hparam_profile}",
         f"seed_{seed}",
+        f"gpu_{gpu_type}",
     ]
+    if slurm_partition:
+        wandb_tag_list.append(f"partition_{slurm_partition}")
+
+    print(f"[run_manifest_job] GPU={gpu_type} node={slurm_node} "
+          f"job={slurm_job_id}_{slurm_task_id} run_key={run_key}")
 
     resume_if_exists = os.environ.get("RESUME_IF_EXISTS", "1") != "0"
     latest_ckpt = logs_dir / "latest_checkpoint.pt"
@@ -136,6 +178,9 @@ def main() -> None:
         if smoke_max_epochs:
             max_epochs = smoke_max_epochs
 
+    notes_text = row['notes']
+    enriched_notes = f"{notes_text} | GPU={gpu_type} node={slurm_node} job={slurm_job_id}"
+
     train_cmd = [
         args.python_bin,
         "scripts/train_dflex.py",
@@ -156,13 +201,16 @@ def main() -> None:
         f"++wandb.group={row['wandb_group']}",
         f"++wandb.job_type=train",
         f"++wandb.name={run_key}",
-        f"++wandb.notes={hydra_quote(row['notes'])}",
+        f"++wandb.notes={hydra_quote(enriched_notes)}",
         f"++experiment.run_key={run_key}",
         f"++experiment.stage={stage}",
         f"++experiment.suite={suite}",
         f"++experiment.task={task_key}",
         f"++experiment.method={method_key}",
         f"++experiment.hparam_profile={hparam_profile}",
+        f"++experiment.gpu_type={gpu_type}",
+        f"++experiment.slurm_job_id={slurm_job_id}",
+        f"++experiment.slurm_node={slurm_node}",
     ]
     train_cmd.extend(row_overrides)
 
