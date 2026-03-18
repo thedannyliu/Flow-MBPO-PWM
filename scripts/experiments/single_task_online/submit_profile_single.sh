@@ -28,7 +28,7 @@ Required:
   --row-index INT
 
 Options:
-  --gpu-type {H100|H200|L40S}  (default: H100)
+  --gpu-type {H100|H200|A100|L40S}  (default: H100)
   --time HH:MM:SS              (default: 04:00:00)
   --mem SIZE                   (default: 128G)
   --cpus N                     (default: 16)
@@ -79,13 +79,18 @@ case "${GPU_TYPE}" in
     GRES="gpu:h200:1"
     DEFAULT_ACCOUNT="coc"
     ;;
+  A100)
+    PARTITION="ice-gpu"
+    GRES="gpu:a100:1"
+    DEFAULT_ACCOUNT="coc"
+    ;;
   L40S)
     PARTITION="ice-gpu"
     GRES="gpu:l40s:1"
     DEFAULT_ACCOUNT="coc"
     ;;
   *)
-    echo "Error: unsupported GPU type ${GPU_TYPE}"
+    echo "Error: unsupported GPU type ${GPU_TYPE}. Use H100, H200, A100, or L40S."
     exit 1
     ;;
 esac

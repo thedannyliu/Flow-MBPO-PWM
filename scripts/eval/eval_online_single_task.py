@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List
@@ -359,15 +360,42 @@ def maybe_log_to_wandb(
         return
 
     tags = [tag.strip() for tag in args.wandb_tags.split(",") if tag.strip()]
-    run = wandb.init(
+    for key in ("stage", "suite", "task", "method"):
+        value = str(metadata.get(key, "")).strip()
+        if value:
+            tag = f"{key}_{value}"
+            if tag not in tags:
+                tags.append(tag)
+    run_key = str(metadata.get("run_key", "")).strip()
+    if run_key:
+        seed_match = re.search(r"_s(\d+)_", run_key)
+        if seed_match:
+            seed_tag = f"seed_{seed_match.group(1)}"
+            if seed_tag not in tags:
+                tags.append(seed_tag)
+    if "purpose_eval" not in tags:
+        tags.append("purpose_eval")
+    job_type = (args.wandb_job_type or "eval").strip() or "eval"
+    job_tag = f"job_{job_type}"
+    if job_tag not in tags:
+        tags.append(job_tag)
+
+    run_id = (args.wandb_id or "").strip()
+    resume_mode = (args.wandb_resume or "").strip()
+    init_kwargs = dict(
         project=args.wandb_project,
         entity=args.wandb_entity or None,
         group=args.wandb_group or None,
         name=args.wandb_name or None,
         tags=tags or None,
-        job_type="eval",
+        job_type=job_type,
         config=metadata,
     )
+    if run_id:
+        init_kwargs["id"] = run_id
+    if resume_mode:
+        init_kwargs["resume"] = resume_mode
+    run = wandb.init(**init_kwargs)
     wandb.log({f"eval/{k}": v for k, v in summary.items()})
 
     rollout_video_mp4 = output_dir / "rollout.mp4"
@@ -474,6 +502,9 @@ def main() -> None:
     parser.add_argument("--wandb-group", default="")
     parser.add_argument("--wandb-name", default="")
     parser.add_argument("--wandb-tags", default="")
+    parser.add_argument("--wandb-job-type", default="eval")
+    parser.add_argument("--wandb-id", default="")
+    parser.add_argument("--wandb-resume", default="")
     parser.set_defaults(
         wandb_log_video=True,
         wandb_log_artifact=True,
@@ -531,6 +562,8 @@ def main() -> None:
     summary["checkpoint"] = str(checkpoint)
     summary["env_target"] = str(cfg.env.config.get("_target_", ""))
     summary["task_id"] = str(cfg.env.config.get("task_id", ""))
+    summary["requested_task_id"] = str(getattr(env, "requested_task_id", summary["task_id"]))
+    summary["resolved_task_id"] = str(getattr(env, "resolved_task_id", summary["task_id"]))
     summary["seed"] = float(cfg.general.get("seed", 0))
     summary["num_games_requested"] = float(args.num_games)
     summary["num_envs_eval"] = float(args.num_envs)

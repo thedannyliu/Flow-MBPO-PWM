@@ -68,7 +68,10 @@ class PWM:
         critic_method: str = "td-lambda",
         wm_batch_size: int = 256,
         wm_iterations: int = 8,
+        wm_bootstrap_iterations: int = 0,
         wm_grad_norm: float = 20.0,
+        wm_dyn_loss_weight: float = 1.0,
+        wm_rew_loss_weight: float = 1.0,
         wm_buffer_size: int = 1_000_000,
         save_interval: int = 500,  # how often to save policy
         device: str = "cuda",
@@ -80,6 +83,8 @@ class PWM:
         flow_integrator: str = "heun",  # 'heun' or 'euler'
         flow_substeps: int = 2,
         flow_tau_sampling: str = "uniform",  # 'uniform' or 'midpoint'
+        horizon_start: int = 0,
+        horizon_switch_epoch: int = 0,
         wandb_log_every_epoch: bool = True,
         save_init_policy: bool = False,
         save_latest_checkpoint: bool = True,
@@ -98,6 +103,8 @@ class PWM:
         assert critic_batches > 0
         assert critic_method in ["one-step", "td-lambda"]
         assert save_interval > 0
+        assert wm_dyn_loss_weight > 0
+        assert wm_rew_loss_weight > 0
 
         self.env = env
         if env is not None:
@@ -112,7 +119,10 @@ class PWM:
         self.device = torch.device(device)
         self.save_data = save_data
 
+        self.base_horizon = horizon
         self.horizon = horizon
+        self.horizon_start = int(horizon_start)
+        self.horizon_switch_epoch = int(horizon_switch_epoch)
         self.max_epochs = max_epochs
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
@@ -127,8 +137,11 @@ class PWM:
         self.critic_iterations = critic_iterations
         # self.critic_batch_size = self.num_envs * self.horizon // critic_batches
         self.wm_iterations = wm_iterations
+        self.wm_bootstrap_iterations = int(wm_bootstrap_iterations)
         self.wm_batch_size = wm_batch_size
         self.wm_grad_norm = wm_grad_norm
+        self.wm_dyn_loss_weight = float(wm_dyn_loss_weight)
+        self.wm_rew_loss_weight = float(wm_rew_loss_weight)
         self.wm_bootstrapped = False
         
         # Flow-matching configuration
@@ -259,6 +272,17 @@ class PWM:
             print_info(f"  - Tau Sampling: {self.flow_tau_sampling}")
         else:
             print_info("Using Baseline MLP Dynamics")
+        print_info(
+            f"WM loss weights: dyn={self.wm_dyn_loss_weight:.3f}, "
+            f"rew={self.wm_rew_loss_weight:.3f}"
+        )
+        if self.wm_bootstrap_iterations > 0:
+            print_info(f"WM bootstrap iterations override: {self.wm_bootstrap_iterations}")
+        if self.horizon_start > 0 and self.horizon_switch_epoch > 0:
+            print_info(
+                f"Horizon schedule enabled: start={self.horizon_start} "
+                f"-> base={self.base_horizon} at epoch {self.horizon_switch_epoch}"
+            )
 
     def _prune_checkpoint_files(self) -> None:
         """
@@ -277,6 +301,27 @@ class PWM:
                     print_info(f"Removed extra checkpoint artifact: {file_path.name}")
                 except Exception as exc:
                     print_warning(f"Could not remove {file_path}: {exc}")
+
+    def _scheduled_horizon(self, epoch: int) -> int:
+        """Step schedule: use shorter horizon first, then switch to base horizon."""
+        if self.horizon_start <= 0 or self.horizon_switch_epoch <= 0:
+            return self.base_horizon
+        if epoch < self.horizon_switch_epoch:
+            return min(self.base_horizon, self.horizon_start)
+        return self.base_horizon
+
+    def _apply_horizon_schedule(self, epoch: int) -> None:
+        target_horizon = int(self._scheduled_horizon(epoch))
+        if target_horizon == self.horizon:
+            return
+        old_horizon = self.horizon
+        self.horizon = target_horizon
+        if hasattr(self, "buffer") and self.buffer is not None:
+            self.buffer.set_horizon(self.horizon)
+        print_info(
+            f"Horizon schedule update at epoch {epoch}: "
+            f"{old_horizon} -> {self.horizon}"
+        )
 
     def init_buffers(self):
         # replay buffer
@@ -945,6 +990,7 @@ class PWM:
         if start_epoch > 0:
             print_info(f"Resuming training loop from epoch {start_epoch}/{self.max_epochs}")
         for epoch in range(start_epoch, self.max_epochs):
+            self._apply_horizon_schedule(epoch)
 
             if self.buffer.num_eps == 0:
                 with torch.no_grad():
@@ -1049,7 +1095,12 @@ class PWM:
             if self.wm_bootstrapped:
                 iters = self.wm_iterations
             else:
-                iters = self.env.episode_length
+                if self.wm_bootstrap_iterations > 0:
+                    iters = self.wm_bootstrap_iterations
+                elif self.env is not None and hasattr(self.env, "episode_length"):
+                    iters = int(self.env.episode_length)
+                else:
+                    iters = self.wm_iterations
                 print(f"training wm for {iters} iterations")
                 self.wm_bootstrapped = True
 
@@ -1137,6 +1188,11 @@ class PWM:
                 "dynamics_loss": tot_dynamics_loss,
                 "reward_loss": tot_reward_loss,
                 "term_loss": tot_term_loss,
+                "horizon_active": float(self.horizon),
+                "horizon_base": float(self.base_horizon),
+                "wm_train_iterations": float(iters),
+                "wm_dyn_loss_weight": float(self.wm_dyn_loss_weight),
+                "wm_rew_loss_weight": float(self.wm_rew_loss_weight),
                 "rollout_len": self.mean_horizon,
                 "fps": fps,
                 "policy_loss": mean_policy_loss,
@@ -1246,7 +1302,8 @@ class PWM:
         visualizer_path = Path(self.log_dir) / 'visualizer_data.pkl'
         try:
             with open(visualizer_path, 'wb') as f:
-                pickle.dump(self.visualizer, f)
+                state = self.visualizer.export_state() if self.visualizer else None
+                pickle.dump(state, f)
             print(f"Saved visualizer data to {visualizer_path}")
         except Exception as e:
             print(f"Warning: Failed to save visualizer data: {e}")
@@ -1368,6 +1425,10 @@ class PWM:
                 "best_reward": getattr(self, 'best_reward', -float('inf')),
                 "best_policy_loss": getattr(self, 'best_policy_loss', float('inf')),
                 "mean_horizon": getattr(self, 'mean_horizon', 0.0),
+                "active_horizon": int(self.horizon),
+                "base_horizon": int(self.base_horizon),
+                "buffer_num_eps": int(getattr(self.buffer, "num_eps", 0)),
+                "buffer_horizon": int(getattr(self.buffer, "horizon", self.horizon)),
             },
             str(log_dir / f"{filename}.pt"),
         )
@@ -1437,7 +1498,13 @@ class PWM:
             if os.path.exists(buffer_path):
                 self.buffer.load(buffer_path)
                 print(f"Loaded replay buffer from {buffer_path}")
-                self.buffer._num_eps = 100 # placeholder to avoid re-init
+                if "buffer_num_eps" in checkpoint:
+                    self.buffer._num_eps = int(checkpoint["buffer_num_eps"])
+                saved_buffer_horizon = int(
+                    checkpoint.get("buffer_horizon", getattr(self.buffer, "horizon", self.horizon))
+                )
+                if saved_buffer_horizon > 0:
+                    self.buffer.set_horizon(saved_buffer_horizon)
             else:
                 print(f"Warning: Buffer file not found at {buffer_path}")
 
@@ -1590,7 +1657,10 @@ class PWM:
         reward_loss = (rew_hat - rew) ** 2 * discount
         reward_loss = reward_loss.mean()
 
-        total_loss = dynamics_loss + reward_loss
+        total_loss = (
+            self.wm_dyn_loss_weight * dynamics_loss
+            + self.wm_rew_loss_weight * reward_loss
+        )
         total_loss /= self.horizon
         return (
             total_loss,

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import os
 import shlex
 import subprocess
@@ -29,6 +30,18 @@ def split_overrides(raw: str) -> List[str]:
 
 def has_hydra_override(overrides: List[str], key: str) -> bool:
     return any(token.startswith(f"{key}=") for token in overrides)
+
+
+TASK_FALLBACK_OVERRIDES: Dict[str, str] = {
+    # Keep horizon aligned with short-trajectory tasks during unstable phases.
+    "hopper": "alg.horizon=7",
+    "ant": "alg.horizon=14",
+    "anymal": "alg.horizon=7",
+    "humanoid": "alg.horizon=13",
+    "snu_humanoid": "alg.horizon=13",
+    "leap_left_grasp_asymmetric": "alg.horizon=13",
+    "tracking_rough_unitree_g1": "alg.horizon=1",
+}
 
 
 def hydra_quote(value: str) -> str:
@@ -65,6 +78,100 @@ def detect_gpu_type() -> str:
     return "unknown"
 
 
+def stable_wandb_run_id(project: str, run_key: str, job_type: str) -> str:
+    key = f"{project}::{job_type}::{run_key}"
+    return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+
+
+def derive_method_families(method_key: str) -> tuple[str, str]:
+    if method_key == "mlpwm_mlppolicy":
+        return "mlp", "mlp"
+    if method_key == "flowwm_mlppolicy":
+        return "flow", "mlp"
+    if method_key == "mlpwm_flowpolicy":
+        return "mlp", "flow"
+    if method_key == "flowwm_flowpolicy":
+        return "flow", "flow"
+    if "flowwm" in method_key:
+        return "flow", "unknown"
+    if "flowpolicy" in method_key:
+        return "unknown", "flow"
+    return "unknown", "unknown"
+
+
+def derive_stage_metadata(stage: str, suite: str, method_key: str) -> dict[str, str]:
+    wm_family, policy_family = derive_method_families(method_key)
+    strict_stage = "strict" in stage
+    original_pwm_aligned_stage = stage in {
+        "confirm_fair_small",
+        "confirm_fair_small_mjlab3",
+        "confirm_fair_small_mjlab_extra3",
+        "confirm_fair_small_mjlab6_strict",
+        "confirm_mjlab_curriculum4_strict_default",
+        "confirm_fair_small_tracking_rough_strict",
+        "confirm_tracking_rough_strict",
+        "confirm_mjlab_curriculum4_strict_default_h100shadow",
+    }
+    if original_pwm_aligned_stage:
+        alignment_status = "original_pwm_aligned"
+    elif strict_stage:
+        alignment_status = "strict_exploratory_aligned"
+    else:
+        alignment_status = "exploratory_or_historical"
+
+    if stage.startswith("confirm"):
+        comparison_role = "fair_compare" if original_pwm_aligned_stage else "historical_confirm"
+    else:
+        comparison_role = "strict_exploratory" if strict_stage else "exploratory"
+
+    task_resolution_policy = "strict_exact_task" if suite == "mjlab" and strict_stage else "default_resolution"
+    env_family = "mjlab" if suite.startswith("mjlab") or suite == "mjlab" else "gym_mujoco"
+
+    return {
+        "alignment_status": alignment_status,
+        "comparison_role": comparison_role,
+        "task_resolution_policy": task_resolution_policy,
+        "env_family": env_family,
+        "wm_family": wm_family,
+        "policy_family": policy_family,
+    }
+
+
+def build_wandb_tags(
+    *,
+    stage: str,
+    suite: str,
+    task_key: str,
+    method_key: str,
+    hparam_profile: str,
+    seed: int,
+    gpu_type: str,
+    slurm_partition: str,
+) -> list[str]:
+    metadata = derive_stage_metadata(stage, suite, method_key)
+    tags = [
+        "single_task_online",
+        "online_rl",
+        "from_scratch",
+        f"stage_{stage}",
+        f"suite_{suite}",
+        f"task_{task_key}",
+        f"method_{method_key}",
+        f"profile_{hparam_profile}",
+        f"seed_{seed}",
+        f"gpu_{gpu_type}",
+        f"alignment_{metadata['alignment_status']}",
+        f"comparison_{metadata['comparison_role']}",
+        f"envfamily_{metadata['env_family']}",
+        f"wm_{metadata['wm_family']}",
+        f"policy_{metadata['policy_family']}",
+        f"taskmatch_{metadata['task_resolution_policy']}",
+    ]
+    if slurm_partition:
+        tags.append(f"partition_{slurm_partition}")
+    return tags
+
+
 def run_command(
     cmd: List[str],
     cwd: Path,
@@ -83,6 +190,31 @@ def run_command(
         )
     result = subprocess.run(cmd, cwd=str(cwd), check=not allow_failure, env=env)
     return int(result.returncode)
+
+
+def checkpoint_is_loadable(path: Path) -> bool:
+    try:
+        import torch
+        try:
+            torch.load(path, map_location="cpu")
+            return True
+        except Exception as exc:
+            # PyTorch 2.6+ may fail on older full-object checkpoints when
+            # weights_only=True is implicitly used. Retry with weights_only=False
+            # before declaring the checkpoint corrupt.
+            msg = str(exc)
+            if "Weights only load failed" in msg:
+                try:
+                    torch.load(path, map_location="cpu", weights_only=False)
+                    return True
+                except Exception as exc2:
+                    print(f"Warning: invalid checkpoint file {path}: {exc2}")
+                    return False
+            print(f"Warning: invalid checkpoint file {path}: {exc}")
+            return False
+    except Exception as exc:
+        print(f"Warning: could not validate checkpoint {path}: {exc}")
+        return False
 
 
 def main() -> None:
@@ -128,20 +260,21 @@ def main() -> None:
     slurm_node = os.environ.get("SLURMD_NODENAME", "")
     slurm_partition = os.environ.get("SLURM_JOB_PARTITION", "")
 
-    wandb_tag_list = [
-        "single_task_online",
-        "online_rl",
-        "from_scratch",
-        f"stage_{stage}",
-        f"suite_{suite}",
-        f"task_{task_key}",
-        f"method_{method_key}",
-        f"profile_{hparam_profile}",
-        f"seed_{seed}",
-        f"gpu_{gpu_type}",
-    ]
-    if slurm_partition:
-        wandb_tag_list.append(f"partition_{slurm_partition}")
+    wandb_base_tags = build_wandb_tags(
+        stage=stage,
+        suite=suite,
+        task_key=task_key,
+        method_key=method_key,
+        hparam_profile=hparam_profile,
+        seed=seed,
+        gpu_type=gpu_type,
+        slurm_partition=slurm_partition,
+    )
+    wandb_tag_list = list(wandb_base_tags)
+    wandb_tag_list.extend(["purpose_eval", "job_eval"])
+    stage_metadata = derive_stage_metadata(stage, suite, method_key)
+    wandb_train_id = stable_wandb_run_id(row["wandb_project"], run_key, "train")
+    wandb_eval_id = stable_wandb_run_id(row["wandb_project"], run_key, "eval")
 
     print(f"[run_manifest_job] GPU={gpu_type} node={slurm_node} "
           f"job={slurm_job_id}_{slurm_task_id} run_key={run_key}")
@@ -153,10 +286,24 @@ def main() -> None:
     checkpoint_path = ""
     resume_training = False
     checkpoint_with_buffer = False
+    skip_train_if_final = os.environ.get("SKIP_TRAIN_IF_FINAL", "1") != "0"
+    force_reeval_if_final = os.environ.get("FORCE_REEVAL_IF_FINAL", "0") == "1"
+    validate_checkpoints = os.environ.get("VALIDATE_CHECKPOINTS", "1") != "0"
+    skip_train = False
+    ckpt_valid_cache: Dict[Path, bool] = {}
+
+    def is_ckpt_valid(path: Path) -> bool:
+        if not validate_checkpoints:
+            return True
+        if path not in ckpt_valid_cache:
+            ckpt_valid_cache[path] = checkpoint_is_loadable(path)
+        return ckpt_valid_cache[path]
 
     if resume_if_exists:
         for candidate in (latest_ckpt, final_ckpt, best_ckpt):
             if candidate.exists():
+                if not is_ckpt_valid(candidate):
+                    continue
                 checkpoint_path = str(candidate)
                 resume_training = True
                 checkpoint_with_buffer = candidate.with_suffix(".buffer").exists()
@@ -165,12 +312,32 @@ def main() -> None:
                     f"(with_buffer={checkpoint_with_buffer})"
                 )
                 break
+    if skip_train_if_final and final_ckpt.exists():
+        if is_ckpt_valid(final_ckpt):
+            skip_train = True
+            checkpoint_path = str(final_ckpt)
+            resume_training = False
+            checkpoint_with_buffer = False
+            print(
+                f"Detected completed training for {run_key} "
+                f"(final checkpoint: {final_ckpt}). Skipping train step."
+            )
+        else:
+            print(
+                f"Final checkpoint exists but is invalid for {run_key}: {final_ckpt}. "
+                "Will continue with resume/start-over path."
+            )
 
     row_overrides = split_overrides(row.get("overrides", ""))
     if stage == "smoke" and not has_hydra_override(row_overrides, "alg.horizon"):
         smoke_force_horizon = os.environ.get("SMOKE_FORCE_HORIZON", "1").strip()
         if smoke_force_horizon:
             row_overrides.append(f"alg.horizon={smoke_force_horizon}")
+    if not has_hydra_override(row_overrides, "alg.horizon"):
+        fallback_horizon = TASK_FALLBACK_OVERRIDES.get(task_key, "")
+        if fallback_horizon:
+            row_overrides.append(fallback_horizon)
+            print(f"Applied fallback task override for {task_key}: {fallback_horizon}")
 
     max_epochs = row["max_epochs"]
     if stage == "smoke":
@@ -201,6 +368,8 @@ def main() -> None:
         f"++wandb.group={row['wandb_group']}",
         f"++wandb.job_type=train",
         f"++wandb.name={run_key}",
+        f"++wandb.id={wandb_train_id}",
+        "++wandb.resume=allow",
         f"++wandb.notes={hydra_quote(enriched_notes)}",
         f"++experiment.run_key={run_key}",
         f"++experiment.stage={stage}",
@@ -209,15 +378,32 @@ def main() -> None:
         f"++experiment.method={method_key}",
         f"++experiment.hparam_profile={hparam_profile}",
         f"++experiment.gpu_type={gpu_type}",
+        f"++experiment.alignment_status={stage_metadata['alignment_status']}",
+        f"++experiment.comparison_role={stage_metadata['comparison_role']}",
+        f"++experiment.env_family={stage_metadata['env_family']}",
+        f"++experiment.wm_family={stage_metadata['wm_family']}",
+        f"++experiment.policy_family={stage_metadata['policy_family']}",
+        f"++experiment.task_resolution_policy={stage_metadata['task_resolution_policy']}",
+        f"++wandb.tags={hydra_quote(','.join(wandb_base_tags + ['purpose_train', 'job_train']))}",
         f"++experiment.slurm_job_id={slurm_job_id}",
         f"++experiment.slurm_node={slurm_node}",
     ]
     train_cmd.extend(row_overrides)
 
-    run_command(train_cmd, cwd=project_root)
+    if not skip_train:
+        run_command(train_cmd, cwd=project_root)
 
     if args.skip_eval or os.environ.get("SKIP_EVAL", "0") == "1":
         print("Skipping evaluation as requested.")
+        return
+
+    eval_output_dir = output_dir / "eval"
+    eval_summary_path = eval_output_dir / "eval_summary.json"
+    if skip_train and eval_summary_path.exists() and not force_reeval_if_final:
+        print(
+            f"Detected existing evaluation for completed run {run_key} "
+            f"({eval_summary_path}). Skipping eval step."
+        )
         return
 
     best_ckpt = output_dir / "logs" / "best_policy.pt"
@@ -228,7 +414,6 @@ def main() -> None:
             f"Expected checkpoint not found. Missing both {best_ckpt} and {final_ckpt}"
         )
 
-    eval_output_dir = output_dir / "eval"
     eval_output_dir.mkdir(parents=True, exist_ok=True)
     eval_cmd = [
         args.python_bin,
@@ -253,8 +438,14 @@ def main() -> None:
         row["wandb_group"],
         "--wandb-name",
         f"{run_key}_eval",
+        "--wandb-job-type",
+        "eval",
+        "--wandb-id",
+        wandb_eval_id,
+        "--wandb-resume",
+        "allow",
         "--wandb-tags",
-        ",".join(wandb_tag_list + ["job_eval"]),
+        ",".join(wandb_tag_list),
     ]
     eval_env = {
         "MUJOCO_GL": os.environ.get("MUJOCO_GL", "egl"),

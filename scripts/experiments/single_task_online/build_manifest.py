@@ -66,7 +66,7 @@ TASK_SPECS: List[TaskSpec] = [
 METHOD_SPECS: List[MethodSpec] = [
     MethodSpec(
         method_key="mlpwm_mlppolicy",
-        alg="pwm_5M_baseline_final",
+        alg="pwm_5M_baseline_pwmorig",
         description="PWM baseline (MLP world model + MLP policy)",
         extra_overrides=[],
     ),
@@ -102,6 +102,18 @@ TASK_EXTRA_OVERRIDES: Dict[str, List[str]] = {
     # Default horizon=16 requires 17-step trajectories; set to 7 so the
     # sampler only needs 8 steps, matching worst-case episode length.
     "hopper": ["alg.horizon=7"],
+    # Ant occasionally stalls around 15-step trajectories early in training.
+    # Use horizon=14 (15-step requirement) to prevent bootstrap failures.
+    "ant": ["alg.horizon=14"],
+    # Anymal proxy has shown repeated short-trajectory bootstrap failures
+    # during confirm runs; keep horizon conservative for stable replay sampling.
+    "anymal": ["alg.horizon=7"],
+    # Humanoid-class tasks can transiently collapse to ~14-16 step trajectories.
+    # Reduce required slice length from 17 to 14.
+    "humanoid": ["alg.horizon=13"],
+    "snu_humanoid": ["alg.horizon=13"],
+    # Dexterous grasp can also produce short episodes during unstable phases.
+    "leap_left_grasp_asymmetric": ["alg.horizon=13"],
     # Motion-imitation tracking can produce very short episodes in early training.
     # Keep rollout slices valid for replay sampling during smoke/pilot bring-up.
     "tracking_rough_unitree_g1": ["alg.horizon=1"],

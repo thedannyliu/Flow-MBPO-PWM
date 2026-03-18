@@ -1,5 +1,5 @@
 # Full Flow config: Flow World Model + Flow ODE Policy
-# Tests both Flow components together
+# Aligned to the original-PWM baseline except for flow-specific components.
 _target_: flow_mbpo_pwm.algorithms.pwm.PWM
 _recursive_: False
 actor_config:
@@ -59,9 +59,14 @@ actor_grad_norm: 1.0
 critic_grad_norm: 100.0
 wm_batch_size: 256
 wm_iterations: 8
+wm_bootstrap_iterations: 0
 wm_grad_norm: 20.0
+wm_dyn_loss_weight: 1.0
+wm_rew_loss_weight: 1.0
 wm_buffer_size: 1_000_000
 detach: True
+horizon_start: 0
+horizon_switch_epoch: 0
 save_interval: 500
 device: ${general.device}
 

@@ -8,6 +8,7 @@ mock_exporter.DiagnosticOptions = MagicMock
 mock_exporter.ExportOutput = MagicMock
 sys.modules['torch.onnx._internal.exporter'] = mock_exporter
 
+import hashlib
 import hydra, os, wandb, yaml
 from omegaconf import DictConfig, OmegaConf, open_dict
 from hydra.core.hydra_config import HydraConfig
@@ -107,6 +108,21 @@ def _normalize_wandb_tags(tags):
     return [str(tags)]
 
 
+def _derive_wandb_purpose(stage: str, job_type: str) -> str:
+    stage_norm = (stage or "").strip().lower()
+    job_type_norm = (job_type or "").strip().lower()
+    if job_type_norm == "eval":
+        return "eval"
+    if stage_norm in {"smoke", "sanity", "validation", "verify", "verification"}:
+        return "validation"
+    return "train"
+
+
+def _stable_wandb_run_id(project: str, run_key: str, job_type: str) -> str:
+    key = f"{project}::{job_type}::{run_key}"
+    return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+
+
 def create_wandb_run(wandb_cfg, job_config, run_id=None):
     """Create a WandB run with proper naming.
     
@@ -143,7 +159,20 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
     # This avoids Hydra override issues with list-valued tags.
     experiment = job_config.get("experiment", {})
     tags = []
-    for key in ("stage", "suite", "task", "method", "hparam_profile", "gpu_type"):
+    for key in (
+        "stage",
+        "suite",
+        "task",
+        "method",
+        "hparam_profile",
+        "gpu_type",
+        "alignment_status",
+        "comparison_role",
+        "env_family",
+        "wm_family",
+        "policy_family",
+        "task_resolution_policy",
+    ):
         val = experiment.get(key, "")
         if val:
             tags.append(f"{key}_{val}")
@@ -154,6 +183,9 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
         seed_match = re.search(r'_s(\d+)_', seed_val)
         if seed_match:
             tags.append(f"seed_{seed_match.group(1)}")
+    purpose = _derive_wandb_purpose(experiment.get("stage", ""), job_type)
+    tags.append(f"purpose_{purpose}")
+    tags.append(f"job_{job_type}")
     # Add base project tags
     tags.extend(["single_task_online", "online_rl", "from_scratch"])
     # Merge with any explicit tags from config (if provided)
@@ -172,9 +204,24 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
         "partition": os.environ.get("SLURM_JOB_PARTITION", ""),
     }
     
-    print(f"Initializing WandB run: name='{name}', project='{wandb_cfg.project}', tags={tags}")
-    
-    return wandb.init(
+    configured_run_id = getattr(wandb_cfg, "id", "") if hasattr(wandb_cfg, "id") else ""
+    configured_run_id = str(configured_run_id).strip()
+    experiment_run_key = str(experiment.get("run_key", "")).strip()
+    if run_id is None:
+        if configured_run_id:
+            run_id = configured_run_id
+        elif experiment_run_key:
+            run_id = _stable_wandb_run_id(wandb_cfg.project, experiment_run_key, job_type)
+    resume_mode = str(getattr(wandb_cfg, "resume", "") or "").strip()
+    if run_id and not resume_mode:
+        resume_mode = "allow"
+
+    print(
+        f"Initializing WandB run: name='{name}', project='{wandb_cfg.project}', "
+        f"id='{run_id or ''}', resume='{resume_mode or ''}', tags={tags}"
+    )
+
+    init_kwargs = dict(
         project=wandb_cfg.project,
         config=job_config,
         group=wandb_cfg.group if wandb_cfg.group else None,
@@ -183,9 +230,13 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
         job_type=job_type,
         name=name,
         notes=notes,
-        id=run_id,
-        resume=run_id is not None,
     )
+    if run_id:
+        init_kwargs["id"] = run_id
+    if resume_mode:
+        init_kwargs["resume"] = resume_mode
+
+    return wandb.init(**init_kwargs)
 
 
 @hydra.main(config_path="cfg", config_name="config.yaml", version_base="1.2")

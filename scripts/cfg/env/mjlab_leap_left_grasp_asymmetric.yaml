@@ -1,6 +1,7 @@
 config:
   _target_: flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env
   task_id: Mjlab-Leap-Left-Grasp-Asymmetric
+  strict_task_id_match: true
   task_id_fallbacks:
     - Mjlab-Lift-Cube-Yam
     - Mjlab-Lift-Cube-Yam-Rgb

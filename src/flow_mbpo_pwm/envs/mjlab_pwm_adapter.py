@@ -535,6 +535,7 @@ def _build_mjlab_env(
 def create_mjlab_pwm_env(
     task_id: str,
     task_id_fallbacks: Optional[Sequence[str]] = None,
+    strict_task_id_match: bool = False,
     num_envs: int = 64,
     device: str = "cuda",
     episode_length: int = 500,
@@ -582,6 +583,7 @@ def create_mjlab_pwm_env(
     env = None
     used_task_id = task_id
     last_error: Optional[Exception] = None
+    candidate_errors: Dict[str, str] = {}
 
     try:
         constructor, module_name, attr_name = _resolve_mjlab_constructor()
@@ -596,6 +598,7 @@ def create_mjlab_pwm_env(
                 break
             except Exception as err:
                 last_error = err
+                candidate_errors[candidate_task_id] = repr(err)
                 continue
     except ImportError:
         for candidate_task_id in candidate_task_ids:
@@ -613,12 +616,20 @@ def create_mjlab_pwm_env(
                 break
             except Exception as err:
                 last_error = err
+                candidate_errors[candidate_task_id] = repr(err)
                 continue
 
     if env is None:
         raise RuntimeError(
             f"Failed to create mjlab env for task candidates {candidate_task_ids}. "
             f"Last error: {last_error}"
+        )
+
+    if strict_task_id_match and used_task_id != task_id:
+        raise RuntimeError(
+            "MJLab task resolution fell back to a different task. "
+            f"requested_task_id={task_id}, resolved_task_id={used_task_id}. "
+            "Set strict_task_id_match=false only if this fallback is intentional."
         )
 
     # If constructor returns wrapped env tuple-like, keep only env object.
@@ -637,7 +648,17 @@ def create_mjlab_pwm_env(
         fail_on_missing_terminal_obs=fail_on_missing_terminal_obs,
         warn_missing_terminal_obs_every=warn_missing_terminal_obs_every,
     )
+    adapter.requested_task_id = task_id
+    adapter.resolved_task_id = used_task_id
+    adapter.task_id_candidates = tuple(candidate_task_ids)
+    adapter.task_id_resolution_errors = dict(candidate_errors)
 
+    if used_task_id != task_id:
+        print(
+            "[MJLabPWMAdapter] task fallback engaged "
+            f"(requested_task_id={task_id}, resolved_task_id={used_task_id}, "
+            f"candidate_errors={candidate_errors})"
+        )
     print(
         f"[MJLabPWMAdapter] initialized via {module_name}.{attr_name} "
         f"(task_id={used_task_id}, requested_task_id={task_id}, num_envs={adapter.num_envs}, "
