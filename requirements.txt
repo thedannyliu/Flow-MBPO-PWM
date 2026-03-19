@@ -1,24 +1,43 @@
-# mj warp reqs
-torch
-hydra-core
-omegaconf
-wandb
-imageio
-imageio-ffmpeg
-gym
-jax[cuda12]
-absl-py
+# Core ML
+torch>=2.6.0
+torchvision
+torchaudio
+tensordict>=0.4.0
+torchrl>=0.4.0
+
+# Configuration
+hydra-core>=1.2.0
+omegaconf>=2.3.0
+
+# Environment stacks
+dm_control>=1.0.0
+dm_env>=1.6
+gym>=0.26.0
+gymnasium
+mujoco>=3.0.0
+mujoco-mjx>=3.4.dev
 brax>=0.12.5
+jax[cuda12]
+lxml>=4.9.0
+warp-lang>=1.11
+rsl-rl-lib>=3.0.0
+
+# Utilities
+absl-py
 etils
 flax
-lxml
+imageio>=2.34.0
+imageio-ffmpeg>=0.5.1
+matplotlib>=3.7.0
 mediapy
 ml_collections
-mujoco-mjx>=3.4.dev
-mujoco>=3.4.dev
-warp-lang>=1.11
+numpy<2.0
 orbax-checkpoint>=0.11.22
-tqdm
-rsl-rl-lib>=3.0.0
-tensordict
-torchrl
+pandas>=2.0.0
+scipy>=1.10.0
+termcolor>=2.3.0
+tqdm>=4.65.0
+
+# Logging and interactive use
+wandb>=0.15.0
+ipython>=8.0.0
