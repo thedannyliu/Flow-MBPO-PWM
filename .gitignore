@@ -69,7 +69,10 @@ temp/
 *.tmp
 
 # Local reference only (do not track)
-# docs/
+docs/
+results/
+eval_results/
+mt30_results_summary.csv
 # baselines/
 # hf_pwm_repo/
 # docs/external/tdmpc2/
