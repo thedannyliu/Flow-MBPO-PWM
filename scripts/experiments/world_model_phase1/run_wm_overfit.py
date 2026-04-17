@@ -121,6 +121,12 @@ def _reward_to_scalar(agent: PWM, rew_hat: torch.Tensor) -> torch.Tensor:
     return rew_hat
 
 
+def _to_float(value) -> float:
+    if torch.is_tensor(value):
+        return float(value.detach())
+    return float(value)
+
+
 def _chunk_loss(agent: PWM, obs: torch.Tensor, act: torch.Tensor, rew: torch.Tensor):
     chunk_size = int(getattr(agent.wm, "chunk_size", 1))
     if chunk_size <= 1:
@@ -536,9 +542,9 @@ def main() -> None:
                 "phase1/val_gate_usage_max": val_metrics["gate_usage_max"],
                 "phase1/val_latent_action_norm": val_metrics["latent_action_norm"],
                 "phase1/iter_train_total_wm_loss": float(loss.item()),
-                "phase1/iter_train_dyn_loss": float(dyn_loss.detach()),
-                "phase1/iter_train_reward_loss": float(rew_loss.detach()),
-                "phase1/wm_grad_norm": float(wm_grad_norm.detach()),
+                "phase1/iter_train_dyn_loss": _to_float(dyn_loss),
+                "phase1/iter_train_reward_loss": _to_float(rew_loss),
+                "phase1/wm_grad_norm": _to_float(wm_grad_norm),
                 "phase1/elapsed_seconds": time.time() - start_time,
             }
             if wandb_run is not None:
@@ -554,8 +560,8 @@ def main() -> None:
 
         if i % args.log_every == 0:
             print(
-                f"[{i}/{args.train_iters}] loss={loss.item():.6f} dyn={float(dyn_loss.detach()):.6f} "
-                f"rew={float(rew_loss):.6f} grad={float(wm_grad_norm.detach()):.4f}"
+                f"[{i}/{args.train_iters}] loss={loss.item():.6f} dyn={_to_float(dyn_loss):.6f} "
+                f"rew={_to_float(rew_loss):.6f} grad={_to_float(wm_grad_norm):.4f}"
             )
 
     agent.save("final_world_model")
