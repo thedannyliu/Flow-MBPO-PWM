@@ -64,12 +64,18 @@ class WorldModel(nn.Module):
         multitask=False,
         tasks=None,
         task_dim=0,
+        rollout_consistency_weight=0.0,
+        rollout_consistency_steps=0,
+        rollout_reward_consistency_weight=0.0,
     ):
         super().__init__()
         self.multitask = multitask
         self.num_bins = num_bins
         self.vmin = vmin
         self.vmax = vmax
+        self.rollout_consistency_weight = float(rollout_consistency_weight)
+        self.rollout_consistency_steps = int(rollout_consistency_steps)
+        self.rollout_reward_consistency_weight = float(rollout_reward_consistency_weight)
         if self.multitask:
             self._task_emb = nn.Embedding(len(tasks), task_dim, max_norm=1)
             self._action_masks = torch.zeros(len(tasks), action_dim)
