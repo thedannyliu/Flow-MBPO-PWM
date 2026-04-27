@@ -1,0 +1,6 @@
+[submodule "external/tdmpc2"]
+	path = external/tdmpc2
+	url = git@github.com:nicklashansen/tdmpc2.git
+[submodule "mujoco_playground"]
+	path = mujoco_playground
+	url = git@github.com:google-deepmind/mujoco_playground.git

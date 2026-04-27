@@ -24,3 +24,5 @@ wandb:
   entity: 
   group: 
   notes: ""
+  tags: []
+  job_type: train

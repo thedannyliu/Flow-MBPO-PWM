@@ -23,29 +23,28 @@ pip install -e .
 
 ## Quick Start
 
-### Single-Task Training (dflex_ant)
+### Single-Task Online Pipeline (PACE-ICE + PACE-Phoenix)
 
-**Baseline (MLP World Model):**
-```bash
-cd scripts
-python train_dflex.py alg=pwm_5M_baseline_final
-```
-
-**Flow World Model (Heun, K=4):**
-```bash
-cd scripts
-python train_dflex.py alg=pwm_5M_flow_v2_substeps4
-```
-
-### Slurm Submission (Georgia Tech PACE Phoenix)
+The active workflow is under `scripts/experiments/single_task_online/`.
 
 ```bash
-# Baseline
-sbatch scripts/submit_5M_baseline_l40s_final.sh
+# Build a smoke manifest
+python scripts/experiments/single_task_online/build_manifest.py \
+  --stage smoke \
+  --output scripts/experiments/single_task_online/manifests/smoke_tmp.csv
 
-# Flow World Model
-sbatch scripts/submit_5M_flow_v2_l40s_final.sh
+# Split by cluster (fixed task-to-cluster assignment)
+python scripts/experiments/single_task_online/split_manifest_by_cluster.py \
+  --manifest scripts/experiments/single_task_online/manifests/smoke_tmp.csv
+
+# Submit on one cluster
+bash scripts/experiments/single_task_online/submit_manifest_array.sh \
+  --manifest scripts/experiments/single_task_online/manifests/smoke_tmp_pace_ice.csv \
+  --gpu-type H100 --max-concurrent 4
 ```
+
+See `scripts/experiments/single_task_online/README.md` for full usage, including packed mode
+(one GPU running multiple light rows concurrently).
 
 ## Configuration
 
@@ -81,7 +80,8 @@ Flow-MBPO-PWM/
 │   ├── algorithms/          # PWM training algorithm
 │   ├── models/              # WorldModel, FlowWorldModel, Actor
 │   └── utils/               # Helpers, integrators, monitoring
-├── scripts/                 # Training scripts and configs
+├── scripts/                 # Active single-task training/eval/experiment scripts
+│   └── experiments/single_task_online/
 └── environment.yaml         # Conda environment
 ```
 

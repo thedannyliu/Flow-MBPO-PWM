@@ -15,6 +15,8 @@ general:
   epochs: 10_000
   eval_freq: 200
   finetune_wm: False
+  # Resume training from a checkpoint (full state including optimizers)
+  resume_from: null
 
 wandb:
   project: 
@@ -37,7 +39,7 @@ seed_steps: ???
 horizon: 16
 
 buffer:
-  _target_: pwm.utils.buffer.Buffer
+  _target_: flow_mbpo_pwm.utils.buffer.Buffer
   buffer_size: ???
   batch_size: 512
   horizon: ${horizon}

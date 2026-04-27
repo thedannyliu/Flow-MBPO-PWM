@@ -1,9 +1,10 @@
+import math
 import os, time
 import wandb
 from pathlib import Path
 from omegaconf import DictConfig
 from hydra.utils import instantiate
-from typing import Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple
 
 # Disable torch compile to avoid ONNX import errors
 os.environ['TORCH_COMPILE_DISABLE'] = '1'
@@ -25,7 +26,7 @@ from flow_mbpo_pwm.utils.time_report import TimeReport
 from flow_mbpo_pwm.utils.average_meter import AverageMeter
 from flow_mbpo_pwm.models.model_utils import Ensemble
 from flow_mbpo_pwm.utils.buffer import Buffer
-from flow_mbpo_pwm.utils.monitoring import TrainingMonitor, WandBLogger, compute_gradient_stats
+from flow_mbpo_pwm.utils.monitoring import TrainingMonitor
 from flow_mbpo_pwm.utils.reproducibility import set_seed, ExperimentConfig, DatasetVerifier
 import pickle
 
@@ -67,7 +68,10 @@ class PWM:
         critic_method: str = "td-lambda",
         wm_batch_size: int = 256,
         wm_iterations: int = 8,
+        wm_bootstrap_iterations: int = 0,
         wm_grad_norm: float = 20.0,
+        wm_dyn_loss_weight: float = 1.0,
+        wm_rew_loss_weight: float = 1.0,
         wm_buffer_size: int = 1_000_000,
         save_interval: int = 500,  # how often to save policy
         device: str = "cuda",
@@ -79,6 +83,13 @@ class PWM:
         flow_integrator: str = "heun",  # 'heun' or 'euler'
         flow_substeps: int = 2,
         flow_tau_sampling: str = "uniform",  # 'uniform' or 'midpoint'
+        horizon_start: int = 0,
+        horizon_switch_epoch: int = 0,
+        wandb_log_every_epoch: bool = True,
+        save_init_policy: bool = False,
+        save_latest_checkpoint: bool = True,
+        save_final_with_buffer: bool = False,
+        prune_checkpoints_to_best_final: bool = True,
     ):
         # sanity check parameters
         assert horizon > 0
@@ -92,6 +103,8 @@ class PWM:
         assert critic_batches > 0
         assert critic_method in ["one-step", "td-lambda"]
         assert save_interval > 0
+        assert wm_dyn_loss_weight > 0
+        assert wm_rew_loss_weight > 0
 
         self.env = env
         if env is not None:
@@ -106,7 +119,10 @@ class PWM:
         self.device = torch.device(device)
         self.save_data = save_data
 
+        self.base_horizon = horizon
         self.horizon = horizon
+        self.horizon_start = int(horizon_start)
+        self.horizon_switch_epoch = int(horizon_switch_epoch)
         self.max_epochs = max_epochs
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
@@ -121,8 +137,11 @@ class PWM:
         self.critic_iterations = critic_iterations
         # self.critic_batch_size = self.num_envs * self.horizon // critic_batches
         self.wm_iterations = wm_iterations
+        self.wm_bootstrap_iterations = int(wm_bootstrap_iterations)
         self.wm_batch_size = wm_batch_size
         self.wm_grad_norm = wm_grad_norm
+        self.wm_dyn_loss_weight = float(wm_dyn_loss_weight)
+        self.wm_rew_loss_weight = float(wm_rew_loss_weight)
         self.wm_bootstrapped = False
         
         # Flow-matching configuration
@@ -130,7 +149,16 @@ class PWM:
         self.flow_integrator = flow_integrator
         self.flow_substeps = flow_substeps
         self.flow_tau_sampling = flow_tau_sampling
+        self.wandb_log_every_epoch = wandb_log_every_epoch
+        self.save_init_policy = bool(save_init_policy)
+        self.save_latest_checkpoint = bool(save_latest_checkpoint)
+        self.save_final_with_buffer = bool(save_final_with_buffer)
+        self.prune_checkpoints_to_best_final = bool(prune_checkpoints_to_best_final)
 
+        # Training progress
+        self.iter_count = 0
+        self.step_count = 0
+        self.best_reward = -float('inf')
         self.obs_rms = None
         if obs_rms:
             self.obs_rms = RunningMeanStd(shape=(self.num_obs,), device=self.device)
@@ -244,6 +272,56 @@ class PWM:
             print_info(f"  - Tau Sampling: {self.flow_tau_sampling}")
         else:
             print_info("Using Baseline MLP Dynamics")
+        print_info(
+            f"WM loss weights: dyn={self.wm_dyn_loss_weight:.3f}, "
+            f"rew={self.wm_rew_loss_weight:.3f}"
+        )
+        if self.wm_bootstrap_iterations > 0:
+            print_info(f"WM bootstrap iterations override: {self.wm_bootstrap_iterations}")
+        if self.horizon_start > 0 and self.horizon_switch_epoch > 0:
+            print_info(
+                f"Horizon schedule enabled: start={self.horizon_start} "
+                f"-> base={self.base_horizon} at epoch {self.horizon_switch_epoch}"
+            )
+
+    def _prune_checkpoint_files(self) -> None:
+        """
+        Keep only best/final checkpoints and their optional replay buffers.
+
+        This runs at the end of training so interrupted runs still retain
+        intermediate checkpoints for resume.
+        """
+        keep_files = {"best_policy.pt", "final_policy.pt", "best_policy.buffer", "final_policy.buffer"}
+        for pattern in ("*.pt", "*.buffer"):
+            for file_path in self.log_dir.glob(pattern):
+                if file_path.name in keep_files:
+                    continue
+                try:
+                    file_path.unlink()
+                    print_info(f"Removed extra checkpoint artifact: {file_path.name}")
+                except Exception as exc:
+                    print_warning(f"Could not remove {file_path}: {exc}")
+
+    def _scheduled_horizon(self, epoch: int) -> int:
+        """Step schedule: use shorter horizon first, then switch to base horizon."""
+        if self.horizon_start <= 0 or self.horizon_switch_epoch <= 0:
+            return self.base_horizon
+        if epoch < self.horizon_switch_epoch:
+            return min(self.base_horizon, self.horizon_start)
+        return self.base_horizon
+
+    def _apply_horizon_schedule(self, epoch: int) -> None:
+        target_horizon = int(self._scheduled_horizon(epoch))
+        if target_horizon == self.horizon:
+            return
+        old_horizon = self.horizon
+        self.horizon = target_horizon
+        if hasattr(self, "buffer") and self.buffer is not None:
+            self.buffer.set_horizon(self.horizon)
+        print_info(
+            f"Horizon schedule update at epoch {epoch}: "
+            f"{old_horizon} -> {self.horizon}"
+        )
 
     def init_buffers(self):
         # replay buffer
@@ -306,6 +384,95 @@ class PWM:
     @property
     def mean_horizon(self):
         return self.horizon_length_meter.get_mean()
+
+    def _start_timer_if_exists(self, name: str):
+        if hasattr(self, "time_report") and name in self.time_report.timers:
+            self.time_report.start_timer(name)
+
+    def _end_timer_if_exists(self, name: str):
+        if hasattr(self, "time_report") and name in self.time_report.timers:
+            self.time_report.end_timer(name)
+
+    def _safe_float(self, value):
+        if torch.is_tensor(value):
+            if value.numel() == 0:
+                return float("nan")
+            if value.numel() == 1:
+                return float(value.detach().cpu().item())
+            return float(value.detach().cpu().mean().item())
+        try:
+            return float(value)
+        except Exception:
+            return value
+
+    def _collect_env_diagnostics(self) -> Dict[str, float]:
+        if self.env is None or not hasattr(self.env, "get_diagnostics"):
+            return {}
+        try:
+            diagnostics = self.env.get_diagnostics(reset=False)
+        except Exception:
+            return {}
+
+        results = {}
+        for key, val in diagnostics.items():
+            val = self._safe_float(val)
+            if isinstance(val, float) and math.isfinite(val):
+                results[f"env/{key}"] = val
+        return results
+
+    def _collect_buffer_metrics(self) -> Dict[str, float]:
+        if not hasattr(self, "buffer") or self.buffer is None:
+            return {}
+        num_eps = float(getattr(self.buffer, "num_eps", 0.0))
+        capacity_steps = float(getattr(self.buffer, "capacity", 0.0))
+        episode_len = float(getattr(self.env, "episode_length", 1.0)) if self.env else 1.0
+        capacity_eps = max(1.0, capacity_steps / max(1.0, episode_len))
+        return {
+            "buffer/num_episodes": num_eps,
+            "buffer/capacity_steps": capacity_steps,
+            "buffer/capacity_episodes_estimate": capacity_eps,
+            "buffer/fill_ratio_estimate": min(1.0, num_eps / capacity_eps),
+        }
+
+    def _collect_gpu_metrics(self) -> Dict[str, float]:
+        if not torch.cuda.is_available():
+            return {}
+        device_idx = self.device.index if self.device.index is not None else 0
+        try:
+            props = torch.cuda.get_device_properties(device_idx)
+            total_bytes = float(props.total_memory)
+            allocated = float(torch.cuda.memory_allocated(device_idx))
+            reserved = float(torch.cuda.memory_reserved(device_idx))
+            max_allocated = float(torch.cuda.max_memory_allocated(device_idx))
+            max_reserved = float(torch.cuda.max_memory_reserved(device_idx))
+            return {
+                "gpu/memory_allocated_bytes": allocated,
+                "gpu/memory_reserved_bytes": reserved,
+                "gpu/memory_allocated_ratio": allocated / max(1.0, total_bytes),
+                "gpu/memory_reserved_ratio": reserved / max(1.0, total_bytes),
+                "gpu/max_memory_allocated_bytes": max_allocated,
+                "gpu/max_memory_reserved_bytes": max_reserved,
+                "gpu/total_memory_bytes": total_bytes,
+            }
+        except Exception:
+            return {}
+
+    def _compute_profile_metrics(
+        self,
+        prev_timer_totals: Dict[str, float],
+        epoch_wall_seconds: float,
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        cur_timer_totals = self.time_report.get_timer_totals()
+        profile = {"profile/epoch_wall_seconds": float(epoch_wall_seconds)}
+
+        denom = max(epoch_wall_seconds, 1e-8)
+        for timer_name, cur_total in cur_timer_totals.items():
+            delta = max(0.0, cur_total - prev_timer_totals.get(timer_name, 0.0))
+            safe_name = timer_name.replace(" ", "_")
+            profile[f"profile/{safe_name}_seconds"] = delta
+            profile[f"profile/{safe_name}_pct"] = 100.0 * delta / denom
+
+        return profile, cur_timer_totals
 
     def compute_actor_loss(self, obs=None, task=None):
 
@@ -389,7 +556,9 @@ class PWM:
                 rew = torch.nan_to_num(rew, 0.0, 0.0, 0.0)
 
             if self.env:
+                self._start_timer_if_exists("env step")
                 obs, gt_rew, gt_done, info = self.env.step(actions)
+                self._end_timer_if_exists("env step")
                 term = info["termination"]
                 gt_term = info["termination"]
                 gt_trunc = info["truncation"]
@@ -711,8 +880,9 @@ class PWM:
 
         self.init_buffers()
 
-        # save initial policy for reproducibility
-        self.save("init_policy")
+        # Optional initial snapshot for debugging/reproducibility.
+        if self.save_init_policy:
+            self.save("init_policy")
 
         self.start_time = time.time()
 
@@ -720,6 +890,7 @@ class PWM:
         self.time_report.add_timer("algorithm")
         self.time_report.add_timer("compute actor loss")
         self.time_report.add_timer("forward simulation")
+        self.time_report.add_timer("env step")
         self.time_report.add_timer("backward simulation")
         self.time_report.add_timer("prepare critic dataset")
         self.time_report.add_timer("actor training")
@@ -812,12 +983,29 @@ class PWM:
 
             return actor_loss
 
+        prev_timer_totals = self.time_report.get_timer_totals()
+
         # main training process
-        for epoch in range(self.max_epochs):
+        start_epoch = int(self.iter_count)
+        if start_epoch > 0:
+            print_info(f"Resuming training loop from epoch {start_epoch}/{self.max_epochs}")
+        for epoch in range(start_epoch, self.max_epochs):
+            self._apply_horizon_schedule(epoch)
 
             if self.buffer.num_eps == 0:
                 with torch.no_grad():
                     self.compute_actor_loss()
+                prev_timer_totals = self.time_report.get_timer_totals()
+
+                if self.log and self.wandb_log_every_epoch:
+                    warmup_metrics = {
+                        "warmup/buffer_num_eps": float(self.buffer.num_eps),
+                        "warmup/step_count": float(self.step_count),
+                    }
+                    warmup_metrics.update(self._collect_env_diagnostics())
+                    warmup_metrics.update(self._collect_buffer_metrics())
+                    warmup_metrics.update(self._collect_gpu_metrics())
+                    wandb.log(warmup_metrics, step=self.step_count)
                 continue
 
             time_start_epoch = time.time()
@@ -907,7 +1095,12 @@ class PWM:
             if self.wm_bootstrapped:
                 iters = self.wm_iterations
             else:
-                iters = self.env.episode_length
+                if self.wm_bootstrap_iterations > 0:
+                    iters = self.wm_bootstrap_iterations
+                elif self.env is not None and hasattr(self.env, "episode_length"):
+                    iters = int(self.env.episode_length)
+                else:
+                    iters = self.wm_iterations
                 print(f"training wm for {iters} iterations")
                 self.wm_bootstrapped = True
 
@@ -966,12 +1159,19 @@ class PWM:
 
             self.iter_count += 1
             time_end_epoch = time.time()
-            fps = self.horizon * self.num_envs / (time_end_epoch - time_start_epoch)
+            epoch_wall_seconds = time_end_epoch - time_start_epoch
+            fps = self.horizon * self.num_envs / max(epoch_wall_seconds, 1e-8)
             mean_episode_length = self.episode_length_meter.get_mean()
             mean_policy_loss = self.episode_loss_meter.get_mean()
             mean_policy_discounted_loss = self.episode_discounted_loss_meter.get_mean()
             mean_episode_primal = self.episode_primal_meter.get_mean()
             ac_stddev = self.actor.get_logstd().exp().mean().detach().cpu().item()
+            actor_loss_val = self._safe_float(actor_loss)
+            value_loss_val = self._safe_float(value_loss)
+            actor_grad_norm_before = self._safe_float(self.actor_grad_norm_before_clip)
+            actor_grad_norm_after = self._safe_float(self.actor_grad_norm_after_clip)
+            critic_grad_norm_val = self._safe_float(critic_grad_norm)
+            wm_grad_norm_val = self._safe_float(wm_grad_norm)
 
             if mean_policy_loss < self.best_policy_loss:
                 print_info("save best policy with loss {:.2f}".format(mean_policy_loss))
@@ -979,13 +1179,20 @@ class PWM:
                 self.best_policy_loss = mean_policy_loss
 
             metrics = {
+                "train/iter_count": float(self.iter_count),
+                "train/epoch_index_zero_based": float(epoch),
                 "actor_lr": lr,
-                "actor_loss": actor_loss,
-                "value_loss": value_loss,
+                "actor_loss": actor_loss_val,
+                "value_loss": value_loss_val,
                 "wm_loss": tot_wm_loss,
                 "dynamics_loss": tot_dynamics_loss,
                 "reward_loss": tot_reward_loss,
                 "term_loss": tot_term_loss,
+                "horizon_active": float(self.horizon),
+                "horizon_base": float(self.base_horizon),
+                "wm_train_iterations": float(iters),
+                "wm_dyn_loss_weight": float(self.wm_dyn_loss_weight),
+                "wm_rew_loss_weight": float(self.wm_rew_loss_weight),
                 "rollout_len": self.mean_horizon,
                 "fps": fps,
                 "policy_loss": mean_policy_loss,
@@ -995,9 +1202,10 @@ class PWM:
                 "best_policy_loss": self.best_policy_loss,
                 "episode_lengths": mean_episode_length,
                 "actor_std": ac_stddev,
-                "actor_grad_norm": self.actor_grad_norm_before_clip,
-                "critic_grad_norm": critic_grad_norm,
-                "wm_grad_norm": wm_grad_norm,
+                "actor_grad_norm": actor_grad_norm_before,
+                "actor_grad_norm_after_clip": actor_grad_norm_after,
+                "critic_grad_norm": critic_grad_norm_val,
+                "wm_grad_norm": wm_grad_norm_val,
                 "episode_end": self.episode_end,
                 "early_termination": self.early_termination,
                 "sample_rew_mean": sample_rew_mean,
@@ -1020,42 +1228,33 @@ class PWM:
                         ret_rms_var=self.ret_rms.var.item(),
                     )
                 )
+            profile_metrics, prev_timer_totals = self._compute_profile_metrics(
+                prev_timer_totals,
+                epoch_wall_seconds,
+            )
+            metrics.update(profile_metrics)
+            metrics.update(self._collect_env_diagnostics())
+            metrics.update(self._collect_buffer_metrics())
+            metrics.update(self._collect_gpu_metrics())
+
             metrics = filter_dict(metrics)
             
             # Update training monitor and visualizer
             self.training_monitor.update(
                 epoch=epoch,
                 metrics={
-                    'reward': -mean_policy_loss,
-                    'actor_loss': actor_loss.item() if hasattr(actor_loss, 'item') else actor_loss,
-                    'value_loss': value_loss.item() if hasattr(value_loss, 'item') else value_loss,
+                    'rewards': -mean_policy_loss,
+                    'actor_loss': actor_loss_val,
+                    'value_loss': value_loss_val,
                     'wm_loss': tot_wm_loss,
                 }
             )
             if self.visualizer:
                 self.visualizer.add_data(self.step_count, metrics)
             
-            # Enhanced WandB logging
-            if self.log and (self.iter_count % 50 == 0):
+            # Log all scalar metrics each epoch.
+            if self.log and self.wandb_log_every_epoch:
                 wandb.log(metrics, step=self.step_count)
-                
-                # Log gradient histograms every 200 epochs
-                if self.wandb_logger and (self.iter_count % 200 == 0):
-                    self.wandb_logger.log_gradient_distributions(
-                        self.actor,
-                        prefix='actor_gradients',
-                        step=self.step_count
-                    )
-                    self.wandb_logger.log_gradient_distributions(
-                        self.critic,
-                        prefix='critic_gradients',
-                        step=self.step_count
-                    )
-                    self.wandb_logger.log_gradient_distributions(
-                        self.wm,
-                        prefix='wm_gradients',
-                        step=self.step_count
-                    )
 
             print(
                 "[{:}/{:}]  R:{:.2f}  T:{:.1f}  H:{:.1f}  S:{:}  FPS:{:0.0f}  pi_loss:{:.2f}  pi_grad:{:.2f}/{:.2f}  v_loss:{:.2f}  wm_loss:{:.2f}  rew_loss:{:.2f}  dyn_loss:{:.2f}".format(
@@ -1066,10 +1265,10 @@ class PWM:
                     self.mean_horizon,
                     self.step_count,
                     fps,
-                    actor_loss,
-                    self.actor_grad_norm_before_clip,
-                    self.actor_grad_norm_after_clip,
-                    value_loss,
+                    actor_loss_val,
+                    actor_grad_norm_before,
+                    actor_grad_norm_after,
+                    value_loss_val,
                     tot_wm_loss,
                     tot_reward_loss,
                     tot_dynamics_loss,
@@ -1078,24 +1277,33 @@ class PWM:
 
             # Save checkpoint at specified intervals (default 500 iters)
             # Note: We also save 'best_policy' when policy improves and 'final_policy' at end
-            if self.iter_count % self.save_interval == 0:
+            if self.save_latest_checkpoint and self.iter_count % self.save_interval == 0:
                 self.save("latest_checkpoint")
 
         self.time_report.end_timer("algorithm")
 
         # Close training monitor and log timing stats
         timing_stats = self.training_monitor.close()
-        if self.wandb_logger:
-            self.wandb_logger.log(
-                {'training_time_total': timing_stats['total_time']},
-                step=self.step_count
-            )
+        if self.log:
+            final_timers = self.time_report.get_timer_totals()
+            timing_metrics = {
+                "profile/training_time_total_seconds": timing_stats["total_time"],
+                "profile/training_time_avg_epoch_seconds": timing_stats["avg_epoch_time"],
+                "profile/training_time_median_epoch_seconds": timing_stats[
+                    "median_epoch_time"
+                ],
+            }
+            for timer_name, timer_total in final_timers.items():
+                safe_name = timer_name.replace(" ", "_")
+                timing_metrics[f"profile/total_{safe_name}_seconds"] = timer_total
+            wandb.log(timing_metrics, step=self.step_count)
         
         # Save visualizer data for later analysis
         visualizer_path = Path(self.log_dir) / 'visualizer_data.pkl'
         try:
             with open(visualizer_path, 'wb') as f:
-                pickle.dump(self.visualizer, f)
+                state = self.visualizer.export_state() if self.visualizer else None
+                pickle.dump(state, f)
             print(f"Saved visualizer data to {visualizer_path}")
         except Exception as e:
             print(f"Warning: Failed to save visualizer data: {e}")
@@ -1110,7 +1318,9 @@ class PWM:
 
         self.time_report.report()
 
-        self.save("final_policy", buffer=True)
+        self.save("final_policy", buffer=self.save_final_with_buffer)
+        if self.prune_checkpoints_to_best_final:
+            self._prune_checkpoint_files()
 
     def update(self, obs, act, rew, task, finetune_wm=False):
 
@@ -1187,13 +1397,13 @@ class PWM:
             "value_loss": value_loss.item(),
             "actor_grad_norm": self.actor_grad_norm_before_clip.item(),
             "critic_grad_norm": critic_grad_norm.item(),
+            "actor_stddev": ac_stddev,
         }
         if finetune_wm:
-            metrics["wm_loss"] = wm_loss
-            metrics["dynamics_loss"] = dyn_loss
-            metrics["reward_loss"] = rew_loss
-            metrics["wm_grad_norm"] = wm_grad_norm
-        metrics = filter_dict(metrics)
+            metrics["wm_loss"] = wm_loss.item() if torch.is_tensor(wm_loss) else wm_loss
+            metrics["dynamics_loss"] = dyn_loss.item() if torch.is_tensor(dyn_loss) else dyn_loss
+            metrics["reward_loss"] = rew_loss.item() if torch.is_tensor(rew_loss) else rew_loss
+            metrics["wm_grad_norm"] = wm_grad_norm.item() if torch.is_tensor(wm_grad_norm) else wm_grad_norm
         return metrics
 
     def save(self, filename, log_dir=None, buffer=False):
@@ -1210,14 +1420,19 @@ class PWM:
                 "critic_opt": self.critic_optimizer.state_dict(),
                 "world_model_opt": self.wm_optimizer.state_dict(),
                 # Training progress
-                "iter_count": self.iter_count,
-                "step_count": self.step_count,
-                "best_policy_loss": self.best_policy_loss,
-                "mean_horizon": self.mean_horizon,
+                "iter_count": getattr(self, 'iter_count', 0),
+                "step_count": getattr(self, 'step_count', 0),
+                "best_reward": getattr(self, 'best_reward', -float('inf')),
+                "best_policy_loss": getattr(self, 'best_policy_loss', float('inf')),
+                "mean_horizon": getattr(self, 'mean_horizon', 0.0),
+                "active_horizon": int(self.horizon),
+                "base_horizon": int(self.base_horizon),
+                "buffer_num_eps": int(getattr(self.buffer, "num_eps", 0)),
+                "buffer_horizon": int(getattr(self.buffer, "horizon", self.horizon)),
             },
             str(log_dir / f"{filename}.pt"),
         )
-        if buffer:
+        if buffer and self.buffer.num_eps > 0:
             self.buffer.save(str(log_dir / f"{filename}.buffer"))
 
     def load(self, path, buffer=False, resume_training=False):
@@ -1230,7 +1445,7 @@ class PWM:
             resume_training: Whether to restore training progress (iter_count, step_count, etc.)
         """
         print("Loading checkpoint from", path)
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         
         # Load model states
         self.actor.load_state_dict(checkpoint["actor"])
@@ -1269,49 +1484,65 @@ class PWM:
         if resume_training and "iter_count" in checkpoint:
             self.iter_count = checkpoint["iter_count"]
             self.step_count = checkpoint["step_count"]
+            self.best_reward = checkpoint.get("best_reward", -float('inf'))
             self.best_policy_loss = checkpoint.get("best_policy_loss", float('inf'))
-            self.mean_horizon = checkpoint.get("mean_horizon", 0.0)
-            print(f"Resuming from epoch {self.iter_count}, step {self.step_count}")
+            self.last_log_steps = checkpoint.get("step_count", 0)
+            print(f"Resumed from epoch {self.iter_count}, step {self.step_count}, best R: {self.best_reward:.2f}")
         else:
             print("Loaded checkpoint for evaluation/fine-tuning (training progress not restored)")
         
         # Load replay buffer if requested
         if buffer:
-            buffer_path = path.replace('.pt', '.buffer')
+            # Check for standard naming first: {filename}.buffer
+            buffer_path = str(path).replace('.pt', '.buffer')
             if os.path.exists(buffer_path):
                 self.buffer.load(buffer_path)
                 print(f"Loaded replay buffer from {buffer_path}")
+                if "buffer_num_eps" in checkpoint:
+                    self.buffer._num_eps = int(checkpoint["buffer_num_eps"])
+                saved_buffer_horizon = int(
+                    checkpoint.get("buffer_horizon", getattr(self.buffer, "horizon", self.horizon))
+                )
+                if saved_buffer_horizon > 0:
+                    self.buffer.set_horizon(saved_buffer_horizon)
             else:
                 print(f"Warning: Buffer file not found at {buffer_path}")
 
-        if buffer:
-            print("Loading buffer too")
-            self.buffer.load(path.replace(".pt", ".buffer"))
-            self.buffer._num_eps = 100  # placeholder to avoid initialization
-
     def load_wm(self, path):
         print("Loading world model from", path)
-        checkpoint = torch.load(path)
-        checkpoint = checkpoint["model"]
-        new_odict = OrderedDict()
-        for key, value in checkpoint.items():
-            if "_pi" in key:
-                pass
-            elif "_Qs" in key:
-                pass
-            else:
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
+
+        # Native Flow-MBPO-PWM checkpoint format (from `self.save(...)` or
+        # `scripts/pretrain_multitask_wm.py`): contains `world_model` state dict.
+        if isinstance(checkpoint, dict) and "world_model" in checkpoint:
+            self.wm.load_state_dict(checkpoint["world_model"])
+            return
+
+        # Original PWM / TD-MPC2 multitask checkpoint format: contains `model`
+        # and includes actor/critic keys that must be filtered out.
+        if isinstance(checkpoint, dict) and "model" in checkpoint:
+            checkpoint = checkpoint["model"]
+            new_odict = OrderedDict()
+            for key, value in checkpoint.items():
+                if "_pi" in key or "_Qs" in key:
+                    continue
                 if "_encoder" in key:
                     key = key.replace("state.", "")
                 new_odict[key] = value
+            self.wm.load_state_dict(new_odict)
+            return
 
-        self.wm.load_state_dict(new_odict)
+        raise ValueError(
+            f"Unrecognized world model checkpoint format at {path}. "
+            "Expected keys: `world_model` (native) or `model` (original PWM)."
+        )
 
     def pretrain_wm(self, paths, num_iters, actually_train=True):
         if type(paths) != List:
             paths = [paths]
         for path in paths:
             print("loading", path)
-            td = torch.load(path).to("cpu")
+            td = torch.load(path, map_location="cpu", weights_only=False).to("cpu")
 
             # fetch stats for normalizing
             if self.obs_rms:
@@ -1426,7 +1657,10 @@ class PWM:
         reward_loss = (rew_hat - rew) ** 2 * discount
         reward_loss = reward_loss.mean()
 
-        total_loss = dynamics_loss + reward_loss
+        total_loss = (
+            self.wm_dyn_loss_weight * dynamics_loss
+            + self.wm_rew_loss_weight * reward_loss
+        )
         total_loss /= self.horizon
         return (
             total_loss,

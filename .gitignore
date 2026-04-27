@@ -57,6 +57,7 @@ eval_results*/
 *.safetensors
 data/
 datasets/
+checkpoints/
 
 # OS
 .DS_Store
@@ -69,5 +70,9 @@ temp/
 
 # Local reference only (do not track)
 docs/
+results/
+eval_results/
+mt30_results_summary.csv
 baselines/
-hf_pwm_repo/
+# hf_pwm_repo/
+# docs/external/tdmpc2/

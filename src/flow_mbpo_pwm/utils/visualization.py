@@ -353,6 +353,28 @@ class TrainingVisualizer:
         print("="*60)
         print(f"All visualizations saved to: {self.viz_dir}")
         print("="*60 + "\n")
+
+    def export_state(self) -> Dict[str, object]:
+        """Return a CPU-safe snapshot for offline analysis."""
+        exported = {}
+        for key, values in self.data.items():
+            exported[key] = [self._to_scalar(v) for v in values]
+        return {
+            "version": 1,
+            "log_dir": str(self.log_dir),
+            "viz_dir": str(self.viz_dir),
+            "data": exported,
+        }
+
+    @classmethod
+    def from_state(cls, state: Dict[str, object]) -> "TrainingVisualizer":
+        """Reconstruct a visualizer from an exported state snapshot."""
+        visualizer = cls(log_dir=str(state["log_dir"]))
+        visualizer.data = {
+            key: list(values)
+            for key, values in dict(state.get("data", {})).items()
+        }
+        return visualizer
     
     @staticmethod
     def _smooth(data: np.ndarray, window: int) -> np.ndarray:
@@ -373,6 +395,12 @@ class TrainingVisualizer:
         kernel = np.ones(window) / window
         smoothed = np.convolve(data, kernel, mode='same')
         return smoothed
+
+    @staticmethod
+    def _to_scalar(value):
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
 
 
 def compare_runs(
