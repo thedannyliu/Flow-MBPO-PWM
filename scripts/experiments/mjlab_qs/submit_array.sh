@@ -59,6 +59,8 @@ mkdir -p "${LOG_DIR}"
 RUNNER="scripts/experiments/mjlab_qs/run_collection_row.py"
 if [[ "$KIND" == "train" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_training_row.py"
+elif [[ "$KIND" == "train_match" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_train_match_row.py"
 fi
 
 WRAP="cd ${PROJECT_ROOT}"

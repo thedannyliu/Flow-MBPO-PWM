@@ -308,15 +308,25 @@ z^*_{t+h}
 
 where `sg` means stop-gradient.
 
-For windows that contain a true terminal transition, include the final valid transition into the terminal state, but mask losses after `done=True`. Define:
+For windows that contain a true terminal transition, include the final valid transition into the terminal state, but mask losses after `done=True`.
+
+Convention:
+
+```text
+d_t = 1 means action a_t produced terminal next state s_{t+1}.
+```
+
+Therefore the first transition into the terminal state must still contribute to the dynamics loss. Define the dynamics rollout mask:
 
 ```math
-m_{t+h}
+m^{dyn}_{t,h}
 =
-\prod_{j=0}^{h-1}(1-d_{t+j}),
+\prod_{j=0}^{h-2}(1-d_{t+j}),
 \qquad
 h \ge 1.
 ```
+
+The empty product at `h=1` is defined as 1. This keeps the valid transition `(s_t, a_t) -> s_{t+1}` even when `d_t=True`, and masks only predictions after the terminal state.
 
 The masked H-step rollout dynamics loss is:
 
@@ -325,12 +335,12 @@ The masked H-step rollout dynamics loss is:
 =
 \frac{
 \sum_{h=1}^{H}
-m_{t+h}\gamma^{h-1}
+m^{dyn}_{t,h}\gamma^{h-1}
 \left\|
 \hat z_{t+h} - z^*_{t+h}
 \right\|_2^2
 }{
-\sum_{h=1}^{H}m_{t+h}+\epsilon
+\sum_{h=1}^{H}m^{dyn}_{t,h}\gamma^{h-1}+\epsilon
 }.
 ```
 
@@ -357,19 +367,32 @@ The H-step rollout dynamics loss is:
 
 The unmasked expression above is valid only for windows with no true termination inside the horizon. The implementation must use the masked version whenever a done flag appears inside the window.
 
-The reward loss is:
+The reward loss must use the same terminal-boundary convention. The reward `r_{t+h}` belongs to transition `(s_{t+h}, a_{t+h}) -> s_{t+h+1}` and is valid even if that transition terminates the episode. Define:
+
+```math
+m^{rew}_{t,h}
+=
+\prod_{j=0}^{h-1}(1-d_{t+j}),
+\qquad
+h \ge 0,
+```
+
+with the empty product at `h=0` equal to 1. The masked reward loss is:
 
 ```math
 \mathcal{L}^{H}_{\mathrm{rew}}
 =
-\frac{1}{H}
+\frac{
 \sum_{h=0}^{H-1}
-\gamma^h
+m^{rew}_{t,h}\gamma^h
 \ell_{\mathrm{rew}}
 \left(
 R_\phi(\hat z_{t+h}, a_{t+h}, c_{t+h}, e),
 r_{t+h}
-\right).
+\right)
+}{
+\sum_{h=0}^{H-1}m^{rew}_{t,h}\gamma^h+\epsilon
+}.
 ```
 
 The world-model loss is:
@@ -433,7 +456,7 @@ normalized_rollout_dyn_mse_H8
 normalized_rollout_dyn_mse_H16
 ```
 
-Optional shared-encoder evaluator:
+Shared/frozen encoder evaluator:
 
 ```text
 1. Train one reference MLP encoder E_ref on D_QS_core.
@@ -451,7 +474,17 @@ Primary claim metric:
   shared-latent rollout MSE or frozen-encoder rollout MSE
 ```
 
-The shared/frozen encoder metric is not required for A0/A1/A2 smoke. It is required before A3 can claim that "Flow matches MLP dynamics quality." Without it, A3 may only claim that a model matches under its own normalized latent rollout metric.
+The shared/frozen encoder metric is not required for A0/A1/A2 smoke. It is required before A3 can be called a formal Medium Feasibility result. Without it, A3 may only be reported as an internal diagnostic showing that a model matches under its own normalized latent rollout metric.
+
+A3 must freeze the evaluator choice before any A3 training result is inspected. The default A3 claim lane is:
+
+```text
+Primary A3 claim lane:
+  frozen shared encoder E_ref
+
+Secondary A3 diagnostic lane:
+  each model's own latent space
+```
 
 Allowed A3 comparability options:
 
@@ -1010,20 +1043,35 @@ P_train_QS:
   bucket-balanced training sampling distribution over valid windows
 ```
 
-Mathematically, the collected dataset is:
+Do not write the quality-stratified dataset as a weighted set union. A set union has no sampling weights. The raw dataset is the disjoint union of episode groups:
 
 ```math
 \mathcal{D}_{\mathrm{QS}}
 =
-0.10\mathcal{D}_{rs}
 \cup
-0.20\mathcal{D}_{weak}
+\mathcal{D}_{rs}
 \cup
-0.35\mathcal{D}_{med}
+\mathcal{D}_{weak}
 \cup
-0.25\mathcal{D}_{exp}
+\mathcal{D}_{med}
 \cup
-0.10\mathcal{D}_{exp-noise}.
+\mathcal{D}_{exp}
+\cup
+\mathcal{D}_{exp-noise}.
+```
+
+The quality ratios define the canonical training sampling distribution:
+
+```math
+P_{\mathrm{train\_QS}}(b)
+=
+\begin{cases}
+0.10 & b = \mathrm{random\_smooth},\\
+0.20 & b = \mathrm{weak},\\
+0.35 & b = \mathrm{medium},\\
+0.25 & b = \mathrm{expert},\\
+0.10 & b = \mathrm{expert\_noisy}.
+\end{cases}
 ```
 
 The same dataset must be used by:
@@ -1894,7 +1942,9 @@ Flow-push trigger:
    over the final 20% of evaluation points.
 2. No divergence or latent norm explosion.
 3. Equal-update normalized H16 rollout loss is <= 20x mlp_ref, not hundreds of times worse.
-4. Reward loss is not diverging.
+4. Reward loss is not diverging:
+   final validation reward loss <= 2x best validation reward loss
+   and no NaN/Inf appears in train or validation reward loss.
 ```
 
 If these conditions are not met, do not submit automatic 2x/4x Flow-push jobs. In that case, record the result as a formulation failure candidate rather than spending more compute.
@@ -1908,11 +1958,52 @@ equal_update:
 flow_push_2x / flow_push_4x:
   existence or upper-bound diagnostic only
 
+flow_train_loss_match_300k:
+  existence diagnostic that lets Flow train up to 300k updates against a fixed 50k-update MLP target.
+  This is not an equal-compute or equal-update comparison.
+
 compute_matched:
   later efficiency comparison
 ```
 
 A Flow model that fails equal-update but passes only under Flow-push is not a fair replacement for MLP WM. It is evidence that the formulation may be trainable with extra compute.
+
+Train-loss-match sidecar:
+
+```text
+Purpose:
+  test whether Flow can eventually reach the MLP training rollout dynamics loss
+  when allowed substantially more optimization.
+
+Reference target:
+  Train mlp_ref for exactly 50k updates on the same fixed D_QS_core split.
+  Record train/rollout_dyn_mse_H16 at the selected MLP checkpoint.
+
+Flow budget:
+  Train flow_ref up to 300k updates.
+  Stop early only if Flow reaches:
+    flow_train_rollout_dyn_mse_H16 <= mlp_train_rollout_dyn_mse_H16 * (1 + tolerance)
+
+Default tolerance:
+  5%
+
+Required logging:
+  mlp_train_iters
+  mlp_wall_clock_seconds
+  mlp_train_rollout_dyn_mse_H16
+  flow_max_iters = 300000
+  flow_iters_to_stop
+  flow_wall_clock_seconds
+  flow_matched_mlp_train_loss
+  flow_train_loss_ratio_to_mlp
+  extra_flow_iters_vs_mlp
+  flow_to_mlp_wall_clock_ratio
+  final train/val/test rollout metrics for both MLP and Flow
+
+Interpretation:
+  If Flow matches only after extra training, the result says Flow is trainable with additional compute.
+  It does not show that Flow is a fair replacement for MLP under equal updates or equal compute.
+```
 
 Primary metrics:
 
@@ -2676,6 +2767,12 @@ equal-update:
 extension:
   if all models are still improving and no model diverges,
   run 100k for all models, not only Flow
+
+train-loss-match sidecar:
+  after the equal-update A2.5 run is submitted, optionally run flow_train_loss_match_300k.
+  This sidecar uses the same dataset split and seed, trains mlp_ref for 50k updates,
+  then trains flow_ref up to 300k updates until it reaches the MLP train H16 rollout loss target.
+  Report it separately from equal-update A2.5.
 ```
 
 Purpose:
@@ -2708,7 +2805,8 @@ A3 is the first formal Medium Feasibility result. It may start only after:
    over the final 20% of evaluation points;
    no latent norm explosion;
    equal-update loss <= 20x mlp_ref;
-   reward loss is not diverging.
+   final validation reward loss <= 2x best validation reward loss;
+   no NaN/Inf in train or validation reward loss.
 
 4. ensemble baseline:
    mlp_ensemble5 is required for any paper-facing A3 claim.

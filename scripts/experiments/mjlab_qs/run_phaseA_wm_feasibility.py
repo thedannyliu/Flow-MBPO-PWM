@@ -63,11 +63,14 @@ class FlowWM(nn.Module):
             tau = tau[:, None]
         return self.vel(torch.cat([z, a, tau.to(z.device, z.dtype)], dim=-1))
 
-    def fm_loss(self, z0: torch.Tensor, z1: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
+    def fm_loss(self, z0: torch.Tensor, z1: torch.Tensor, a: torch.Tensor, reduction: str = "mean") -> torch.Tensor:
         tau = torch.rand(z0.shape[0], 1, device=z0.device, dtype=z0.dtype)
         ztau = (1.0 - tau) * z0 + tau * z1
         target = z1 - z0
-        return F.mse_loss(self.velocity(ztau, a, tau), target)
+        err = (self.velocity(ztau, a, tau) - target).pow(2).mean(dim=-1)
+        if reduction == "none":
+            return err
+        return err.mean()
 
     def next(self, z: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
         dt = 1.0 / max(1, self.substeps)
@@ -94,10 +97,10 @@ class ResidualFlowWM(nn.Module):
     def reward(self, z: torch.Tensor, a: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         return self.base.reward(z, a, c)
 
-    def fm_loss(self, z0: torch.Tensor, z1: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
+    def fm_loss(self, z0: torch.Tensor, z1: torch.Tensor, a: torch.Tensor, reduction: str = "mean") -> torch.Tensor:
         with torch.no_grad():
             base = self.base.next(z0, a)
-        return self.residual.fm_loss(z0, z1 - base + z0, a)
+        return self.residual.fm_loss(z0, z1 - base + z0, a, reduction=reduction)
 
 
 def parse_args() -> argparse.Namespace:
@@ -117,6 +120,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hidden", type=int, default=512)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--flow-substeps", type=int, default=4)
+    parser.add_argument("--rollout-gamma", type=float, default=0.99)
     parser.add_argument("--wandb-project", default="flow-mbpo-mjlab-phaseA-wm-feasibility")
     parser.add_argument("--wandb-group", default="a25_mini_feasibility")
     parser.add_argument("--wandb-name", default=None)
@@ -160,36 +164,60 @@ def sample_train_indices(data: Dict[str, torch.Tensor], train_idx: torch.Tensor,
     return out[torch.randperm(out.numel())[:batch_size]]
 
 
-def rollout_losses(model: nn.Module, z: torch.Tensor, a: torch.Tensor, r: torch.Tensor, c: torch.Tensor, done: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def rollout_losses(
+    model: nn.Module,
+    z: torch.Tensor,
+    a: torch.Tensor,
+    r: torch.Tensor,
+    c: torch.Tensor,
+    done: torch.Tensor,
+    gamma: float = 0.99,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     horizon = a.shape[1]
     pred = z[:, 0]
     dyn_losses = []
     rew_losses = []
     mask = torch.ones(z.shape[0], device=z.device)
+    dyn_num = torch.zeros((), device=z.device)
+    dyn_den = torch.zeros((), device=z.device)
+    rew_num = torch.zeros((), device=z.device)
+    rew_den = torch.zeros((), device=z.device)
     for h in range(horizon):
+        weight = mask * (float(gamma) ** h)
         rew_pred = model.reward(pred, a[:, h], c[:, h])
-        rew_losses.append(((rew_pred - r[:, h]) ** 2 * mask).sum() / mask.sum().clamp_min(1.0))
+        rew_err = (rew_pred - r[:, h]) ** 2
+        rew_losses.append((rew_err * weight).sum() / weight.sum().clamp_min(1e-8))
+        rew_num = rew_num + (rew_err * weight).sum()
+        rew_den = rew_den + weight.sum()
         pred = model.next(pred, a[:, h])
         err = ((pred - z[:, h + 1]) ** 2).mean(dim=-1)
-        dyn_losses.append((err * mask).sum() / mask.sum().clamp_min(1.0))
+        dyn_losses.append((err * weight).sum() / weight.sum().clamp_min(1e-8))
+        dyn_num = dyn_num + (err * weight).sum()
+        dyn_den = dyn_den + weight.sum()
         mask = mask * (~done[:, h]).float()
-    return torch.stack(dyn_losses), torch.stack(rew_losses), pred
+    return torch.stack(dyn_losses), torch.stack(rew_losses), pred, dyn_num / dyn_den.clamp_min(1e-8), rew_num / rew_den.clamp_min(1e-8)
 
 
-def train_loss(model: nn.Module, method: str, z: torch.Tensor, a: torch.Tensor, r: torch.Tensor, c: torch.Tensor, done: torch.Tensor) -> torch.Tensor:
+def train_loss(model: nn.Module, method: str, z: torch.Tensor, a: torch.Tensor, r: torch.Tensor, c: torch.Tensor, done: torch.Tensor, gamma: float) -> torch.Tensor:
     if method in {"flow_ref", "residual_flow_frozen_mlp"}:
-        fm = 0.0
+        mask = torch.ones(z.shape[0], device=z.device)
+        fm_num = torch.zeros((), device=z.device)
+        fm_den = torch.zeros((), device=z.device)
         for h in range(a.shape[1]):
-            fm = fm + model.fm_loss(z[:, h], z[:, h + 1], a[:, h])
-        fm = fm / a.shape[1]
-        _, rew, _ = rollout_losses(model, z, a, r, c, done)
-        return fm + rew.mean()
-    dyn, rew, _ = rollout_losses(model, z, a, r, c, done)
-    return dyn.mean() + rew.mean()
+            weight = mask * (float(gamma) ** h)
+            fm_err = model.fm_loss(z[:, h], z[:, h + 1], a[:, h], reduction="none")
+            fm_num = fm_num + (fm_err * weight).sum()
+            fm_den = fm_den + weight.sum()
+            mask = mask * (~done[:, h]).float()
+        fm = fm_num / fm_den.clamp_min(1e-8)
+        _, _, _, _, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
+        return fm + rew_agg
+    _, _, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
+    return dyn_agg + rew_agg
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, method: str, data: Dict[str, torch.Tensor], idx: torch.Tensor, device: torch.device, nrm: Dict[str, torch.Tensor], eval_batch_size: int) -> Dict[str, float]:
+def evaluate(model: nn.Module, method: str, data: Dict[str, torch.Tensor], idx: torch.Tensor, device: torch.device, nrm: Dict[str, torch.Tensor], eval_batch_size: int, gamma: float) -> Dict[str, float]:
     if idx.numel() == 0:
         return {
             "one_step_dyn_mse": float("nan"),
@@ -202,14 +230,18 @@ def evaluate(model: nn.Module, method: str, data: Dict[str, torch.Tensor], idx: 
     dyn_all = []
     rew_all = []
     one_all = []
+    dyn_agg_all = []
+    rew_agg_all = []
     weights = []
     for start in range(0, idx.numel(), eval_batch_size):
         ids = idx[start : start + eval_batch_size]
         z, a, r, c, done = batch(data, ids, device, nrm)
-        dyn, rew, _ = rollout_losses(model, z, a, r, c, done)
+        dyn, rew, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
         dyn_all.append(dyn.detach().cpu())
         rew_all.append(rew.detach().cpu())
         one_all.append(dyn[0].detach().cpu())
+        dyn_agg_all.append(dyn_agg.detach().cpu())
+        rew_agg_all.append(rew_agg.detach().cpu())
         weights.append(ids.numel())
     w = torch.tensor(weights, dtype=torch.float32)
     w = w / w.sum().clamp_min(1.0)
@@ -217,8 +249,8 @@ def evaluate(model: nn.Module, method: str, data: Dict[str, torch.Tensor], idx: 
     rew = (torch.stack(rew_all) * w[:, None]).sum(dim=0)
     return {
         "one_step_dyn_mse": float((torch.stack(one_all) * w).sum().item()),
-        "rollout_dyn_mse_H16": float(dyn.mean().item()),
-        "reward_mse": float(rew.mean().item()),
+        "rollout_dyn_mse_H16": float((torch.stack(dyn_agg_all) * w).sum().item()),
+        "reward_mse": float((torch.stack(rew_agg_all) * w).sum().item()),
         "rollout_error_e1": float(dyn[0].item()),
         "rollout_error_e16": float(dyn[-1].item()),
         "rollout_error_ratio_e16_e1": float((dyn[-1] / dyn[0].clamp_min(1e-8)).item()),
@@ -252,7 +284,7 @@ def main() -> None:
         for _ in range(args.base_pretrain_iters):
             ids = sample_train_indices(data, train_idx, args.batch_size)
             z, a, r, c, done = batch(data, ids, device, nrm)
-            loss = train_loss(model.base, "mlp_ref", z, a, r, c, done)
+            loss = train_loss(model.base, "mlp_ref", z, a, r, c, done, gamma=args.rollout_gamma)
             base_opt.zero_grad()
             loss.backward()
             base_opt.step()
@@ -276,14 +308,14 @@ def main() -> None:
         if it > 0:
             ids = sample_train_indices(data, train_idx, args.batch_size)
             z, a, r, c, done = batch(data, ids, device, nrm)
-            loss = train_loss(model, args.method, z, a, r, c, done)
+            loss = train_loss(model, args.method, z, a, r, c, done, gamma=args.rollout_gamma)
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 100.0)
             opt.step()
         if it % args.eval_every == 0 or it == args.train_iters:
-            train_m = evaluate(model, args.method, data, train_idx[: min(train_idx.numel(), 4096)], device, nrm, args.eval_batch_size)
-            val_m = evaluate(model, args.method, data, val_idx, device, nrm, args.eval_batch_size)
+            train_m = evaluate(model, args.method, data, train_idx[: min(train_idx.numel(), 4096)], device, nrm, args.eval_batch_size, gamma=args.rollout_gamma)
+            val_m = evaluate(model, args.method, data, val_idx, device, nrm, args.eval_batch_size, gamma=args.rollout_gamma)
             metrics = {f"train/{k}": v for k, v in train_m.items()}
             metrics.update({f"val/{k}": v for k, v in val_m.items()})
             metrics["iter"] = it
@@ -295,7 +327,7 @@ def main() -> None:
             if run is not None:
                 wandb.log(metrics, step=it)
             print(json.dumps(metrics, sort_keys=True))
-    test_m = evaluate(model, args.method, data, test_idx, device, nrm, args.eval_batch_size)
+    test_m = evaluate(model, args.method, data, test_idx, device, nrm, args.eval_batch_size, gamma=args.rollout_gamma)
     summary = {
         "method": args.method,
         "seed": args.seed,
