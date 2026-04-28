@@ -44,6 +44,8 @@ def main() -> None:
         "--wandb-group", row.get("wandb_group", f"{stage}_{task_key}"),
         "--wandb-name", f"{stage}_{task_key}_flow_train_loss_match_seed{seed}",
     ]
+    if row.get("flow_lr"):
+        cmd.extend(["--flow-lr", row["flow_lr"]])
     if row.get("disable_wandb", "").lower() in {"1", "true", "yes"}:
         cmd.append("--disable-wandb")
     subprocess.run(cmd, check=True)

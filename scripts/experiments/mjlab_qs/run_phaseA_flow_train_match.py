@@ -48,6 +48,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--eval-every", type=int, default=5000)
     p.add_argument("--hidden", type=int, default=512)
     p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--flow-lr", type=float, default=None)
     p.add_argument("--flow-substeps", type=int, default=4)
     p.add_argument("--rollout-gamma", type=float, default=0.99)
     p.add_argument("--match-tolerance", type=float, default=0.05)
@@ -78,17 +79,30 @@ def train_steps(
     max_iters: int,
     run,
     phase: str,
+    lr: float,
+    step_offset: int = 0,
     target: float | None = None,
-) -> tuple[int, float, Dict[str, float], bool]:
-    opt = torch.optim.Adam(model.parameters(), lr=args.lr)
+) -> tuple[int, float, Dict[str, float], Dict[str, float], bool, bool]:
+    opt = torch.optim.Adam(model.parameters(), lr=lr)
     t0 = time.time()
     matched = False
+    diverged = False
     last_metrics: Dict[str, float] = {}
+    last_finite_metrics: Dict[str, float] = {}
     for it in range(max_iters + 1):
         if it > 0:
             ids = sample_train_indices(data, train_idx, args.batch_size)
             z, a, r, c, done = batch(data, ids, device, nrm)
             loss = train_loss(model, method, z, a, r, c, done, gamma=args.rollout_gamma)
+            if not torch.isfinite(loss):
+                diverged = True
+                last_metrics[f"{phase}/iter"] = it
+                last_metrics[f"{phase}/wall_clock_seconds"] = time.time() - t0
+                last_metrics[f"{phase}/diverged"] = 1.0
+                if run is not None:
+                    run.log(last_metrics, step=step_offset + it)
+                print(json.dumps(last_metrics, sort_keys=True), flush=True)
+                return it, time.time() - t0, last_metrics, last_finite_metrics, matched, diverged
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 100.0)
@@ -110,12 +124,21 @@ def train_steps(
                 last_metrics[f"{phase}/train_loss_ratio_to_mlp"] = train_m["rollout_dyn_mse_H16"] / max(target, 1e-12)
                 if train_m["rollout_dyn_mse_H16"] <= threshold:
                     matched = True
+            values_are_finite = all(
+                math.isfinite(float(v))
+                for v in last_metrics.values()
+                if isinstance(v, (int, float))
+            )
+            if values_are_finite:
+                last_finite_metrics = dict(last_metrics)
+            else:
+                diverged = True
             if run is not None:
-                run.log(last_metrics, step=it if phase == "flow" else it)
+                run.log(last_metrics, step=step_offset + it)
             print(json.dumps(last_metrics, sort_keys=True), flush=True)
-            if matched:
-                return it, elapsed, last_metrics, True
-    return max_iters, time.time() - t0, last_metrics, matched
+            if matched or diverged:
+                return it, elapsed, last_metrics, last_finite_metrics, matched, diverged
+    return max_iters, time.time() - t0, last_metrics, last_finite_metrics, matched, diverged
 
 
 def main() -> None:
@@ -145,15 +168,18 @@ def main() -> None:
         )
 
     mlp = MLPWM(state_dim, action_dim, command_dim, args.hidden).to(device)
-    mlp_iters, mlp_time, mlp_last, _ = train_steps(
-        mlp, "mlp_ref", data, train_idx, val_idx, device, nrm, args, args.mlp_train_iters, run, "mlp"
+    mlp_iters, mlp_time, mlp_last, mlp_last_finite, _, mlp_diverged = train_steps(
+        mlp, "mlp_ref", data, train_idx, val_idx, device, nrm, args, args.mlp_train_iters, run, "mlp", lr=args.lr
     )
-    mlp_train_target = float(mlp_last["mlp/train/rollout_dyn_mse_H16"])
+    if mlp_diverged:
+        raise RuntimeError("MLP target run diverged; cannot define train-loss-match target")
+    mlp_train_target = float(mlp_last_finite.get("mlp/train/rollout_dyn_mse_H16", mlp_last["mlp/train/rollout_dyn_mse_H16"]))
     mlp_test = evaluate(mlp, "mlp_ref", data, test_idx, device, nrm, args.eval_batch_size, gamma=args.rollout_gamma)
     torch.save({"model": mlp.state_dict(), "args": vars(args), "train_target": mlp_train_target}, output_dir / "mlp_ref.pt")
 
     flow = FlowWM(state_dim, action_dim, command_dim, args.hidden, substeps=args.flow_substeps).to(device)
-    flow_iters, flow_time, flow_last, matched = train_steps(
+    flow_lr = args.flow_lr if args.flow_lr is not None else args.lr
+    flow_iters, flow_time, flow_last, flow_last_finite, matched, flow_diverged = train_steps(
         flow,
         "flow_ref",
         data,
@@ -165,6 +191,8 @@ def main() -> None:
         args.flow_max_iters,
         run,
         "flow",
+        lr=flow_lr,
+        step_offset=args.mlp_train_iters + args.eval_every,
         target=mlp_train_target,
     )
     flow_test = evaluate(flow, "flow_ref", data, test_idx, device, nrm, args.eval_batch_size, gamma=args.rollout_gamma)
@@ -180,9 +208,14 @@ def main() -> None:
         "flow_iters_to_stop": flow_iters,
         "flow_wall_clock_seconds": flow_time,
         "flow_matched_mlp_train_loss": matched,
+        "flow_diverged": flow_diverged,
         "match_tolerance": args.match_tolerance,
+        "lr": args.lr,
+        "flow_lr": flow_lr,
         "flow_train_rollout_dyn_mse_H16": float(flow_last.get("flow/train/rollout_dyn_mse_H16", math.nan)),
+        "flow_last_finite_train_rollout_dyn_mse_H16": float(flow_last_finite.get("flow/train/rollout_dyn_mse_H16", math.nan)),
         "flow_train_loss_ratio_to_mlp": float(flow_last.get("flow/train_loss_ratio_to_mlp", math.nan)),
+        "flow_last_finite_train_loss_ratio_to_mlp": float(flow_last_finite.get("flow/train_loss_ratio_to_mlp", math.nan)),
         "flow_test": flow_test,
         "extra_flow_iters_vs_mlp": flow_iters - mlp_iters,
         "flow_to_mlp_wall_clock_ratio": flow_time / max(mlp_time, 1e-12),
