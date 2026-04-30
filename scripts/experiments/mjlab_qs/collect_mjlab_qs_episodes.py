@@ -75,9 +75,13 @@ def initial_record(obs: torch.Tensor, action_dim: int, command_dim: int, command
         "phys_obs": phys.detach().cpu(),
         "model_obs": torch.cat([phys, cmd], dim=-1).detach().cpu(),
         "command": cmd.detach().cpu(),
-        "policy_action": torch.full((obs.shape[0], action_dim), torch.nan).cpu(),
-        "env_action": torch.full((obs.shape[0], action_dim), torch.nan).cpu(),
-        "reward": torch.full((obs.shape[0],), torch.nan).cpu(),
+        # Row 0 is the initial observation anchor, not a real transition.
+        # Keep finite placeholders so raw episode shards never contain NaNs;
+        # window builders use transition rows 1..T for actions/rewards/dones.
+        "policy_action": torch.zeros((obs.shape[0], action_dim), dtype=obs.dtype).cpu(),
+        "env_action": torch.zeros((obs.shape[0], action_dim), dtype=obs.dtype).cpu(),
+        "reward": torch.zeros((obs.shape[0],), dtype=obs.dtype).cpu(),
+        "transition_valid": torch.full((obs.shape[0],), False).cpu(),
         "termination": torch.full((obs.shape[0],), False).cpu(),
         "truncation": torch.full((obs.shape[0],), False).cpu(),
         "done": torch.full((obs.shape[0],), False).cpu(),
@@ -96,6 +100,7 @@ def step_record(obs_before_reset: torch.Tensor, action: torch.Tensor, reward: to
         "policy_action": action_cpu,
         "env_action": action_cpu.clone(),
         "reward": reward.detach().cpu().reshape(-1),
+        "transition_valid": torch.full((obs_before_reset.shape[0],), True).cpu(),
         "termination": termination.detach().cpu().bool().reshape(-1),
         "truncation": truncation.detach().cpu().bool().reshape(-1),
         "done": done.detach().cpu().bool().reshape(-1),
@@ -106,8 +111,9 @@ def stack_episode(records: List[Dict[str, torch.Tensor]], env_idx: int, meta: Di
     out: Dict[str, object] = dict(meta)
     for key in records[0].keys():
         out[key] = torch.stack([r[key][env_idx] for r in records], dim=0)
-    # Actions/rewards are NaN at row 0 by construction; actual transition arrays
-    # are rows 1..T and line up with next observations.
+    # Row 0 is an initial-observation anchor with finite placeholders and
+    # transition_valid=False. Actual transitions are rows 1..T and line up with
+    # next observations.
     rewards = out["reward"][1:]
     dones = out["done"][1:]
     out["episode_return"] = float(torch.nan_to_num(rewards).sum().item())
