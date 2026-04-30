@@ -118,3 +118,33 @@ Do not submit formal A2.5/A3 WM training until all are true:
 5. window builder passes minimum valid-window gates.
 
 If Go1 still cannot produce an empirical expert, then Go1 cannot enter canonical `D_QS_core` yet. The next step would be to train or locate a stronger neutral collector before formal QS collection.
+
+## Corrected Quality Probe Result
+
+After the MuJoCo compatibility patch, the L40S corrected quality-probe collection completed successfully:
+
+```text
+scripts/outputs/mjlab_qs/raw/quality_probe_l40s/
+```
+
+Audit outputs:
+
+```text
+scripts/outputs/mjlab_qs/quality_audits/quality_probe_l40s_empirical_quality.md
+scripts/outputs/mjlab_qs/quality_audits/quality_probe_l40s_empirical_quality.csv
+scripts/outputs/mjlab_qs/quality_audits/quality_probe_l40s_empirical_quality.json
+```
+
+Result: `FAIL`.
+
+Important observations:
+
+- The corrected raw shards have zero reward/action NaNs.
+- `velocity_flat_unitree_g1` has some strong candidate episodes, but only `5 / 100` expert-candidate episodes passed the empirical expert rule. This is below the minimum `50` empirical expert episodes required for a canonical QS source.
+- `velocity_flat_unitree_go1` still has no empirical expert episodes. The candidate expert bucket has fall rate `1.000`, mean length about `68.7`, and mean return `3.328`, which is not clearly above the random baseline plus margin.
+
+Therefore, formal QS recollection and A2.5/A3 training remain blocked. The next required step is to train or locate a stronger neutral collector, especially for Go1, before building a canonical `D_QS_core` dataset.
+
+## Job Handling
+
+Old and incompatible jobs were cancelled. Corrected quality-probe arrays were submitted on H100/H200/L40S. H100 rows encountered node-level CUDA visibility failures on some rows; L40S completed successfully and was sufficient to evaluate the quality gate. Remaining pending H200 rows were cancelled after the L40S audit failed the empirical expert gate.
