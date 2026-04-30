@@ -43,6 +43,26 @@ _DEFAULT_OBS_KEYS = ("state", "policy", "observation", "obs")
 _DEFAULT_PRIMAL_KEYS = ("primal", "reward_unscaled", "raw_reward")
 
 
+def _patch_mujoco_compatibility() -> None:
+    """Patch minor MuJoCo enum drift used by some MJLab task configs.
+
+    MJLab task files may reference `mujoco.mjtEnableBit.mjENBL_MULTICCD`.
+    MuJoCo 3.8 exposes CCD toggles as disable bits instead, so the enable-bit
+    name is absent. Treating the missing enable flag as zero preserves the
+    default simulator behavior and lets the same MJLab configs load across
+    MuJoCo minor versions.
+    """
+    try:
+        import mujoco  # type: ignore
+
+        enable_bits = getattr(mujoco, "mjtEnableBit", None)
+        if enable_bits is not None and not hasattr(enable_bits, "mjENBL_MULTICCD"):
+            setattr(enable_bits, "mjENBL_MULTICCD", 0)
+    except Exception:
+        # Environment construction will surface any real MuJoCo/MJLab error.
+        return
+
+
 @dataclass
 class AdapterDiagnostics:
     """Lightweight diagnostics for debugging done/reset semantics."""
@@ -561,6 +581,7 @@ def create_mjlab_pwm_env(
     - additional kwargs are forwarded to the underlying mjlab constructor.
     """
     del no_grad, logdir
+    _patch_mujoco_compatibility()
 
     ctor_kwargs: Dict[str, Any] = {
         "num_envs": num_envs,
