@@ -133,3 +133,23 @@ L40S: collector_retrain_v1_l40s.csv
 ```
 
 Formal QS collection and A2.5/A3 WM training remain blocked until these collectors pass the empirical quality gate.
+
+## Submission Record
+
+The first submission attempt used `36:00:00`, then `24:00:00`; PACE ICE rejected both as exceeding the active QoS/partition limit. The jobs were submitted with `08:00:00` chunks instead. The single-task online runner resumes from `latest_checkpoint.pt` / `final_policy.pt`, so the same manifests can be resubmitted to continue incomplete 50k-epoch collectors.
+
+Submitted Slurm arrays:
+
+```text
+5147405  sto_mjlab_qs_collector_retrain_v1_H100  manifest=collector_retrain_v1_h100.csv
+5147404  sto_mjlab_qs_collector_retrain_v1_H200  manifest=collector_retrain_v1_h200.csv
+5147406  sto_mjlab_qs_collector_retrain_v1_L40S  manifest=collector_retrain_v1_l40s.csv
+```
+
+Current state at submission time: pending due to PACE GPU maintenance reservation:
+
+```text
+ReqNodeNotAvail, Reserved for maintenance
+```
+
+No formal QS data recollection or A2.5/A3 world-model training was submitted. Those remain blocked until retrained collectors pass the empirical quality gate.
