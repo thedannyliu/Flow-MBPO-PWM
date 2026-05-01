@@ -72,10 +72,14 @@ Total collector training jobs:
 All runs use strict MJLab task resolution and attempt to keep canonical collection conditions aligned with the QS protocol:
 
 ```text
-env.config.mjlab_env_kwargs.domain_randomization=false
++env.config.mjlab_env_kwargs.domain_randomization=false
 alg.save_interval = 1000 for 5M profiles
 alg.save_interval = 2500 for 48M profile
 ```
+
+Hydra note: `mjlab_env_kwargs` is an open dictionary in the environment
+config, so `domain_randomization` must be inserted with a `+` override. A
+plain assignment fails when the key is not already present.
 
 ## Manifests
 
@@ -153,3 +157,42 @@ ReqNodeNotAvail, Reserved for maintenance
 ```
 
 No formal QS data recollection or A2.5/A3 world-model training was submitted. Those remain blocked until retrained collectors pass the empirical quality gate.
+
+## Failure Diagnosis And Retry Patch - 2026-05-01
+
+The first executed collector retraining arrays failed before training started.
+The failure was not a GPU allocation or CUDA problem. All H100, H200, and L40S
+rows exited during Hydra config composition with:
+
+```text
+Could not override 'env.config.mjlab_env_kwargs.domain_randomization'.
+To append to your config use +env.config.mjlab_env_kwargs.domain_randomization=false
+Key 'domain_randomization' is not in struct
+```
+
+Patch:
+
+```text
+env.config.mjlab_env_kwargs.domain_randomization=false
+```
+
+was replaced with:
+
+```text
++env.config.mjlab_env_kwargs.domain_randomization=false
+```
+
+This keeps canonical QS collection aligned with domain randomization disabled,
+but uses the correct Hydra syntax for adding the key to `mjlab_env_kwargs`.
+
+Retry arrays submitted after regenerating the manifests:
+
+```text
+5148957  sto_mjlab_qs_collector_retrain_v1_H100  manifest=collector_retrain_v1_h100.csv
+5148959  sto_mjlab_qs_collector_retrain_v1_H200  manifest=collector_retrain_v1_h200.csv
+5148958  sto_mjlab_qs_collector_retrain_v1_L40S  manifest=collector_retrain_v1_l40s.csv
+```
+
+Initial retry status: H100 and L40S rows started successfully and reached W&B
+initialization. The earlier Hydra override failure is no longer present. H200
+rows were still pending for GPU resources at the first retry check.

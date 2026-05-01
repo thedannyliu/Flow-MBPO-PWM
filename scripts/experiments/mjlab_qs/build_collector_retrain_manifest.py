@@ -61,7 +61,7 @@ PROFILES = [
         overrides=[
             "alg.save_interval=1000",
             "++alg.wandb_log_every_epoch=true",
-            "env.config.mjlab_env_kwargs.domain_randomization=false",
+            "+env.config.mjlab_env_kwargs.domain_randomization=false",
         ],
         notes="Original PWM-aligned MLP baseline, extended collector training budget.",
     ),
@@ -72,7 +72,7 @@ PROFILES = [
         overrides=[
             "alg.save_interval=1000",
             "++alg.wandb_log_every_epoch=true",
-            "env.config.mjlab_env_kwargs.domain_randomization=false",
+            "+env.config.mjlab_env_kwargs.domain_randomization=false",
         ],
         notes="MLP baseline with reward RMS enabled; still neutral MLP policy/WM.",
     ),
@@ -83,7 +83,7 @@ PROFILES = [
         overrides=[
             "alg.save_interval=2500",
             "++alg.wandb_log_every_epoch=true",
-            "env.config.mjlab_env_kwargs.domain_randomization=false",
+            "+env.config.mjlab_env_kwargs.domain_randomization=false",
         ],
         notes="Larger MLP WM capacity profile to maximize chance of stable expert collector.",
     ),
