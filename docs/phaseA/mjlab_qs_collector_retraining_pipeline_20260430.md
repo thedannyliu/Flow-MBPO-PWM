@@ -196,3 +196,49 @@ Retry arrays submitted after regenerating the manifests:
 Initial retry status: H100 and L40S rows started successfully and reached W&B
 initialization. The earlier Hydra override failure is no longer present. H200
 rows were still pending for GPU resources at the first retry check.
+
+## Collector Retraining Status - 2026-05-03
+
+The May 1 retry arrays finished without the previous Hydra failure:
+
+```text
+Go1 rows:
+  9 / 9 completed with final_policy.pt and eval_summary.json.
+
+G1 rows:
+  9 / 9 reached latest_checkpoint.pt but timed out near the 8 hour limit
+  before final_policy/eval generation.
+```
+
+Go1 eval summaries are available for all three profiles and all three seeds.
+The strongest Go1 candidate so far is:
+
+```text
+velocity_flat_unitree_go1 / baseline_final_rewrms_long / seed_0
+  return_mean = 3.826
+  episode_length_mean = 63.713
+```
+
+This is still far below the empirical expert gate (`episode_length_mean >= 800`,
+low fall rate), so the retrained Go1 collectors are not yet approved for
+formal QS expert data.
+
+G1 timeout diagnosis:
+
+```text
+G1 jobs were still training at timeout, usually around 76% to 97% of 50k epochs.
+latest_checkpoint.pt was written for each G1 row, so the single-task online
+runner can resume them.
+```
+
+Submitted G1-only resume arrays:
+
+```text
+5243858  sto_mjlab_qs_collector_retrain_v1_H100  manifest=collector_retrain_v1_g1_retry_h100.csv
+5243857  sto_mjlab_qs_collector_retrain_v1_H200  manifest=collector_retrain_v1_g1_retry_h200.csv
+5243856  sto_mjlab_qs_collector_retrain_v1_L40S  manifest=collector_retrain_v1_g1_retry_l40s.csv
+```
+
+Initial resume status: L40S rows and one H100 row started and W&B reported
+`Resuming run ...`; H200 and remaining H100 rows were pending for priority.
+There were no new Hydra or CUDA errors at the first resume check.
