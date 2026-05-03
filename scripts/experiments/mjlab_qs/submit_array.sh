@@ -61,6 +61,8 @@ if [[ "$KIND" == "train" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_training_row.py"
 elif [[ "$KIND" == "train_match" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_train_match_row.py"
+elif [[ "$KIND" == "native_collector" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_mjlab_native_collector_row.py"
 fi
 
 WRAP="cd ${PROJECT_ROOT}"
@@ -68,6 +70,9 @@ if [[ -n "${CONDA_ENV}" ]]; then
   WRAP+=" && source ~/.bashrc && conda activate ${CONDA_ENV}"
 fi
 WRAP+=" && export PYTHONPATH=${PROJECT_ROOT}/src:\$PYTHONPATH"
+WRAP+=" && export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl EGL_PLATFORM=surfaceless"
+WRAP+=" && export WANDB_DIR=${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
+WRAP+=" && mkdir -p ${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
 WRAP+=" && ${PYTHON_BIN} ${RUNNER} --manifest ${MANIFEST} --row-index \$SLURM_ARRAY_TASK_ID --python-bin ${PYTHON_BIN}"
 
 SBATCH_ARGS=(

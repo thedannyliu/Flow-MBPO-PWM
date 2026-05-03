@@ -242,3 +242,118 @@ Submitted G1-only resume arrays:
 Initial resume status: L40S rows and one H100 row started and W&B reported
 `Resuming run ...`; H200 and remaining H100 rows were pending for priority.
 There were no new Hydra or CUDA errors at the first resume check.
+
+## MJLab-Native PPO Collector Branch - 2026-05-03
+
+The PWM-style collector retraining branch has not yet produced empirically
+expert-quality Go1 collectors. Go1 completed rows remain far below the formal
+QS expert gate, with the best completed candidate currently at:
+
+```text
+velocity_flat_unitree_go1 / baseline_final_rewrms_long / seed_0
+  return_mean = 3.826
+  episode_length_mean = 63.713
+```
+
+This is not sufficient for `D_QS_core` expert data. Therefore, a separate
+neutral MJLab-native PPO/RSL-RL collector branch was added. This branch is
+still only a data-generation policy search; it is not part of the Flow-vs-MLP
+world-model comparison.
+
+Two MJLab-native collector methods are submitted:
+
+```text
+rslrl_ppo_default
+  Uses the MJLab-native RSL-RL/PPO task defaults.
+  We only control seed, num_envs, save interval, output path, and logging.
+
+rslrl_ppo_conservative
+  Keeps MJLab-native RSL-RL/PPO, but uses lower learning rate / KL / entropy,
+  enables actor and critic observation normalization, and removes exogenous
+  perturbation/randomization events:
+    push_robot, foot_friction, encoder_bias, base_com
+  This is intended as a more canonical flat-velocity collector.
+```
+
+Both methods are run on:
+
+```text
+velocity_flat_unitree_go1
+velocity_flat_unitree_g1
+seeds = 0, 1, 2
+num_envs = 2048 for formal training
+```
+
+Smoke testing uses:
+
+```text
+stage = mjlab_native_collector_smoke_v1
+rows = 2 tasks x 2 methods x seed 0 = 4
+num_envs = 64
+max_iterations = 2
+logger = tensorboard
+W&B = disabled by using tensorboard logger
+```
+
+Formal training uses:
+
+```text
+stage = mjlab_native_collector_v1
+rows = 2 tasks x 2 methods x 3 seeds = 12
+logger = wandb
+wandb_project = flow-mbpo-mjlab-native-collector
+```
+
+Formal shards are split by seed / GPU class:
+
+```text
+H100: seed 0 rows
+H200: seed 1 rows
+L40S: seed 2 rows
+```
+
+Submission record:
+
+```text
+5243907  mjqs_native_collector_L40S  smoke manifest=mjlab_native_collector_smoke_v1.csv
+5243912  mjqs_native_collector_H100  formal manifest=mjlab_native_collector_v1_h100.csv  dependency=afterok:5243907
+5243914  mjqs_native_collector_H200  formal manifest=mjlab_native_collector_v1_h200.csv  dependency=afterok:5243907
+5243913  mjqs_native_collector_L40S  formal manifest=mjlab_native_collector_v1_l40s.csv  dependency=afterok:5243907
+```
+
+The dependency is intentional: formal runs cannot start unless all smoke rows
+finish successfully. This preserves the required execution order while avoiding
+idle time after smoke success.
+
+Implementation note:
+
+```text
+scripts/experiments/mjlab_qs/run_mjlab_native_collector.py
+```
+
+patches two headless-cluster compatibility issues before importing the MJLab
+training stack:
+
+```text
+1. MuJoCo enum drift: missing mjENBL_MULTICCD is shimmed to 0.
+2. mediapy optional display import: a tiny IPython.display shim is installed
+   when IPython is absent from the training environment.
+```
+
+The second patch is required because `mjlab.scripts.train` imports MJLab's
+video wrapper, which imports `mediapy`; `mediapy` imports `IPython.display`
+even when video display is not used.
+
+Quality gate is unchanged. These MJLab-native collectors still need empirical
+rollout audits before they can be used for formal QS expert data:
+
+```text
+fall_rate <= 0.10
+episode_length_mean >= 800
+return_mean >= random_return_mean + 1.0
+empirical expert episodes >= 50 in a 100-episode probe
+raw reward/action NaN count = 0
+```
+
+Formal QS dataset collection and A2.5/A3 world-model feasibility remain blocked
+until one or more collectors pass this gate.
