@@ -525,6 +525,34 @@ python scripts/experiments/mjlab_qs/audit_mjlab_qs_quality.py \
   --md-output scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1.md
 ```
 
+Also export a per-shard native ranking for selecting the formal QS collector:
+
+```text
+python scripts/experiments/mjlab_qs/export_native_quality_probe_ranking.py \
+  --raw scripts/outputs/mjlab_qs/raw/mjlab_native_quality_probe_v1 \
+  --output scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1_ranking.csv
+```
+
+If both Go1 and G1 have expert-gate-passing native checkpoints, build formal
+`D_QS_core` collection rows with:
+
+```text
+python scripts/experiments/mjlab_qs/build_native_qs_collection_manifest.py \
+  --ranking scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1_ranking.csv \
+  --output scripts/outputs/mjlab_qs/manifests/a25_native_qs_collection.csv \
+  --stage a25_native_qs
+```
+
+This produces the A2.5 QS bucket mix:
+
+```text
+random_smooth: 63 episodes/task
+weak:          125 episodes/task
+medium:        219 episodes/task
+expert:        157 episodes/task
+expert_noisy:   63 episodes/task
+```
+
 Only checkpoints passing this audit can be used to build formal `D_QS_core`.
 
 Current cluster note:
