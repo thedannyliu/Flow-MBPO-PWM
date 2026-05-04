@@ -915,3 +915,29 @@ expert = best empirical expert checkpoint
 
 and then builds a formal QS collection manifest where weak/medium are actual
 training-stage policies, not expert-random action blends.
+
+## G1 Stage-Probe Status - 2026-05-04
+
+Seed-0 checkpoint-stage probe completed and showed that the G1 conservative
+training curve jumps from failed/random to expert very quickly:
+
+```text
+iter250:   random_or_failed
+iter500:   expert
+iter15000: medium
+iter29999: expert
+```
+
+This means seed 0 alone does not provide a clean weak checkpoint. To avoid
+fabricating weak data, additional stage probes were submitted for conservative
+seed 1 and seed 2:
+
+```text
+5254563  L40S  native_collection  manifest=mjlab_native_g1_stage_probe_seed1_v1.csv
+5254564  L40S  native_collection  manifest=mjlab_native_g1_stage_probe_seed2_v1.csv
+```
+
+If no empirical weak checkpoint exists across seeds 0/1/2, the corrected G1 QS
+dataset should either omit weak as a formal bucket or use a separate neutral
+collector/replay-buffer source. It should not use expert-random action blending
+as a substitute for a weak policy.
