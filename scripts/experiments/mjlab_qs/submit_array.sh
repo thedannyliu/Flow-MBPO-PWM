@@ -63,6 +63,8 @@ elif [[ "$KIND" == "train_match" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_train_match_row.py"
 elif [[ "$KIND" == "native_collector" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_mjlab_native_collector_row.py"
+elif [[ "$KIND" == "native_collection" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_native_collection_row.py"
 fi
 
 WRAP="cd ${PROJECT_ROOT}"

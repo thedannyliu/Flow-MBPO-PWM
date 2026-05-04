@@ -445,6 +445,88 @@ then rank by empirical return / fall rate / episode length. Only passing
 checkpoints can be used as expert or medium QS data collectors.
 ```
 
+## Native Quality-Probe Collection Submission - 2026-05-04
+
+The old raw episode collector only supports PWM checkpoints. MJLab-native PPO
+checkpoints are RSL-RL checkpoints and require the native MJLab observation
+TensorDict path. A new native raw-episode collector was added:
+
+```text
+scripts/experiments/mjlab_qs/collect_mjlab_qs_native_episodes.py
+scripts/experiments/mjlab_qs/build_native_collector_probe_manifest.py
+scripts/experiments/mjlab_qs/run_native_collection_row.py
+```
+
+The native collector writes the same raw episode schema expected by the existing
+QS audit and window builder:
+
+```text
+env_obs
+phys_obs
+model_obs
+command
+policy_action
+env_action
+reward
+transition_valid
+termination
+truncation
+done
+```
+
+Important implementation choice:
+
+```text
+Terminal transitions are dropped in native collection.
+```
+
+Reason: native MJLab auto-resets terminated environments before returning the
+next observation. Since the native API does not expose a reliable
+`obs_before_reset`, storing the terminal transition would risk reset-state
+contamination. Dropping the final terminal transition preserves clean
+pre-terminal dynamics windows. Episode quality still records whether an episode
+terminated or timed out.
+
+Quality-probe manifests:
+
+```text
+scripts/outputs/mjlab_qs/manifests/mjlab_native_quality_probe_smoke_v1.csv
+scripts/outputs/mjlab_qs/manifests/mjlab_native_quality_probe_v1.csv
+```
+
+Smoke:
+
+```text
+5251034  L40S  mjqs_native_collection_L40S
+  stage = mjlab_native_quality_probe_smoke_v1
+  rows = 4
+  coverage = 2 tasks x (random_smooth + conservative seed 0)
+  episodes = 2 per row
+```
+
+Formal probe:
+
+```text
+5251035  L40S  mjqs_native_collection_L40S
+  stage = mjlab_native_quality_probe_v1
+  rows = 14
+  coverage = 2 tasks x (random_smooth + 2 methods x 3 seeds)
+  episodes = 100 per row
+  dependency = afterok:5251034_*
+```
+
+After the formal probe completes, run:
+
+```text
+python scripts/experiments/mjlab_qs/audit_mjlab_qs_quality.py \
+  --raw scripts/outputs/mjlab_qs/raw/mjlab_native_quality_probe_v1 \
+  --csv-output scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1.csv \
+  --json-output scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1.json \
+  --md-output scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1.md
+```
+
+Only checkpoints passing this audit can be used to build formal `D_QS_core`.
+
 Current cluster note:
 
 ```text
