@@ -777,3 +777,13 @@ At that rate, 30k iterations can exceed the original 10h Slurm limit.
 Attempted to extend Go1-long collector jobs to 24h and the gated pipeline job
 to 18h to avoid timeout-induced partial collectors.
 ```
+
+Pipeline correction:
+
+```text
+5251184 was canceled because a Slurm update left it on a CPU partition while
+still requesting a GPU.
+5251191 was resubmitted with the correct ice-gpu / L40S / 12h configuration.
+
+dependency = afterok:5251167:5251177
+```
