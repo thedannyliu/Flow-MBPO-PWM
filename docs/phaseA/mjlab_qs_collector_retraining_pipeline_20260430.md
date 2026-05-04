@@ -852,3 +852,49 @@ The G1-only branch will:
    residual_flow_frozen_mlp with seeds 0,1,2.
 5. Submit formal W&B training arrays split across H100, H200, and L40S.
 ```
+
+## G1 Training-Stage Weak/Medium Correction - 2026-05-04
+
+The first G1-only dataset used `checkpoint_blend_random` for weak and medium.
+That is useful for pipeline smoke, but it does not match the intended QS data
+logic. The correct QS source for weak and medium should be earlier checkpoints
+from the same neutral collector training curve.
+
+Decision:
+
+```text
+Stop relying on expert/action-random blending for weak and medium.
+Probe intermediate checkpoints from the G1 conservative seed-0 native collector,
+then select weak/medium/expert by empirical return, episode length, and fall
+rate.
+```
+
+Implementation:
+
+```text
+scripts/experiments/mjlab_qs/build_native_checkpoint_stage_probe_manifest.py
+scripts/experiments/mjlab_qs/export_native_stage_quality_ranking.py
+```
+
+Probe manifest:
+
+```text
+scripts/outputs/mjlab_qs/manifests/mjlab_native_g1_stage_probe_v1.csv
+```
+
+Probe checkpoints:
+
+```text
+0, 250, 500, 750, 1000, 1500, 2000, 3000, 5000, 7500,
+10000, 15000, 20000, 25000, 29999
+```
+
+Submission:
+
+```text
+5254406  L40S  native_collection  manifest=mjlab_native_g1_stage_probe_v1.csv
+```
+
+The previous G1-only formal WM training jobs based on blended weak/medium data
+were canceled before completion. They should be treated as invalidated pipeline
+sanity jobs, not as formal data-quality results.
