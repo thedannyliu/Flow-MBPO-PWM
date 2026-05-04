@@ -357,3 +357,101 @@ raw reward/action NaN count = 0
 
 Formal QS dataset collection and A2.5/A3 world-model feasibility remain blocked
 until one or more collectors pass this gate.
+
+## MJLab-Native PPO Collector Status - 2026-05-04
+
+All MJLab-native smoke and formal collector rows completed.
+
+Smoke:
+
+```text
+5243907  L40S  mjlab_native_collector_smoke_v1
+  rows = 4 / 4 completed
+  last checkpoint = model_1.pt for all rows
+  logger = tensorboard only
+```
+
+Formal:
+
+```text
+5243912  H100  seed 0 shard
+5243914  H200  seed 1 shard
+5243913  L40S  seed 2 shard
+```
+
+Formal completion check:
+
+```text
+velocity_flat_unitree_go1 / rslrl_ppo_default       seeds 0,1,2  last=model_9999.pt   complete
+velocity_flat_unitree_go1 / rslrl_ppo_conservative  seeds 0,1,2  last=model_9999.pt   complete
+velocity_flat_unitree_g1  / rslrl_ppo_default       seeds 0,1,2  last=model_29999.pt  complete
+velocity_flat_unitree_g1  / rslrl_ppo_conservative  seeds 0,1,2  last=model_29999.pt  complete
+```
+
+No native collector log contains Python tracebacks, timeout messages, CUDA
+errors, or module import failures. The earlier headless dependency issue was
+handled by the runner shim before submission.
+
+Training summaries exported from local W&B summaries:
+
+```text
+Go1 / rslrl_ppo_conservative:
+  seed 0: train_mean_reward=89.107, train_mean_episode_length=984.57
+  seed 1: train_mean_reward=89.269, train_mean_episode_length=991.28
+  seed 2: train_mean_reward=88.877, train_mean_episode_length=990.28
+
+Go1 / rslrl_ppo_default:
+  seed 0: train_mean_reward=71.513, train_mean_episode_length=969.52
+  seed 1: train_mean_reward=70.048, train_mean_episode_length=941.89
+  seed 2: train_mean_reward=69.316, train_mean_episode_length=952.23
+
+G1 / rslrl_ppo_conservative:
+  seed 0: train_mean_reward=69.550, train_mean_episode_length=991.59
+  seed 1: train_mean_reward=69.701, train_mean_episode_length=1000.00
+  seed 2: train_mean_reward=70.744, train_mean_episode_length=996.15
+
+G1 / rslrl_ppo_default:
+  seed 0: train_mean_reward=44.457, train_mean_episode_length=998.88
+  seed 1: train_mean_reward=45.453, train_mean_episode_length=990.69
+  seed 2: train_mean_reward=46.169, train_mean_episode_length=988.79
+```
+
+Interpretation:
+
+```text
+1. The MJLab-native branch is much stronger than the previous PWM-style
+   collector branch on the available training summaries.
+2. Go1 conservative is currently the strongest Go1 collector candidate.
+3. G1 conservative has higher training reward than G1 default, but default has
+   lower x/y velocity tracking error in the final summary. Both should be
+   quality-probed before selecting the final collector.
+4. These are training summaries, not formal QS rollout audits. A collector is
+   not approved for D_QS_core until it passes the empirical rollout quality
+   probe with raw NaN checks, fall-rate checks, return, and episode length.
+```
+
+Status CSV:
+
+```text
+scripts/outputs/mjlab_qs/native_collectors/mjlab_native_collector_v1_status_20260504.csv
+```
+
+Next required action:
+
+```text
+Build and run a quality-probe manifest for the completed MJLab-native
+collectors. Probe at least the final checkpoint for both methods and all seeds,
+then rank by empirical return / fall rate / episode length. Only passing
+checkpoints can be used as expert or medium QS data collectors.
+```
+
+Current cluster note:
+
+```text
+Only one unrelated sidecar job remains in queue:
+  5243879  swm_fit_flow_scene_expert_0  PENDING  DependencyNeverSatisfied
+
+It is not part of the MJLab-native collector branch and is not blocking the QS
+collector pipeline, but it should be canceled or resubmitted separately if that
+sidecar is still needed.
+```
