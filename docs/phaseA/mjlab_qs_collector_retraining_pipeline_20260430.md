@@ -565,3 +565,123 @@ It is not part of the MJLab-native collector branch and is not blocking the QS
 collector pipeline, but it should be canceled or resubmitted separately if that
 sidecar is still needed.
 ```
+
+## Native Quality-Probe Audit - 2026-05-04
+
+The formal native quality probe completed with 14/14 raw shards and no Slurm
+Traceback/Error/Exception messages.
+
+Artifacts:
+
+```text
+scripts/outputs/mjlab_qs/raw/mjlab_native_quality_probe_v1
+scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1.csv
+scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1.json
+scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1.md
+scripts/outputs/mjlab_qs/audits/mjlab_native_quality_probe_v1_ranking.csv
+```
+
+Empirical quality result:
+
+```text
+G1:
+  rslrl_ppo_conservative seed 0 passed the expert gate.
+  return_mean ~= 81.35
+  episode_length_mean ~= 984.02
+  fall_rate ~= 0.03
+
+Go1:
+  no checkpoint passed the expert gate.
+  best candidate = rslrl_ppo_conservative seed 0
+  return_mean ~= 70.00
+  episode_length_mean ~= 856.20
+  fall_rate ~= 0.30
+```
+
+Decision:
+
+```text
+Do not build canonical two-task D_QS_core from this probe.
+The G1 collector is usable as expert, but the Go1 expert quality is not yet
+acceptable. Go1 must be retrained or otherwise strengthened before it can enter
+formal A2.5/A3 data collection.
+```
+
+Reason:
+
+```text
+The restart protocol requires empirical quality bins. A collector label is not
+enough. Expert data must have low fall rate, long episode length, and return
+clearly above random. The Go1 probe violates the fall-rate requirement.
+```
+
+## Go1 Native Long Collector Retraining - 2026-05-04
+
+The first native Go1 collectors were trained for 10k iterations, while G1 used
+30k iterations. Since Go1 failed the empirical expert gate, the next controlled
+step is to retrain Go1 native collectors for 30k iterations with the same two
+neutral MJLab-native methods:
+
+```text
+rslrl_ppo_default
+rslrl_ppo_conservative
+```
+
+Manifest:
+
+```text
+scripts/outputs/mjlab_qs/manifests/mjlab_native_collector_go1_long_v2.csv
+```
+
+Split manifests for GPU diversity:
+
+```text
+scripts/outputs/mjlab_qs/manifests/mjlab_native_collector_go1_long_v2_h100.csv
+scripts/outputs/mjlab_qs/manifests/mjlab_native_collector_go1_long_v2_h200.csv
+scripts/outputs/mjlab_qs/manifests/mjlab_native_collector_go1_long_v2_l40s.csv
+```
+
+Configuration:
+
+```text
+task = Mjlab-Velocity-Flat-Unitree-Go1
+methods = rslrl_ppo_default, rslrl_ppo_conservative
+seeds = 0, 1, 2
+num_envs = 2048
+max_iterations = 30000
+save_interval = 500
+wandb_project = flow-mbpo-mjlab-native-collector
+wandb_group = mjlab_native_collector_go1_long_v2
+```
+
+Acceptance before formal QS collection:
+
+```text
+At least one Go1 checkpoint must pass empirical expert gate under a 100-episode
+probe:
+  low fall rate
+  long episode length
+  return clearly above random
+  no NaN action/reward
+  acceptable action clip fraction
+```
+
+Submission:
+
+```text
+5251165  H100  native_collector  manifest=mjlab_native_collector_go1_long_v2_h100.csv
+5251166  H200  native_collector  manifest=mjlab_native_collector_go1_long_v2_h200.csv
+5251167  L40S  native_collector  manifest=mjlab_native_collector_go1_long_v2_l40s.csv
+```
+
+Post-training action:
+
+```text
+1. Build a new Go1 native quality-probe manifest from
+   mjlab_native_collector_go1_long_v2.
+2. Collect 100-episode empirical probes for all Go1 long checkpoints.
+3. Audit by return / fall rate / episode length / NaN / clip fraction.
+4. If Go1 passes expert gate, combine it with the existing passing G1 expert
+   checkpoint to build A2.5 D_QS_core.
+5. Only then build windows and launch WM feasibility / PWM pipeline comparison.
+```
