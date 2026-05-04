@@ -941,3 +941,46 @@ If no empirical weak checkpoint exists across seeds 0/1/2, the corrected G1 QS
 dataset should either omit weak as a formal bucket or use a separate neutral
 collector/replay-buffer source. It should not use expert-random action blending
 as a substitute for a weak policy.
+
+## G1 Four-Bucket Dataset Decision - 2026-05-04
+
+The dataset is now changed to four buckets:
+
+```text
+random_smooth
+medium
+expert
+expert_noisy
+```
+
+Reason:
+
+```text
+The G1 conservative seed-0 learning curve does not provide a clean empirical
+weak checkpoint. It jumps from random/failed to expert very quickly. Forcing a
+weak bucket would either fabricate data or use expert-random action blending,
+which does not match the intended QS data semantics.
+```
+
+Selected checkpoint-stage sources:
+
+```text
+medium = rslrl_ppo_conservative seed 0 iter 15000
+  return_mean ~= 67.35
+  episode_length_mean ~= 836.33
+  fall_rate ~= 0.27
+
+expert = rslrl_ppo_conservative seed 0 iter 29999
+  return_mean ~= 81.41
+  episode_length_mean ~= 992.08
+  fall_rate ~= 0.02
+```
+
+Corrected manifest:
+
+```text
+scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_collection.csv
+```
+
+This branch should supersede the previous blended G1-only dataset for formal
+single-task diagnostics.

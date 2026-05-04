@@ -29,6 +29,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--output", required=True)
     p.add_argument("--stage", required=True)
     p.add_argument("--tasks", default="velocity_flat_unitree_g1")
+    p.add_argument(
+        "--roles",
+        default="random_smooth,weak,medium,expert,expert_noisy",
+        help=(
+            "Comma-separated QS buckets to collect. Supported: random_smooth, "
+            "weak, medium, expert, expert_noisy."
+        ),
+    )
     p.add_argument("--num-envs", type=int, default=32)
     p.add_argument("--episodes-scale", type=float, default=1.0)
     return p.parse_args()
@@ -64,6 +72,18 @@ def choose(rows: List[Dict[str, str]], role: str) -> Dict[str, str]:
         reverse=True,
     )
     return candidates[0]
+
+
+def parse_roles(raw: str) -> List[str]:
+    roles = [x.strip() for x in raw.split(",") if x.strip()]
+    if not roles:
+        raise RuntimeError("--roles must be non-empty")
+    unknown = sorted(set(roles) - set(QS_EPISODES))
+    if unknown:
+        raise RuntimeError(f"Unknown QS roles: {unknown}")
+    if "expert_noisy" in roles and "expert" not in roles:
+        raise RuntimeError("expert_noisy requires an expert source role")
+    return roles
 
 
 def make_row(
@@ -126,6 +146,7 @@ def make_row(
 def main() -> None:
     args = parse_args()
     task_ids = selected_task_ids(args.tasks)
+    roles = parse_roles(args.roles)
     with open(args.ranking, newline="", encoding="utf-8") as f:
         ranking = list(csv.DictReader(f))
     rows: List[Dict[str, str]] = []
@@ -133,20 +154,24 @@ def main() -> None:
         task_rows = [r for r in ranking if r.get("task_id") == task_id]
         if not task_rows:
             raise RuntimeError(f"No ranking rows for task {task_id}")
-        weak = choose(task_rows, "weak")
-        medium = choose(task_rows, "medium")
-        expert = choose(task_rows, "expert")
-        rows.append(make_row(args.stage, task_id, "random_smooth", None, args.num_envs, args.episodes_scale))
-        rows.append(make_row(args.stage, task_id, "weak", weak, args.num_envs, args.episodes_scale))
-        rows.append(make_row(args.stage, task_id, "medium", medium, args.num_envs, args.episodes_scale))
-        rows.append(make_row(args.stage, task_id, "expert", expert, args.num_envs, args.episodes_scale))
-        rows.append(make_row(args.stage, task_id, "expert_noisy", expert, args.num_envs, args.episodes_scale))
-        print(
-            f"selected {TASK_IDS[task_id]}: "
-            f"weak={weak['collector_id']}({weak['return_mean']}, fall={weak['fall_rate_mean']}), "
-            f"medium={medium['collector_id']}({medium['return_mean']}, fall={medium['fall_rate_mean']}), "
-            f"expert={expert['collector_id']}({expert['return_mean']}, fall={expert['fall_rate_mean']})"
-        )
+        sources: Dict[str, Dict[str, str]] = {}
+        for role in ("weak", "medium", "expert"):
+            if role in roles or (role == "expert" and "expert_noisy" in roles):
+                sources[role] = choose(task_rows, role)
+        for role in roles:
+            if role == "random_smooth":
+                rows.append(make_row(args.stage, task_id, role, None, args.num_envs, args.episodes_scale))
+            elif role == "expert_noisy":
+                rows.append(make_row(args.stage, task_id, role, sources["expert"], args.num_envs, args.episodes_scale))
+            else:
+                rows.append(make_row(args.stage, task_id, role, sources[role], args.num_envs, args.episodes_scale))
+
+        selected_bits = []
+        for role, source in sorted(sources.items()):
+            selected_bits.append(
+                f"{role}={source['collector_id']}({source['return_mean']}, fall={source['fall_rate_mean']})"
+            )
+        print(f"selected {TASK_IDS[task_id]} roles={','.join(roles)}: " + "; ".join(selected_bits))
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

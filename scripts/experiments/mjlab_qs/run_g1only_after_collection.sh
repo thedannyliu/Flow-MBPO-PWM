@@ -12,7 +12,9 @@ export EGL_PLATFORM="${EGL_PLATFORM:-surfaceless}"
 export WANDB_DIR="${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
 mkdir -p "${WANDB_DIR}"
 
-STAGE="a25_native_qs_g1only"
+STAGE="${STAGE:-a25_native_qs_g1only}"
+TASKS="${TASKS:-velocity_flat_unitree_g1}"
+MIN_VALID_TRAIN_WINDOWS_PER_BUCKET="${MIN_VALID_TRAIN_WINDOWS_PER_BUCKET:-500}"
 MANIFEST_DIR="scripts/outputs/mjlab_qs/manifests"
 AUDIT_DIR="scripts/outputs/mjlab_qs/audits"
 RAW_DIR="scripts/outputs/mjlab_qs/raw"
@@ -32,13 +34,13 @@ COLLECTION="${MANIFEST_DIR}/${STAGE}_collection.csv"
   --collection-manifest "${COLLECTION}" \
   --mode "${STAGE}" \
   --python-bin "${PYTHON_BIN}" \
-  --min-valid-train-windows-per-bucket 500
+  --min-valid-train-windows-per-bucket "${MIN_VALID_TRAIN_WINDOWS_PER_BUCKET}"
 
 TRAIN_MANIFEST="${MANIFEST_DIR}/${STAGE}_train.csv"
 "${PYTHON_BIN}" scripts/experiments/mjlab_qs/build_phaseA_train_manifest_from_windows.py \
   --stage "${STAGE}" \
   --output "${TRAIN_MANIFEST}" \
-  --tasks velocity_flat_unitree_g1 \
+  --tasks "${TASKS}" \
   --methods mlp_ref,flow_ref,residual_flow_frozen_mlp \
   --seeds 0,1,2 \
   --train-iters 50000 \
