@@ -826,3 +826,29 @@ G1-only collection manifest:
 ```text
 scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1only_collection.csv
 ```
+
+G1-only post-collection driver:
+
+```text
+scripts/experiments/mjlab_qs/run_g1only_after_collection.sh
+```
+
+Submission:
+
+```text
+5254303  L40S  native_collection  manifest=a25_native_qs_g1only_collection.csv
+5254311  L40S  g1only_after_collection  dependency=afterok:5254303
+```
+
+The G1-only branch will:
+
+```text
+1. Strictly audit the G1-only raw dataset.
+2. Build H=16 windows for velocity_flat_unitree_g1.
+3. Use a reduced diagnostic window gate of 500 valid train windows per bucket,
+   because random_smooth G1 episodes are intentionally short and this branch is
+   not the canonical two-task result.
+4. Build formal A2.5 training rows for mlp_ref, flow_ref, and
+   residual_flow_frozen_mlp with seeds 0,1,2.
+5. Submit formal W&B training arrays split across H100, H200, and L40S.
+```
