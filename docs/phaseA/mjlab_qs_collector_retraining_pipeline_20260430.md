@@ -685,3 +685,32 @@ Post-training action:
    checkpoint to build A2.5 D_QS_core.
 5. Only then build windows and launch WM feasibility / PWM pipeline comparison.
 ```
+
+## Native QS Window-to-Training Manifest Builder - 2026-05-04
+
+Added a training-manifest builder that starts from already validated native QS
+window datasets instead of the older PWM-checkpoint hardcoded manifest builder:
+
+```text
+scripts/experiments/mjlab_qs/build_phaseA_train_manifest_from_windows.py
+```
+
+Usage after formal native QS windows exist:
+
+```text
+python scripts/experiments/mjlab_qs/build_phaseA_train_manifest_from_windows.py \
+  --stage a25_native_qs \
+  --output scripts/outputs/mjlab_qs/manifests/a25_native_qs_train.csv \
+  --methods mlp_ref,flow_ref,residual_flow_frozen_mlp \
+  --seeds 0,1,2 \
+  --train-iters 50000 \
+  --eval-every 5000
+```
+
+This preserves the A2.5 execution rule:
+
+```text
+Only formal training rows are sent to W&B.
+Smoke / collection / audit / window-building steps are local or Slurm-only and
+are not logged to W&B as model-comparison results.
+```
