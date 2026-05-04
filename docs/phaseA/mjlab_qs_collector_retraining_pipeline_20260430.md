@@ -714,3 +714,15 @@ Only formal training rows are sent to W&B.
 Smoke / collection / audit / window-building steps are local or Slurm-only and
 are not logged to W&B as model-comparison results.
 ```
+
+H100/H200 startup was still pending on priority while L40S rows were running.
+To avoid blocking the collector-quality gate on H100/H200 availability, an
+independent L40S backup stage was submitted for the rows not covered by the
+original L40S split. The backup uses separate output directories, so it cannot
+corrupt pending H100/H200 outputs.
+
+```text
+5251177  L40S  native_collector  manifest=mjlab_native_collector_go1_long_v2_l40s_backup.csv
+stage = mjlab_native_collector_go1_long_v2_l40sbackup
+coverage = Go1 default seeds 0/1/2 + Go1 conservative seed 0
+```
