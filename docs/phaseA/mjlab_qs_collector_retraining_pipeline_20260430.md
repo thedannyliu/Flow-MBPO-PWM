@@ -726,3 +726,32 @@ corrupt pending H100/H200 outputs.
 stage = mjlab_native_collector_go1_long_v2_l40sbackup
 coverage = Go1 default seeds 0/1/2 + Go1 conservative seed 0
 ```
+
+## Automated A2.5 Native QS Pipeline Driver - 2026-05-04
+
+Added a gated driver that can run after the Go1 long L40S collector jobs finish:
+
+```text
+scripts/experiments/mjlab_qs/run_a25_native_qs_after_go1_long.sh
+```
+
+Behavior:
+
+```text
+1. Build a combined Go1-long quality-probe manifest from the primary long stage
+   and the L40S backup stage.
+2. Run 100-episode Go1 empirical probes sequentially on one GPU.
+3. Audit and rank Go1 long checkpoints. The probe audit is allowed to fail
+   because it contains multiple candidate checkpoints; selection is based on
+   per-shard expert_gate_pass in the ranking file.
+4. Combine the new Go1 ranking with the previous G1 ranking.
+5. Build formal a25_native_qs collection manifest only if both tasks have an
+   expert-gate-passing checkpoint.
+6. Collect formal a25_native_qs raw episodes.
+7. Run strict formal dataset audit.
+8. Build H=16 windows with the required bucket/window gates.
+9. Build A2.5 training manifests and submit formal WM training arrays.
+```
+
+This driver preserves the hard gate: if Go1 still fails empirical expert
+quality, the formal dataset and WM training will not be launched.
