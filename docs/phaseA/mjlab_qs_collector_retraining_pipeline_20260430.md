@@ -755,3 +755,16 @@ Behavior:
 
 This driver preserves the hard gate: if Go1 still fails empirical expert
 quality, the formal dataset and WM training will not be launched.
+
+Pipeline submission:
+
+```text
+5251184  L40S  mjqs_a25_native_qs_pipeline
+  dependency = afterok:5251167:5251177
+  script = scripts/experiments/mjlab_qs/run_a25_native_qs_after_go1_long.sh
+```
+
+This job intentionally depends only on the L40S Go1-long stages because they
+cover all required Go1 long candidates without output-directory conflicts. The
+pending H100/H200 duplicate collectors are not canceled, but they are not on the
+critical path for A2.5 dataset construction.
