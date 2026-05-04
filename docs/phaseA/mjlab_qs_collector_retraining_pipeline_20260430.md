@@ -984,3 +984,37 @@ scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_collection.csv
 
 This branch should supersede the previous blended G1-only dataset for formal
 single-task diagnostics.
+
+Submission status:
+
+```text
+5254572  L40S  native_collection  stage=a25_native_qs_g1stage4
+5254573  L40S  after-collection pipeline, dependency=afterok:5254572
+```
+
+Because the L40S job was still pending on priority, two non-overlapping shadow
+stages were also submitted. They write to separate raw/window/result
+directories and must be reported as shadow duplicates unless they are the first
+complete run adopted for the G1-only diagnostic:
+
+```text
+5254582  H100  native_collection  stage=a25_native_qs_g1stage4_h100shadow
+5254584  H100  after-collection pipeline, dependency=afterok:5254582
+
+5254583  H200  native_collection  stage=a25_native_qs_g1stage4_h200shadow
+5254585  H200  after-collection pipeline, dependency=afterok:5254583
+```
+
+Adoption rule:
+
+```text
+Use the first stage that fully completes:
+1. raw episode collection,
+2. quality audit,
+3. H=16 window build with the minimum valid-window gate,
+4. A2.5 formal WM training for mlp_ref, flow_ref, residual_flow_frozen_mlp
+   with seeds 0/1/2.
+
+Do not merge metrics across the L40S/H100/H200 duplicate stages. They are
+fallback execution lanes for the same four-bucket G1-only diagnostic.
+```
