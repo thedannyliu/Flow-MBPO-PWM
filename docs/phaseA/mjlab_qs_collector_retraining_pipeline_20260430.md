@@ -1018,3 +1018,81 @@ Use the first stage that fully completes:
 Do not merge metrics across the L40S/H100/H200 duplicate stages. They are
 fallback execution lanes for the same four-bucket G1-only diagnostic.
 ```
+
+## G1 Four-Bucket A2.5 Execution Status - 2026-05-04 16:05
+
+The L40S lane completed first and is the current adopted G1-only diagnostic
+stage:
+
+```text
+5254572  L40S  native_collection  COMPLETED
+5254573  L40S  after-collection pipeline  COMPLETED
+```
+
+Artifacts:
+
+```text
+raw:
+  scripts/outputs/mjlab_qs/raw/a25_native_qs_g1stage4/
+
+audit:
+  scripts/outputs/mjlab_qs/audits/a25_native_qs_g1stage4.{csv,json,md}
+
+windows:
+  scripts/outputs/mjlab_qs/windows/a25_native_qs_g1stage4/velocity_flat_unitree_g1/d_qs_core_h16.pt
+  scripts/outputs/mjlab_qs/windows/a25_native_qs_g1stage4/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json
+  scripts/outputs/mjlab_qs/windows/a25_native_qs_g1stage4/velocity_flat_unitree_g1/d_qs_core_h16_report.md
+
+training manifests:
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_train.csv
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_train_h100.csv
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_train_h200.csv
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_train_l40s.csv
+```
+
+Quality audit:
+
+```text
+status: PASS
+episodes: 502
+nan_reward: 0
+nan_action: 0
+```
+
+Window build:
+
+```text
+status: PASS
+num_windows: 100415
+train valid windows:
+  random_smooth: 702
+  medium: 37883
+  expert: 30625
+  expert_noisy: 12300
+```
+
+The random_smooth bucket is intentionally small because random locomotion
+terminates quickly; this G1-only diagnostic uses the relaxed A2.5 gate of at
+least 500 valid train windows per bucket.
+
+Formal A2.5 WM training arrays submitted from the adopted L40S stage:
+
+```text
+5254700  H100  mlp_ref seeds 0/1/2  PENDING
+5254701  H200  flow_ref seeds 0/1/2  PENDING
+5254702  L40S  residual_flow_frozen_mlp seeds 0/1/2  PENDING
+```
+
+The H200 shadow collection finished, but its after-collection pipeline failed
+the quality audit because the duplicate rollout had only 44 empirical expert
+episodes, below the 50-episode audit gate:
+
+```text
+5254583  H200  native_collection  COMPLETED
+5254585  H200  after-collection pipeline  FAILED
+reason: empirical expert episodes 44 < 50
+```
+
+This does not invalidate the adopted L40S lane, which passed the audit and
+window gates. It does show that the current empirical expert threshold is
+sensitive to rollout stochasticity at this small A2.5 scale.
