@@ -768,3 +768,12 @@ This job intentionally depends only on the L40S Go1-long stages because they
 cover all required Go1 long candidates without output-directory conflicts. The
 pending H100/H200 duplicate collectors are not canceled, but they are not on the
 critical path for A2.5 dataset construction.
+
+Runtime adjustment:
+
+```text
+L40S checkpoint rate was about 500 native PPO iterations per 9 minutes.
+At that rate, 30k iterations can exceed the original 10h Slurm limit.
+Attempted to extend Go1-long collector jobs to 24h and the gated pipeline job
+to 18h to avoid timeout-induced partial collectors.
+```
