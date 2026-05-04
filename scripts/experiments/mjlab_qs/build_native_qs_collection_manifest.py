@@ -28,6 +28,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--ranking", required=True)
     p.add_argument("--output", required=True)
     p.add_argument("--stage", default="a25_native_qs")
+    p.add_argument(
+        "--tasks",
+        default="",
+        help=(
+            "Optional comma-separated task keys or task IDs to include. "
+            "Default: all canonical tasks."
+        ),
+    )
     p.add_argument("--num-envs", type=int, default=32)
     p.add_argument("--episodes-scale", type=float, default=1.0)
     return p.parse_args()
@@ -39,22 +47,37 @@ def as_bool(raw: object) -> bool:
 
 def main() -> None:
     args = parse_args()
+    selected_task_ids = set(TASK_IDS)
+    if args.tasks.strip():
+        selected_task_ids = set()
+        requested = {x.strip() for x in args.tasks.split(",") if x.strip()}
+        for task_id, task_key in TASK_IDS.items():
+            if task_id in requested or task_key in requested:
+                selected_task_ids.add(task_id)
+        unknown = requested - selected_task_ids - {TASK_IDS[x] for x in selected_task_ids}
+        if unknown:
+            raise RuntimeError(f"Unknown requested tasks: {sorted(unknown)}")
+    if not selected_task_ids:
+        raise RuntimeError("No tasks selected.")
+
     with open(args.ranking, newline="", encoding="utf-8") as f:
         ranking = list(csv.DictReader(f))
     selected: Dict[str, Dict[str, str]] = {}
     for row in ranking:
         task_id = row["task_id"]
-        if task_id not in TASK_IDS:
+        if task_id not in selected_task_ids:
             continue
         if not as_bool(row.get("expert_gate_pass")):
             continue
         selected.setdefault(task_id, row)
-    missing = sorted(set(TASK_IDS) - set(selected))
+    missing = sorted(selected_task_ids - set(selected))
     if missing:
         raise RuntimeError(f"No expert-gate-passing native collector for tasks: {missing}")
 
     rows: List[Dict[str, str]] = []
     for task_id, task_key in TASK_IDS.items():
+        if task_id not in selected_task_ids:
+            continue
         best = selected[task_id]
         for qbin, mode, blend, noise, episodes in QS_BINS:
             out = Path("scripts/outputs/mjlab_qs/raw") / args.stage / f"{task_key}_{qbin}_seed0.pt"

@@ -787,3 +787,42 @@ still requesting a GPU.
 
 dependency = afterok:5251167:5251177
 ```
+
+## G1-Only Diagnostic Dataset Branch - 2026-05-04
+
+Go1 remains blocked after the long native retrain: no Go1 checkpoint passes the
+empirical expert gate. G1 is usable and has a passing native conservative expert
+collector:
+
+```text
+G1 expert = native_rslrl_ppo_conservative_seed0
+return_mean ~= 81.35
+episode_length_mean ~= 984.02
+fall_rate ~= 0.03
+```
+
+Decision:
+
+```text
+Start a G1-only diagnostic branch. This is not the canonical two-task A2.5
+result, but it is a valid single-task diagnostic dataset for checking the WM /
+PWM training pipeline while Go1 collector quality remains unresolved.
+```
+
+Implementation update:
+
+```text
+scripts/experiments/mjlab_qs/build_native_qs_collection_manifest.py
+```
+
+now supports:
+
+```text
+--tasks velocity_flat_unitree_g1
+```
+
+G1-only collection manifest:
+
+```text
+scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1only_collection.csv
+```
