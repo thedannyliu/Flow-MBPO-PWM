@@ -898,3 +898,20 @@ Submission:
 The previous G1-only formal WM training jobs based on blended weak/medium data
 were canceled before completion. They should be treated as invalidated pipeline
 sanity jobs, not as formal data-quality results.
+
+Added a stage-ranking QS manifest builder:
+
+```text
+scripts/experiments/mjlab_qs/build_native_qs_collection_manifest_from_stage_ranking.py
+```
+
+This builder selects:
+
+```text
+weak   = best empirical weak checkpoint
+medium = best empirical medium checkpoint
+expert = best empirical expert checkpoint
+```
+
+and then builds a formal QS collection manifest where weak/medium are actual
+training-stage policies, not expert-random action blends.
