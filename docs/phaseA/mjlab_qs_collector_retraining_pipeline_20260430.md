@@ -1167,3 +1167,21 @@ This train-loss-match sidecar is an existence diagnostic, not a compute-fair
 comparison. Each row retrains an MLP for 50k updates to define the MLP train
 rollout-loss target, then trains Flow for up to 300k updates or until the Flow
 train H16 rollout loss reaches the MLP target within 5%.
+
+Residual seed-0 rerun sidecar:
+
+```text
+manifest:
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_residual_seed0_rerun.csv
+
+job:
+  5257321  H100  residual_flow_frozen_mlp seed 0 rerun  direct submission
+```
+
+Purpose:
+
+```text
+The equal-update residual_flow_frozen_mlp seed 0 has substantially worse rollout
+stability than seeds 1/2. This sidecar checks whether that instability is a
+random optimization outcome or a reproducible failure mode.
+```
