@@ -1096,3 +1096,70 @@ reason: empirical expert episodes 44 < 50
 This does not invalidate the adopted L40S lane, which passed the audit and
 window gates. It does show that the current empirical expert threshold is
 sensitive to rollout stochasticity at this small A2.5 scale.
+
+## G1 Four-Bucket A2.5 Training Status - 2026-05-05
+
+Equal-update 50k A2.5 status:
+
+```text
+5254700  H100  mlp_ref seeds 0/1/2  COMPLETED
+5254701  H200  flow_ref seeds 0/1  COMPLETED
+5254701  H200  flow_ref seed 2  RUNNING
+5254702  L40S  residual_flow_frozen_mlp seeds 0/1/2  COMPLETED
+```
+
+Partial 50k results before `flow_ref` seed 2 finishes:
+
+```text
+mlp_ref, n=3:
+  test_rollout_dyn_mse_H16_mean ~= 0.0372
+  final_train_rollout_dyn_mse_H16 ~= 0.0127-0.0140
+  test_rollout_error_ratio_e16_e1_mean ~= 1.98
+
+flow_ref, n=2:
+  test_rollout_dyn_mse_H16_mean ~= 0.1538
+  final_train_rollout_dyn_mse_H16 ~= 0.1507-0.1631
+  test_rollout_error_ratio_e16_e1_mean ~= 6.93
+  test_rollout_dyn_mse_H16 is currently ~= 4.13x the mlp_ref mean
+
+residual_flow_frozen_mlp, n=3:
+  test_rollout_dyn_mse_H16_mean ~= 0.0538
+  final_train_rollout_dyn_mse_H16 ~= 0.0156-0.0171
+  test_rollout_error_ratio_e16_e1_mean ~= 4.67
+  test_rollout_dyn_mse_H16 is currently ~= 1.45x the mlp_ref mean
+```
+
+Interpretation:
+
+```text
+1. Pure flow_ref has not matched MLP train rollout loss at 50k updates.
+2. Pure flow_ref reward loss is in the same range as MLP, so the dominant gap
+   remains latent rollout dynamics.
+3. residual_flow_frozen_mlp is much closer to MLP on train/val/test rollout
+   loss, but seed 0 has a substantially worse e16/e1 rollout-error ratio.
+```
+
+The final A2.5 summary CSV must not be exported until `flow_ref` seed 2 writes
+its `summary.json`.
+
+Flow train-loss-match sidecar:
+
+```text
+manifest:
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_train_match_300k.csv
+
+split manifests:
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_train_match_300k_h100.csv
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_train_match_300k_h200.csv
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_train_match_300k_l40s.csv
+
+jobs:
+  5257272  H100  train_match seed 0  dependency=afterok:5254701
+  5257273  H200  train_match seed 1  dependency=afterok:5254701
+  5257274  L40S  train_match seed 2  dependency=afterok:5254701
+```
+
+This train-loss-match sidecar is an existence diagnostic, not a compute-fair
+comparison. Each row retrains an MLP for 50k updates to define the MLP train
+rollout-loss target, then trains Flow for up to 300k updates or until the Flow
+train H16 rollout loss reaches the MLP target within 5%.
