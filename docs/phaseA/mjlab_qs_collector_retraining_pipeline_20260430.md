@@ -1139,8 +1139,53 @@ Interpretation:
    loss, but seed 0 has a substantially worse e16/e1 rollout-error ratio.
 ```
 
-The final A2.5 summary CSV must not be exported until `flow_ref` seed 2 writes
-its `summary.json`.
+Final A2.5 summary CSV:
+
+```text
+scripts/outputs/mjlab_qs/results/a25_native_qs_g1stage4_summary.csv
+```
+
+Final equal-update 50k A2.5 results:
+
+```text
+mlp_ref, n=3:
+  best_val_rollout_dyn_mse_H16_mean = 0.035651
+  test_one_step_dyn_mse_mean = 0.027078
+  test_rollout_dyn_mse_H16_mean = 0.037191
+  test_reward_mse_mean = 0.042085
+  test_rollout_error_ratio_e16_e1_mean = 1.977459
+  wall_clock_seconds_mean = 1073.423486
+
+flow_ref, n=3:
+  best_val_rollout_dyn_mse_H16_mean = 0.144144
+  test_one_step_dyn_mse_mean = 0.041498
+  test_rollout_dyn_mse_H16_mean = 0.158818
+  test_reward_mse_mean = 0.039404
+  test_rollout_error_ratio_e16_e1_mean = 7.126253
+  wall_clock_seconds_mean = 2445.011641
+  test_rollout_dyn_mse_H16 / mlp_ref_mean = 4.270x
+
+residual_flow_frozen_mlp, n=3:
+  best_val_rollout_dyn_mse_H16_mean = 0.041948
+  test_one_step_dyn_mse_mean = 0.026983
+  test_rollout_dyn_mse_H16_mean = 0.053814
+  test_reward_mse_mean = 0.041335
+  test_rollout_error_ratio_e16_e1_mean = 4.670214
+  wall_clock_seconds_mean = 2742.317371
+  test_rollout_dyn_mse_H16 / mlp_ref_mean = 1.447x
+```
+
+Final interpretation:
+
+```text
+1. Pure flow_ref still does not train-match or test-match MLP at 50k updates.
+   The dominant gap is rollout dynamics, not reward prediction.
+2. residual_flow_frozen_mlp is the only Flow-based variant that approaches the
+   MLP regime on this G1-only dataset. It is still worse than MLP on average,
+   and seed 0 has a large e16/e1 rollout-instability ratio.
+3. This remains an A2.5 G1-only diagnostic, not canonical A3, because Go1 still
+   lacks a valid quality-stratified expert collector.
+```
 
 Flow train-loss-match sidecar:
 
