@@ -1154,9 +1154,13 @@ split manifests:
   scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_train_match_300k_l40s.csv
 
 jobs:
-  5257272  H100  train_match seed 0  dependency=afterok:5254701
-  5257273  H200  train_match seed 1  dependency=afterok:5254701
-  5257274  L40S  train_match seed 2  dependency=afterok:5254701
+  5257317  H100  train_match seed 0  direct submission
+  5257318  H200  train_match seed 1  direct submission
+  5257319  L40S  train_match seed 2  direct submission
+
+previous dependency jobs:
+  5257272/5257273/5257274 were canceled before running after the decision to
+  submit all train-match diagnostics immediately.
 ```
 
 This train-loss-match sidecar is an existence diagnostic, not a compute-fair
