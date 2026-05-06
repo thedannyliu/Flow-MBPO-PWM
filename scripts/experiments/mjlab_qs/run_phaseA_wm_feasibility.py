@@ -108,7 +108,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--metadata", required=True)
     parser.add_argument("--normalization", required=True)
-    parser.add_argument("--method", choices=["mlp_ref", "flow_ref", "residual_flow_frozen_mlp"], required=True)
+    parser.add_argument(
+        "--method",
+        choices=["mlp_ref", "flow_ref", "flow_endpoint", "residual_flow_frozen_mlp"],
+        required=True,
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--output-dir", required=True)
@@ -199,6 +203,9 @@ def rollout_losses(
 
 
 def train_loss(model: nn.Module, method: str, z: torch.Tensor, a: torch.Tensor, r: torch.Tensor, c: torch.Tensor, done: torch.Tensor, gamma: float) -> torch.Tensor:
+    if method == "flow_endpoint":
+        _, _, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
+        return dyn_agg + rew_agg
     if method in {"flow_ref", "residual_flow_frozen_mlp"}:
         mask = torch.ones(z.shape[0], device=z.device)
         fm_num = torch.zeros((), device=z.device)
@@ -274,7 +281,7 @@ def main() -> None:
     command_dim = int(data["command"].shape[-1])
     if args.method == "mlp_ref":
         model: nn.Module = MLPWM(state_dim, action_dim, command_dim, args.hidden)
-    elif args.method == "flow_ref":
+    elif args.method in {"flow_ref", "flow_endpoint"}:
         model = FlowWM(state_dim, action_dim, command_dim, args.hidden, substeps=args.flow_substeps)
     else:
         model = ResidualFlowWM(state_dim, action_dim, command_dim, args.hidden, substeps=args.flow_substeps)

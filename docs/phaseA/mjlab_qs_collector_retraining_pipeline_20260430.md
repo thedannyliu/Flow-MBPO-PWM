@@ -1309,3 +1309,170 @@ the rerun. The rerun is close to residual seeds 1/2 and much closer to MLP than
 pure Flow. Residual Flow remains the only Flow-based WM direction from A2.5
 that is plausible for a G1-only downstream policy-extraction diagnostic.
 ```
+
+## Endpoint-Supervised Flow Sidecar And PWM Pipeline Launch - 2026-05-06
+
+Motivation from SWM:
+
+```text
+In the SWM-native OGBench state-space experiments, the successful variant was
+not pure Flow Matching. It was an endpoint-supervised Flow/ODE dynamics model:
+starting from the normalized state, integrate the Flow dynamics, then supervise
+the integrated endpoint directly with recursive rollout MSE.
+
+This matters because our older MJLab endpoint variants were mostly
+FM-based variants:
+  - flow_endpoint1_heun4: FM + endpoint consistency
+  - flow_target_endpointres: endpoint-aware velocity target
+  - flow_endpointres_auxnext: endpoint residual + auxiliary next-latent loss
+
+Those variants did not test the exact SWM-style endpoint-supervised objective
+inside the frozen-state A2.5 pipeline.
+```
+
+Implemented code changes:
+
+```text
+scripts/experiments/mjlab_qs/run_phaseA_wm_feasibility.py
+  - added method = flow_endpoint
+  - Flow endpoint training loss is H-step integrated endpoint rollout MSE plus
+    reward MSE, using the same frozen normalized phys_obs state space as A2.5.
+  - This is the closest MJLab-QS counterpart to the SWM state-space Flow
+    endpoint feasibility test.
+
+src/flow_mbpo_pwm/algorithms/pwm.py
+  - added config field alg.flow_training_objective
+  - supported values:
+      flow_matching
+      endpoint_rollout
+      flow_matching_plus_endpoint
+  - endpoint_rollout skips velocity matching loss and directly supervises the
+    integrated Flow endpoint against the target latent for each horizon step.
+
+scripts/cfg/alg/pwm_5M_flow_endpoint_supervised.yaml
+  - new downstream PWM config for Flow endpoint WM + MLP policy.
+  - uses original PWM-style MLP actor/critic and original baseline settings
+    where possible, with only the world model dynamics changed to Flow endpoint.
+```
+
+Smoke / validation:
+
+```text
+A synthetic local no-W&B smoke verified that flow_endpoint produces a finite
+loss and gradients through the integrated endpoint objective.
+
+Compiled files:
+  scripts/experiments/mjlab_qs/run_phaseA_wm_feasibility.py
+  src/flow_mbpo_pwm/algorithms/pwm.py
+```
+
+W&B separation:
+
+```text
+WM-only endpoint sidecar project:
+  flow-mbpo-mjlab-flow-endpoint-wm-only
+
+PWM downstream MLP-policy project:
+  flow-mbpo-mjlab-pwm-endpoint-mlppolicy
+
+The WM-only endpoint sidecar and downstream PWM policy runs are intentionally
+separate projects because they answer different questions:
+  Q1: Can endpoint-supervised Flow fit the fixed G1 QS dataset?
+  Q2: Does endpoint-supervised Flow WM improve the PWM online/control pipeline
+      when the policy remains an MLP policy?
+```
+
+WM-only endpoint sidecar manifests:
+
+```text
+equal update budget, 50k:
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_endpoint_equal50k.csv
+
+1.5x update budget, 75k:
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_endpoint_1p5compute75k.csv
+
+seed/GPU shards:
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_endpoint_seed0_h100.csv
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_endpoint_seed1_h200.csv
+  scripts/outputs/mjlab_qs/manifests/a25_native_qs_g1stage4_flow_endpoint_seed2_l40s.csv
+```
+
+Submitted WM-only endpoint sidecar jobs:
+
+```text
+5264639  H100  seed 0  flow_endpoint 50k + 75k shard
+5264640  H200  seed 1  flow_endpoint 50k + 75k shard
+5264641  L40S  seed 2  flow_endpoint 50k + 75k shard
+```
+
+PWM downstream MLP-policy comparison:
+
+```text
+Task:
+  velocity_flat_unitree_g1
+
+Policy:
+  MLP policy for all rows
+
+Rows per seed:
+  1. mlpwm_mlppolicy / pwm_5M_baseline_pwmorig / wm_iterations=8
+  2. flowwm_mlppolicy / pwm_5M_flow_endpoint_supervised / wm_iterations=8
+  3. flowwm_mlppolicy / pwm_5M_flow_endpoint_supervised / wm_iterations=12
+
+Compute convention:
+  - equal-compute means the same PWM online loop and same WM update count
+    per epoch: wm_iterations=8.
+  - 1.5x Flow compute means wm_iterations=12 for Flow endpoint only.
+  - Wall-clock, GPU type, and final/eval metrics must still be reported because
+    Flow integration substeps make actual wall-clock cost higher than the
+    update-count ratio alone.
+```
+
+PWM downstream manifests:
+
+```text
+full manifest:
+  scripts/experiments/single_task_online/manifests/pwm_endpoint_g1_mlppolicy_20260506.csv
+
+seed/GPU shards:
+  scripts/experiments/single_task_online/manifests/pwm_endpoint_g1_mlppolicy_20260506_h100.csv
+  scripts/experiments/single_task_online/manifests/pwm_endpoint_g1_mlppolicy_20260506_h200.csv
+  scripts/experiments/single_task_online/manifests/pwm_endpoint_g1_mlppolicy_20260506_l40s.csv
+```
+
+Submitted PWM downstream jobs:
+
+```text
+5264642  H100  seed 0  MLP baseline + Flow endpoint equal + Flow endpoint 1.5x
+5264643  H200  seed 1  MLP baseline + Flow endpoint equal + Flow endpoint 1.5x
+5264644  L40S  seed 2  MLP baseline + Flow endpoint equal + Flow endpoint 1.5x
+```
+
+Submission note:
+
+```text
+The first downstream submission request used a 24h wall-clock limit and was
+rejected by PACE as exceeding the allowed time. The downstream jobs were then
+submitted with 12h limits. If they time out, they should be resumed from the
+latest checkpoint rather than restarted from scratch.
+```
+
+Current expected readout:
+
+```text
+Primary WM-only metrics:
+  train/rollout_dyn_mse_H16
+  val/rollout_dyn_mse_H16
+  test/rollout_dyn_mse_H16
+  one_step_dyn_mse
+  reward_mse
+  rollout_error_ratio_e16_e1
+  wall_clock_seconds
+
+Primary PWM downstream metrics:
+  final eval return_mean / return_std
+  episode_length_mean
+  W&B train/eval curves
+  wall-clock and GPU type
+  compute setting: equal_update or flow_1p5_update
+```

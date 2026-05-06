@@ -72,6 +72,11 @@ class PWM:
         wm_grad_norm: float = 20.0,
         wm_dyn_loss_weight: float = 1.0,
         wm_rew_loss_weight: float = 1.0,
+        flow_endpoint_consistency_weight: float = 0.0,
+        flow_rollout_consistency_weight: float = 0.0,
+        flow_rollout_consistency_steps: int = 0,
+        flow_window_consistency_weight: float = 0.0,
+        flow_window_consistency_steps: int = 0,
         wm_buffer_size: int = 1_000_000,
         save_interval: int = 500,  # how often to save policy
         device: str = "cuda",
@@ -83,6 +88,20 @@ class PWM:
         flow_integrator: str = "heun",  # 'heun' or 'euler'
         flow_substeps: int = 2,
         flow_tau_sampling: str = "uniform",  # 'uniform' or 'midpoint'
+        flow_path_family: str = "linear",
+        flow_target_mode: str = "raw",
+        flow_target_scale: float = 1.0,
+        flow_target_mix: float = 0.5,
+        flow_pair_weight_mode: str = "none",
+        flow_pair_weight_scale: float = 1.0,
+        flow_stochastic_interp_sigma: float = 0.0,
+        flow_whiten_latents: bool = False,
+        flow_aux_next_latent_weight: float = 0.0,
+        flow_anchor_consistency_weight: float = 0.0,
+        flow_anchor_consistency_steps: int = 0,
+        flow_cycle_consistency_weight: float = 0.0,
+        flow_latent_reg_weight: float = 0.0,
+        flow_training_objective: str = "flow_matching",
         horizon_start: int = 0,
         horizon_switch_epoch: int = 0,
         wandb_log_every_epoch: bool = True,
@@ -105,6 +124,25 @@ class PWM:
         assert save_interval > 0
         assert wm_dyn_loss_weight > 0
         assert wm_rew_loss_weight > 0
+        assert flow_endpoint_consistency_weight >= 0
+        assert flow_rollout_consistency_weight >= 0
+        assert flow_rollout_consistency_steps >= 0
+        assert flow_window_consistency_weight >= 0
+        assert flow_window_consistency_steps >= 0
+        assert flow_target_scale > 0
+        assert 0 <= flow_target_mix <= 1
+        assert flow_pair_weight_scale > 0
+        assert flow_stochastic_interp_sigma >= 0
+        assert flow_aux_next_latent_weight >= 0
+        assert flow_anchor_consistency_weight >= 0
+        assert flow_anchor_consistency_steps >= 0
+        assert flow_cycle_consistency_weight >= 0
+        assert flow_latent_reg_weight >= 0
+        assert flow_training_objective in {
+            "flow_matching",
+            "endpoint_rollout",
+            "flow_matching_plus_endpoint",
+        }
 
         self.env = env
         if env is not None:
@@ -142,6 +180,11 @@ class PWM:
         self.wm_grad_norm = wm_grad_norm
         self.wm_dyn_loss_weight = float(wm_dyn_loss_weight)
         self.wm_rew_loss_weight = float(wm_rew_loss_weight)
+        self.flow_endpoint_consistency_weight = float(flow_endpoint_consistency_weight)
+        self.flow_rollout_consistency_weight = float(flow_rollout_consistency_weight)
+        self.flow_rollout_consistency_steps = int(flow_rollout_consistency_steps)
+        self.flow_window_consistency_weight = float(flow_window_consistency_weight)
+        self.flow_window_consistency_steps = int(flow_window_consistency_steps)
         self.wm_bootstrapped = False
         
         # Flow-matching configuration
@@ -149,6 +192,20 @@ class PWM:
         self.flow_integrator = flow_integrator
         self.flow_substeps = flow_substeps
         self.flow_tau_sampling = flow_tau_sampling
+        self.flow_path_family = flow_path_family
+        self.flow_target_mode = flow_target_mode
+        self.flow_target_scale = float(flow_target_scale)
+        self.flow_target_mix = float(flow_target_mix)
+        self.flow_pair_weight_mode = flow_pair_weight_mode
+        self.flow_pair_weight_scale = float(flow_pair_weight_scale)
+        self.flow_stochastic_interp_sigma = float(flow_stochastic_interp_sigma)
+        self.flow_whiten_latents = bool(flow_whiten_latents)
+        self.flow_aux_next_latent_weight = float(flow_aux_next_latent_weight)
+        self.flow_anchor_consistency_weight = float(flow_anchor_consistency_weight)
+        self.flow_anchor_consistency_steps = int(flow_anchor_consistency_steps)
+        self.flow_cycle_consistency_weight = float(flow_cycle_consistency_weight)
+        self.flow_latent_reg_weight = float(flow_latent_reg_weight)
+        self.flow_training_objective = flow_training_objective
         self.wandb_log_every_epoch = wandb_log_every_epoch
         self.save_init_policy = bool(save_init_policy)
         self.save_latest_checkpoint = bool(save_latest_checkpoint)
@@ -241,8 +298,12 @@ class PWM:
         )
 
         # Get dynamics/velocity parameters based on model type
-        dynamics_params = (self.wm._velocity if hasattr(self.wm, '_velocity') 
-                          else self.wm._dynamics).parameters()
+        if hasattr(self.wm, "dynamics_parameters"):
+            dynamics_params = self.wm.dynamics_parameters()
+        else:
+            dynamics_params = (
+                self.wm._velocity if hasattr(self.wm, "_velocity") else self.wm._dynamics
+            ).parameters()
         
         self.wm_optimizer = torch.optim.Adam(
             [
@@ -270,6 +331,42 @@ class PWM:
             print_info(f"  - Integrator: {self.flow_integrator}")
             print_info(f"  - Substeps: {self.flow_substeps}")
             print_info(f"  - Tau Sampling: {self.flow_tau_sampling}")
+            print_info(f"  - Path Family: {self.flow_path_family}")
+            print_info(f"  - Target Mode: {self.flow_target_mode}")
+            if self.flow_stochastic_interp_sigma > 0:
+                print_info(f"  - Stochastic Interpolant Sigma: {self.flow_stochastic_interp_sigma}")
+            if self.flow_whiten_latents:
+                print_info("  - Latent Whitening: enabled")
+            if self.flow_aux_next_latent_weight > 0:
+                print_info(f"  - Aux Next-Latent Weight: {self.flow_aux_next_latent_weight}")
+            if self.flow_anchor_consistency_weight > 0:
+                print_info(
+                    f"  - Anchor Consistency: weight={self.flow_anchor_consistency_weight}, steps={self.flow_anchor_consistency_steps}"
+                )
+            if self.flow_cycle_consistency_weight > 0:
+                print_info(f"  - Cycle Consistency Weight: {self.flow_cycle_consistency_weight}")
+            if self.flow_latent_reg_weight > 0:
+                print_info(f"  - Latent Regularization Weight: {self.flow_latent_reg_weight}")
+            print_info(f"  - Target Scale: {self.flow_target_scale:.3f}")
+            print_info(f"  - Target Mix: {self.flow_target_mix:.3f}")
+            print_info(f"  - Pair Weight Mode: {self.flow_pair_weight_mode}")
+            print_info(f"  - Pair Weight Scale: {self.flow_pair_weight_scale:.3f}")
+            print_info(f"  - Training Objective: {self.flow_training_objective}")
+            print_info(
+                f"  - Endpoint Consistency Weight: {self.flow_endpoint_consistency_weight:.3f}"
+            )
+            print_info(
+                f"  - Rollout Consistency Weight: {self.flow_rollout_consistency_weight:.3f}"
+            )
+            print_info(
+                f"  - Rollout Consistency Steps: {self.flow_rollout_consistency_steps}"
+            )
+            print_info(
+                f"  - Window Consistency Weight: {self.flow_window_consistency_weight:.3f}"
+            )
+            print_info(
+                f"  - Window Consistency Steps: {self.flow_window_consistency_steps}"
+            )
         else:
             print_info("Using Baseline MLP Dynamics")
         print_info(
@@ -1608,6 +1705,13 @@ class PWM:
         # Compute target latent states
         with torch.no_grad():
             next_z = self.wm.encode(obs[1:], task)
+            if self.use_flow_dynamics and (
+                self.flow_window_consistency_weight > 0
+                or self.flow_anchor_consistency_weight > 0
+            ):
+                all_z_target = self.wm.encode(obs, task)
+            else:
+                all_z_target = None
 
         # Latent rollout
         zs = torch.empty(
@@ -1620,35 +1724,149 @@ class PWM:
         z = self.wm.encode(obs[0], task)
         zs[0] = z
 
-        # TODO: If more loss types are added in the future, refactor to strategy/ABC pattern
         if self.use_flow_dynamics:
-            # Flow-matching dynamics loss
             from flow_mbpo_pwm.utils.integrators import compute_flow_matching_loss
             
             dynamics_loss = 0.0
+            velocity_fn = (
+                self.wm.velocity_ensemble
+                if getattr(self.wm, "ensemble_flow_dynamics", False)
+                else self.wm.velocity
+            )
             for t in range(self.horizon):
-                # Compute flow-matching loss for this transition
-                flow_loss = compute_flow_matching_loss(
-                    self.wm.velocity, z, next_z[t], act[t], task,
-                    tau_sampling=self.flow_tau_sampling,
-                    gamma_t=self.gamma ** t
-                )
-                dynamics_loss += flow_loss
+                z_prev = z
+                if self.flow_training_objective in {
+                    "flow_matching",
+                    "flow_matching_plus_endpoint",
+                }:
+                    flow_loss = compute_flow_matching_loss(
+                        velocity_fn, z_prev, next_z[t], act[t], task,
+                        tau_sampling=self.flow_tau_sampling,
+                        path_family=self.flow_path_family,
+                        target_mode=self.flow_target_mode,
+                        target_scale=self.flow_target_scale,
+                        target_mix=self.flow_target_mix,
+                        pair_weight_mode=self.flow_pair_weight_mode,
+                        pair_weight_scale=self.flow_pair_weight_scale,
+                        stochastic_interp_sigma=self.flow_stochastic_interp_sigma,
+                        whiten_latents=self.flow_whiten_latents,
+                        gamma_t=self.gamma ** t
+                    )
+                    dynamics_loss += flow_loss
                 
                 # Update z using the integrator for next step
-                if self.use_flow_dynamics:
-                    z = self.wm.next(z, act[t], task, 
-                                    integrator=self.flow_integrator,
-                                    substeps=self.flow_substeps)
-                else:
-                    z = self.wm.next(z, act[t], task)
+                z = self.wm.next(
+                    z_prev,
+                    act[t],
+                    task,
+                    integrator=self.flow_integrator,
+                    substeps=self.flow_substeps,
+                )
                 zs[t + 1] = z
+                endpoint_weight = self.flow_endpoint_consistency_weight
+                if self.flow_training_objective == "endpoint_rollout":
+                    endpoint_weight = 1.0
+                elif (
+                    self.flow_training_objective == "flow_matching_plus_endpoint"
+                    and endpoint_weight <= 0
+                ):
+                    endpoint_weight = 1.0
+                if endpoint_weight > 0:
+                    endpoint_loss = F.mse_loss(z, next_z[t]) * self.gamma**t
+                    dynamics_loss += endpoint_weight * endpoint_loss
+                if self.flow_aux_next_latent_weight > 0:
+                    aux_next = F.smooth_l1_loss(z, next_z[t]) * self.gamma**t
+                    dynamics_loss += self.flow_aux_next_latent_weight * aux_next
+                if self.flow_cycle_consistency_weight > 0:
+                    z_cycle = self.wm.next(
+                        z,
+                        act[t],
+                        task,
+                        integrator=self.flow_integrator,
+                        substeps=self.flow_substeps,
+                        reverse=True,
+                    )
+                    cycle_loss = F.mse_loss(z_cycle, z_prev) * self.gamma**t
+                    dynamics_loss += self.flow_cycle_consistency_weight * cycle_loss
+            if self.flow_rollout_consistency_weight > 0:
+                rollout_consistency = 0.0
+                rollout_steps = (
+                    min(self.horizon, self.flow_rollout_consistency_steps)
+                    if self.flow_rollout_consistency_steps > 0
+                    else self.horizon
+                )
+                for t in range(rollout_steps):
+                    rollout_consistency += F.mse_loss(zs[t + 1], next_z[t]) * self.gamma**t
+                dynamics_loss += self.flow_rollout_consistency_weight * rollout_consistency
+            if self.flow_window_consistency_weight > 0 and all_z_target is not None:
+                window_consistency = 0.0
+                window_steps = (
+                    min(self.horizon, self.flow_window_consistency_steps)
+                    if self.flow_window_consistency_steps > 0
+                    else self.horizon
+                )
+                for start in range(self.horizon):
+                    z_window = all_z_target[start].detach()
+                    max_k = min(window_steps, self.horizon - start)
+                    for k in range(max_k):
+                        z_window = self.wm.next(
+                            z_window,
+                            act[start + k],
+                            task,
+                            integrator=self.flow_integrator,
+                            substeps=self.flow_substeps,
+                        )
+                        target_z = all_z_target[start + k + 1]
+                        window_consistency += F.mse_loss(z_window, target_z) * self.gamma ** (start + k)
+                dynamics_loss += self.flow_window_consistency_weight * window_consistency
+            if self.flow_anchor_consistency_weight > 0 and all_z_target is not None:
+                anchor_consistency = 0.0
+                anchor_steps = (
+                    min(self.horizon, self.flow_anchor_consistency_steps)
+                    if self.flow_anchor_consistency_steps > 0
+                    else self.horizon
+                )
+                for start in range(self.horizon):
+                    z_anchor = all_z_target[start].detach()
+                    max_k = min(anchor_steps, self.horizon - start)
+                    for k in range(max_k):
+                        z_anchor = self.wm.next(
+                            z_anchor,
+                            act[start + k],
+                            task,
+                            integrator=self.flow_integrator,
+                            substeps=self.flow_substeps,
+                        )
+                        target_z = all_z_target[start + k + 1]
+                        local = F.mse_loss(z_anchor, target_z)
+                        end_target = all_z_target[min(start + max_k, self.horizon)]
+                        endpoint = F.mse_loss(z_anchor, end_target) if k == max_k - 1 else 0.0
+                        anchor_consistency += (local + endpoint) * self.gamma ** (start + k)
+                dynamics_loss += self.flow_anchor_consistency_weight * anchor_consistency
+            if self.flow_latent_reg_weight > 0:
+                latent_seq = self.wm.encode(obs, task)
+                latent_mean = latent_seq.mean(dim=(0, 1))
+                latent_std = latent_seq.std(dim=(0, 1)).clamp_min(1e-6)
+                latent_reg = latent_mean.pow(2).mean() + (latent_std - 1.0).pow(2).mean()
+                dynamics_loss += self.flow_latent_reg_weight * latent_reg
         else:
             # Baseline MLP dynamics loss (MSE)
             dynamics_loss = 0.0
             for t in range(self.horizon):
-                z = self.wm.next(z, act[t], task)
-                dynamics_loss += F.mse_loss(z, next_z[t]) * self.gamma**t
+                if getattr(self.wm, "diffusion_dynamics", False):
+                    dynamics_loss += self.wm.diffusion_loss(z, act[t], next_z[t], task) * self.gamma**t
+                    z = self.wm.next(z, act[t], task)
+                elif getattr(self.wm, "probabilistic_dynamics", False):
+                    z_mean, z_logvar = self.wm.next_stats(z, act[t], task)
+                    dynamics_loss += self.wm.dynamics_nll(z_mean, z_logvar, next_z[t]) * self.gamma**t
+                    z = z_mean
+                elif getattr(self.wm, "ensemble_dynamics", False):
+                    z_ens = self.wm.next_ensemble(z, act[t], task)
+                    dynamics_loss += ((z_ens - next_z[t].unsqueeze(0)) ** 2).mean() * self.gamma**t
+                    z = z_ens.mean(dim=0)
+                else:
+                    z = self.wm.next(z, act[t], task)
+                    dynamics_loss += F.mse_loss(z, next_z[t]) * self.gamma**t
                 zs[t + 1] = z
 
         # Reward loss (shared between baseline and flow)
