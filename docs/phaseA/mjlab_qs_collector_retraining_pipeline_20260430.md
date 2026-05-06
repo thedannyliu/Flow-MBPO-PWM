@@ -1230,3 +1230,82 @@ The equal-update residual_flow_frozen_mlp seed 0 has substantially worse rollout
 stability than seeds 1/2. This sidecar checks whether that instability is a
 random optimization outcome or a reproducible failure mode.
 ```
+
+## G1 Four-Bucket Train-Match And Residual Rerun Results - 2026-05-06
+
+Flow 300k train-loss-match jobs completed:
+
+```text
+5257317  H100  train_match seed 0  COMPLETED
+5257318  H200  train_match seed 1  COMPLETED
+5257319  L40S  train_match seed 2  COMPLETED
+```
+
+Summary CSV:
+
+```text
+scripts/outputs/mjlab_qs/results/a25_native_qs_g1stage4_flow_train_match_300k_summary.csv
+```
+
+Result:
+
+```text
+flow_matched_mlp_train_loss: False for all 3 seeds
+flow_iters_to_stop: 300000 for all 3 seeds
+
+MLP 50k train_rollout_dyn_mse_H16:
+  seed 0: 0.014020
+  seed 1: 0.012685
+  seed 2: 0.012598
+
+Flow 300k train_rollout_dyn_mse_H16:
+  seed 0: 0.155201
+  seed 1: 0.139180
+  seed 2: 0.126440
+
+Flow / MLP train-loss ratio after 300k:
+  seed 0: 11.070x
+  seed 1: 10.972x
+  seed 2: 10.036x
+
+Flow / MLP wall-clock ratio:
+  seed 0: 13.716x
+  seed 1: 13.878x
+  seed 2: 13.601x
+```
+
+Interpretation:
+
+```text
+Pure flow_ref does not merely need a little more compute. On this fixed G1
+dataset, even 300k updates does not bring Flow into the MLP train-loss regime.
+This strengthens the conclusion that pure Flow as the full deterministic latent
+transition is not currently a viable main WM candidate for PWM-style policy
+training.
+```
+
+Residual seed-0 rerun completed:
+
+```text
+5257321  H100  residual_flow_frozen_mlp seed 0 rerun  COMPLETED
+```
+
+Result:
+
+```text
+best_val_rollout_dyn_mse_H16 = 0.040860
+test_one_step_dyn_mse = 0.025741
+test_rollout_dyn_mse_H16 = 0.045074
+test_reward_mse = 0.040962
+test_rollout_error_ratio_e16_e1 = 2.467
+wall_clock_seconds = 2559.710
+```
+
+Interpretation:
+
+```text
+The previous residual_flow_frozen_mlp seed-0 instability does not reproduce in
+the rerun. The rerun is close to residual seeds 1/2 and much closer to MLP than
+pure Flow. Residual Flow remains the only Flow-based WM direction from A2.5
+that is plausible for a G1-only downstream policy-extraction diagnostic.
+```
