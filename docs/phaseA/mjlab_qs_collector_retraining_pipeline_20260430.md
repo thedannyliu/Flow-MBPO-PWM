@@ -1476,3 +1476,137 @@ Primary PWM downstream metrics:
   wall-clock and GPU type
   compute setting: equal_update or flow_1p5_update
 ```
+
+### Clarification: The Submitted PWM Jobs Are Online Diagnostics
+
+The jobs submitted as `pwm_endpoint_g1_mlppolicy_20260506` are intentionally
+kept running, but they must be labeled as **online-from-scratch / Dreamer-style
+diagnostics**, not offline-pretrained PWM.
+
+Their loop is:
+
+```text
+MLP policy interacts with real MJLab
+  -> append transitions to online replay
+  -> train/update the WM from that replay
+  -> run differentiable imagined rollouts in the learned WM
+  -> update MLP actor/critic
+  -> repeat
+```
+
+They do not load the corrected `a25_native_qs_g1stage4` offline QS dataset for
+world-model pretraining. Therefore they answer a different question:
+
+```text
+Online diagnostic:
+  If the agent is trained from scratch with the PWM online loop, does a Flow
+  endpoint WM produce better online control than the MLP WM when the policy
+  class is held fixed as MLP?
+```
+
+This result is useful, but it should not be used as the main fixed-data
+Flow-vs-MLP WM fitting comparison.
+
+### Offline-Pretrain Endpoint Comparison - 2026-05-06
+
+To separate fixed-data world-model fitting from online collection effects, I
+submitted an additional **offline-pretrain-only** comparison on the corrected
+G1 QS dataset.
+
+Dataset:
+
+```text
+scripts/outputs/mjlab_qs/windows/a25_native_qs_g1stage4/velocity_flat_unitree_g1/d_qs_core_h16.pt
+scripts/outputs/mjlab_qs/windows/a25_native_qs_g1stage4/velocity_flat_unitree_g1/d_qs_core_h16.json
+scripts/outputs/mjlab_qs/windows/a25_native_qs_g1stage4/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json
+```
+
+This offline-pretrain run does:
+
+```text
+fixed QS dataset
+  -> supervised WM training only
+  -> train/val/test rollout-dynamics evaluation
+  -> no actor update
+  -> no online MJLab interaction
+  -> no Dreamer/PWM online loop
+```
+
+Methods:
+
+```text
+1. mlp_ref, 50k updates
+2. flow_endpoint, 50k updates
+3. flow_endpoint, 75k updates
+```
+
+Compute convention:
+
+```text
+equal-update comparison:
+  mlp_ref 50k vs flow_endpoint 50k
+
+Flow 1.5x optimization diagnostic:
+  mlp_ref 50k vs flow_endpoint 75k
+```
+
+The 75k Flow row is not a compute-fair replacement claim. It is an existence /
+optimization diagnostic: if Flow endpoint only matches after more updates, the
+result means the formulation can fit with extra optimization, not that it is
+equally efficient.
+
+W&B project:
+
+```text
+flow-mbpo-mjlab-offline-pretrain-endpoint
+```
+
+W&B groups:
+
+```text
+offline_pretrain_g1_mlp_ref_50k
+offline_pretrain_g1_flow_endpoint_equal50k
+offline_pretrain_g1_flow_endpoint_1p5_75k
+```
+
+Manifests:
+
+```text
+full manifest:
+  scripts/outputs/mjlab_qs/manifests/offline_pretrain_g1_endpoint_mlp_vs_flow_20260506.csv
+
+seed/GPU shards:
+  scripts/outputs/mjlab_qs/manifests/offline_pretrain_g1_endpoint_mlp_vs_flow_20260506_seed0_h100.csv
+  scripts/outputs/mjlab_qs/manifests/offline_pretrain_g1_endpoint_mlp_vs_flow_20260506_seed1_h200.csv
+  scripts/outputs/mjlab_qs/manifests/offline_pretrain_g1_endpoint_mlp_vs_flow_20260506_seed2_l40s.csv
+```
+
+Submitted jobs:
+
+```text
+5264870  H100  seed 0  mlp_ref 50k + flow_endpoint 50k + flow_endpoint 75k
+5264871  H200  seed 1  mlp_ref 50k + flow_endpoint 50k + flow_endpoint 75k
+5264869  L40S  seed 2  mlp_ref 50k + flow_endpoint 50k + flow_endpoint 75k
+```
+
+Critical interpretation:
+
+```text
+A single offline-pretrain round is sufficient to answer the WM fitting gate:
+  Can Flow endpoint fit the same corrected fixed QS data as MLP?
+
+It is not sufficient to answer the control question:
+  Does Flow endpoint WM improve the PWM policy-learning loop?
+```
+
+Decision rule:
+
+```text
+If flow_endpoint cannot approach mlp_ref on train/val/test rollout dynamics
+under equal-update or 1.5x-update budgets, do not spend more compute on
+Flow-endpoint policy extraction yet.
+
+If flow_endpoint is competitive on fixed-data rollout dynamics, the next
+proper step is frozen-WM policy extraction or offline-pretrained PWM
+initialization, before returning to the full online Dreamer-style loop.
+```
