@@ -56,9 +56,9 @@ Submitted smoke job:
 
 | Stage | GPU | Job ID | Dependency | Notes |
 |---|---|---:|---|---|
-| smoke | L40S | `5268619` | none | Uses `/storage/ice1/2/9/eliu354/conda_envs/flow-mbpo/bin/python` |
+| smoke | L40S | `5268668` | none | Uses `/storage/ice1/2/9/eliu354/conda_envs/flow-mbpo/bin/python` |
 
-The first smoke attempt failed because Slurm used a Python without torch. The resubmitted smoke job pins the Python interpreter to the `flow-mbpo` conda environment, which has `torch`, `wandb`, `mjlab`, and `tensordict`.
+The first smoke attempt failed because Slurm used a Python without torch. A second smoke attempt exposed and fixed an online-finetune indexing bug. The current smoke/formal chain pins the Python interpreter to the `flow-mbpo` conda environment, which has `torch`, `wandb`, `mjlab`, and `tensordict`.
 
 ## Formal Stage 1: Pure Flow WM to Final Eval
 
@@ -78,9 +78,9 @@ Submitted jobs:
 
 | GPU | Job ID | Manifest | Dependency |
 |---|---:|---|---|
-| H100 | `5268639` | `pure_flow_pwm_final_eval_20260507_seed0_h100.csv` | `afterok:5268619` |
-| H200 | `5268638` | `pure_flow_pwm_final_eval_20260507_seed1_h200.csv` | `afterok:5268619` |
-| L40S | `5268640` | `pure_flow_pwm_final_eval_20260507_seed2_l40s.csv` | `afterok:5268619` |
+| H100 | `5268673` | `pure_flow_pwm_final_eval_20260507_seed0_h100.csv` | `afterok:5268668` |
+| H200 | `5268674` | `pure_flow_pwm_final_eval_20260507_seed1_h200.csv` | `afterok:5268668` |
+| L40S | `5268675` | `pure_flow_pwm_final_eval_20260507_seed2_l40s.csv` | `afterok:5268668` |
 
 ## Formal Stage 2: Online Finetune, MLP Policy, Two WMs
 
@@ -108,9 +108,9 @@ Submitted jobs:
 
 | GPU | Job ID | Manifest | Dependency |
 |---|---:|---|---|
-| H100 | `5268642` | `online_finetune_wm2_mlp_policy_20260507_seed0_h100.csv` | `afterok:5268638:5268639:5268640` |
-| H200 | `5268641` | `online_finetune_wm2_mlp_policy_20260507_seed1_h200.csv` | `afterok:5268638:5268639:5268640` |
-| L40S | `5268643` | `online_finetune_wm2_mlp_policy_20260507_seed2_l40s.csv` | `afterok:5268638:5268639:5268640` |
+| H100 | `5268681` | `online_finetune_wm2_mlp_policy_20260507_seed0_h100.csv` | `afterok:5268673:5268674:5268675` |
+| H200 | `5268680` | `online_finetune_wm2_mlp_policy_20260507_seed1_h200.csv` | `afterok:5268673:5268674:5268675` |
+| L40S | `5268682` | `online_finetune_wm2_mlp_policy_20260507_seed2_l40s.csv` | `afterok:5268673:5268674:5268675` |
 
 ## Formal Stage 3: Offline 2x2
 
@@ -132,9 +132,9 @@ Submitted jobs:
 
 | GPU | Job ID | Manifest | Dependency |
 |---|---:|---|---|
-| H100 | `5268648` | `offline_pwm_2x2_20260507_seed0_h100.csv` | `afterok:5268641:5268642:5268643` |
-| H200 | `5268647` | `offline_pwm_2x2_20260507_seed1_h200.csv` | `afterok:5268641:5268642:5268643` |
-| L40S | `5268649` | `offline_pwm_2x2_20260507_seed2_l40s.csv` | `afterok:5268641:5268642:5268643` |
+| H100 | `5268689` | `offline_pwm_2x2_20260507_seed0_h100.csv` | `afterok:5268680:5268681:5268682` |
+| H200 | `5268688` | `offline_pwm_2x2_20260507_seed1_h200.csv` | `afterok:5268680:5268681:5268682` |
+| L40S | `5268690` | `offline_pwm_2x2_20260507_seed2_l40s.csv` | `afterok:5268680:5268681:5268682` |
 
 ## Formal Stage 4: Online 2x2
 
@@ -154,9 +154,9 @@ Submitted jobs:
 
 | GPU | Job ID | Manifest | Dependency |
 |---|---:|---|---|
-| H100 | `5268650` | `online_pwm_2x2_20260507_seed0_h100.csv` | `afterok:5268647:5268648:5268649` |
-| H200 | `5268651` | `online_pwm_2x2_20260507_seed1_h200.csv` | `afterok:5268647:5268648:5268649` |
-| L40S | `5268652` | `online_pwm_2x2_20260507_seed2_l40s.csv` | `afterok:5268647:5268648:5268649` |
+| H100 | `5268693` | `online_pwm_2x2_20260507_seed0_h100.csv` | `afterok:5268688:5268689:5268690` |
+| H200 | `5268694` | `online_pwm_2x2_20260507_seed1_h200.csv` | `afterok:5268688:5268689:5268690` |
+| L40S | `5268695` | `online_pwm_2x2_20260507_seed2_l40s.csv` | `afterok:5268688:5268689:5268690` |
 
 ## Interpretation Rules
 
