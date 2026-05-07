@@ -27,6 +27,8 @@ def main() -> None:
         / stage
         / task_key
         / row["wm_method"]
+        / row.get("policy_type", "mlp")
+        / row.get("online_profile", "offline")
         / row["compute_profile"]
         / f"seed_{row['seed']}"
     )
@@ -45,6 +47,8 @@ def main() -> None:
         row["wm_checkpoint"],
         "--wm-method",
         row["wm_method"],
+        "--policy-type",
+        row.get("policy_type", "mlp"),
         "--seed",
         row["seed"],
         "--device",
@@ -89,12 +93,29 @@ def main() -> None:
         row.get("eval_num_envs", "16"),
         "--episode-length",
         row.get("episode_length", "1000"),
+        "--flow-policy-substeps",
+        row.get("flow_policy_substeps", "2"),
+        "--flow-policy-integrator",
+        row.get("flow_policy_integrator", "heun"),
+        "--online-finetune-rounds",
+        row.get("online_finetune_rounds", "0"),
+        "--online-collect-windows",
+        row.get("online_collect_windows", "256"),
+        "--online-wm-iters",
+        row.get("online_wm_iters", "1000"),
+        "--online-policy-iters",
+        row.get("online_policy_iters", "3000"),
+        "--online-wm-lr",
+        row.get("online_wm_lr", "3e-4"),
         "--wandb-project",
         row.get("wandb_project", "flow-mbpo-mjlab-offline-pwm-policy-extraction"),
         "--wandb-group",
         row.get("wandb_group", stage),
         "--wandb-name",
-        f"{stage}_{task_key}_{row['wm_method']}_{row['compute_profile']}_seed{row['seed']}",
+        (
+            f"{stage}_{task_key}_{row['wm_method']}_{row.get('policy_type', 'mlp')}_"
+            f"{row.get('online_profile', 'offline')}_{row['compute_profile']}_seed{row['seed']}"
+        ),
     ]
     if row.get("ret_rms", "true").lower() in {"0", "false", "no"}:
         cmd.append("--no-ret-rms")

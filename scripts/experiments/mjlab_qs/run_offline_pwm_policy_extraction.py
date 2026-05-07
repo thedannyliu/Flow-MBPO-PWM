@@ -35,8 +35,17 @@ from scripts.experiments.mjlab_qs.collect_mjlab_qs_native_episodes import (
     tensor_from_actor_obs,
 )
 from flow_mbpo_pwm.models.actor import ActorStochasticMLP
+from flow_mbpo_pwm.models.flow_actor import ActorFlowODE
 from flow_mbpo_pwm.models.critic import CriticMLP
-from scripts.experiments.mjlab_qs.run_phaseA_wm_feasibility import FlowWM, MLPWM, load_norm, norm, sample_train_indices
+from scripts.experiments.mjlab_qs.run_phaseA_wm_feasibility import (
+    FlowWM,
+    MLPWM,
+    load_norm,
+    norm,
+    rollout_losses,
+    sample_train_indices,
+    train_loss,
+)
 
 
 class Actor(nn.Module):
@@ -64,6 +73,42 @@ class Actor(nn.Module):
             init_gain=1.0,
             init_logstd=init_logstd,
             min_logstd=min_logstd,
+        )
+
+    def forward(self, z: torch.Tensor, c: torch.Tensor, deterministic: bool = False) -> torch.Tensor:
+        raw = self.net(torch.cat([z, c], dim=-1), deterministic=deterministic)
+        return torch.tanh(raw)
+
+    def std_mean(self) -> torch.Tensor:
+        return self.net.get_logstd().exp().mean()
+
+
+class FlowActor(nn.Module):
+    """ODE-based flow policy used as the policy-side 2x2 variant.
+
+    The actor still optimizes the same PWM-style imagined return objective.
+    This is not FPO/PPO-ratio training; it is an expressive differentiable
+    policy class inside the PWM/FoG policy extraction loop.
+    """
+
+    def __init__(
+        self,
+        state_dim: int,
+        command_dim: int,
+        action_dim: int,
+        units: List[int],
+        flow_substeps: int,
+        flow_integrator: str,
+    ):
+        super().__init__()
+        self.net = ActorFlowODE(
+            obs_dim=state_dim + command_dim,
+            action_dim=action_dim,
+            units=units,
+            activation_class=nn.Mish,
+            init_gain=1.0,
+            flow_substeps=flow_substeps,
+            flow_integrator=flow_integrator,
         )
 
     def forward(self, z: torch.Tensor, c: torch.Tensor, deterministic: bool = False) -> torch.Tensor:
@@ -131,7 +176,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--metadata", required=True)
     p.add_argument("--normalization", required=True)
     p.add_argument("--wm-checkpoint", required=True)
-    p.add_argument("--wm-method", choices=["mlp_ref", "flow_endpoint"], required=True)
+    p.add_argument("--wm-method", choices=["mlp_ref", "flow_ref", "flow_endpoint"], required=True)
+    p.add_argument("--policy-type", choices=["mlp", "flow"], default="mlp")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--output-dir", required=True)
@@ -152,6 +198,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--critic-grad-norm", type=float, default=100.0)
     p.add_argument("--init-logstd", type=float, default=-1.0)
     p.add_argument("--min-logstd", type=float, default=-1.427)
+    p.add_argument("--flow-policy-substeps", type=int, default=2)
+    p.add_argument("--flow-policy-integrator", choices=["euler", "heun"], default="heun")
     p.add_argument("--ret-rms", action=argparse.BooleanOptionalAction, default=True)
     p.add_argument("--wm-hidden", type=int, default=512)
     p.add_argument("--eval-every", type=int, default=1000)
@@ -162,6 +210,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--command-position", choices=["tail", "head", "none"], default="tail")
     p.add_argument("--action-l2", type=float, default=1.0e-4)
     p.add_argument("--skip-real-eval", action="store_true")
+    p.add_argument("--online-finetune-rounds", type=int, default=0)
+    p.add_argument("--online-collect-windows", type=int, default=256)
+    p.add_argument("--online-wm-iters", type=int, default=1000)
+    p.add_argument("--online-policy-iters", type=int, default=3000)
+    p.add_argument("--online-wm-lr", type=float, default=3e-4)
     p.add_argument("--wandb-project", default="flow-mbpo-mjlab-offline-pwm-policy-extraction")
     p.add_argument("--wandb-group", default="g1_frozen_wm_policy_extraction")
     p.add_argument("--wandb-name", default="")
@@ -184,7 +237,7 @@ def load_data(args: argparse.Namespace, device: torch.device):
     return data, metadata, nrm, train_idx
 
 
-def build_wm(args: argparse.Namespace, data: Dict[str, torch.Tensor], device: torch.device) -> nn.Module:
+def build_wm(args: argparse.Namespace, data: Dict[str, torch.Tensor], device: torch.device, frozen: bool = True) -> nn.Module:
     state_dim = int(data["phys_obs"].shape[-1])
     action_dim = int(data["policy_action"].shape[-1])
     command_dim = int(data["command"].shape[-1])
@@ -197,9 +250,11 @@ def build_wm(args: argparse.Namespace, data: Dict[str, torch.Tensor], device: to
     else:
         wm = FlowWM(state_dim, action_dim, command_dim, hidden=hidden, substeps=substeps)
     wm.load_state_dict(ckpt["model"])
-    wm.to(device).eval()
-    for p in wm.parameters():
-        p.requires_grad_(False)
+    wm.to(device)
+    if frozen:
+        wm.eval()
+        for p in wm.parameters():
+            p.requires_grad_(False)
     return wm
 
 
@@ -217,7 +272,7 @@ def parse_units(text: str) -> List[int]:
 
 def imagine_rollout(
     wm: nn.Module,
-    actor: Actor,
+    actor: nn.Module,
     critic: CriticEnsemble,
     z0: torch.Tensor,
     c_seq: torch.Tensor,
@@ -271,6 +326,100 @@ def imagine_rollout(
     return discounted_return, stacked_values, stacked_targets, states_t, commands_t, action_norm
 
 
+def train_actor_critic_steps(
+    wm: nn.Module,
+    actor: nn.Module,
+    critic: CriticEnsemble,
+    actor_opt: torch.optim.Optimizer,
+    critic_opt: torch.optim.Optimizer,
+    ret_rms: RunningScalarRMS | None,
+    data: Dict[str, torch.Tensor],
+    train_idx: torch.Tensor,
+    nrm: Dict[str, torch.Tensor],
+    args: argparse.Namespace,
+    device: torch.device,
+    start_iter: int,
+    num_iters: int,
+    run,
+    t0: float,
+    metric_prefix: str = "train",
+) -> Tuple[float, Dict[str, float] | None]:
+    best_return = -math.inf
+    best_payload = None
+    for local_it in range(1, num_iters + 1):
+        it = start_iter + local_it
+        ids = sample_train_indices(data, train_idx, args.batch_size)
+        z_seq, c_seq = batch_windows(data, ids, device, nrm)
+        imagined_return, _values, _targets, _states, _commands, action_norm = imagine_rollout(
+            wm, actor, critic, z_seq[:, 0], c_seq, args.horizon, args.gamma, args.lam, args.action_l2
+        )
+
+        for p in critic.parameters():
+            p.requires_grad_(False)
+        actor_objective = imagined_return
+        if ret_rms is not None:
+            ret_rms.update(actor_objective)
+            actor_objective = actor_objective / torch.sqrt(ret_rms.var + 1e-5)
+        actor_loss = -actor_objective.mean()
+        actor_opt.zero_grad(set_to_none=True)
+        actor_loss.backward()
+        actor_grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), args.actor_grad_norm)
+        actor_opt.step()
+        for p in critic.parameters():
+            p.requires_grad_(True)
+
+        for p in actor.parameters():
+            p.requires_grad_(False)
+        z_seq2, c_seq2 = batch_windows(data, ids, device, nrm)
+        _imagined_return2, values2, targets2, states2, commands2, _ = imagine_rollout(
+            wm, actor, critic, z_seq2[:, 0], c_seq2, args.horizon, args.gamma, args.lam, args.action_l2
+        )
+        flat_states = states2.detach().reshape(-1, int(data["phys_obs"].shape[-1]))
+        flat_commands = commands2.detach().reshape(-1, int(data["command"].shape[-1]))
+        flat_targets = targets2.detach().reshape(-1)
+        total = flat_targets.numel()
+        critic_batch_size = max(1, total // max(1, args.critic_batches))
+        critic_loss = torch.zeros((), device=device)
+        critic_grad = torch.zeros((), device=device)
+        for _ in range(args.critic_iterations):
+            perm = torch.randperm(total, device=device)
+            for start in range(0, total, critic_batch_size):
+                mb = perm[start : start + critic_batch_size]
+                pred = critic(flat_states[mb], flat_commands[mb])
+                target = flat_targets[mb].unsqueeze(0).expand_as(pred)
+                loss_v = F.mse_loss(pred, target)
+                critic_opt.zero_grad(set_to_none=True)
+                loss_v.backward()
+                critic_grad = torch.nn.utils.clip_grad_norm_(critic.parameters(), args.critic_grad_norm)
+                critic_opt.step()
+                critic_loss = loss_v.detach()
+        for p in actor.parameters():
+            p.requires_grad_(True)
+
+        if local_it % args.eval_every == 0 or local_it == 1 or local_it == num_iters:
+            metrics = {
+                "iter": it,
+                f"{metric_prefix}/imagined_return": float(imagined_return.detach().mean().item()),
+                f"{metric_prefix}/actor_loss": float(actor_loss.detach().item()),
+                f"{metric_prefix}/critic_loss": float(critic_loss.detach().item()),
+                f"{metric_prefix}/action_norm": float(action_norm.detach().item()),
+                f"{metric_prefix}/actor_std": float(actor.std_mean().detach().item()),
+                f"{metric_prefix}/actor_grad_norm": float(actor_grad.detach().item()),
+                f"{metric_prefix}/critic_grad_norm": float(critic_grad.detach().item()),
+                "wall_clock_seconds": time.time() - t0,
+            }
+            if ret_rms is not None:
+                metrics[f"{metric_prefix}/ret_rms_mean"] = float(ret_rms.mean.detach().item())
+                metrics[f"{metric_prefix}/ret_rms_var"] = float(ret_rms.var.detach().item())
+            print(json.dumps(metrics, sort_keys=True), flush=True)
+            if run is not None:
+                wandb.log(metrics, step=it)
+            if metrics[f"{metric_prefix}/imagined_return"] > best_return:
+                best_return = metrics[f"{metric_prefix}/imagined_return"]
+                best_payload = {"iter": it, **metrics}
+    return best_return, best_payload
+
+
 def build_eval_env(args: argparse.Namespace):
     patch_mujoco_compatibility()
     patch_headless_display_dependency()
@@ -294,7 +443,7 @@ def build_eval_env(args: argparse.Namespace):
 
 
 @torch.no_grad()
-def real_env_eval(actor: Actor, args: argparse.Namespace, nrm: Dict[str, torch.Tensor], device: torch.device) -> Dict[str, float | str]:
+def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, torch.Tensor], device: torch.device) -> Dict[str, float | str]:
     env, obs_td, obs_groups = build_eval_env(args)
     returns = torch.zeros(args.eval_num_envs, device=device)
     lengths = torch.zeros(args.eval_num_envs, device=device)
@@ -335,6 +484,115 @@ def real_env_eval(actor: Actor, args: argparse.Namespace, nrm: Dict[str, torch.T
     }
 
 
+def collect_online_windows(
+    actor: nn.Module,
+    args: argparse.Namespace,
+    nrm: Dict[str, torch.Tensor],
+    device: torch.device,
+    num_windows: int,
+) -> Dict[str, torch.Tensor]:
+    """Collect real MJLab windows with the current policy for WM finetuning.
+
+    This is a lightweight PWM-style online replay approximation for the
+    state-space MJLab-QS runner. It stores normalized physical states so the
+    same fixed-latent WM losses can be reused.
+    """
+
+    env, obs_td, obs_groups = build_eval_env(args)
+    per_env = [[] for _ in range(args.eval_num_envs)]
+    windows = []
+    while len(windows) < num_windows:
+        obs = tensor_from_actor_obs(obs_td, obs_groups)
+        phys, cmd = split_obs(obs, args.command_dim, args.command_position)
+        z = norm(phys.float(), nrm["phys_obs_mean"], nrm["phys_obs_std"])
+        c_raw = cmd.float()
+        c = c_raw
+        if c.shape[-1] and "command_mean" in nrm:
+            c = norm(c, nrm["command_mean"], nrm["command_std"])
+        action = actor(z, c, deterministic=False).clamp(-1.0, 1.0)
+        next_obs_td, reward, done, _extras = env.step(action)
+        reward_n = norm(reward.to(device).float().reshape(-1, 1), nrm["reward_mean"], nrm["reward_std"]).squeeze(-1)
+        done = done.to(device).bool().reshape(-1)
+        next_obs = tensor_from_actor_obs(next_obs_td, obs_groups)
+        next_phys, _next_cmd = split_obs(next_obs, args.command_dim, args.command_position)
+        next_z = norm(next_phys.float(), nrm["phys_obs_mean"], nrm["phys_obs_std"])
+        for env_i in range(args.eval_num_envs):
+            per_env[env_i].append(
+                (
+                    z[env_i].detach().cpu(),
+                    action[env_i].detach().cpu(),
+                    reward_n[env_i].detach().cpu(),
+                    c[env_i].detach().cpu(),
+                    done[env_i].detach().cpu(),
+                    next_z[env_i].detach().cpu(),
+                )
+            )
+            if len(per_env[env_i]) >= args.horizon:
+                seq = per_env[env_i][-args.horizon :]
+                z_seq = [item[0] for item in seq] + [seq[-1][5]]
+                windows.append(
+                    {
+                        "phys_obs": torch.stack(z_seq, dim=0),
+                        "policy_action": torch.stack([item[1] for item in seq], dim=0),
+                        "reward": torch.stack([item[2] for item in seq], dim=0),
+                        "command": torch.stack([item[3] for item in seq], dim=0),
+                        "done": torch.stack([item[4] for item in seq], dim=0),
+                    }
+                )
+                if len(windows) >= num_windows:
+                    break
+            if bool(done[env_i].item()):
+                per_env[env_i].clear()
+        obs_td = next_obs_td
+    env.close()
+    out = {}
+    for key in ["phys_obs", "policy_action", "reward", "command", "done"]:
+        out[key] = torch.stack([w[key] for w in windows], dim=0)
+    return out
+
+
+def finetune_wm_on_online_windows(
+    wm: nn.Module,
+    method: str,
+    online_data: Dict[str, torch.Tensor],
+    args: argparse.Namespace,
+    device: torch.device,
+    run,
+    global_step_offset: int,
+) -> None:
+    for p in wm.parameters():
+        p.requires_grad_(True)
+    wm.train()
+    opt = torch.optim.Adam(wm.parameters(), lr=args.online_wm_lr)
+    n = online_data["phys_obs"].shape[0]
+    for it in range(1, args.online_wm_iters + 1):
+        ids = torch.randint(0, n, (min(args.batch_size, n),), device=device)
+        z = online_data["phys_obs"][ids].to(device).float()
+        a = online_data["policy_action"][ids].to(device).float()
+        r = online_data["reward"][ids].to(device).float()
+        c = online_data["command"][ids].to(device).float()
+        done = online_data["done"][ids].to(device).bool()
+        loss = train_loss(wm, method, z, a, r, c, done, gamma=args.gamma)
+        opt.zero_grad(set_to_none=True)
+        loss.backward()
+        opt.step()
+        if it == 1 or it == args.online_wm_iters or it % max(1, args.online_wm_iters // 5) == 0:
+            with torch.no_grad():
+                dyn, rew, _, dyn_agg, rew_agg = rollout_losses(wm, z, a, r, c, done, gamma=args.gamma)
+            metrics = {
+                "online_wm/iter": it,
+                "online_wm/loss": float(loss.detach().item()),
+                "online_wm/rollout_dyn_mse_H16": float(dyn_agg.detach().item()),
+                "online_wm/reward_mse": float(rew_agg.detach().item()),
+            }
+            print(json.dumps(metrics, sort_keys=True), flush=True)
+            if run is not None:
+                wandb.log(metrics, step=global_step_offset + it)
+    wm.eval()
+    for p in wm.parameters():
+        p.requires_grad_(False)
+
+
 def main() -> None:
     args = parse_args()
     random.seed(args.seed)
@@ -344,18 +602,28 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     data, metadata, nrm, train_idx = load_data(args, device)
-    wm = build_wm(args, data, device)
+    wm = build_wm(args, data, device, frozen=True)
     state_dim = int(data["phys_obs"].shape[-1])
     action_dim = int(data["policy_action"].shape[-1])
     command_dim = int(data["command"].shape[-1])
-    actor = Actor(
-        state_dim,
-        command_dim,
-        action_dim,
-        units=parse_units(args.actor_units),
-        init_logstd=args.init_logstd,
-        min_logstd=args.min_logstd,
-    ).to(device)
+    if args.policy_type == "mlp":
+        actor: nn.Module = Actor(
+            state_dim,
+            command_dim,
+            action_dim,
+            units=parse_units(args.actor_units),
+            init_logstd=args.init_logstd,
+            min_logstd=args.min_logstd,
+        ).to(device)
+    else:
+        actor = FlowActor(
+            state_dim,
+            command_dim,
+            action_dim,
+            units=parse_units(args.actor_units),
+            flow_substeps=args.flow_policy_substeps,
+            flow_integrator=args.flow_policy_integrator,
+        ).to(device)
     critic = CriticEnsemble(
         state_dim,
         command_dim,
@@ -376,88 +644,72 @@ def main() -> None:
             config={**vars(args), "dataset_metadata": metadata, "git_sha": git_sha()},
         )
 
-    best_return = -math.inf
-    best_payload = None
     t0 = time.time()
-    for it in range(1, args.policy_iters + 1):
-        ids = sample_train_indices(data, train_idx, args.batch_size)
-        z_seq, c_seq = batch_windows(data, ids, device, nrm)
-        imagined_return, _values, _targets, _states, _commands, action_norm = imagine_rollout(
-            wm, actor, critic, z_seq[:, 0], c_seq, args.horizon, args.gamma, args.lam, args.action_l2
+    best_return, best_payload = train_actor_critic_steps(
+        wm,
+        actor,
+        critic,
+        actor_opt,
+        critic_opt,
+        ret_rms,
+        data,
+        train_idx,
+        nrm,
+        args,
+        device,
+        start_iter=0,
+        num_iters=args.policy_iters,
+        run=run,
+        t0=t0,
+        metric_prefix="train",
+    )
+    torch.save(
+        {
+            "actor": actor.state_dict(),
+            "critic": critic.state_dict(),
+            "args": vars(args),
+            "best": best_payload,
+        },
+        output_dir / "best_policy_extraction.pt",
+    )
+
+    total_policy_iters = args.policy_iters
+    for round_id in range(1, args.online_finetune_rounds + 1):
+        online_data = collect_online_windows(actor, args, nrm, device, args.online_collect_windows)
+        torch.save(online_data, output_dir / f"online_round_{round_id}_windows.pt")
+        if run is not None:
+            wandb.log({"online/round": round_id, "online/collected_windows": args.online_collect_windows}, step=total_policy_iters)
+        finetune_wm_on_online_windows(
+            wm,
+            args.wm_method,
+            online_data,
+            args,
+            device,
+            run,
+            global_step_offset=total_policy_iters,
         )
-
-        for p in critic.parameters():
-            p.requires_grad_(False)
-        actor_objective = imagined_return
-        if ret_rms is not None:
-            ret_rms.update(actor_objective)
-            actor_objective = actor_objective / torch.sqrt(ret_rms.var + 1e-5)
-        actor_loss = -actor_objective.mean()
-        actor_opt.zero_grad(set_to_none=True)
-        actor_loss.backward()
-        actor_grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), args.actor_grad_norm)
-        actor_opt.step()
-        for p in critic.parameters():
-            p.requires_grad_(True)
-
-        for p in actor.parameters():
-            p.requires_grad_(False)
-        z_seq2, c_seq2 = batch_windows(data, ids, device, nrm)
-        _imagined_return2, values2, targets2, states2, commands2, _ = imagine_rollout(
-            wm, actor, critic, z_seq2[:, 0], c_seq2, args.horizon, args.gamma, args.lam, args.action_l2
+        round_best, round_payload = train_actor_critic_steps(
+            wm,
+            actor,
+            critic,
+            actor_opt,
+            critic_opt,
+            ret_rms,
+            data,
+            train_idx,
+            nrm,
+            args,
+            device,
+            start_iter=total_policy_iters,
+            num_iters=args.online_policy_iters,
+            run=run,
+            t0=t0,
+            metric_prefix=f"online_round_{round_id}",
         )
-        flat_states = states2.detach().reshape(-1, state_dim)
-        flat_commands = commands2.detach().reshape(-1, command_dim)
-        flat_targets = targets2.detach().reshape(-1)
-        total = flat_targets.numel()
-        critic_batch_size = max(1, total // max(1, args.critic_batches))
-        critic_loss = torch.zeros((), device=device)
-        critic_grad = torch.zeros((), device=device)
-        for _ in range(args.critic_iterations):
-            perm = torch.randperm(total, device=device)
-            for start in range(0, total, critic_batch_size):
-                mb = perm[start : start + critic_batch_size]
-                pred = critic(flat_states[mb], flat_commands[mb])
-                target = flat_targets[mb].unsqueeze(0).expand_as(pred)
-                loss_v = F.mse_loss(pred, target)
-                critic_opt.zero_grad(set_to_none=True)
-                loss_v.backward()
-                critic_grad = torch.nn.utils.clip_grad_norm_(critic.parameters(), args.critic_grad_norm)
-                critic_opt.step()
-                critic_loss = loss_v.detach()
-        for p in actor.parameters():
-            p.requires_grad_(True)
-
-        if it % args.eval_every == 0 or it == 1 or it == args.policy_iters:
-            metrics = {
-                "iter": it,
-                "train/imagined_return": float(imagined_return.detach().mean().item()),
-                "train/actor_loss": float(actor_loss.detach().item()),
-                "train/critic_loss": float(critic_loss.detach().item()),
-                "train/action_norm": float(action_norm.detach().item()),
-                "train/actor_std": float(actor.std_mean().detach().item()),
-                "train/actor_grad_norm": float(actor_grad.detach().item()),
-                "train/critic_grad_norm": float(critic_grad.detach().item()),
-                "wall_clock_seconds": time.time() - t0,
-            }
-            if ret_rms is not None:
-                metrics["train/ret_rms_mean"] = float(ret_rms.mean.detach().item())
-                metrics["train/ret_rms_var"] = float(ret_rms.var.detach().item())
-            print(json.dumps(metrics, sort_keys=True), flush=True)
-            if run is not None:
-                wandb.log(metrics, step=it)
-            if metrics["train/imagined_return"] > best_return:
-                best_return = metrics["train/imagined_return"]
-                best_payload = {"iter": it, **metrics}
-                torch.save(
-                    {
-                        "actor": actor.state_dict(),
-                        "critic": critic.state_dict(),
-                        "args": vars(args),
-                        "best": best_payload,
-                    },
-                    output_dir / "best_policy_extraction.pt",
-                )
+        total_policy_iters += args.online_policy_iters
+        if round_best > best_return:
+            best_return = round_best
+            best_payload = round_payload
 
     torch.save(
         {"actor": actor.state_dict(), "critic": critic.state_dict(), "args": vars(args)},
@@ -469,7 +721,9 @@ def main() -> None:
         eval_summary = real_env_eval(actor, args, nrm, device)
     summary = {
         "wm_method": args.wm_method,
+        "policy_type": args.policy_type,
         "seed": args.seed,
+        "online_finetune_rounds": args.online_finetune_rounds,
         "best_imagined_return": best_return,
         "best_iter": best_payload["iter"] if best_payload else None,
         "wall_clock_seconds": time.time() - t0,
