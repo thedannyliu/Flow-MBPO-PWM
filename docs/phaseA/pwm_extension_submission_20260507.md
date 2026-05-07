@@ -165,3 +165,52 @@ Submitted jobs:
 - Stage 3 is the first offline 2x2 table.
 - Stage 4 is the online-finetune 2x2 table.
 - If smoke fails, all dependent formal jobs should remain blocked. Fix smoke first, then resubmit the dependency chain.
+
+## No-Dependency Resubmission - 2026-05-07
+
+The user requested that the remaining 2x2 experiments should be submitted without waiting for the earlier dependency chain. To avoid output-path collisions with the already-submitted dependency-chain jobs, I created no-dependency manifest copies with new stage/group names:
+
+- `offline_pwm_2x2_nodep_20260507`
+- `online_pwm_2x2_nodep_20260507`
+
+The original dependency-chain jobs were not cancelled.
+
+### No-Dependency Offline 2x2
+
+W&B project remains:
+
+- `flow-mbpo-mjlab-offline-pwm-2x2`
+
+Submitted jobs:
+
+| GPU | Job ID | Manifest | Dependency |
+|---|---:|---|---|
+| H100 | `5270278` | `offline_pwm_2x2_nodep_20260507_seed0_h100.csv` | none |
+| H200 | `5270280` | `offline_pwm_2x2_nodep_20260507_seed1_h200.csv` | none |
+| L40S | `5270282` | `offline_pwm_2x2_nodep_20260507_seed2_l40s.csv` | none |
+
+Initial scheduler state after submission:
+
+- all pending with reason `None`, not dependency-blocked.
+
+### No-Dependency Online 2x2
+
+W&B project remains:
+
+- `flow-mbpo-mjlab-online-pwm-2x2`
+
+Submitted jobs:
+
+| GPU | Job ID | Manifest | Dependency |
+|---|---:|---|---|
+| H100 | `5270279` | `online_pwm_2x2_nodep_20260507_seed0_h100.csv` | none |
+| H200 | `5270281` | `online_pwm_2x2_nodep_20260507_seed1_h200.csv` | none |
+| L40S | `5270283` | `online_pwm_2x2_nodep_20260507_seed2_l40s.csv` | none |
+
+Initial scheduler state after submission:
+
+- all pending with reason `None`, not dependency-blocked.
+
+### Note on Duplicate Experiments
+
+The dependency-chain jobs are still queued under the original stage names. The no-dependency jobs write to different output directories because the manifest `stage` and `wandb_group` fields were changed to the `_nodep_20260507` names. This prevents direct filesystem overwrite with the original dependency-chain jobs.
