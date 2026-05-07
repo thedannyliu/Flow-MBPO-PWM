@@ -277,3 +277,17 @@ The adapter now passes the minimal original-PWM algorithm smoke path:
 ```text
 load MJLab-QS windows -> pack PWM observations -> original WM update -> original actor/critic update
 ```
+
+## Formal run initial health check
+
+Formal jobs `5272012`, `5272014`, and `5272015` all started and are logging to W&B. Initial pretrain curves are decreasing under the original PWM WM loss.
+
+Examples from the first ~7k pretrain iterations:
+
+```text
+seed0/H100: val/wm_loss 0.0846 at iter 1 -> 0.0239 at iter 1000 -> 0.0084 at iter 7000
+seed1/H200: val/wm_loss 0.0996 at iter 1 -> 0.0335 at iter 1000 -> 0.0234 at iter 7000
+seed2/L40S: val/wm_loss 0.0963 at iter 1 -> 0.0295 at iter 1000 -> 0.0094 at iter 7000
+```
+
+This indicates the original PWM adapter is not stuck at startup. Final policy extraction and MJLab eval still need to finish before comparing against the state-space PWM/Flow endpoint runners.
