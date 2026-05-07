@@ -214,3 +214,67 @@ Initial scheduler state after submission:
 ### Note on Duplicate Experiments
 
 The dependency-chain jobs are still queued under the original stage names. The no-dependency jobs write to different output directories because the manifest `stage` and `wandb_group` fields were changed to the `_nodep_20260507` names. This prevents direct filesystem overwrite with the original dependency-chain jobs.
+
+## Online Result Sanity Check - 2026-05-07
+
+I checked the currently available online-finetune results for:
+
+- stage: `online_finetune_wm2_mlp_policy_20260507`
+- W&B project: `flow-mbpo-mjlab-online-finetune-wm2`
+- comparison: `MLP WM + MLP policy` vs `Flow endpoint WM + MLP policy`
+- online setting: 2 online finetune rounds, 512 collected windows per round, 2000 WM finetune iterations per round, 5000 additional actor-critic iterations per round.
+
+### Mechanical Validity
+
+The completed rows look mechanically valid:
+
+- summaries were written for 5 of 6 expected rows,
+- real-environment eval was not skipped,
+- each completed row reports 40 eval episodes,
+- `eval/resolved_task_id` is `Mjlab-Velocity-Flat-Unitree-G1`, matching the requested G1 task,
+- no NaN/Inf values were found in `best_imagined_return`, `eval/return_mean`, `eval/return_std`, or `eval/episode_length_mean`,
+- stdout shows the online WM finetune loss decreasing in the running Flow endpoint seed0 row.
+
+Completed rows at check time:
+
+| WM | Policy | Seed | Online Rounds | Eval Return Mean | Eval Return Std | Eval Episode Length Mean | Eval Episodes |
+|---|---|---:|---:|---:|---:|---:|---:|
+| MLP ref | MLP | 0 | 2 | -4.655990 | 0.517542 | 53.775002 | 40 |
+| MLP ref | MLP | 1 | 2 | -4.690122 | 1.340816 | 69.000000 | 40 |
+| MLP ref | MLP | 2 | 2 | -5.884936 | 1.009590 | 66.599998 | 40 |
+| Flow endpoint | MLP | 1 | 2 | -3.717136 | 0.539649 | 59.000000 | 40 |
+| Flow endpoint | MLP | 2 | 2 | -3.632309 | 0.495255 | 59.200001 | 40 |
+
+The remaining row at check time is:
+
+- `Flow endpoint + MLP policy`, seed 0, Slurm array row `5268681_1`, still running.
+
+### Running Row Check
+
+For `5268681_1`, stdout shows online WM finetuning is active and numerically stable so far:
+
+```text
+online_wm/loss: 167.4056 -> 0.1924
+online_wm/rollout_dyn_mse_H16: 51.1276 -> 0.1873
+online_wm/reward_mse: 10.0200 -> 0.0027
+```
+
+The subsequent actor-critic updates continue to log finite values for imagined return, actor gradient norm, critic loss, and action norm. There is no sign of NaN/Inf or immediate training crash in the checked log tail.
+
+### Caveats
+
+This online result should be treated as a valid running/completed engineering result, but not yet as a final clean scientific conclusion:
+
+1. The 3-seed Flow endpoint online result is incomplete until seed 0 finishes.
+2. W&B reports non-monotonic step warnings during online WM finetuning. This does not invalidate stdout logs or final summaries, but some online WM scalar points may be ignored by W&B. A later cleanup should make W&B step indices globally monotonic for online WM + policy logging.
+3. The MJLab environment log still shows active domain-randomization/event terms such as `randomize_terrain`, `foot_friction`, `encoder_bias`, and `base_com`. Therefore these online/eval runs should be labeled as MJLab default online/eval setting, not as a strict fixed-simulator canonical comparison.
+4. This online loop remains the state-space MJLab-QS approximation of PWM online finetuning. It collects online windows, finetunes the state-space WM, and continues imagined actor-critic updates, but it is not a byte-identical reproduction of the original PWM learned-encoder training loop.
+
+### Current Interpretation
+
+The currently completed rows suggest Flow endpoint online finetuning is not obviously broken and is numerically stable. The two completed Flow endpoint seeds have better eval return than the three completed MLP seeds, but this should not be over-interpreted until:
+
+- Flow endpoint seed 0 finishes,
+- the no-dependency online 2x2 jobs complete,
+- the W&B step logging issue is cleaned up for future runs,
+- and the default-domain-randomization caveat is explicitly tracked in result tables.
