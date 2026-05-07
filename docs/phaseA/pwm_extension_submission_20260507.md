@@ -278,3 +278,93 @@ The currently completed rows suggest Flow endpoint online finetuning is not obvi
 - the no-dependency online 2x2 jobs complete,
 - the W&B step logging issue is cleaned up for future runs,
 - and the default-domain-randomization caveat is explicitly tracked in result tables.
+
+## Baseline Return Evaluation and Capability Levers - 2026-05-07
+
+### Why This Is Needed
+
+The current extracted-policy returns are mostly in the `-3` to `-5` range. Negative return is plausible for this MJLab G1 task because weak policies terminate early and the reward includes many penalty terms. However, the absolute value is not interpretable without reference policies.
+
+To make the results meaningful, I submitted a baseline-return evaluation stage using the same G1 task and a comparable 40-episode evaluation budget. This stage measures where the extracted PWM policies sit relative to:
+
+1. random smooth actions,
+2. the medium data-collector checkpoint,
+3. the final MJLab-native PPO/expert collector checkpoint,
+4. the same expert checkpoint with action noise.
+
+### Submitted Baseline Return Jobs
+
+Stage:
+
+- `g1_policy_baseline_return_20260507`
+
+Manifest:
+
+- `scripts/outputs/mjlab_qs/manifests/g1_policy_baseline_return_20260507.csv`
+
+Rows per seed:
+
+| Baseline | Method | Checkpoint | Episodes | Purpose |
+|---|---|---|---:|---|
+| random_smooth | random_smooth | none | 40 | lower-bound reference |
+| collector_medium_iter15000 | rslrl_ppo_conservative | `model_15000.pt` | 40 | medium collector reference |
+| ppo_expert_iter29999 | rslrl_ppo_conservative | `model_29999.pt` | 40 | final native PPO / expert collector reference |
+| ppo_expert_noisy_iter29999 | rslrl_ppo_conservative | `model_29999.pt` + action noise 0.05 | 40 | robustness/noisy-expert reference |
+
+Submitted jobs:
+
+| GPU | Job ID | Manifest |
+|---|---:|---|
+| H100 | `5271830` | `g1_policy_baseline_return_20260507_seed0_h100.csv` |
+| H200 | `5271831` | `g1_policy_baseline_return_20260507_seed1_h200.csv` |
+| L40S | `5271832` | `g1_policy_baseline_return_20260507_seed2_l40s.csv` |
+
+These jobs use the native collection runner rather than the PWM policy-extraction runner. They write raw episodes plus metadata under:
+
+- `scripts/outputs/mjlab_qs/raw/g1_policy_baseline_return_20260507/`
+
+### Capability Improvement Ablation: Longer Policy Extraction
+
+The most immediate failure mode may be insufficient actor-critic extraction budget rather than only world-model quality. The original 2x2 uses `policy_iters = 15000`. I submitted a controlled longer-extraction ablation that changes only policy extraction length:
+
+- same dataset,
+- same WM checkpoints,
+- same 2x2 combinations,
+- same final real-env eval,
+- `policy_iters = 50000`,
+- `eval_every = 2500`.
+
+Stage:
+
+- `offline_pwm_2x2_policy50k_20260507`
+
+W&B project:
+
+- `flow-mbpo-mjlab-offline-pwm-2x2-policy50k`
+
+Submitted jobs:
+
+| GPU | Job ID | Manifest |
+|---|---:|---|
+| H100 | `5271839` | `offline_pwm_2x2_policy50k_20260507_seed0_h100.csv` |
+| H200 | `5271840` | `offline_pwm_2x2_policy50k_20260507_seed1_h200.csv` |
+| L40S | `5271841` | `offline_pwm_2x2_policy50k_20260507_seed2_l40s.csv` |
+
+### Critical Interpretation Rules
+
+- If extracted policies are worse than random, the policy-extraction loop is likely broken or exploiting bad WM gradients.
+- If extracted policies beat random but are far below the PPO/expert collector, then the WM + imagined actor-critic loop is working only weakly.
+- If 50k extraction improves return materially over 15k, then the current result is partly budget-limited.
+- If 50k does not improve, the bottleneck is more likely WM gradient quality, actor objective/regularization, online data distribution, or the mismatch between our state-space approximation and original PWM.
+
+### Next Capability Levers to Consider
+
+The most promising levers, in order:
+
+1. Behavior-cloning or warm-start the actor from the collector dataset before imagined PWM extraction. Starting the actor from scratch inside the WM is likely inefficient for this G1 task.
+2. Increase online finetune replay quality: keep a cumulative online replay buffer instead of only finetuning on the latest collected windows.
+3. Run more online finetune rounds only after the baseline-return stage confirms that extracted policies are better than random.
+4. Tune actor-side regularization: action L2 penalty, initial logstd/min logstd, and action-noise/entropy behavior for Flow policy.
+5. Separate strict fixed-simulator eval from MJLab-default eval. Current online/eval logs show MJLab default randomization/event terms active, so final claims should explicitly separate these two settings.
+6. Compare policy extraction with and without Flow policy under longer budgets. The current 15k 2x2 has visible variance, so one short run is not enough to decide policy-side Flow.
+
