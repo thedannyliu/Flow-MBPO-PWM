@@ -566,7 +566,7 @@ def finetune_wm_on_online_windows(
     opt = torch.optim.Adam(wm.parameters(), lr=args.online_wm_lr)
     n = online_data["phys_obs"].shape[0]
     for it in range(1, args.online_wm_iters + 1):
-        ids = torch.randint(0, n, (min(args.batch_size, n),), device=device)
+        ids = torch.randint(0, n, (min(args.batch_size, n),), device="cpu")
         z = online_data["phys_obs"][ids].to(device).float()
         a = online_data["policy_action"][ids].to(device).float()
         r = online_data["reward"][ids].to(device).float()
