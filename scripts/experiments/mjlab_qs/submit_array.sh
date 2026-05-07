@@ -61,6 +61,8 @@ if [[ "$KIND" == "train" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_training_row.py"
 elif [[ "$KIND" == "train_match" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_train_match_row.py"
+elif [[ "$KIND" == "policy_extract" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_policy_extraction_row.py"
 elif [[ "$KIND" == "native_collector" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_mjlab_native_collector_row.py"
 elif [[ "$KIND" == "native_collection" ]]; then
