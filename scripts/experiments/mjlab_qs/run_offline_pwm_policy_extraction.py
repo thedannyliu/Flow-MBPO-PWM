@@ -209,6 +209,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--command-dim", type=int, default=3)
     p.add_argument("--command-position", choices=["tail", "head", "none"], default="tail")
     p.add_argument("--action-l2", type=float, default=1.0e-4)
+    p.add_argument("--bc-warmstart-iters", type=int, default=0)
+    p.add_argument("--bc-lr", type=float, default=5e-4)
+    p.add_argument("--bc-batch-size", type=int, default=256)
+    p.add_argument("--bc-eval-every", type=int, default=1000)
     p.add_argument("--skip-real-eval", action="store_true")
     p.add_argument("--online-finetune-rounds", type=int, default=0)
     p.add_argument("--online-collect-windows", type=int, default=256)
@@ -418,6 +422,47 @@ def train_actor_critic_steps(
                 best_return = metrics[f"{metric_prefix}/imagined_return"]
                 best_payload = {"iter": it, **metrics}
     return best_return, best_payload
+
+
+def behavior_clone_actor_steps(
+    actor: nn.Module,
+    data: Dict[str, torch.Tensor],
+    train_idx: torch.Tensor,
+    nrm: Dict[str, torch.Tensor],
+    args: argparse.Namespace,
+    device: torch.device,
+    run,
+    t0: float,
+) -> None:
+    if args.bc_warmstart_iters <= 0:
+        return
+    opt = torch.optim.Adam(actor.parameters(), lr=args.bc_lr)
+    for it in range(1, args.bc_warmstart_iters + 1):
+        ids = sample_train_indices(data, train_idx, args.bc_batch_size)
+        z_seq, c_seq = batch_windows(data, ids, device, nrm)
+        target = data["policy_action"][ids].to(device).float()
+        z = z_seq[:, :-1].reshape(-1, int(data["phys_obs"].shape[-1]))
+        c = c_seq.reshape(-1, int(data["command"].shape[-1]))
+        a_target = target.reshape(-1, int(data["policy_action"].shape[-1]))
+        pred = actor(z, c, deterministic=True)
+        loss = F.mse_loss(pred, a_target)
+        opt.zero_grad(set_to_none=True)
+        loss.backward()
+        grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), args.actor_grad_norm)
+        opt.step()
+        if it == 1 or it == args.bc_warmstart_iters or it % args.bc_eval_every == 0:
+            metrics = {
+                "bc/iter": it,
+                "bc/action_mse": float(loss.detach().item()),
+                "bc/action_l1": float((pred.detach() - a_target).abs().mean().item()),
+                "bc/actor_grad_norm": float(grad.detach().item()),
+                "bc/target_action_norm": float(a_target.pow(2).mean(dim=-1).sqrt().mean().item()),
+                "bc/pred_action_norm": float(pred.detach().pow(2).mean(dim=-1).sqrt().mean().item()),
+                "wall_clock_seconds": time.time() - t0,
+            }
+            print(json.dumps(metrics, sort_keys=True), flush=True)
+            if run is not None:
+                wandb.log(metrics, step=it)
 
 
 def build_eval_env(args: argparse.Namespace):
@@ -645,6 +690,7 @@ def main() -> None:
         )
 
     t0 = time.time()
+    behavior_clone_actor_steps(actor, data, train_idx, nrm, args, device, run, t0)
     best_return, best_payload = train_actor_critic_steps(
         wm,
         actor,
