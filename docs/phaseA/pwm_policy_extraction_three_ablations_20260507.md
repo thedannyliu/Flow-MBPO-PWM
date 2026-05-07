@@ -192,3 +192,30 @@ Decision rules:
 - If stronger critic improves return, policy extraction is critic-limited rather than WM-limited.
 - If BC warm-start improves return, random-start imagined PWM extraction is too brittle for this MJLab G1 dataset, and future PWM/Flow comparisons should include policy prior or BC initialization.
 - If none improve return, the bottleneck is more likely WM reward/dynamics mismatch, dataset quality/coverage, or the mismatch between offline imagined extraction and real MJLab deployment.
+
+## Smoke result
+
+BC warm-start smoke job `5272053` completed successfully.
+
+Smoke confirmed:
+
+```text
+BC warm-start loop runs.
+BC action MSE decreases over 2 smoke iterations: 0.3215 -> 0.2298.
+Policy extraction still runs after BC warm-start.
+No W&B and no real-env eval were used for smoke.
+```
+
+This validates the new BC codepath before interpreting the formal BC jobs.
+
+## Current submission status at launch
+
+The 9 formal array jobs were submitted:
+
+```text
+no_action_l2: 5272057, 5272058, 5272059
+strong_critic: 5272060, 5272061, 5272062
+bc_warmstart: 5272063, 5272064, 5272065
+```
+
+At launch check, several first rows were running and the remaining rows were pending due to `JobArrayTaskLimit` or normal priority scheduling.
