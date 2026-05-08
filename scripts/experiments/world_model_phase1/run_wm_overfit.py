@@ -51,6 +51,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--wandb-job-type", default="train")
     parser.add_argument("--wandb-tags", default="phase1,world_model_only,overfit")
     parser.add_argument("--disable-wandb", action="store_true")
+    parser.add_argument(
+        "--frozen-encoder-checkpoint",
+        default=None,
+        help=(
+            "Optional PWM checkpoint whose world_model _encoder weights are loaded "
+            "and frozen before WM-only training. Used for fixed-latent fairness checks."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -125,6 +133,33 @@ def _to_float(value) -> float:
     if torch.is_tensor(value):
         return float(value.detach())
     return float(value)
+
+
+def _load_and_freeze_encoder(agent: PWM, checkpoint_path: Path) -> None:
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Frozen encoder checkpoint not found: {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, map_location=agent.device, weights_only=False)
+    if isinstance(checkpoint, dict) and "world_model" in checkpoint:
+        wm_state = checkpoint["world_model"]
+    elif isinstance(checkpoint, dict):
+        wm_state = checkpoint
+    else:
+        raise TypeError(f"Unsupported checkpoint format at {checkpoint_path}")
+
+    prefix = "_encoder."
+    encoder_state = {
+        key[len(prefix) :]: value
+        for key, value in wm_state.items()
+        if isinstance(key, str) and key.startswith(prefix)
+    }
+    if not encoder_state:
+        raise KeyError(f"No {prefix} weights found in {checkpoint_path}")
+
+    agent.wm._encoder.load_state_dict(encoder_state, strict=True)
+    for param in agent.wm._encoder.parameters():
+        param.requires_grad_(False)
+    agent.wm._encoder.eval()
+    print(f"Loaded and froze encoder from {checkpoint_path}")
 
 
 def _chunk_loss(agent: PWM, obs: torch.Tensor, act: torch.Tensor, rew: torch.Tensor):
@@ -450,6 +485,9 @@ def main() -> None:
         rew = torch.nan_to_num(rew)
         agent.rew_rms.update(rew.to(agent.device))
 
+    if args.frozen_encoder_checkpoint:
+        _load_and_freeze_encoder(agent, Path(args.frozen_encoder_checkpoint))
+
     if getattr(agent.wm, "residual_flow_dynamics", False):
         _pretrain_residual_base(agent, train_td, args)
 
@@ -464,6 +502,8 @@ def main() -> None:
                 f"wm_{'flow' if agent.use_flow_dynamics else 'mlp'}",
             ]
         )
+        if args.frozen_encoder_checkpoint:
+            tags.append("frozen_encoder")
         wandb_run = wandb.init(
             project=args.wandb_project,
             entity=args.wandb_entity,
@@ -581,6 +621,7 @@ def main() -> None:
         "best_metrics": best_metrics,
         "final_train": final_train,
         "final_val": final_val,
+        "frozen_encoder_checkpoint": str(args.frozen_encoder_checkpoint or ""),
     }
     (output_dir / "phase1_summary.json").write_text(json.dumps(summary, indent=2))
 

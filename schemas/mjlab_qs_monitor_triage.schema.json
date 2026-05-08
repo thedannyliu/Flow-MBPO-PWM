@@ -1,0 +1,75 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "pending",
+        "running",
+        "failed",
+        "fixed_needs_probe",
+        "needs_human",
+        "blocked"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high"]
+    },
+    "failure_kind": {
+      "type": "string"
+    },
+    "root_cause": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "actions_taken": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "commands_run": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files_changed": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tests_run": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "suggested_probe_command": {
+      "type": "string"
+    },
+    "suggested_retry_command": {
+      "type": "string"
+    },
+    "needs_human": {
+      "type": "boolean"
+    },
+    "next_action": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "status",
+    "severity",
+    "failure_kind",
+    "root_cause",
+    "evidence",
+    "actions_taken",
+    "commands_run",
+    "files_changed",
+    "tests_run",
+    "suggested_probe_command",
+    "suggested_retry_command",
+    "needs_human",
+    "next_action"
+  ],
+  "additionalProperties": false
+}

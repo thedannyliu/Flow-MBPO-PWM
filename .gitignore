@@ -48,6 +48,7 @@ outputs/
 wandb/
 evaluation_results/
 eval_results*/
+reports/monitor/
 
 # Data and checkpoints
 *.pkl
