@@ -728,3 +728,19 @@ policy rows3-11 = pending, qos embers, W&B enabled in manifest
 SIGReg seed1's current checkpoint is an in-flight validation metric, not a final
 test result. Wait for `summary.json` before comparing against baseline Flow and
 MLP seeds.
+
+The live status helper now supports:
+
+```text
+--load-wm-checkpoints
+```
+
+When enabled, it reads `best.pt` for WM rows and reports `latest_iter`,
+`progress_fraction`, and `val_h16` for in-flight WM jobs. Current checkpoint
+status:
+
+```text
+SIGReg seed1 = running, best iter 40000 / 50000 = 0.80, val H16 0.026124, wandb fck40uxq
+```
+
+This is still an in-flight validation metric, not a final test result.

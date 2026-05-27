@@ -39,6 +39,19 @@ def load_json(path: Path) -> dict[str, Any]:
         return {}
 
 
+def load_wm_best(path: Path, enabled: bool) -> dict[str, Any]:
+    if not enabled or not path.exists():
+        return {}
+    try:
+        import torch
+
+        checkpoint = torch.load(path, map_location="cpu")
+    except Exception:
+        return {}
+    best = checkpoint.get("best", {})
+    return best if isinstance(best, dict) else {}
+
+
 def latest_iter(path: Path) -> tuple[str, str]:
     if not path.exists():
         return "", ""
@@ -180,16 +193,23 @@ def policy_output_dir(row: dict[str, str]) -> Path:
     )
 
 
-def wm_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -> list[dict[str, str]]:
+def wm_rows(
+    manifest: Path,
+    job_id: str,
+    slurm: dict[int, dict[str, str]],
+    load_checkpoints: bool,
+) -> list[dict[str, str]]:
     rows = []
     for idx, row in enumerate(read_manifest(manifest)):
         out = wm_output_dir(row)
         summary = out / "summary.json"
         best = out / "best.pt"
         data = load_json(summary) if summary.exists() else {}
+        best_data = load_wm_best(best, load_checkpoints)
         err = Path(f"logs/slurm/mjlab_qs/train/mjqs_train_{job_id}_{idx}.err") if job_id else Path("")
         slurm_info = slurm.get(idx, {})
         status = row_status(summary.exists(), best.exists(), slurm_info.get("slurm_state", ""))
+        latest = str(best_data.get("iter", ""))
         rows.append(
             {
                 "kind": "wm",
@@ -201,14 +221,17 @@ def wm_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -> li
                 "slurm_state": slurm_info.get("slurm_state", ""),
                 "qos": slurm_info.get("qos", ""),
                 "expected_iters": row.get("train_iters", ""),
-                "progress_fraction": progress_fraction("", row.get("train_iters", ""), summary.exists()),
+                "progress_fraction": progress_fraction(latest, row.get("train_iters", ""), summary.exists()),
                 "wandb_project": row.get("wandb_project", ""),
                 "disable_wandb": row.get("disable_wandb", ""),
                 "summary": str(summary) if summary.exists() else "",
                 "best": str(best) if best.exists() else "",
                 "test_h16": str(data.get("test/rollout_dyn_mse_H16", "")),
+                "val_h16": str(
+                    data.get("best_val_rollout_dyn_mse_H16", best_data.get("val/rollout_dyn_mse_H16", ""))
+                ),
                 "eval_return_mean": "",
-                "latest_iter": "",
+                "latest_iter": latest or str(data.get("best_iter", "")),
                 "imagined_return": "",
                 "wandb_run": wandb_run(err),
             }
@@ -268,12 +291,20 @@ def main() -> None:
     parser.add_argument("--policy-manifest", type=Path)
     parser.add_argument("--wm-job", default="")
     parser.add_argument("--policy-job", default="")
+    parser.add_argument("--load-wm-checkpoints", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
     rows: list[dict[str, str]] = []
     if args.wm_manifest:
-        rows.extend(wm_rows(args.wm_manifest, args.wm_job, sacct_state_map(args.wm_job)))
+        rows.extend(
+            wm_rows(
+                args.wm_manifest,
+                args.wm_job,
+                sacct_state_map(args.wm_job),
+                args.load_wm_checkpoints,
+            )
+        )
     if args.policy_manifest:
         rows.extend(
             policy_rows(args.policy_manifest, args.policy_job, sacct_state_map(args.policy_job))
@@ -296,6 +327,7 @@ def main() -> None:
         "latest_iter",
         "imagined_return",
         "test_h16",
+        "val_h16",
         "eval_return_mean",
         "wandb_project",
         "disable_wandb",
