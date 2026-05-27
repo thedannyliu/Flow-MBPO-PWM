@@ -466,3 +466,18 @@ wandb_project = flow-mbpo-mjlab-pwm-flow-sigreg-20260527
 Interpret this as an architecture/loss ablation against the baseline
 `flow_endpoint` rows from job `9193988`, not as a replacement for the baseline
 2x2 PWM comparison.
+
+### QOS Audit
+
+On 2026-05-27, active and recent MJLab GPU jobs were audited with `squeue` and
+`sacct`. The current WM jobs use PACE Phoenix `embers` only:
+
+```text
+baseline WM = 9193988, qos = embers, account = gts-agarg35
+SIGReg WM = 9194028, qos = embers, account = gts-agarg35
+collection retry = 9193797, qos = embers, account = gts-agarg35
+```
+
+No GPU job since 2026-05-01 was found with a non-`embers` QOS in the checked
+Slurm history. Continue to require explicit user approval before any `inferno`
+submission.
