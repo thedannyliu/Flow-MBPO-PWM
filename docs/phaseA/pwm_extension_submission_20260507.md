@@ -712,3 +712,19 @@ policy rows3-11 = pending, qos embers, W&B enabled in manifest
 
 The running policy stderr scans remain clean for traceback, CUDA OOM, and
 NaN/Inf lines. No row needed resubmission at this check.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed1 = running, checkpoint best iter 32500, val H16 0.027256, wandb fck40uxq
+SIGReg seed2 = pending, qos embers
+policy row0 = running, 22500 / 50000 = 0.45, imagined_return 2977.739, wandb 8d805foy
+policy row1 = running, 20000 / 50000 = 0.40, imagined_return 2953.052, wandb ftedxbby
+policy row2 = running, 12500 / 50000 = 0.25, imagined_return 1494.117, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+SIGReg seed1's current checkpoint is an in-flight validation metric, not a final
+test result. Wait for `summary.json` before comparing against baseline Flow and
+MLP seeds.
