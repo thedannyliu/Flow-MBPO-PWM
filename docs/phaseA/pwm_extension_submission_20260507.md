@@ -821,3 +821,20 @@ The live status helper was updated to merge `squeue` with `sacct` state. This
 fixes pending array ranges that appear in `squeue` as `9194509_[3-11]` but in
 `sacct` as `9194509_[4-11%3]`, preventing policy row3 from being incorrectly
 marked `missing` while it is still pending.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed2 = running, 2500 / 50000 = 0.05, val H16 0.117984, wandb sjk9m3t7
+policy row0 = running, 30000 / 50000 = 0.60, imagined_return 2827.888, wandb 8d805foy
+policy row1 = running, 27500 / 50000 = 0.55, imagined_return 3163.316, wandb ftedxbby
+policy row2 = running, 20000 / 50000 = 0.40, imagined_return 1713.699, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+The running stderr scans remain clean for traceback, CUDA OOM, RuntimeError,
+Exception, and NaN/Inf matches. The W&B manifest audit still reports no missing
+project and no `disable_wandb=true` rows. Policy `--require-complete` still
+fails as expected because no policy row has final `summary.json`,
+`eval_summary.json`, and `final_policy_extraction.pt` yet.
