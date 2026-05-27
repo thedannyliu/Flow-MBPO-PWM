@@ -409,6 +409,21 @@ qos = embers
 wandb_project = flow-mbpo-mjlab-pwm-flow-endpoint-20260527
 ```
 
+WM result:
+
+```text
+job = 9193988
+state = COMPLETED
+qos = embers
+mlp_ref test H16 = seed0 0.02444, seed1 0.02612, seed2 0.02487
+flow_endpoint test H16 = seed0 0.02502, seed1 0.03381, seed2 0.02469
+```
+
+The Flow endpoint fit is mixed on this refreshed dataset: seed2 slightly
+improves over MLP, seed0 is close, and seed1 is worse despite a similar best
+validation H16. Policy extraction should therefore be interpreted seed-wise,
+not only by method average.
+
 ```bash
 python scripts/experiments/mjlab_qs/build_policy_extraction_manifest_from_wm.py \
   --stage rerun_g1_pwm_flow_policy2x2_20260527 \
@@ -432,6 +447,23 @@ This gives the intended comparison:
 
 All rows keep W&B enabled unless `disable_wandb=true` is explicitly written in
 the manifest, which should not be used for formal runs.
+
+Submitted 2x2 policy extraction:
+
+```text
+job = 9194509
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_20260527.csv
+rows = 12
+wm_methods = mlp_ref, flow_endpoint
+policy_types = mlp, flow
+seeds = 0,1,2
+qos = embers
+time_limit = 08:00:00
+wandb_project = flow-mbpo-mjlab-pwm-flow-policy2x2-20260527
+```
+
+An initial 16h submission was rejected by the `embers` QOS wall-time limit, so
+the formal submission keeps `embers` and uses 8h instead of switching QOS.
 
 ### SIGReg Flow Endpoint Ablation
 
