@@ -574,3 +574,25 @@ To prevent accidental charged submissions, the MJLab submitter now rejects
 `--qos inferno` unless `ALLOW_INFERNO_QOS=1` is set after explicit user
 approval. The single-task online GPU submitters now default to `embers` instead
 of the cluster default and use the same `inferno` guard.
+
+Added a read-only live status helper for this rerun:
+
+```bash
+python scripts/experiments/mjlab_qs/summarize_pwm_flow_rerun_status.py \
+  --wm-manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_wm_sigreg_20260527.csv \
+  --wm-job 9194028 \
+  --policy-manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_20260527.csv \
+  --policy-job 9194509
+```
+
+Current helper output summary:
+
+```text
+wm row0 flow_endpoint seed0 = done, test H16 0.024757, wandb brp8tz4z
+wm row1 flow_endpoint seed1 = partial, best.pt present, wandb fck40uxq
+wm row2 flow_endpoint seed2 = missing/pending
+policy row0 mlp_ref + mlp seed0 = partial, latest iter 15000, wandb 8d805foy
+policy row1 mlp_ref + mlp seed1 = partial, latest iter 15000, wandb ftedxbby
+policy row2 mlp_ref + mlp seed2 = partial, latest iter 5000, wandb i82c7gys
+policy rows3-11 = missing/pending
+```
