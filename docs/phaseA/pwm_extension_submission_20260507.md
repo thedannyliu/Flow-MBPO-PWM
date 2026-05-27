@@ -625,3 +625,19 @@ SIGReg seed2 = pending
 
 The scanned stderr logs for the running SIGReg and policy rows showed W&B
 initialization and no traceback, CUDA OOM, or NaN/Inf error lines at this check.
+
+Added a final result exporter for the 2x2 policy stage:
+
+```bash
+python scripts/experiments/mjlab_qs/export_policy_2x2_results.py \
+  --manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_20260527.csv \
+  --rows-output scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_policy2x2_rows_latest.csv \
+  --aggregate-output scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_policy2x2_aggregate_latest.csv \
+  --require-complete
+```
+
+The exporter writes per-row real-eval metrics and aggregate mean/std by
+`wm_method x policy_type`. The `--require-complete` guard intentionally fails
+until all 12 rows have `summary.json`, `eval_summary.json`, and
+`final_policy_extraction.pt`, so incomplete runs cannot be accidentally reported
+as final 2x2 results.
