@@ -465,6 +465,13 @@ wandb_project = flow-mbpo-mjlab-pwm-flow-policy2x2-20260527
 An initial 16h submission was rejected by the `embers` QOS wall-time limit, so
 the formal submission keeps `embers` and uses 8h instead of switching QOS.
 
+Initial running rows:
+
+```text
+9194509_0 = mlp_ref + mlp policy, seed0, wandb run 8d805foy
+9194509_1 = mlp_ref + mlp policy, seed1, wandb run ftedxbby
+```
+
 ### SIGReg Flow Endpoint Ablation
 
 LeWorldModel (arXiv:2603.19312) uses a next-embedding prediction objective plus
