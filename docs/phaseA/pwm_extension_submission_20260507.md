@@ -596,3 +596,18 @@ policy row1 mlp_ref + mlp seed1 = partial, latest iter 15000, wandb ftedxbby
 policy row2 mlp_ref + mlp seed2 = partial, latest iter 5000, wandb i82c7gys
 policy rows3-11 = missing/pending
 ```
+
+The helper was extended to read `sacct` when Slurm job IDs are supplied. It now
+reports `slurm_state` and `qos` per manifest row, including compact array
+ranges such as `9194509_[3-11%3]`. This makes pending rows explicit instead of
+labeling them as missing and keeps the `embers` audit visible in the same CSV.
+
+Latest live status after the extension:
+
+```text
+SIGReg seed0 = done, COMPLETED, qos embers
+SIGReg seed1 = running, RUNNING, qos embers
+SIGReg seed2 = pending, PENDING, qos embers
+policy rows0-2 = running, RUNNING, qos embers
+policy rows3-11 = pending, PENDING, qos embers
+```

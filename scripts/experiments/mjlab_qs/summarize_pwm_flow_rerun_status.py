@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,16 @@ from typing import Any
 
 JSON_LINE_RE = re.compile(r"^\{.*\}$")
 WANDB_RUN_RE = re.compile(r"/runs/([A-Za-z0-9_-]+)")
+FAILED_STATES = {
+    "BOOT_FAIL",
+    "CANCELLED",
+    "DEADLINE",
+    "FAILED",
+    "NODE_FAIL",
+    "OUT_OF_MEMORY",
+    "PREEMPTED",
+    "TIMEOUT",
+}
 
 
 def read_manifest(path: Path) -> list[dict[str, str]]:
@@ -61,6 +72,77 @@ def wandb_run(path: Path) -> str:
     return ""
 
 
+def expand_array_suffix(suffix: str) -> list[int]:
+    if not suffix.startswith("[") or not suffix.endswith("]"):
+        return [int(suffix)]
+    body = suffix[1:-1].split("%", 1)[0]
+    indices: list[int] = []
+    for chunk in body.split(","):
+        if "-" in chunk:
+            start, end = chunk.split("-", 1)
+            indices.extend(range(int(start), int(end) + 1))
+        else:
+            indices.append(int(chunk))
+    return indices
+
+
+def sacct_state_map(job_id: str) -> dict[int, dict[str, str]]:
+    if not job_id:
+        return {}
+    try:
+        result = subprocess.run(
+            [
+                "sacct",
+                "-j",
+                job_id,
+                "--format=JobID,State,QOS",
+                "-P",
+                "--noheader",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return {}
+    if result.returncode != 0:
+        return {}
+    states: dict[int, dict[str, str]] = {}
+    prefix = f"{job_id}_"
+    for line in result.stdout.splitlines():
+        parts = line.split("|")
+        if len(parts) < 3:
+            continue
+        raw_job, state, qos = parts[:3]
+        if not raw_job.startswith(prefix) or "." in raw_job:
+            continue
+        suffix = raw_job[len(prefix) :]
+        try:
+            indices = expand_array_suffix(suffix)
+        except ValueError:
+            continue
+        for idx in indices:
+            states[idx] = {"slurm_state": state, "qos": qos}
+    return states
+
+
+def row_status(done: bool, partial: bool, slurm_state: str) -> str:
+    base_state = slurm_state.split()[0] if slurm_state else ""
+    if done:
+        return "done"
+    if base_state == "RUNNING":
+        return "running"
+    if base_state == "PENDING":
+        return "pending"
+    if base_state in FAILED_STATES:
+        return "failed"
+    if base_state == "COMPLETED":
+        return "completed_missing"
+    if partial:
+        return "partial"
+    return "missing"
+
+
 def wm_output_dir(row: dict[str, str]) -> Path:
     return (
         Path("scripts/outputs/mjlab_qs/results")
@@ -84,7 +166,7 @@ def policy_output_dir(row: dict[str, str]) -> Path:
     )
 
 
-def wm_rows(manifest: Path, job_id: str) -> list[dict[str, str]]:
+def wm_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -> list[dict[str, str]]:
     rows = []
     for idx, row in enumerate(read_manifest(manifest)):
         out = wm_output_dir(row)
@@ -92,7 +174,8 @@ def wm_rows(manifest: Path, job_id: str) -> list[dict[str, str]]:
         best = out / "best.pt"
         data = load_json(summary) if summary.exists() else {}
         err = Path(f"logs/slurm/mjlab_qs/train/mjqs_train_{job_id}_{idx}.err") if job_id else Path("")
-        status = "done" if summary.exists() else "partial" if best.exists() else "missing"
+        slurm_info = slurm.get(idx, {})
+        status = row_status(summary.exists(), best.exists(), slurm_info.get("slurm_state", ""))
         rows.append(
             {
                 "kind": "wm",
@@ -101,6 +184,8 @@ def wm_rows(manifest: Path, job_id: str) -> list[dict[str, str]]:
                 "policy": "",
                 "seed": row["seed"],
                 "status": status,
+                "slurm_state": slurm_info.get("slurm_state", ""),
+                "qos": slurm_info.get("qos", ""),
                 "summary": str(summary) if summary.exists() else "",
                 "best": str(best) if best.exists() else "",
                 "test_h16": str(data.get("test/rollout_dyn_mse_H16", "")),
@@ -113,7 +198,7 @@ def wm_rows(manifest: Path, job_id: str) -> list[dict[str, str]]:
     return rows
 
 
-def policy_rows(manifest: Path, job_id: str) -> list[dict[str, str]]:
+def policy_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -> list[dict[str, str]]:
     rows = []
     for idx, row in enumerate(read_manifest(manifest)):
         out = policy_output_dir(row)
@@ -126,12 +211,10 @@ def policy_rows(manifest: Path, job_id: str) -> list[dict[str, str]]:
         stdout = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.out") if job_id else Path("")
         stderr = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.err") if job_id else Path("")
         iter_value, imagined_return = latest_iter(stdout)
-        if summary.exists() and eval_summary.exists() and final.exists():
-            status = "done"
-        elif best.exists() or iter_value:
-            status = "partial"
-        else:
-            status = "missing"
+        done = summary.exists() and eval_summary.exists() and final.exists()
+        partial = best.exists() or bool(iter_value)
+        slurm_info = slurm.get(idx, {})
+        status = row_status(done, partial, slurm_info.get("slurm_state", ""))
         rows.append(
             {
                 "kind": "policy",
@@ -140,6 +223,8 @@ def policy_rows(manifest: Path, job_id: str) -> list[dict[str, str]]:
                 "policy": row.get("policy_type", "mlp"),
                 "seed": row["seed"],
                 "status": status,
+                "slurm_state": slurm_info.get("slurm_state", ""),
+                "qos": slurm_info.get("qos", ""),
                 "summary": str(summary) if summary.exists() else "",
                 "best": str(best) if best.exists() else "",
                 "test_h16": "",
@@ -165,9 +250,11 @@ def main() -> None:
 
     rows: list[dict[str, str]] = []
     if args.wm_manifest:
-        rows.extend(wm_rows(args.wm_manifest, args.wm_job))
+        rows.extend(wm_rows(args.wm_manifest, args.wm_job, sacct_state_map(args.wm_job)))
     if args.policy_manifest:
-        rows.extend(policy_rows(args.policy_manifest, args.policy_job))
+        rows.extend(
+            policy_rows(args.policy_manifest, args.policy_job, sacct_state_map(args.policy_job))
+        )
 
     if not rows:
         raise SystemExit("No manifest supplied.")
@@ -179,6 +266,8 @@ def main() -> None:
         "policy",
         "seed",
         "status",
+        "slurm_state",
+        "qos",
         "latest_iter",
         "imagined_return",
         "test_h16",
