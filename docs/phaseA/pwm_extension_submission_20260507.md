@@ -886,3 +886,19 @@ SIGReg seed2 continues to improve its in-flight validation H16 (`0.054029` at
 7500 iters). Policy rows 0 and 2 also advanced. No GPU job is outside `embers`,
 stderr scans remain clean, and the completion guards still fail only because
 expected final artifacts are not ready.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed2 = running, 7500 / 50000 = 0.15, val H16 0.054029, wandb sjk9m3t7
+policy row0 = running, 32500 / 50000 = 0.65, imagined_return 3005.745, wandb 8d805foy
+policy row1 = running, 32500 / 50000 = 0.65, imagined_return 2909.064, wandb ftedxbby
+policy row2 = running, 22500 / 50000 = 0.45, imagined_return 1760.466, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+Policy row1 has advanced to 32500 iters. No new final WM or policy artifact is
+ready yet; WM `--require-complete` is still blocked only by SIGReg seed2, and
+policy `--require-complete` is still blocked only by expected missing final
+policy artifacts.
