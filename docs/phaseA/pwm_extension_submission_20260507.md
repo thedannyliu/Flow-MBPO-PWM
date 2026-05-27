@@ -1143,3 +1143,18 @@ job = 9210887_2, qos embers, wandb run a8narre6, first logged iter 1 / 50000
 The H200 fallback array began useful non-duplicate work after row0 skipped on
 the held RTX6000 lock. The combined monitor now shows rows 0, 1, and 2 running,
 all with W&B run IDs and QOS `embers`.
+
+In-flight policy progress:
+
+```text
+row0 / original row3 = mlp_ref + flow, seed0, RTX6000, wandb 7dyj672f, iter 15000 / 50000
+row1 / original row4 = mlp_ref + flow, seed1, H200, wandb dtwoo1db, iter 25000 / 50000
+row2 / original row6 = flow_endpoint + mlp, seed0, H200, wandb a8narre6, iter 27500 / 50000
+row3 / original row7 = flow_endpoint + mlp, seed1, A100, wandb 3jn08peh, iter 20000 / 50000
+```
+
+The A100 fallback skipped rows 0-2 quickly because those output locks were held
+by the RTX6000/H200 jobs, then started useful work on row3. The remaining
+missing rows are row4 and rows5-7. The aggregate exporter still reports 4/12
+completed policy rows because these four active rows have not written final
+artifacts yet.
