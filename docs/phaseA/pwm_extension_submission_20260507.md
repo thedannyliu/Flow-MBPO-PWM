@@ -1176,3 +1176,23 @@ The active replacement/fallback jobs remain under `embers` across H200, A100,
 and RTX6000 partitions. No replacement row has finished since the previous
 snapshot, so the tracked policy aggregate is unchanged. Continue monitoring
 these same arrays before submitting any additional work.
+
+Rollout-video requirement and first submission at 2026-05-27 19:49 EDT:
+
+```text
+new requirement = completed policy weights must be checked with readable real-env rollouts, not only scalar eval
+renderer = scripts/experiments/mjlab_qs/render_policy_rollout.py
+row runner = scripts/experiments/mjlab_qs/run_policy_rollout_row.py
+submit kind = policy_rollout
+completed-row rollout manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_done_rollouts_20260527.csv
+manifest rows = original policy rows 0, 1, 2, 5, 6
+rollout output root = scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/
+video artifact = rollout.mp4 plus rollout_summary.csv, rollout_steps.csv, summary.json
+W&B job type = policy_rollout_video
+Slurm job = 9218121, gpu-a100, qos embers, max-concurrent 1
+```
+
+This rollout pass starts with the five policy rows that already have
+`final_policy_extraction.pt`: three `mlp_ref + mlp` seeds, `mlp_ref + flow`
+seed2, and `flow_endpoint + mlp` seed0. Rows that finish later should be added
+to a refreshed rollout manifest and rendered the same way.
