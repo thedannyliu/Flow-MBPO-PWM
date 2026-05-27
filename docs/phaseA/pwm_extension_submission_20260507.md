@@ -981,3 +981,39 @@ After a short follow-up poll, SIGReg seed2 improved to `0.035879` validation H16
 at 17500 iters. Policy rows 0 and 2 also advanced. No GPU job is outside
 `embers`, stderr scans remain clean, W&B manifest audit remains clean, and both
 completion guards still fail only for expected incomplete artifacts.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed2 = complete, test H16 0.024699, best val H16 0.023555, wandb sjk9m3t7
+policy rows0-2 = complete, mlp_ref + mlp, qos embers, W&B runs 8d805foy/ftedxbby/i82c7gys
+policy row5 = complete, mlp_ref + flow seed2, qos embers, W&B 581hbdol
+policy rows3,4,6,7 = preempted before final artifacts, qos embers
+policy rows8-11 = pending on original job 9194509, qos embers
+resubmit rows3,4,6,7 = job 9203172, pending, qos embers
+```
+
+SIGReg WM is now 3/3 complete. The aggregate test H16 is:
+
+```text
+flow_endpoint_sigreg0.05 = 0.024441 +/- 0.000498
+mlp_ref = 0.025142 +/- 0.000872
+flow_endpoint = 0.027840 +/- 0.005169
+```
+
+The guarded WM exporter now passes. Policy 2x2 is still incomplete: `mlp_ref +
+mlp` is 3/3 complete with eval return mean `-4.521467`, `mlp_ref + flow` is
+1/3 complete from seed2 with eval return `-2.935666`, and the Flow-WM policy
+cells have no final rows yet. Rows 3, 4, 6, and 7 were cancelled by `embers`
+preemption before writing final artifacts, so a surgical resubmit manifest was
+created:
+
+```text
+scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_resubmit_preempted_20260527.csv
+```
+
+Submitted resubmission job `9203172` with `--qos embers`, W&B enabled in the
+manifest, `gpu-h100`, `--time 8:00:00`, and max concurrent 2. It is currently
+pending because H100 nodes are unavailable/reserved for maintenance, not because
+of a QOS or manifest issue.
