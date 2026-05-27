@@ -1017,3 +1017,22 @@ Submitted resubmission job `9203172` with `--qos embers`, W&B enabled in the
 manifest, `gpu-h100`, `--time 8:00:00`, and max concurrent 2. It is currently
 pending because H100 nodes are unavailable/reserved for maintenance, not because
 of a QOS or manifest issue.
+
+Follow-up monitor:
+
+```text
+original H100 pending rows8-11 = cancelled to avoid duplicate writes
+H100 resubmit job 9203172 rows3,4,6,7 = cancelled to avoid duplicate writes
+new missing-row manifest = rerun_g1_pwm_flow_policy2x2_missing_h200_20260527.csv
+new H200 resubmit job = 9203199
+job 9203199 qos = embers
+job 9203199 state = pending, reason ReqNodeNotAvail / Reserved for maintenance
+```
+
+The new H200 manifest contains the eight policy rows still missing final
+artifacts: original rows 3, 4, 6, 7, 8, 9, 10, and 11. The manifest keeps W&B
+enabled for every row and uses the same output stage, so completed artifacts
+will fill the original 2x2 result tree. The old pending H100 arrays were
+cancelled before submitting the H200 replacement to prevent H100 and H200 jobs
+from writing the same output directories if maintenance clears suddenly. No
+`inferno` job was submitted.
