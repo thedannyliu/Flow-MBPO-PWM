@@ -682,3 +682,18 @@ policy row0 = 20000 / 50000 = 0.40
 policy row1 = 20000 / 50000 = 0.40
 policy row2 = 10000 / 50000 = 0.20
 ```
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed1 = running, qos embers, wandb fck40uxq, best.pt present
+SIGReg seed2 = pending, qos embers
+policy row0 = running, 20000 / 50000 = 0.40, imagined_return 2934.196, wandb 8d805foy
+policy row1 = running, 20000 / 50000 = 0.40, imagined_return 2953.052, wandb ftedxbby
+policy row2 = running, 10000 / 50000 = 0.20, imagined_return 1404.533, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+The running policy rows still have no traceback, CUDA OOM, or NaN/Inf lines in
+stderr. No row needed resubmission at this check.
