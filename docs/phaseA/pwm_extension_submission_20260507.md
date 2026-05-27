@@ -760,3 +760,18 @@ policy rows3-11 = pending, qos embers, W&B enabled in manifest
 SIGReg seed1 improved its in-flight validation H16 from 0.026124 at iter 40000
 to 0.024473 at iter 42500. Wait for final `summary.json` before making a
 test-set comparison.
+
+Added a row-filter helper for surgical resubmission if an array element fails
+or times out:
+
+```bash
+python scripts/experiments/mjlab_qs/filter_manifest_rows.py \
+  --manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_20260527.csv \
+  --status-csv scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_live_status_latest.csv \
+  --statuses failed,completed_missing \
+  --output scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_resubmit_failed.csv
+```
+
+Manual row ranges are also supported with `--rows 0,2,5-7`. At this check there
+are no failed or `completed_missing` rows, so the helper correctly refuses to
+write an empty resubmission manifest.
