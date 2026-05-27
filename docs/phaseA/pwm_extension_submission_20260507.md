@@ -663,3 +663,22 @@ flow_endpoint_sigreg0.05 = 1/3 complete, test H16 0.024757 for seed0 only
 
 The guarded mode currently fails as expected because SIGReg seeds 1 and 2 are
 not complete.
+
+The live status helper now includes manifest-level W&B and progress fields:
+
+```text
+wandb_project
+disable_wandb
+expected_iters
+progress_fraction
+```
+
+This makes W&B coverage auditable before pending rows start. Current formal rows
+all report a non-empty W&B project and `disable_wandb=false`. The current policy
+progress snapshot is:
+
+```text
+policy row0 = 20000 / 50000 = 0.40
+policy row1 = 20000 / 50000 = 0.40
+policy row2 = 10000 / 50000 = 0.20
+```

@@ -143,6 +143,20 @@ def row_status(done: bool, partial: bool, slurm_state: str) -> str:
     return "missing"
 
 
+def progress_fraction(latest: str, expected: str, done: bool) -> str:
+    if done:
+        return "1.0"
+    if not latest or not expected:
+        return ""
+    try:
+        denominator = float(expected)
+        if denominator <= 0:
+            return ""
+        return str(float(latest) / denominator)
+    except ValueError:
+        return ""
+
+
 def wm_output_dir(row: dict[str, str]) -> Path:
     return (
         Path("scripts/outputs/mjlab_qs/results")
@@ -186,6 +200,10 @@ def wm_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -> li
                 "status": status,
                 "slurm_state": slurm_info.get("slurm_state", ""),
                 "qos": slurm_info.get("qos", ""),
+                "expected_iters": row.get("train_iters", ""),
+                "progress_fraction": progress_fraction("", row.get("train_iters", ""), summary.exists()),
+                "wandb_project": row.get("wandb_project", ""),
+                "disable_wandb": row.get("disable_wandb", ""),
                 "summary": str(summary) if summary.exists() else "",
                 "best": str(best) if best.exists() else "",
                 "test_h16": str(data.get("test/rollout_dyn_mse_H16", "")),
@@ -215,6 +233,7 @@ def policy_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -
         partial = best.exists() or bool(iter_value)
         slurm_info = slurm.get(idx, {})
         status = row_status(done, partial, slurm_info.get("slurm_state", ""))
+        expected_iters = row.get("policy_iters", "")
         rows.append(
             {
                 "kind": "policy",
@@ -225,6 +244,10 @@ def policy_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -
                 "status": status,
                 "slurm_state": slurm_info.get("slurm_state", ""),
                 "qos": slurm_info.get("qos", ""),
+                "expected_iters": expected_iters,
+                "progress_fraction": progress_fraction(iter_value, expected_iters, done),
+                "wandb_project": row.get("wandb_project", ""),
+                "disable_wandb": row.get("disable_wandb", ""),
                 "summary": str(summary) if summary.exists() else "",
                 "best": str(best) if best.exists() else "",
                 "test_h16": "",
@@ -268,10 +291,14 @@ def main() -> None:
         "status",
         "slurm_state",
         "qos",
+        "expected_iters",
+        "progress_fraction",
         "latest_iter",
         "imagined_return",
         "test_h16",
         "eval_return_mean",
+        "wandb_project",
+        "disable_wandb",
         "wandb_run",
         "summary",
         "best",
