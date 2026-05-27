@@ -1196,3 +1196,32 @@ This rollout pass starts with the five policy rows that already have
 `final_policy_extraction.pt`: three `mlp_ref + mlp` seeds, `mlp_ref + flow`
 seed2, and `flow_endpoint + mlp` seed0. Rows that finish later should be added
 to a refreshed rollout manifest and rendered the same way.
+
+Rollout-video completion update at 2026-05-27 19:57 EDT:
+
+```text
+initial rollout job = 9218121, qos embers, failed/cancelled after MP4 writer used an invalid imageio v3 plugin name
+fix commit = 78224e5, switches MP4 export to imageio.v2 FFMPEG writer
+retry rollout job = 9218448, qos embers, completed 5/5 rows
+incremental rollout job = 9218749, qos embers, completed newly finished original policy row4
+rollout mp4 count = 6
+rollout summary count = 6
+non-embers GPU jobs observed = none
+```
+
+Completed rollout summaries:
+
+```text
+mlp_ref + mlp seed0 = return -4.0669, mean length 68.3, 205 frames
+mlp_ref + mlp seed1 = return -5.0430, mean length 56.7, 170 frames
+mlp_ref + mlp seed2 = return -4.6002, mean length 74.0, 222 frames
+mlp_ref + flow seed1 = return -4.3979, mean length 65.3, 196 frames
+mlp_ref + flow seed2 = return -2.9713, mean length 62.0, 186 frames
+flow_endpoint + mlp seed0 = return -3.6572, mean length 55.0, 165 frames
+```
+
+The scalar policy aggregate is now 6/12 complete: `mlp_ref + mlp` is 3/3,
+`mlp_ref + flow` is 2/3, `flow_endpoint + mlp` is 1/3, and
+`flow_endpoint + flow` is 0/3. In-flight policy rows remain under `embers`:
+`mlp_ref + flow` seed0, `flow_endpoint + mlp` seeds1-2, and
+`flow_endpoint + flow` seed0; flow-policy seeds1-2 are still pending.
