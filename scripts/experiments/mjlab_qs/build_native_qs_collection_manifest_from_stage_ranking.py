@@ -39,6 +39,16 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--num-envs", type=int, default=32)
     p.add_argument("--episodes-scale", type=float, default=1.0)
+    p.add_argument(
+        "--source-overrides",
+        default="",
+        help="Comma-separated role=collector_id overrides for weak,medium,expert source selection.",
+    )
+    p.add_argument(
+        "--episode-overrides",
+        default="",
+        help="Comma-separated qbin=episodes overrides, e.g. expert=1024,expert_noisy=256.",
+    )
     return p.parse_args()
 
 
@@ -74,6 +84,23 @@ def choose(rows: List[Dict[str, str]], role: str) -> Dict[str, str]:
     return candidates[0]
 
 
+def parse_keyvals(raw: str) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    for item in [x.strip() for x in raw.split(",") if x.strip()]:
+        if "=" not in item:
+            raise RuntimeError(f"Expected key=value override, got: {item}")
+        key, value = item.split("=", 1)
+        out[key.strip()] = value.strip()
+    return out
+
+
+def choose_override(rows: List[Dict[str, str]], role: str, collector_id: str) -> Dict[str, str]:
+    candidates = [r for r in rows if r.get("collector_id") == collector_id and r.get("checkpoint")]
+    if not candidates:
+        raise RuntimeError(f"No checkpoint-stage candidate for {role} override collector_id={collector_id}")
+    return candidates[0]
+
+
 def parse_roles(raw: str) -> List[str]:
     roles = [x.strip() for x in raw.split(",") if x.strip()]
     if not roles:
@@ -93,10 +120,12 @@ def make_row(
     source: Dict[str, str] | None,
     num_envs: int,
     episodes_scale: float,
+    episode_overrides: Dict[str, int],
 ) -> Dict[str, str]:
     task_key = TASK_IDS[task_id]
     out = Path("scripts/outputs/mjlab_qs/raw") / stage / f"{task_key}_{qbin}_seed0.pt"
-    episodes = str(max(1, int(round(QS_EPISODES[qbin] * episodes_scale))))
+    episodes_n = episode_overrides.get(qbin, max(1, int(round(QS_EPISODES[qbin] * episodes_scale))))
+    episodes = str(episodes_n)
     if qbin == "random_smooth":
         return {
             "stage": stage,
@@ -147,6 +176,15 @@ def main() -> None:
     args = parse_args()
     task_ids = selected_task_ids(args.tasks)
     roles = parse_roles(args.roles)
+    source_overrides = parse_keyvals(args.source_overrides)
+    unknown_sources = sorted(set(source_overrides) - {"weak", "medium", "expert"})
+    if unknown_sources:
+        raise RuntimeError(f"Unknown source override roles: {unknown_sources}")
+    episode_overrides_raw = parse_keyvals(args.episode_overrides)
+    unknown_episode_bins = sorted(set(episode_overrides_raw) - set(QS_EPISODES))
+    if unknown_episode_bins:
+        raise RuntimeError(f"Unknown episode override bins: {unknown_episode_bins}")
+    episode_overrides = {k: int(v) for k, v in episode_overrides_raw.items()}
     with open(args.ranking, newline="", encoding="utf-8") as f:
         ranking = list(csv.DictReader(f))
     rows: List[Dict[str, str]] = []
@@ -157,14 +195,17 @@ def main() -> None:
         sources: Dict[str, Dict[str, str]] = {}
         for role in ("weak", "medium", "expert"):
             if role in roles or (role == "expert" and "expert_noisy" in roles):
-                sources[role] = choose(task_rows, role)
+                if role in source_overrides:
+                    sources[role] = choose_override(task_rows, role, source_overrides[role])
+                else:
+                    sources[role] = choose(task_rows, role)
         for role in roles:
             if role == "random_smooth":
-                rows.append(make_row(args.stage, task_id, role, None, args.num_envs, args.episodes_scale))
+                rows.append(make_row(args.stage, task_id, role, None, args.num_envs, args.episodes_scale, episode_overrides))
             elif role == "expert_noisy":
-                rows.append(make_row(args.stage, task_id, role, sources["expert"], args.num_envs, args.episodes_scale))
+                rows.append(make_row(args.stage, task_id, role, sources["expert"], args.num_envs, args.episodes_scale, episode_overrides))
             else:
-                rows.append(make_row(args.stage, task_id, role, sources[role], args.num_envs, args.episodes_scale))
+                rows.append(make_row(args.stage, task_id, role, sources[role], args.num_envs, args.episodes_scale, episode_overrides))
 
         selected_bits = []
         for role, source in sorted(sources.items()):
