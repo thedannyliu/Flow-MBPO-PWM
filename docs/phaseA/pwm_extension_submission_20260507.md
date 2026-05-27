@@ -1116,3 +1116,17 @@ prolog and the first JSON training metric. W&B is syncing to
 `flow-mbpo-mjlab-pwm-flow-policy2x2-20260527`. Rows 1-7 remain pending behind
 the RTX6000 array throttle, while the A100 and H200 fallback arrays remain
 pending under `embers`.
+
+Duplicate-start lock behavior:
+
+```text
+active row holder = 9210910_0, RTX6000, row0
+duplicate start = 9210887_0, H200, row0
+result = skipped immediately because the row lock was already held
+walltime = 2 seconds, qos embers
+```
+
+The policy row runner now uses a non-blocking output-directory lock. If another
+fallback array starts a row that is already running, it exits immediately instead
+of waiting on the lock while holding a GPU allocation. Completed rows still skip
+through the existing final-artifact check.

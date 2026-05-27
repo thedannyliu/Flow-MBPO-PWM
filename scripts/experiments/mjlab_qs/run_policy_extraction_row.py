@@ -142,7 +142,11 @@ def main() -> None:
         cmd.append("--disable-wandb")
 
     with lock_path.open("w", encoding="utf-8") as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(f"policy extraction already running; skipping {out}", flush=True)
+            return
         if all(path.exists() for path in complete_paths):
             print(f"policy extraction already complete; skipping {out}", flush=True)
             return
