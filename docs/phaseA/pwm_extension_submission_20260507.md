@@ -775,3 +775,18 @@ python scripts/experiments/mjlab_qs/filter_manifest_rows.py \
 Manual row ranges are also supported with `--rows 0,2,5-7`. At this check there
 are no failed or `completed_missing` rows, so the helper correctly refuses to
 write an empty resubmission manifest.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed1 = running, best iter 47500 / 50000 = 0.95, val H16 0.024323, wandb fck40uxq
+SIGReg seed2 = pending, qos embers
+policy row0 = running, 27500 / 50000 = 0.55, imagined_return 3131.722, wandb 8d805foy
+policy row1 = running, 25000 / 50000 = 0.50, imagined_return 3069.477, wandb ftedxbby
+policy row2 = running, 17500 / 50000 = 0.35, imagined_return 1653.797, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+No final `summary.json` has been written for SIGReg seed1 or the policy rows at
+this check, so these remain in-flight metrics only.
