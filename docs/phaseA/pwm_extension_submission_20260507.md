@@ -1100,3 +1100,19 @@ The first RTX6000 submission attempt used 8 CPU cores and was rejected by Slurm'
 fallback uses 6 CPU cores and the same `pwm` Python, W&B-enabled manifest, and
 output-directory locking. The combined monitor now tracks `9210886`, `9210887`,
 and `9210910` together.
+
+RTX6000 start:
+
+```text
+running row = missing-row manifest row0, original policy row3
+cell = mlp_ref world model + flow policy, seed0
+job = 9210910_0, qos embers, node atl1-1-02-004-35-0
+wandb run = 7dyj672f
+first logged iter = 1 / 50000
+```
+
+The row started under the corrected `pwm` environment and wrote both the Slurm
+prolog and the first JSON training metric. W&B is syncing to
+`flow-mbpo-mjlab-pwm-flow-policy2x2-20260527`. Rows 1-7 remain pending behind
+the RTX6000 array throttle, while the A100 and H200 fallback arrays remain
+pending under `embers`.
