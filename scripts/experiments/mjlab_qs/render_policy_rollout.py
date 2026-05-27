@@ -203,9 +203,11 @@ def write_video(frames: list[Any], path: Path, fps: int, require_mp4: bool) -> N
         raise RuntimeError("No render frames were captured; cannot write rollout video.")
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        import imageio.v3 as iio
+        import imageio.v2 as iio
 
-        iio.imwrite(path, frames, fps=fps, plugin="ffmpeg")
+        with iio.get_writer(str(path), fps=fps, format="FFMPEG") as writer:
+            for frame in frames:
+                writer.append_data(frame)
     except Exception as exc:
         if require_mp4:
             raise RuntimeError(f"MP4 export failed for {path}: {exc}") from exc
