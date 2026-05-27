@@ -1036,3 +1036,20 @@ will fill the original 2x2 result tree. The old pending H100 arrays were
 cancelled before submitting the H200 replacement to prevent H100 and H200 jobs
 from writing the same output directories if maintenance clears suddenly. No
 `inferno` job was submitted.
+
+Follow-up scheduler hardening:
+
+```text
+policy runner guard = per-output .policy_extraction.lock plus completed-artifact skip
+H200 replacement job = 9203199, pending, qos embers
+A100 fallback job = 9203237, pending, qos embers, array throttle 1
+active user GPU jobs = all qos embers
+```
+
+Because `9203199` still had no estimated start time, a low-concurrency A100
+fallback was submitted with the same missing-row manifest. The runner now holds
+a lock in each policy output directory and skips rows that already have
+`summary.json`, `eval_summary.json`, and `final_policy_extraction.pt`, so the
+H200 and A100 arrays can safely race for resources without overwriting completed
+policy artifacts. The fallback keeps W&B enabled through the existing manifest
+and does not use `inferno`.

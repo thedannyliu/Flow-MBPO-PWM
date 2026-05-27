@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import fcntl
 import subprocess
 from pathlib import Path
 
@@ -33,6 +34,12 @@ def main() -> None:
         / f"seed_{row['seed']}"
     )
     out.mkdir(parents=True, exist_ok=True)
+    lock_path = out / ".policy_extraction.lock"
+    complete_paths = [
+        out / "summary.json",
+        out / "eval_summary.json",
+        out / "final_policy_extraction.pt",
+    ]
 
     cmd = [
         args.python_bin,
@@ -134,7 +141,12 @@ def main() -> None:
     if row.get("disable_wandb", "").lower() in {"1", "true", "yes"}:
         cmd.append("--disable-wandb")
 
-    subprocess.run(cmd, check=True)
+    with lock_path.open("w", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        if all(path.exists() for path in complete_paths):
+            print(f"policy extraction already complete; skipping {out}", flush=True)
+            return
+        subprocess.run(cmd, check=True)
 
 
 if __name__ == "__main__":
