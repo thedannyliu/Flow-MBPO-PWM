@@ -697,3 +697,18 @@ policy rows3-11 = pending, qos embers, W&B enabled in manifest
 
 The running policy rows still have no traceback, CUDA OOM, or NaN/Inf lines in
 stderr. No row needed resubmission at this check.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed1 = running, best.pt updated at 2026-05-27 06:03:56 -0400, wandb fck40uxq
+SIGReg seed2 = pending, qos embers
+policy row0 = running, 22500 / 50000 = 0.45, imagined_return 2977.739, wandb 8d805foy
+policy row1 = running, 20000 / 50000 = 0.40, imagined_return 2953.052, wandb ftedxbby
+policy row2 = running, 12500 / 50000 = 0.25, imagined_return 1494.117, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+The running policy stderr scans remain clean for traceback, CUDA OOM, and
+NaN/Inf lines. No row needed resubmission at this check.
