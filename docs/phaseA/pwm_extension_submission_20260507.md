@@ -470,6 +470,7 @@ Initial running rows:
 ```text
 9194509_0 = mlp_ref + mlp policy, seed0, wandb run 8d805foy
 9194509_1 = mlp_ref + mlp policy, seed1, wandb run ftedxbby
+status = both reached policy iter 2500 with W&B metrics logging
 ```
 
 ### SIGReg Flow Endpoint Ablation
@@ -505,6 +506,20 @@ wandb_project = flow-mbpo-mjlab-pwm-flow-sigreg-20260527
 Interpret this as an architecture/loss ablation against the baseline
 `flow_endpoint` rows from job `9193988`, not as a replacement for the baseline
 2x2 PWM comparison.
+
+Initial SIGReg result:
+
+```text
+9194028_0 = flow_endpoint + SIGReg, seed0, COMPLETED
+wandb run = brp8tz4z
+test H16 = 0.02476
+baseline flow_endpoint seed0 test H16 = 0.02502
+baseline mlp_ref seed0 test H16 = 0.02444
+```
+
+Seed0 suggests SIGReg may slightly improve Flow endpoint rollout fit over the
+non-SIGReg Flow endpoint row, but it does not exceed the MLP seed0 baseline.
+Wait for seeds 1 and 2 before drawing a method-level conclusion.
 
 ### QOS Audit
 
