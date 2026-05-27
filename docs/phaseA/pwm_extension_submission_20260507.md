@@ -854,3 +854,19 @@ The WM and policy `--require-complete` guards both still fail for expected
 incomplete rows: SIGReg seed2 is missing its final summary, and all 12 policy
 rows are missing final policy artifacts. No resubmission is needed at this
 check.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed2 = running, 5000 / 50000 = 0.10, val H16 0.069703, wandb sjk9m3t7
+policy row0 = running, 30000 / 50000 = 0.60, imagined_return 2827.888, wandb 8d805foy
+policy row1 = running, 30000 / 50000 = 0.60, imagined_return 3255.210, wandb ftedxbby
+policy row2 = running, 20000 / 50000 = 0.40, imagined_return 1713.699, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+SIGReg seed2's in-flight validation H16 improved from `0.117984` at 2500 iters
+to `0.069703` at 5000 iters. This is still checkpoint validation only, not a
+final test result. Stderr scans remain clean, W&B manifest audit remains clean,
+and both completion guards still fail only for expected incomplete artifacts.
