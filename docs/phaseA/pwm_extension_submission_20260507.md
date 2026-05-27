@@ -641,3 +641,25 @@ The exporter writes per-row real-eval metrics and aggregate mean/std by
 until all 12 rows have `summary.json`, `eval_summary.json`, and
 `final_policy_extraction.pt`, so incomplete runs cannot be accidentally reported
 as final 2x2 results.
+
+Added a matching WM ablation exporter for baseline-vs-SIGReg comparison:
+
+```bash
+python scripts/experiments/mjlab_qs/export_wm_ablation_results.py \
+  --manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_wm_20260527.csv \
+  --manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_wm_sigreg_20260527.csv \
+  --rows-output scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_wm_rows_latest.csv \
+  --aggregate-output scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_wm_aggregate_latest.csv \
+  --require-complete
+```
+
+Current WM aggregate snapshot without `--require-complete`:
+
+```text
+mlp_ref = 3/3 complete, test H16 mean 0.025142
+flow_endpoint = 3/3 complete, test H16 mean 0.027840
+flow_endpoint_sigreg0.05 = 1/3 complete, test H16 0.024757 for seed0 only
+```
+
+The guarded mode currently fails as expected because SIGReg seeds 1 and 2 are
+not complete.
