@@ -38,6 +38,10 @@ if [[ -z "$KIND" || -z "$MANIFEST" ]]; then
   echo "--kind and --manifest are required" >&2
   exit 1
 fi
+if [[ "${QOS,,}" == "inferno" && "${ALLOW_INFERNO_QOS:-0}" != "1" ]]; then
+  echo "Error: inferno QOS requires explicit user approval. Use embers for GPU jobs." >&2
+  exit 1
+fi
 
 case "${GPU_TYPE}" in
   H100) GRES="gpu:h100:1" ;;

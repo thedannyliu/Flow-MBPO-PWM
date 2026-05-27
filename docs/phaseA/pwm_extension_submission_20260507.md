@@ -535,3 +535,42 @@ collection retry = 9193797, qos = embers, account = gts-agarg35
 No GPU job since 2026-05-01 was found with a non-`embers` QOS in the checked
 Slurm history. Continue to require explicit user approval before any `inferno`
 submission.
+
+### Live Monitor And QOS Guard - 2026-05-27
+
+Follow-up audit confirmed that the active GPU jobs are still using `embers`:
+
+```text
+9194028_1 = SIGReg WM, flow_endpoint seed1, RUNNING, qos = embers
+9194028_2 = SIGReg WM, flow_endpoint seed2, PENDING, qos = embers
+9194509_0 = mlp_ref + mlp policy, seed0, RUNNING, qos = embers
+9194509_1 = mlp_ref + mlp policy, seed1, RUNNING, qos = embers
+9194509_2 = mlp_ref + mlp policy, seed2, RUNNING, qos = embers
+9194509_3-11 = remaining 2x2 policy rows, PENDING, qos = embers
+```
+
+`sacct -S 2026-05-01` was rechecked for GPU partitions and did not show any
+non-`embers` GPU job in the inspected history.
+
+W&B status:
+
+```text
+SIGReg seed1 W&B run = fck40uxq
+policy row0 W&B run = 8d805foy
+policy row1 W&B run = ftedxbby
+policy row2 W&B run = i82c7gys
+```
+
+At this check, policy extraction had not yet written final
+`summary.json`/`eval_summary.json` files. The latest stdout progress was:
+
+```text
+9194509_0 reached iter 15000
+9194509_1 reached iter 12500
+9194509_2 reached iter 5000
+```
+
+To prevent accidental charged submissions, the MJLab submitter now rejects
+`--qos inferno` unless `ALLOW_INFERNO_QOS=1` is set after explicit user
+approval. The single-task online GPU submitters now default to `embers` instead
+of the cluster default and use the same `inferno` guard.
