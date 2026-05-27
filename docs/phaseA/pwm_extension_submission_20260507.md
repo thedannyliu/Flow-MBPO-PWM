@@ -1158,3 +1158,21 @@ by the RTX6000/H200 jobs, then started useful work on row3. The remaining
 missing rows are row4 and rows5-7. The aggregate exporter still reports 4/12
 completed policy rows because these four active rows have not written final
 artifacts yet.
+
+Policy/QOS status refresh at 2026-05-27 18:57 EDT:
+
+```text
+active jobs checked = 9210886, 9210887, 9210910
+non-embers GPU jobs = none observed in current squeue
+row0 / original row3 = mlp_ref + flow, seed0, RTX6000, qos embers, wandb 7dyj672f, iter 15000 / 50000
+row1 / original row4 = mlp_ref + flow, seed1, H200, qos embers, wandb dtwoo1db, iter 30000 / 50000
+row2 / original row6 = flow_endpoint + mlp, seed0, H200, qos embers, wandb a8narre6, iter 32500 / 50000
+row3 / original row7 = flow_endpoint + mlp, seed1, A100, qos embers, wandb 3jn08peh, iter 22500 / 50000
+rows pending behind throttles = missing rows 4-7
+policy aggregate = 4 / 12 complete; require-complete still fails with first missing row 3
+```
+
+The active replacement/fallback jobs remain under `embers` across H200, A100,
+and RTX6000 partitions. No replacement row has finished since the previous
+snapshot, so the tracked policy aggregate is unchanged. Continue monitoring
+these same arrays before submitting any additional work.
