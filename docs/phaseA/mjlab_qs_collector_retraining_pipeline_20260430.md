@@ -1645,6 +1645,20 @@ qos = embers
 account = gts-agarg35
 ```
 
+Result:
+
+```text
+job = 9193797
+state = COMPLETED
+elapsed = 00:15:11
+audit status = PASS
+empirical expert episodes = 129
+reward/action NaNs = 0
+windows = scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt
+num_episodes = 1562
+num_windows = 351051
+```
+
 Success criteria:
 
 1. `audit_mjlab_qs_quality.py` reports `PASS`.

@@ -396,6 +396,19 @@ Then submit with `scripts/experiments/mjlab_qs/submit_array.sh --kind train`
 using PACE Phoenix `embers`. Once WM checkpoints exist, build the 2x2 policy
 manifest:
 
+Submitted WM job:
+
+```text
+job = 9193988
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_wm_20260527.csv
+rows = 6
+methods = mlp_ref, flow_endpoint
+seeds = 0,1,2
+partition = gpu-h100
+qos = embers
+wandb_project = flow-mbpo-mjlab-pwm-flow-endpoint-20260527
+```
+
 ```bash
 python scripts/experiments/mjlab_qs/build_policy_extraction_manifest_from_wm.py \
   --stage rerun_g1_pwm_flow_policy2x2_20260527 \
