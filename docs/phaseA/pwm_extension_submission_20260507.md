@@ -368,3 +368,54 @@ The most promising levers, in order:
 5. Separate strict fixed-simulator eval from MJLab-default eval. Current online/eval logs show MJLab default randomization/event terms active, so final claims should explicitly separate these two settings.
 6. Compare policy extraction with and without Flow policy under longer budgets. The current 15k 2x2 has visible variance, so one short run is not enough to decide policy-side Flow.
 
+## Correct PWM/Flow Endpoint Continuation - 2026-05-27
+
+The next run should wait for the refreshed G1 QS dataset:
+
+```text
+dataset stage = rerun_a25_native_qs_g1stage4_expertboost_20260527
+required file = scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt
+```
+
+After the data audit and H16 window build pass, train the fixed-data WM stage
+with W&B enabled:
+
+```bash
+python scripts/experiments/mjlab_qs/build_phaseA_train_manifest_from_windows.py \
+  --stage rerun_a25_native_qs_g1stage4_expertboost_20260527 \
+  --output scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_wm_20260527.csv \
+  --tasks velocity_flat_unitree_g1 \
+  --methods mlp_ref,flow_endpoint \
+  --seeds 0,1,2 \
+  --train-iters 50000 \
+  --eval-every 2500 \
+  --wandb-project flow-mbpo-mjlab-pwm-flow-endpoint-20260527
+```
+
+Then submit with `scripts/experiments/mjlab_qs/submit_array.sh --kind train`
+using PACE Phoenix `embers`. Once WM checkpoints exist, build the 2x2 policy
+manifest:
+
+```bash
+python scripts/experiments/mjlab_qs/build_policy_extraction_manifest_from_wm.py \
+  --stage rerun_g1_pwm_flow_policy2x2_20260527 \
+  --wm-stage rerun_a25_native_qs_g1stage4_expertboost_20260527 \
+  --dataset-stage rerun_a25_native_qs_g1stage4_expertboost_20260527 \
+  --output scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_20260527.csv \
+  --wm-methods mlp_ref,flow_endpoint \
+  --policy-types mlp,flow \
+  --seeds 0,1,2 \
+  --policy-iters 50000 \
+  --eval-every 2500 \
+  --wandb-project flow-mbpo-mjlab-pwm-flow-policy2x2-20260527
+```
+
+This gives the intended comparison:
+
+- `mlp_ref + mlp policy`: PWM-style baseline.
+- `mlp_ref + flow policy`: policy-architecture swap only.
+- `flow_endpoint + mlp policy`: model-architecture swap only.
+- `flow_endpoint + flow policy`: combined Flow WM and Flow policy.
+
+All rows keep W&B enabled unless `disable_wandb=true` is explicitly written in
+the manifest, which should not be used for formal runs.
