@@ -125,6 +125,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--flow-substeps", type=int, default=4)
     parser.add_argument("--rollout-gamma", type=float, default=0.99)
+    parser.add_argument("--sigreg-weight", type=float, default=0.0)
+    parser.add_argument("--sigreg-projections", type=int, default=128)
+    parser.add_argument("--sigreg-knots", type=int, default=8)
+    parser.add_argument("--sigreg-bandwidth", type=float, default=1.0)
     parser.add_argument("--wandb-project", default="flow-mbpo-mjlab-phaseA-wm-feasibility")
     parser.add_argument("--wandb-group", default="a25_mini_feasibility")
     parser.add_argument("--wandb-name", default=None)
@@ -202,11 +206,56 @@ def rollout_losses(
     return torch.stack(dyn_losses), torch.stack(rew_losses), pred, dyn_num / dyn_den.clamp_min(1e-8), rew_num / rew_den.clamp_min(1e-8)
 
 
-def train_loss(model: nn.Module, method: str, z: torch.Tensor, a: torch.Tensor, r: torch.Tensor, c: torch.Tensor, done: torch.Tensor, gamma: float) -> torch.Tensor:
+def rollout_predicted_states(model: nn.Module, z: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
+    pred = z[:, 0]
+    states = [pred]
+    for h in range(a.shape[1]):
+        pred = model.next(pred, a[:, h])
+        states.append(pred)
+    return torch.stack(states, dim=0)
+
+
+def sigreg_loss(
+    embeddings: torch.Tensor,
+    num_projections: int = 128,
+    num_knots: int = 8,
+    bandwidth: float = 1.0,
+) -> torch.Tensor:
+    flat = embeddings.reshape(-1, embeddings.shape[-1])
+    if flat.shape[0] < 2 or num_projections <= 0 or num_knots <= 0:
+        return flat.new_zeros(())
+    directions = torch.randn(flat.shape[-1], num_projections, device=flat.device, dtype=flat.dtype)
+    directions = F.normalize(directions, dim=0)
+    projected = flat @ directions
+    knots = torch.linspace(0.2, 4.0, num_knots, device=flat.device, dtype=flat.dtype)
+    phase = projected[:, :, None] * knots[None, None, :]
+    emp_real = torch.cos(phase).mean(dim=0)
+    emp_imag = torch.sin(phase).mean(dim=0)
+    target_real = torch.exp(-0.5 * knots.pow(2))[None, :]
+    weights = torch.exp(-knots.pow(2) / (2.0 * max(float(bandwidth), 1e-6) ** 2))[None, :]
+    stat = weights * ((emp_real - target_real).pow(2) + emp_imag.pow(2))
+    return stat.mean()
+
+
+def train_loss(
+    model: nn.Module,
+    method: str,
+    z: torch.Tensor,
+    a: torch.Tensor,
+    r: torch.Tensor,
+    c: torch.Tensor,
+    done: torch.Tensor,
+    gamma: float,
+    sigreg_weight: float = 0.0,
+    sigreg_projections: int = 128,
+    sigreg_knots: int = 8,
+    sigreg_bandwidth: float = 1.0,
+    return_parts: bool = False,
+) -> torch.Tensor | Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     if method == "flow_endpoint":
         _, _, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
-        return dyn_agg + rew_agg
-    if method in {"flow_ref", "residual_flow_frozen_mlp"}:
+        base_loss = dyn_agg + rew_agg
+    elif method in {"flow_ref", "residual_flow_frozen_mlp"}:
         mask = torch.ones(z.shape[0], device=z.device)
         fm_num = torch.zeros((), device=z.device)
         fm_den = torch.zeros((), device=z.device)
@@ -218,9 +267,23 @@ def train_loss(model: nn.Module, method: str, z: torch.Tensor, a: torch.Tensor, 
             mask = mask * (~done[:, h]).float()
         fm = fm_num / fm_den.clamp_min(1e-8)
         _, _, _, _, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
-        return fm + rew_agg
-    _, _, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
-    return dyn_agg + rew_agg
+        base_loss = fm + rew_agg
+    else:
+        _, _, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
+        base_loss = dyn_agg + rew_agg
+    sigreg = z.new_zeros(())
+    if sigreg_weight > 0:
+        pred_states = rollout_predicted_states(model, z, a)
+        sigreg = sigreg_loss(
+            pred_states,
+            num_projections=sigreg_projections,
+            num_knots=sigreg_knots,
+            bandwidth=sigreg_bandwidth,
+        )
+    total = base_loss + float(sigreg_weight) * sigreg
+    if return_parts:
+        return total, base_loss, sigreg
+    return total
 
 
 @torch.no_grad()
@@ -311,11 +374,31 @@ def main() -> None:
     best_val = math.inf
     best = None
     t0 = time.time()
+    last_train_loss = float("nan")
+    last_base_loss = float("nan")
+    last_sigreg_loss = float("nan")
     for it in range(args.train_iters + 1):
         if it > 0:
             ids = sample_train_indices(data, train_idx, args.batch_size)
             z, a, r, c, done = batch(data, ids, device, nrm)
-            loss = train_loss(model, args.method, z, a, r, c, done, gamma=args.rollout_gamma)
+            loss, base_loss, sigreg = train_loss(
+                model,
+                args.method,
+                z,
+                a,
+                r,
+                c,
+                done,
+                gamma=args.rollout_gamma,
+                sigreg_weight=args.sigreg_weight,
+                sigreg_projections=args.sigreg_projections,
+                sigreg_knots=args.sigreg_knots,
+                sigreg_bandwidth=args.sigreg_bandwidth,
+                return_parts=True,
+            )
+            last_train_loss = float(loss.detach().item())
+            last_base_loss = float(base_loss.detach().item())
+            last_sigreg_loss = float(sigreg.detach().item())
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 100.0)
@@ -327,6 +410,9 @@ def main() -> None:
             metrics.update({f"val/{k}": v for k, v in val_m.items()})
             metrics["iter"] = it
             metrics["wall_clock_seconds"] = time.time() - t0
+            metrics["train/optim_loss"] = last_train_loss
+            metrics["train/base_loss"] = last_base_loss
+            metrics["train/sigreg_loss"] = last_sigreg_loss
             if val_m["rollout_dyn_mse_H16"] < best_val:
                 best_val = val_m["rollout_dyn_mse_H16"]
                 best = {"iter": it, **metrics}

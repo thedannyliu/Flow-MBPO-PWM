@@ -432,3 +432,37 @@ This gives the intended comparison:
 
 All rows keep W&B enabled unless `disable_wandb=true` is explicitly written in
 the manifest, which should not be used for formal runs.
+
+### SIGReg Flow Endpoint Ablation
+
+LeWorldModel (arXiv:2603.19312) uses a next-embedding prediction objective plus
+SIGReg, a sketched isotropic Gaussian regularizer over latent embeddings. For
+the current state-space MJLab runner, there is no learned pixel encoder; the
+first compatible ablation therefore applies the SIGReg-style Epps-Pulley
+normality statistic to predicted rollout states from the Flow endpoint WM.
+This keeps the existing reward and H16 rollout losses unchanged and adds:
+
+```text
+loss = base_wm_loss + sigreg_weight * sigreg(predicted_rollout_states)
+sigreg_weight = 0.05
+projections = 128
+knots = 8
+bandwidth = 1.0
+```
+
+Submitted job:
+
+```text
+job = 9194028
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_wm_sigreg_20260527.csv
+rows = 3
+method = flow_endpoint
+seeds = 0,1,2
+partition = gpu-h100
+qos = embers
+wandb_project = flow-mbpo-mjlab-pwm-flow-sigreg-20260527
+```
+
+Interpret this as an architecture/loss ablation against the baseline
+`flow_endpoint` rows from job `9193988`, not as a replacement for the baseline
+2x2 PWM comparison.
