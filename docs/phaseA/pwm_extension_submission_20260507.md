@@ -1053,3 +1053,35 @@ a lock in each policy output directory and skips rows that already have
 H200 and A100 arrays can safely race for resources without overwriting completed
 policy artifacts. The fallback keeps W&B enabled through the existing manifest
 and does not use `inferno`.
+
+Monitor tooling update:
+
+```bash
+python scripts/experiments/mjlab_qs/summarize_pwm_flow_rerun_status.py \
+  --policy-manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_missing_h200_20260527.csv \
+  --policy-job 9203199 --policy-job 9203237 \
+  --output scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_policy2x2_replacement_combined_status_latest.csv
+```
+
+The status exporter now accepts repeated or comma-separated `--policy-job`
+values and writes a `slurm_job` column, so the H200 replacement and A100 fallback
+can be monitored as one missing-row pool. The latest combined snapshot still
+shows all eight rows pending, W&B enabled in the manifest, and QOS `embers`.
+
+Environment-fix resubmission:
+
+```text
+failed H200 replacement job = 9203199, all rows FAILED, qos embers
+failed A100 fallback job = 9203237, all rows FAILED, qos embers
+failure cause = base Python 3.13 did not have wandb installed
+verified env = /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python
+verified packages = wandb 0.23.0, torch 2.10.0+cu128
+new A100 fallback job = 9210886, pending, qos embers
+new H200 replacement job = 9210887, pending, qos embers
+```
+
+The failed jobs did allocate GPU nodes briefly, so the failure was not caused by
+the scheduler or the machine-room maintenance notice. They failed immediately at
+`import wandb` because the submission used base `python`. The corrected
+submissions use the `pwm` environment's Python directly while keeping the same
+missing-row manifest, W&B-enabled rows, output locks, and `embers` QOS.

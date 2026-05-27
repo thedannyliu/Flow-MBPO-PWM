@@ -25,6 +25,18 @@ FAILED_STATES = {
     "PREEMPTED",
     "TIMEOUT",
 }
+STATE_PRIORITY = {
+    "RUNNING": 50,
+    "COMPLETING": 45,
+    "PENDING": 40,
+    "COMPLETED": 30,
+    "PREEMPTED": 20,
+    "TIMEOUT": 20,
+    "OUT_OF_MEMORY": 20,
+    "NODE_FAIL": 20,
+    "FAILED": 20,
+    "CANCELLED": 10,
+}
 
 
 def read_manifest(path: Path) -> list[dict[str, str]]:
@@ -99,6 +111,16 @@ def expand_array_suffix(suffix: str) -> list[int]:
     return indices
 
 
+def job_ids(values: list[str]) -> list[str]:
+    ids: list[str] = []
+    for value in values:
+        for item in value.split(","):
+            item = item.strip()
+            if item:
+                ids.append(item)
+    return ids
+
+
 def sacct_state_map(job_id: str) -> dict[int, dict[str, str]]:
     if not job_id:
         return {}
@@ -114,7 +136,7 @@ def sacct_state_map(job_id: str) -> dict[int, dict[str, str]]:
         except ValueError:
             return
         for idx in indices:
-            states[idx] = {"slurm_state": state, "qos": qos}
+            states[idx] = {"slurm_job": job_id, "slurm_state": state, "qos": qos}
 
     try:
         result = subprocess.run(
@@ -153,6 +175,20 @@ def sacct_state_map(job_id: str) -> dict[int, dict[str, str]]:
             if len(parts) >= 3:
                 record(*parts[:3])
     return states
+
+
+def merge_slurm_maps(job_state_maps: list[dict[int, dict[str, str]]]) -> dict[int, dict[str, str]]:
+    merged: dict[int, dict[str, str]] = {}
+    for state_map in job_state_maps:
+        for idx, info in state_map.items():
+            state_parts = info.get("slurm_state", "").split()
+            state = state_parts[0] if state_parts else ""
+            current = merged.get(idx, {})
+            current_parts = current.get("slurm_state", "").split()
+            current_state = current_parts[0] if current_parts else ""
+            if STATE_PRIORITY.get(state, 0) >= STATE_PRIORITY.get(current_state, 0):
+                merged[idx] = info
+    return merged
 
 
 def row_status(done: bool, partial: bool, slurm_state: str) -> str:
@@ -234,6 +270,7 @@ def wm_rows(
                 "policy": "",
                 "seed": row["seed"],
                 "status": status,
+                "slurm_job": slurm_info.get("slurm_job", ""),
                 "slurm_state": slurm_info.get("slurm_state", ""),
                 "qos": slurm_info.get("qos", ""),
                 "expected_iters": row.get("train_iters", ""),
@@ -255,7 +292,29 @@ def wm_rows(
     return rows
 
 
-def policy_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -> list[dict[str, str]]:
+def policy_log_values(job_ids_: list[str], idx: int) -> tuple[str, str, str]:
+    latest = ""
+    latest_return = ""
+    latest_wandb = ""
+    for job_id in job_ids_:
+        stdout = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.out")
+        stderr = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.err")
+        iter_value, imagined_return = latest_iter(stdout)
+        if iter_value:
+            try:
+                if not latest or float(iter_value) >= float(latest):
+                    latest = iter_value
+                    latest_return = imagined_return
+            except ValueError:
+                latest = iter_value
+                latest_return = imagined_return
+        run = wandb_run(stderr)
+        if run:
+            latest_wandb = run
+    return latest, latest_return, latest_wandb
+
+
+def policy_rows(manifest: Path, job_ids_: list[str], slurm: dict[int, dict[str, str]]) -> list[dict[str, str]]:
     rows = []
     for idx, row in enumerate(read_manifest(manifest)):
         out = policy_output_dir(row)
@@ -265,9 +324,7 @@ def policy_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -
         best = out / "best_policy_extraction.pt"
         summary_data = load_json(summary) if summary.exists() else {}
         eval_data = load_json(eval_summary) if eval_summary.exists() else {}
-        stdout = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.out") if job_id else Path("")
-        stderr = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.err") if job_id else Path("")
-        iter_value, imagined_return = latest_iter(stdout)
+        iter_value, imagined_return, run = policy_log_values(job_ids_, idx)
         done = summary.exists() and eval_summary.exists() and final.exists()
         partial = best.exists() or bool(iter_value)
         slurm_info = slurm.get(idx, {})
@@ -281,6 +338,7 @@ def policy_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -
                 "policy": row.get("policy_type", "mlp"),
                 "seed": row["seed"],
                 "status": status,
+                "slurm_job": slurm_info.get("slurm_job", ""),
                 "slurm_state": slurm_info.get("slurm_state", ""),
                 "qos": slurm_info.get("qos", ""),
                 "expected_iters": expected_iters,
@@ -295,7 +353,7 @@ def policy_rows(manifest: Path, job_id: str, slurm: dict[int, dict[str, str]]) -
                 ),
                 "latest_iter": iter_value,
                 "imagined_return": imagined_return,
-                "wandb_run": wandb_run(stderr),
+                "wandb_run": run,
             }
         )
     return rows
@@ -306,7 +364,12 @@ def main() -> None:
     parser.add_argument("--wm-manifest", type=Path)
     parser.add_argument("--policy-manifest", type=Path)
     parser.add_argument("--wm-job", default="")
-    parser.add_argument("--policy-job", default="")
+    parser.add_argument(
+        "--policy-job",
+        action="append",
+        default=[],
+        help="Policy Slurm array job id. May be repeated or comma-separated.",
+    )
     parser.add_argument("--load-wm-checkpoints", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -322,8 +385,10 @@ def main() -> None:
             )
         )
     if args.policy_manifest:
+        policy_job_ids = job_ids(args.policy_job)
+        policy_slurm = merge_slurm_maps([sacct_state_map(job_id) for job_id in policy_job_ids])
         rows.extend(
-            policy_rows(args.policy_manifest, args.policy_job, sacct_state_map(args.policy_job))
+            policy_rows(args.policy_manifest, policy_job_ids, policy_slurm)
         )
 
     if not rows:
@@ -336,6 +401,7 @@ def main() -> None:
         "policy",
         "seed",
         "status",
+        "slurm_job",
         "slurm_state",
         "qos",
         "expected_iters",
