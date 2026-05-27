@@ -1130,3 +1130,16 @@ The policy row runner now uses a non-blocking output-directory lock. If another
 fallback array starts a row that is already running, it exits immediately instead
 of waiting on the lock while holding a GPU allocation. Completed rows still skip
 through the existing final-artifact check.
+
+H200 starts:
+
+```text
+missing-row row1 = original policy row4, mlp_ref + flow, seed1
+job = 9210887_1, qos embers, wandb run dtwoo1db, first logged iter 1 / 50000
+missing-row row2 = original policy row6, flow_endpoint + mlp, seed0
+job = 9210887_2, qos embers, wandb run a8narre6, first logged iter 1 / 50000
+```
+
+The H200 fallback array began useful non-duplicate work after row0 skipped on
+the held RTX6000 lock. The combined monitor now shows rows 0, 1, and 2 running,
+all with W&B run IDs and QOS `embers`.
