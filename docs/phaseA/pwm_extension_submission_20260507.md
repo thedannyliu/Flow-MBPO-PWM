@@ -611,3 +611,17 @@ SIGReg seed2 = pending, PENDING, qos embers
 policy rows0-2 = running, RUNNING, qos embers
 policy rows3-11 = pending, PENDING, qos embers
 ```
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+policy row0 = running, latest iter 17500, imagined_return 2909.669, wandb 8d805foy
+policy row1 = running, latest iter 17500, imagined_return 3206.729, wandb ftedxbby
+policy row2 = running, latest iter 7500, imagined_return 1293.210, wandb i82c7gys
+SIGReg seed1 = running, wandb fck40uxq, best.pt present
+SIGReg seed2 = pending
+```
+
+The scanned stderr logs for the running SIGReg and policy rows showed W&B
+initialization and no traceback, CUDA OOM, or NaN/Inf error lines at this check.
