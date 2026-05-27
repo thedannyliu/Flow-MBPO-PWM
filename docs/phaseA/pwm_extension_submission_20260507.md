@@ -1085,3 +1085,18 @@ the scheduler or the machine-room maintenance notice. They failed immediately at
 `import wandb` because the submission used base `python`. The corrected
 submissions use the `pwm` environment's Python directly while keeping the same
 missing-row manifest, W&B-enabled rows, output locks, and `embers` QOS.
+
+Additional `embers` fallback:
+
+```text
+A100 env-fixed job = 9210886, pending, qos embers, reason Resources
+H200 env-fixed job = 9210887, pending, qos embers, reason Priority
+RTX6000 fallback job = 9210910, pending, qos embers, reason Priority
+RTX6000 resources = gpu:rtx_6000:1, cpus-per-task 6, mem 128G, time 8h
+```
+
+The first RTX6000 submission attempt used 8 CPU cores and was rejected by Slurm's
+6:1 CPU:GPU limit for that node class before entering the queue. The accepted
+fallback uses 6 CPU cores and the same `pwm` Python, W&B-enabled manifest, and
+output-directory locking. The combined monitor now tracks `9210886`, `9210887`,
+and `9210910` together.
