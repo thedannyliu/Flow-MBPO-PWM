@@ -790,3 +790,34 @@ policy rows3-11 = pending, qos embers, W&B enabled in manifest
 
 No final `summary.json` has been written for SIGReg seed1 or the policy rows at
 this check, so these remain in-flight metrics only.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed0 = complete, test H16 0.024757, best val H16 0.023479, wandb brp8tz4z
+SIGReg seed1 = complete, test H16 0.023867, best val H16 0.023111, wandb fck40uxq
+SIGReg seed2 = running, checkpoint present, wandb sjk9m3t7
+policy row0 = running, 27500 / 50000 = 0.55, imagined_return 3131.722, wandb 8d805foy
+policy row1 = running, 27500 / 50000 = 0.55, imagined_return 3163.316, wandb ftedxbby
+policy row2 = running, 17500 / 50000 = 0.35, imagined_return 1653.797, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+The SIGReg seed1 final test result is now available. Against the same seed,
+SIGReg Flow endpoint improves over the baseline Flow endpoint WM
+(`0.023867` vs `0.033806` test H16) and the MLP reference WM (`0.023867` vs
+`0.026118` test H16). The current partial SIGReg aggregate is 2/3 complete:
+
+```text
+flow_endpoint_sigreg0.05 = 2/3 complete, test H16 mean 0.024312
+flow_endpoint = 3/3 complete, test H16 mean 0.027840
+mlp_ref = 3/3 complete, test H16 mean 0.025142
+```
+
+Do not report the SIGReg ablation as final until seed2 writes `summary.json`.
+
+The live status helper was updated to merge `squeue` with `sacct` state. This
+fixes pending array ranges that appear in `squeue` as `9194509_[3-11]` but in
+`sacct` as `9194509_[4-11%3]`, preventing policy row3 from being incorrectly
+marked `missing` while it is still pending.

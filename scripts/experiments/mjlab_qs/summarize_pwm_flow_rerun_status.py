@@ -102,6 +102,20 @@ def expand_array_suffix(suffix: str) -> list[int]:
 def sacct_state_map(job_id: str) -> dict[int, dict[str, str]]:
     if not job_id:
         return {}
+    states: dict[int, dict[str, str]] = {}
+    prefix = f"{job_id}_"
+
+    def record(raw_job: str, state: str, qos: str) -> None:
+        if not raw_job.startswith(prefix) or "." in raw_job:
+            return
+        suffix = raw_job[len(prefix) :]
+        try:
+            indices = expand_array_suffix(suffix)
+        except ValueError:
+            return
+        for idx in indices:
+            states[idx] = {"slurm_state": state, "qos": qos}
+
     try:
         result = subprocess.run(
             [
@@ -118,24 +132,26 @@ def sacct_state_map(job_id: str) -> dict[int, dict[str, str]]:
         )
     except OSError:
         return {}
-    if result.returncode != 0:
-        return {}
-    states: dict[int, dict[str, str]] = {}
-    prefix = f"{job_id}_"
-    for line in result.stdout.splitlines():
-        parts = line.split("|")
-        if len(parts) < 3:
-            continue
-        raw_job, state, qos = parts[:3]
-        if not raw_job.startswith(prefix) or "." in raw_job:
-            continue
-        suffix = raw_job[len(prefix) :]
-        try:
-            indices = expand_array_suffix(suffix)
-        except ValueError:
-            continue
-        for idx in indices:
-            states[idx] = {"slurm_state": state, "qos": qos}
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            parts = line.split("|")
+            if len(parts) >= 3:
+                record(*parts[:3])
+
+    try:
+        live = subprocess.run(
+            ["squeue", "-j", job_id, "-h", "-o", "%i|%T|%q"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return states
+    if live.returncode == 0:
+        for line in live.stdout.splitlines():
+            parts = line.split("|")
+            if len(parts) >= 3:
+                record(*parts[:3])
     return states
 
 
