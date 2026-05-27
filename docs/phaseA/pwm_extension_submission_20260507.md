@@ -965,3 +965,19 @@ SIGReg seed2 continues improving in-flight validation (`0.040792` at 15000
 iters). Policy rows did not write newer checkpoints at this check. No final
 summary or extraction artifact is ready yet, and all QOS/W&B/stderr/guard checks
 remain clean.
+
+Follow-up monitor:
+
+```text
+active GPU jobs = all qos embers
+SIGReg seed2 = running, 17500 / 50000 = 0.35, val H16 0.035879, wandb sjk9m3t7
+policy row0 = running, 37500 / 50000 = 0.75, imagined_return 3171.349, wandb 8d805foy
+policy row1 = running, 35000 / 50000 = 0.70, imagined_return 3009.114, wandb ftedxbby
+policy row2 = running, 27500 / 50000 = 0.55, imagined_return 1754.402, wandb i82c7gys
+policy rows3-11 = pending, qos embers, W&B enabled in manifest
+```
+
+After a short follow-up poll, SIGReg seed2 improved to `0.035879` validation H16
+at 17500 iters. Policy rows 0 and 2 also advanced. No GPU job is outside
+`embers`, stderr scans remain clean, W&B manifest audit remains clean, and both
+completion guards still fail only for expected incomplete artifacts.
