@@ -1791,3 +1791,28 @@ improvement: stable full-horizon locomotion with return around 80. Current BC
 and PWM-style policies remain far below this target, so future claims must
 compare against these collector videos and not only against random or failed
 extracted policies.
+
+Unified rollout comparison export at 2026-05-28 04:05 EDT:
+
+```text
+script = scripts/experiments/mjlab_qs/export_rollout_comparison.py
+command = python scripts/experiments/mjlab_qs/export_rollout_comparison.py --output-csv scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv --output-md scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.md
+aggregate rows = 19
+expert-return reference = 82.6090
+report = scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.md
+```
+
+Top-level ordering from saved rollout summaries:
+
+| Family | Variant | Return | Length | Fall rate | Gap to expert |
+|---|---:|---:|---:|---:|---:|
+| expert collector | seed1 iter15000 | 82.6090 | 1000.00 | 0.000 | 0.0000 |
+| expert-noisy collector | seed1 iter15000 | 80.3525 | 1000.00 | 0.000 | -2.2564 |
+| medium collector | seed2 iter15000 | 49.1935 | 653.33 | 0.667 | -33.4155 |
+| expert-filtered BC | `mlp_ref+mlp` final, 3 seeds | 19.0827 | 238.22 | 0.333 | -63.5262 |
+| best current PWM-style row | conservative `mlp_ref+mlp` final/best | -1.0999 | 54.67 | 1.000 | -83.7088 |
+
+The report gives a reusable comparison table for future runs. The current
+evidence says the first required improvement is to preserve or exceed the
+expert-filtered BC rollout before treating any PWM-style imagined optimization
+as useful.
