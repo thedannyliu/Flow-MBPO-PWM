@@ -1685,3 +1685,37 @@ W&B run = jz5juvkc
 startup check = BC warmstart active, bc/action_mse decreased from 0.3116 at iter 1 to 0.00131 at iter 6000
 non-embers GPU jobs observed = none
 ```
+
+Conservative ablation row0 completion and follow-up at 2026-05-28 03:23 EDT:
+
+```text
+completed policy row = mlp_ref+mlp seed0
+policy job = 9235104_0, gpu-h200, qos embers, completed
+W&B policy run = jz5juvkc
+final eval = return -1.4710, episode length 54.33
+best imagined return = 634.3125 at iter 2000
+best checkpoint = true best-actor snapshot
+rollout job = 9235522, gpu-h200, qos embers, pending
+rollout manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg10_short2k_lr1e4_mlp_ref_seed0_rollout_20260528.csv
+```
+
+The scalar eval is less negative than the previous BC-reg-1, 10k-policy run,
+but this cannot be interpreted until final/best rollout MP4s are available.
+
+W&B step-order fix at 2026-05-28 03:24 EDT:
+
+```text
+commit = c6c74a5
+issue = BC warmstart logs reached step 50000, then policy logs restarted at step 1 and were ignored by W&B
+fix = offset policy/online W&B steps by bc_warmstart_iters
+scope = row0 was already running and still has partial policy-history warnings; later rows use the fix
+```
+
+Flow-endpoint row standalone submission at 2026-05-28 03:24 EDT:
+
+```text
+original row1 state = 9235104_[1%1], gpu-h200, qos embers, pending with JobArrayTaskLimit
+standalone manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg10_short2k_lr1e4_flow_endpoint_seed0_policy_20260528.csv
+standalone job = 9235536, gpu-h200, qos embers
+reason = avoid waiting on stale array task-limit scheduling; row locks still protect the shared output path
+```
