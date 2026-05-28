@@ -164,7 +164,17 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - rows: expert+noisy uniform BC and expert-only BC final checkpoints, seeds 0-2, `eval_episodes=40`, `eval_max_steps=1000`
   - W&B project: `flow-mbpo-mjlab-bc-initdiag-eval40-20260528`
   - new per-episode fields: start command components, start normalized-observation norm, start action L2, return/length quantiles
+- Initial-condition diagnostic eval job `9239804` completed on `embers`.
+  - expert+noisy uniform BC final aggregate: return `45.7831`, length `589.43`, fall `0.667`, timeout `0.333`, p10 length `132.9`
+  - expert-only BC final aggregate: return `30.6292`, length `412.38`, fall `0.800`, timeout `0.200`, p10 length `113.8`
+  - W&B expert+noisy runs: `dtmjqeg4`, `4dusumqz`, `8fld5ip4`
+  - W&B expert-only runs: `ixyehsm3`, `os4aufdv`, `hqxdtdus`
+  - diagnostic correlations with episode length were weak for forward/lateral command and start obs norm, but moderately negative for yaw command and initial action L2:
+    - expert+noisy: yaw command `-0.319`, initial action L2 `-0.331`
+    - expert-only: yaw command `-0.333`, initial action L2 `-0.316`
+  - short episodes under 200 steps had higher mean yaw command than long episodes over 900 steps in both profiles; start obs norm was constant at `0.7115`
+  - interpretation: failures are more consistent with command coverage/recovery weakness than with a reset-state distribution bug. Expert-only data again underperforms expert+noisy data, so PWM should remain paused until BC robustness improves.
 
 ## Next Action
 
-Monitor Slurm job `9239804`. Keep PWM paused. Use the initial-condition diagnostic to check whether falls correlate with command, initial observation norm, or first action magnitude before choosing the next BC/data fix.
+Keep PWM paused. The next BC/data fix should target command-conditioned robustness, especially yaw/recovery coverage, before resuming PWM-style actor improvement.
