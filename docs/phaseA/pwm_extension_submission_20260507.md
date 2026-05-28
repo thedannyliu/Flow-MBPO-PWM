@@ -1460,3 +1460,37 @@ Until one of these rollout arrays completes, "best" only means best imagined
 return inside the world model. It does not prove better real-environment
 behavior. Current final-checkpoint evidence still says the PWM variants collapse
 far below expert-filtered BC and collector behavior.
+
+Best-vs-final rollout evidence at 2026-05-28 02:49 EDT:
+
+```text
+conservative rollout job = 9234137, gpu-rtx6000, qos embers, completed 2/2
+2x2 rollout job = 9234138, gpu-rtx6000, qos embers, completed 3/4, row0 failed
+2x2 row0 failure = MuJoCo Warp CUDA module load failure on RTX6000
+pending fallback rollouts = 9233776 gpu-a100 embers, 9234013 gpu-l40s embers
+redundant conservative fallback rollouts still pending = 9233777 gpu-a100 embers, 9234014 gpu-l40s embers
+remaining 2x2 training row = flow_endpoint+flow seed2, job 9210910_7, gpu-rtx6000, qos embers, running
+```
+
+Completed true-best rollout comparisons:
+
+| Run | Final rollout return | Final length | Best rollout return | Best length | Interpretation |
+|---|---:|---:|---:|---:|---|
+| conservative `mlp_ref+mlp` seed0 | -3.7989 | 67.67 | -2.1859 | 56.00 | best improves return but remains collapsed |
+| conservative `flow_endpoint+mlp` seed0 | -2.0479 | 47.00 | -3.0904 | 68.67 | best is worse by return |
+| 2x2 `flow_endpoint+flow` seed1 | -3.8629 | 56.33 | -4.3508 | 55.33 | best is worse |
+
+Additional completed final rollouts from the 2x2 refresh:
+
+| Run | Final rollout return | Final length | Frames |
+|---|---:|---:|---:|
+| `flow_endpoint+mlp` seed2 | -4.7771 | 62.67 | 188 |
+| `flow_endpoint+flow` seed0 | -3.6777 | 148.67 | 446 |
+
+The best-checkpoint evidence does not change the conclusion. In the few rows
+with true best-actor snapshots and rendered videos, selecting the best imagined
+return checkpoint is mixed or worse in real MJLab. It does not recover the
+expert-filtered BC baseline, and it is nowhere near the collector-quality data
+policy. Future PWM attempts should treat best-imagined return as a diagnostic
+only and should add stronger real-data anchoring or real-env early stopping
+before expanding the 2x2.
