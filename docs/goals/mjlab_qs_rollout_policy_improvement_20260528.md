@@ -354,7 +354,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - rows: seeds 0-2, final and best checkpoints, 3 rollout episodes, `rollout_max_steps=1000`
   - W&B project: `flow-mbpo-mjlab-bc-yawboost-rollout1000-20260528`
   - purpose: collect MP4/W&B video evidence before deciding whether the scalar gain is meaningful
+- Submitted high-yaw BC 1000-step rollout rendering:
+  - manifest/results commit: `6fe1867`
+  - Slurm job: `9271630`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - initial scheduler state: row0 running, rows1-2 pending behind array limit
 
 ## Next Action
 
-Submit the high-yaw BC 1000-step rollout-video manifest on `embers`. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
+Monitor rollout job `9271630`. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
