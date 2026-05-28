@@ -44,6 +44,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bc-quality-filter", default="")
     p.add_argument("--bc-quality-window-action-norm-max", default="")
     p.add_argument("--bc-quality-loss-weights", default="")
+    p.add_argument("--bc-yaw-abs-loss-weights", default="")
     p.add_argument("--policy-quality-filter", default="")
     p.add_argument("--bc-sampling", choices=SAMPLING_MODES, default="quality_balanced")
     p.add_argument("--policy-sampling", choices=SAMPLING_MODES, default="quality_balanced")
@@ -113,6 +114,7 @@ def main() -> None:
                             "bc_quality_filter": args.bc_quality_filter,
                             "bc_quality_window_action_norm_max": args.bc_quality_window_action_norm_max,
                             "bc_quality_loss_weights": args.bc_quality_loss_weights,
+                            "bc_yaw_abs_loss_weights": args.bc_yaw_abs_loss_weights,
                             "policy_quality_filter": args.policy_quality_filter,
                             "bc_sampling": args.bc_sampling,
                             "policy_sampling": args.policy_sampling,

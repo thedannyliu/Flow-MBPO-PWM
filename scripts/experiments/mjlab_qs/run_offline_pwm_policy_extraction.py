@@ -245,6 +245,11 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated quality:weight values for BC action MSE, e.g. medium:0.25.",
     )
     p.add_argument(
+        "--bc-yaw-abs-loss-weights",
+        default="",
+        help="Comma-separated min_abs_yaw:weight values for BC action MSE, e.g. 0.35:1.5,0.525:2.0.",
+    )
+    p.add_argument(
         "--policy-quality-filter",
         default="",
         help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
@@ -405,6 +410,51 @@ def quality_weight_summary(raw_weights: Dict[int, float], metadata: Dict) -> Dic
     return {inverse.get(int(qid), str(int(qid))): float(weight) for qid, weight in raw_weights.items()}
 
 
+def parse_yaw_abs_weights(raw: str) -> List[Tuple[float, float]]:
+    out: List[Tuple[float, float]] = []
+    if not raw.strip():
+        return out
+    for item in [x.strip() for x in raw.split(",") if x.strip()]:
+        if ":" not in item:
+            raise ValueError(f"BC yaw-abs loss weight entry {item!r} must have form min_abs_yaw:weight")
+        threshold_raw, weight_raw = [x.strip() for x in item.split(":", 1)]
+        threshold = float(threshold_raw)
+        weight = float(weight_raw)
+        if threshold < 0.0:
+            raise ValueError(f"BC yaw-abs loss threshold must be non-negative, got {threshold}")
+        if weight < 0.0:
+            raise ValueError(f"BC yaw-abs loss weight must be non-negative, got {weight}")
+        out.append((threshold, weight))
+    return sorted(out)
+
+
+def yaw_abs_weight_summary(raw_weights: List[Tuple[float, float]]) -> List[Dict[str, float]]:
+    return [{"min_abs_yaw": float(threshold), "weight": float(weight)} for threshold, weight in raw_weights]
+
+
+def yaw_abs_weight_diagnostics(
+    data: Dict[str, torch.Tensor],
+    indices: torch.Tensor,
+    raw_weights: List[Tuple[float, float]],
+) -> Dict[str, Dict[str, float | int]]:
+    if not raw_weights:
+        return {}
+    command = data["command"][indices].float()
+    if int(command.shape[-1]) < 3:
+        raise ValueError("BC yaw-abs loss weights require command_dim >= 3")
+    yaw_abs = command[:, :, 2].abs().amax(dim=1)
+    total = int(indices.numel())
+    diagnostics: Dict[str, Dict[str, float | int]] = {}
+    for threshold, weight in raw_weights:
+        selected = yaw_abs >= float(threshold)
+        diagnostics[f"abs_yaw>={threshold:g}"] = {
+            "weight": float(weight),
+            "windows": int(selected.sum().item()),
+            "fraction": float(selected.float().mean().item()) if total else 0.0,
+        }
+    return diagnostics
+
+
 def window_quality_weights(
     data: Dict[str, torch.Tensor],
     ids: torch.Tensor,
@@ -417,6 +467,24 @@ def window_quality_weights(
     qids = data["quality_bin_id"][ids].to(device)
     for qid, weight in raw_weights.items():
         weights = torch.where(qids == int(qid), torch.full_like(weights, float(weight)), weights)
+    return weights
+
+
+def window_yaw_abs_weights(
+    data: Dict[str, torch.Tensor],
+    ids: torch.Tensor,
+    raw_weights: List[Tuple[float, float]],
+    device: torch.device,
+) -> torch.Tensor:
+    weights = torch.ones(ids.shape, device=device, dtype=torch.float32)
+    if not raw_weights:
+        return weights
+    command = data["command"][ids].to(device).float()
+    if int(command.shape[-1]) < 3:
+        raise ValueError("BC yaw-abs loss weights require command_dim >= 3")
+    yaw_abs = command[:, :, 2].abs().amax(dim=1)
+    for threshold, weight in raw_weights:
+        weights = torch.where(yaw_abs >= float(threshold), torch.full_like(weights, float(weight)), weights)
     return weights
 
 
@@ -693,6 +761,7 @@ def behavior_clone_actor_steps(
     t0: float,
     sampling_cache: Dict | None = None,
     quality_loss_weights: Dict[int, float] | None = None,
+    yaw_abs_loss_weights: List[Tuple[float, float]] | None = None,
 ) -> None:
     if args.bc_warmstart_iters <= 0:
         return
@@ -707,6 +776,7 @@ def behavior_clone_actor_steps(
         pred = actor(z, c, deterministic=True)
         per_action_mse = (pred - a_target).pow(2).mean(dim=-1)
         window_weights = window_quality_weights(data, ids, quality_loss_weights or {}, device)
+        window_weights = window_weights * window_yaw_abs_weights(data, ids, yaw_abs_loss_weights or [], device)
         weights = window_weights[:, None].expand_as(target[..., 0]).reshape(-1)
         action_mse = (per_action_mse * weights).sum() / weights.sum().clamp_min(1e-8)
         pred_seq = pred.reshape_as(target)
@@ -729,6 +799,7 @@ def behavior_clone_actor_steps(
                 "bc/action_rate_loss": float(action_rate_loss.detach().item()),
                 "bc/action_rate_reg": float(args.bc_action_rate_reg),
                 "bc/loss_weight_mean": float(window_weights.mean().detach().item()),
+                "bc/loss_weight_max": float(window_weights.max().detach().item()),
                 "bc/actor_grad_norm": float(grad.detach().item()),
                 "bc/target_action_norm": float(a_target.pow(2).mean(dim=-1).sqrt().mean().item()),
                 "bc/pred_action_norm": float(pred.detach().pow(2).mean(dim=-1).sqrt().mean().item()),
@@ -941,6 +1012,7 @@ def main() -> None:
         "BC quality action-norm",
     )
     bc_quality_loss_weights = parse_quality_weights(args.bc_quality_loss_weights, metadata, "BC quality loss weight")
+    bc_yaw_abs_loss_weights = parse_yaw_abs_weights(args.bc_yaw_abs_loss_weights)
     policy_train_idx = filter_train_indices(data, metadata, train_idx, args.policy_quality_filter, "policy")
     bc_sampling_cache = build_sampling_cache(data, bc_train_idx, args.bc_sampling)
     policy_sampling_cache = build_sampling_cache(data, policy_train_idx, args.policy_sampling)
@@ -1013,6 +1085,7 @@ def main() -> None:
         t0,
         bc_sampling_cache,
         bc_quality_loss_weights,
+        bc_yaw_abs_loss_weights,
     )
     best_return, best_payload, best_state = train_actor_critic_steps(
         wm,
@@ -1129,6 +1202,7 @@ def main() -> None:
         "bc_quality_filter": args.bc_quality_filter,
         "bc_quality_window_action_norm_max": args.bc_quality_window_action_norm_max,
         "bc_quality_loss_weights": quality_weight_summary(bc_quality_loss_weights, metadata),
+        "bc_yaw_abs_loss_weights": yaw_abs_weight_summary(bc_yaw_abs_loss_weights),
         "policy_quality_filter": args.policy_quality_filter,
         "bc_sampling": args.bc_sampling,
         "policy_sampling": args.policy_sampling,
@@ -1139,6 +1213,7 @@ def main() -> None:
         "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
         "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
         "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
+        "bc_yaw_abs_loss_weight_diagnostics": yaw_abs_weight_diagnostics(data, bc_train_idx, bc_yaw_abs_loss_weights),
         "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
         "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
         "policy_iters": args.policy_iters,

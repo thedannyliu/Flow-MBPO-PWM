@@ -329,7 +329,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - start action was successfully ramped: mean first action L2 `0.00677` vs raw `0.16918`, ramp factor `0.04`
   - comparison: no-ramp expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
   - interpretation: reset action magnitude is not the main cause of BC failures. Do not render ramp25 videos or use this wrapper as a fix.
+- Added a targeted high-yaw BC loss-weighting ablation.
+  - new option: `--bc-yaw-abs-loss-weights`, applied only during BC action-MSE warm start
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528.csv`
+  - rows: seeds 0-2, expert+noisy BC, MLP actor, uniform sampling, 50k BC steps, no PWM policy updates
+  - weights: `0.35:1.25,0.525:1.75`
+  - purpose: test whether explicitly increasing BC training pressure on harder high-yaw windows improves real 40-episode robustness after simple yaw-bin balancing and reset action ramping failed
 
 ## Next Action
 
-Keep PWM paused. Focus the next BC intervention on high-yaw/recovery robustness rather than rollout-start action ramping or simple yaw-bin balancing.
+Submit the high-yaw BC loss-weighting ablation on `embers`. Keep PWM paused until BC robustness improves against the expert+noisy uniform baseline.
