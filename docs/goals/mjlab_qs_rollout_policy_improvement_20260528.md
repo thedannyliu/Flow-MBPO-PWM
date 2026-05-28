@@ -360,7 +360,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - array: `0-2%1`
   - initial scheduler state: row0 running, rows1-2 pending behind array limit
+- High-yaw BC rollout job `9271630` completed seed0 final/best videos but left rows1-2 stuck behind `JobArrayTaskLimit`.
+  - seed0 final W&B `qc0rsmmu`: return `34.7897`, length `423.00`, fall `0.667`
+  - seed0 best W&B `zhuu4ubc`: length `423.33`, fall `0.667`
+  - canceled the stuck pending remainder of `9271630`
+  - prepared remaining-rollout manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_yawboost_remaining_20260528.csv`
+  - remaining rows: seeds 1-2, final and best checkpoints, same rollout output stage
 
 ## Next Action
 
-Monitor rollout job `9271630`. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
+Submit the remaining high-yaw BC rollout manifest on `embers`, then refresh rollout comparison after all videos are complete. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
