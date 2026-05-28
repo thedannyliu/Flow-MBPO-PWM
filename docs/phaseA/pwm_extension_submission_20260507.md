@@ -1494,3 +1494,16 @@ expert-filtered BC baseline, and it is nowhere near the collector-quality data
 policy. Future PWM attempts should treat best-imagined return as a diagnostic
 only and should add stronger real-data anchoring or real-env early stopping
 before expanding the 2x2.
+
+Queue cleanup at 2026-05-28 02:52 EDT:
+
+```text
+cancelled redundant conservative fallback jobs = 9233777 gpu-a100 embers, 9234014 gpu-l40s embers
+kept 2x2 fallback jobs = 9233776 gpu-a100 embers, 9234013 gpu-l40s embers
+kept running 2x2 training row = 9210910_7 gpu-rtx6000 embers, flow_endpoint+flow seed2
+```
+
+The conservative final/best rollout artifacts already exist from RTX6000 job
+9234137, so the cancelled fallback jobs would not add required evidence. The
+2x2 fallback jobs are still needed because RTX6000 row0 failed before rendering
+`mlp_ref+flow` seed0.
