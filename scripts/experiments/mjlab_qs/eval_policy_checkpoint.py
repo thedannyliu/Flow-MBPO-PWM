@@ -54,6 +54,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-group", default="")
     p.add_argument("--wandb-name", default="")
     p.add_argument("--disable-wandb", action="store_true")
+    p.add_argument("--action-ramp-steps", type=int, default=0)
     return p.parse_args()
 
 
@@ -63,6 +64,13 @@ def write_csv(path: Path, rows: list[dict[str, Any]], fields: list[str]) -> None
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def apply_action_ramp(action: torch.Tensor, lengths: torch.Tensor, ramp_steps: int) -> tuple[torch.Tensor, torch.Tensor]:
+    if ramp_steps <= 0:
+        return action, torch.ones(action.shape[0], device=action.device, dtype=action.dtype)
+    factor = ((lengths.to(action.dtype) + 1.0) / float(ramp_steps)).clamp(max=1.0)
+    return action * factor.unsqueeze(-1), factor
 
 
 @torch.no_grad()
@@ -82,6 +90,8 @@ def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor],
     start_command = torch.zeros((args.eval_num_envs, command_dim), device=device)
     start_obs_norm = torch.zeros(args.eval_num_envs, device=device)
     start_action_l2 = torch.zeros(args.eval_num_envs, device=device)
+    raw_start_action_l2 = torch.zeros(args.eval_num_envs, device=device)
+    start_action_ramp_factor = torch.ones(args.eval_num_envs, device=device)
     try:
         while len(episode_rows) < args.eval_episodes:
             obs = tensor_from_actor_obs(obs_td, obs_groups)
@@ -90,12 +100,15 @@ def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor],
             c = cmd.float()
             if c.shape[-1] and "command_mean" in nrm:
                 c = norm(c, nrm["command_mean"], nrm["command_std"])
-            action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+            raw_action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+            action, ramp_factor = apply_action_ramp(raw_action, lengths, int(args.action_ramp_steps))
             new_episode = lengths == 0
             if bool(new_episode.any().item()):
                 start_command[new_episode] = cmd.float()[new_episode]
                 start_obs_norm[new_episode] = z[new_episode].pow(2).mean(dim=-1).sqrt()
                 start_action_l2[new_episode] = action[new_episode].pow(2).mean(dim=-1).sqrt()
+                raw_start_action_l2[new_episode] = raw_action[new_episode].pow(2).mean(dim=-1).sqrt()
+                start_action_ramp_factor[new_episode] = ramp_factor[new_episode]
             next_obs_td, reward, done, extras = env.step(action)
             reward = reward.to(device).float().reshape(-1)
             done = done.to(device).bool().reshape(-1)
@@ -117,6 +130,8 @@ def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor],
                         "start_command_2": float(start_command[idx, 2].item()) if command_dim > 2 else math.nan,
                         "start_obs_norm": float(start_obs_norm[idx].item()),
                         "start_action_l2": float(start_action_l2[idx].item()),
+                        "raw_start_action_l2": float(raw_start_action_l2[idx].item()),
+                        "start_action_ramp_factor": float(start_action_ramp_factor[idx].item()),
                     }
                 )
                 returns[idx] = 0.0
@@ -181,6 +196,7 @@ def main() -> None:
                 "eval_episodes": args.eval_episodes,
                 "eval_num_envs": args.eval_num_envs,
                 "max_steps": args.max_steps,
+                "action_ramp_steps": args.action_ramp_steps,
                 "git_sha": git_sha(),
                 "git_branch": git_branch(),
                 "command": command_line(),
@@ -203,6 +219,8 @@ def main() -> None:
             "start_command_2",
             "start_obs_norm",
             "start_action_l2",
+            "raw_start_action_l2",
+            "start_action_ramp_factor",
         ],
     )
     summary = {
@@ -211,6 +229,7 @@ def main() -> None:
         "eval_episodes": args.eval_episodes,
         "eval_num_envs": args.eval_num_envs,
         "max_steps": args.max_steps,
+        "action_ramp_steps": args.action_ramp_steps,
         "wall_clock_seconds": time.time() - t0,
         "git_sha": git_sha(),
         "git_branch": git_branch(),

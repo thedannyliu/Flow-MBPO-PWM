@@ -56,6 +56,7 @@ def main() -> None:
     rollout_episodes = int(row.get("rollout_episodes") or args.rollout_episodes)
     max_steps = int(row.get("rollout_max_steps") or args.max_steps)
     video_fps = int(row.get("video_fps") or args.video_fps)
+    action_ramp_steps = int(row.get("action_ramp_steps") or 0)
     checkpoint_kinds_arg = row.get("checkpoint_kinds") or args.checkpoint_kinds
     rollout_stage = row.get("rollout_stage") or row["stage"]
 
@@ -115,6 +116,8 @@ def main() -> None:
                 str(max_steps),
                 "--video-fps",
                 str(video_fps),
+                "--action-ramp-steps",
+                str(action_ramp_steps),
                 "--wandb-project",
                 row.get("wandb_project", "flow-mbpo-mjlab-offline-pwm-policy-extraction"),
                 "--wandb-group",

@@ -56,6 +56,7 @@ def main() -> None:
     eval_episodes = int(row.get("eval_episodes") or args.eval_episodes)
     eval_num_envs = int(row.get("eval_num_envs") or args.eval_num_envs)
     max_steps = int(row.get("eval_max_steps") or args.max_steps)
+    action_ramp_steps = int(row.get("action_ramp_steps") or 0)
     checkpoint_kinds_arg = row.get("checkpoint_kinds") or args.checkpoint_kinds
     eval_stage = row.get("eval_stage") or row["stage"]
 
@@ -115,6 +116,8 @@ def main() -> None:
                 str(eval_num_envs),
                 "--max-steps",
                 str(max_steps),
+                "--action-ramp-steps",
+                str(action_ramp_steps),
                 "--wandb-project",
                 row.get("wandb_project", "flow-mbpo-mjlab-policy-eval"),
                 "--wandb-group",

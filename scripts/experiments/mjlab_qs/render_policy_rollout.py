@@ -53,6 +53,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-group", default="")
     p.add_argument("--wandb-name", default="")
     p.add_argument("--disable-wandb", action="store_true")
+    p.add_argument("--action-ramp-steps", type=int, default=0)
     return p.parse_args()
 
 
@@ -154,6 +155,13 @@ def write_csv(path: Path, rows: list[dict[str, Any]], fields: list[str]) -> None
         writer.writerows(rows)
 
 
+def apply_action_ramp(action: torch.Tensor, ep_len: torch.Tensor, ramp_steps: int) -> tuple[torch.Tensor, torch.Tensor]:
+    if ramp_steps <= 0:
+        return action, torch.ones(action.shape[0], device=action.device, dtype=action.dtype)
+    factor = ((ep_len.to(action.dtype) + 1.0) / float(ramp_steps)).clamp(max=1.0)
+    return action * factor.unsqueeze(-1), factor
+
+
 @torch.no_grad()
 def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor], args: argparse.Namespace):
     device = torch.device(args.device)
@@ -177,7 +185,8 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
             c = cmd.float()
             if c.shape[-1] and "command_mean" in nrm:
                 c = norm(c, nrm["command_mean"], nrm["command_std"])
-            action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+            raw_action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+            action, ramp_factor = apply_action_ramp(raw_action, ep_len, int(args.action_ramp_steps))
             next_obs_td, reward, done, extras = env.step(action)
             reward = reward.to(device).float().reshape(-1)
             done = done.to(device).bool().reshape(-1)
@@ -191,6 +200,8 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
                     "step": int(ep_len[0].item()),
                     "reward": float(reward[0].item()),
                     "action_l2": float(action[0].pow(2).mean().sqrt().item()),
+                    "raw_action_l2": float(raw_action[0].pow(2).mean().sqrt().item()),
+                    "action_ramp_factor": float(ramp_factor[0].item()),
                     "done": int(done[0].item()),
                     "terminated": int(terminated[0].item()),
                     "truncated": int(time_out[0].item()),
@@ -265,6 +276,7 @@ def main() -> None:
                 "rollout_episodes": args.rollout_episodes,
                 "max_steps": args.max_steps,
                 "video_fps": args.video_fps,
+                "action_ramp_steps": args.action_ramp_steps,
                 "git_sha": git_sha(),
                 "git_branch": git_branch(),
                 "command": command_line(),
@@ -274,7 +286,11 @@ def main() -> None:
     frames, step_rows, episode_rows = collect_rollout(actor, ckpt_args, nrm, args)
     video_path = output_dir / "rollout.mp4"
     write_video(frames, video_path, args.video_fps, args.require_mp4)
-    write_csv(output_dir / "rollout_steps.csv", step_rows, ["episode_slot", "step", "reward", "action_l2", "done", "terminated", "truncated"])
+    write_csv(
+        output_dir / "rollout_steps.csv",
+        step_rows,
+        ["episode_slot", "step", "reward", "action_l2", "raw_action_l2", "action_ramp_factor", "done", "terminated", "truncated"],
+    )
     write_csv(output_dir / "rollout_summary.csv", episode_rows, ["episode", "return", "length", "terminated", "truncated"])
     returns = torch.tensor([row["return"] for row in episode_rows], dtype=torch.float32)
     lengths = torch.tensor([row["length"] for row in episode_rows], dtype=torch.float32)
@@ -285,6 +301,7 @@ def main() -> None:
         "video": str(video_path),
         "num_frames": len(frames),
         "num_episodes": len(episode_rows),
+        "action_ramp_steps": args.action_ramp_steps,
         "return_mean": float(returns.mean().item()) if returns.numel() else None,
         "return_std": float(returns.std(unbiased=False).item()) if returns.numel() else None,
         "episode_length_mean": float(lengths.mean().item()) if lengths.numel() else None,
