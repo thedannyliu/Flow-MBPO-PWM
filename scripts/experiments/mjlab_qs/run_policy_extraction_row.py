@@ -125,6 +125,8 @@ def main() -> None:
         row_value(row, "bc_quality_filter", ""),
         "--bc-quality-window-action-norm-max",
         row_value(row, "bc_quality_window_action_norm_max", ""),
+        "--bc-quality-loss-weights",
+        row_value(row, "bc_quality_loss_weights", ""),
         "--policy-quality-filter",
         row_value(row, "policy_quality_filter", ""),
         "--policy-sampling",

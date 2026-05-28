@@ -240,6 +240,11 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated quality:max_action_norm filters applied after BC quality filtering, e.g. medium:0.39.",
     )
     p.add_argument(
+        "--bc-quality-loss-weights",
+        default="",
+        help="Comma-separated quality:weight values for BC action MSE, e.g. medium:0.25.",
+    )
+    p.add_argument(
         "--policy-quality-filter",
         default="",
         help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
@@ -336,6 +341,14 @@ def parse_quality_thresholds(raw: str, metadata: Dict, label: str) -> Dict[int, 
     return out
 
 
+def parse_quality_weights(raw: str, metadata: Dict, label: str) -> Dict[int, float]:
+    out = parse_quality_thresholds(raw, metadata, label)
+    for qid, weight in out.items():
+        if weight < 0.0:
+            raise ValueError(f"{label} quality id {qid} has negative weight {weight}")
+    return out
+
+
 def filter_indices_by_quality_action_norm(
     data: Dict[str, torch.Tensor],
     metadata: Dict,
@@ -381,6 +394,30 @@ def quality_counts(data: Dict[str, torch.Tensor], metadata: Dict, indices: torch
     for qid, count in zip(unique.tolist(), values.tolist()):
         counts[inverse.get(int(qid), str(int(qid)))] = int(count)
     return counts
+
+
+def quality_name_map(metadata: Dict) -> Dict[int, str]:
+    return {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+
+
+def quality_weight_summary(raw_weights: Dict[int, float], metadata: Dict) -> Dict[str, float]:
+    inverse = quality_name_map(metadata)
+    return {inverse.get(int(qid), str(int(qid))): float(weight) for qid, weight in raw_weights.items()}
+
+
+def window_quality_weights(
+    data: Dict[str, torch.Tensor],
+    ids: torch.Tensor,
+    raw_weights: Dict[int, float],
+    device: torch.device,
+) -> torch.Tensor:
+    weights = torch.ones(ids.shape, device=device, dtype=torch.float32)
+    if not raw_weights:
+        return weights
+    qids = data["quality_bin_id"][ids].to(device)
+    for qid, weight in raw_weights.items():
+        weights = torch.where(qids == int(qid), torch.full_like(weights, float(weight)), weights)
+    return weights
 
 
 def build_sampling_cache(data: Dict[str, torch.Tensor], train_idx: torch.Tensor, mode: str) -> Dict:
@@ -655,6 +692,7 @@ def behavior_clone_actor_steps(
     run,
     t0: float,
     sampling_cache: Dict | None = None,
+    quality_loss_weights: Dict[int, float] | None = None,
 ) -> None:
     if args.bc_warmstart_iters <= 0:
         return
@@ -667,11 +705,16 @@ def behavior_clone_actor_steps(
         c = c_seq.reshape(-1, int(data["command"].shape[-1]))
         a_target = target.reshape(-1, int(data["policy_action"].shape[-1]))
         pred = actor(z, c, deterministic=True)
-        action_mse = F.mse_loss(pred, a_target)
+        per_action_mse = (pred - a_target).pow(2).mean(dim=-1)
+        window_weights = window_quality_weights(data, ids, quality_loss_weights or {}, device)
+        weights = window_weights[:, None].expand_as(target[..., 0]).reshape(-1)
+        action_mse = (per_action_mse * weights).sum() / weights.sum().clamp_min(1e-8)
         pred_seq = pred.reshape_as(target)
         action_rate_loss = torch.zeros((), device=device)
         if target.shape[1] > 1:
-            action_rate_loss = (pred_seq[:, 1:] - pred_seq[:, :-1]).pow(2).mean()
+            per_rate = (pred_seq[:, 1:] - pred_seq[:, :-1]).pow(2).mean(dim=-1)
+            rate_weights = window_weights[:, None].expand_as(per_rate)
+            action_rate_loss = (per_rate * rate_weights).sum() / rate_weights.sum().clamp_min(1e-8)
         loss = action_mse + float(args.bc_action_rate_reg) * action_rate_loss
         opt.zero_grad(set_to_none=True)
         loss.backward()
@@ -685,6 +728,7 @@ def behavior_clone_actor_steps(
                 "bc/action_l1": float((pred.detach() - a_target).abs().mean().item()),
                 "bc/action_rate_loss": float(action_rate_loss.detach().item()),
                 "bc/action_rate_reg": float(args.bc_action_rate_reg),
+                "bc/loss_weight_mean": float(window_weights.mean().detach().item()),
                 "bc/actor_grad_norm": float(grad.detach().item()),
                 "bc/target_action_norm": float(a_target.pow(2).mean(dim=-1).sqrt().mean().item()),
                 "bc/pred_action_norm": float(pred.detach().pow(2).mean(dim=-1).sqrt().mean().item()),
@@ -896,6 +940,7 @@ def main() -> None:
         args.bc_quality_window_action_norm_max,
         "BC quality action-norm",
     )
+    bc_quality_loss_weights = parse_quality_weights(args.bc_quality_loss_weights, metadata, "BC quality loss weight")
     policy_train_idx = filter_train_indices(data, metadata, train_idx, args.policy_quality_filter, "policy")
     bc_sampling_cache = build_sampling_cache(data, bc_train_idx, args.bc_sampling)
     policy_sampling_cache = build_sampling_cache(data, policy_train_idx, args.policy_sampling)
@@ -950,13 +995,25 @@ def main() -> None:
                 "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
                 "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
                 "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
+                "bc_quality_loss_weights": quality_weight_summary(bc_quality_loss_weights, metadata),
                 "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
                 "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
             },
         )
 
     t0 = time.time()
-    behavior_clone_actor_steps(actor, data, bc_train_idx, nrm, args, device, run, t0, bc_sampling_cache)
+    behavior_clone_actor_steps(
+        actor,
+        data,
+        bc_train_idx,
+        nrm,
+        args,
+        device,
+        run,
+        t0,
+        bc_sampling_cache,
+        bc_quality_loss_weights,
+    )
     best_return, best_payload, best_state = train_actor_critic_steps(
         wm,
         actor,
@@ -1071,6 +1128,7 @@ def main() -> None:
         "policy_bc_reg": args.policy_bc_reg,
         "bc_quality_filter": args.bc_quality_filter,
         "bc_quality_window_action_norm_max": args.bc_quality_window_action_norm_max,
+        "bc_quality_loss_weights": quality_weight_summary(bc_quality_loss_weights, metadata),
         "policy_quality_filter": args.policy_quality_filter,
         "bc_sampling": args.bc_sampling,
         "policy_sampling": args.policy_sampling,
