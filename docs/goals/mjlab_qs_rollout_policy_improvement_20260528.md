@@ -234,7 +234,17 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - all rows wrote final and best checkpoints
   - note: run rows logged git `ada801b`, a docs-only commit after filter support commit `ebbd6fe` and manifest commit `8eba601`
   - interpretation: action-norm filtering improves over naive medium mixing (`37.1504`, length `489.88`, fall `0.767`) but still underperforms expert+noisy uniform BC (`45.8491`, length `594.97`, fall `0.625`). Do not render this variant unless needed for visual debugging.
+- Added and submitted a weighted-medium BC check:
+  - weighted-loss support commit: `c1d7472`
+  - manifest commit: `9f56963`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_noisy_medium_w025_mlp50k_20260528.csv`
+  - Slurm job: `9241333`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy+medium BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - loss weights: `bc_quality_loss_weights=medium:0.25`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-w025-20260528`
+  - initial scheduler state: pending
 
 ## Next Action
 
-Keep PWM paused. Medium data should move to weighting/AWAC-style use or more targeted recovery selection rather than plain BC mixing.
+Monitor Slurm job `9241333`. Keep PWM paused. Use the 40-episode eval to decide whether lightly weighted medium data is useful or whether medium requires a different objective.
