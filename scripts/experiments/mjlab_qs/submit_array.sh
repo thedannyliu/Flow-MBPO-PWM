@@ -73,6 +73,8 @@ elif [[ "$KIND" == "policy_extract" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_policy_extraction_row.py"
 elif [[ "$KIND" == "policy_rollout" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_policy_rollout_row.py"
+elif [[ "$KIND" == "policy_eval" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_policy_eval_row.py"
 elif [[ "$KIND" == "original_pwm_adapter" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_original_pwm_adapter_row.py"
 elif [[ "$KIND" == "native_collector" ]]; then
