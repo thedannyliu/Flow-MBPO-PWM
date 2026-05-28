@@ -1768,3 +1768,26 @@ this conservative BC-warmstart setting. Its final and true-best actor snapshots
 match closely and both fail earlier than the `mlp_ref+mlp` row0 rollout. The
 result reinforces that imagined-return gains are not sufficient evidence for
 policy improvement.
+
+Collector/reference rollout baselines at 2026-05-28 04:00 EDT:
+
+```text
+tooling commit = 83c9768
+stage = rerun_g1_collector_reference_rollouts_20260528
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_collector_reference_rollouts_20260528.csv
+job = 9236226, gpu-h200, qos embers, completed 4/4
+W&B project = flow-mbpo-mjlab-collector-baselines-20260528
+```
+
+| Baseline | W&B run | Return | Length | Fall rate | Frames |
+|---|---:|---:|---:|---:|---:|
+| random_smooth seed0 | `ltam24zf` | 0.4857 | 75.33 | 1.000 | 226 |
+| medium seed2 iter15000 | `rh31kxs7` | 49.1935 | 653.33 | 0.667 | 1960 |
+| expert seed1 iter15000 | `swwdza3g` | 82.6090 | 1000.00 | 0.000 | 3000 |
+| expert_noisy seed1 iter15000 | `cu62wnbc` | 80.3525 | 1000.00 | 0.000 | 3000 |
+
+The expert/reference videos establish the visual and scalar target for policy
+improvement: stable full-horizon locomotion with return around 80. Current BC
+and PWM-style policies remain far below this target, so future claims must
+compare against these collector videos and not only against random or failed
+extracted policies.
