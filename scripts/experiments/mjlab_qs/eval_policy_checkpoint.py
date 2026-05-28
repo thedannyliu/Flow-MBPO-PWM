@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 import time
@@ -78,6 +79,9 @@ def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor],
     episode_rows: list[dict[str, Any]] = []
     command_dim = int(ckpt_args.get("command_dim", 3))
     command_position = ckpt_args.get("command_position", "tail")
+    start_command = torch.zeros((args.eval_num_envs, command_dim), device=device)
+    start_obs_norm = torch.zeros(args.eval_num_envs, device=device)
+    start_action_l2 = torch.zeros(args.eval_num_envs, device=device)
     try:
         while len(episode_rows) < args.eval_episodes:
             obs = tensor_from_actor_obs(obs_td, obs_groups)
@@ -87,6 +91,11 @@ def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor],
             if c.shape[-1] and "command_mean" in nrm:
                 c = norm(c, nrm["command_mean"], nrm["command_std"])
             action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+            new_episode = lengths == 0
+            if bool(new_episode.any().item()):
+                start_command[new_episode] = cmd.float()[new_episode]
+                start_obs_norm[new_episode] = z[new_episode].pow(2).mean(dim=-1).sqrt()
+                start_action_l2[new_episode] = action[new_episode].pow(2).mean(dim=-1).sqrt()
             next_obs_td, reward, done, extras = env.step(action)
             reward = reward.to(device).float().reshape(-1)
             done = done.to(device).bool().reshape(-1)
@@ -103,6 +112,11 @@ def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor],
                         "length": float(lengths[idx].item()),
                         "terminated": int(terminated[idx].item()),
                         "truncated": int(time_out[idx].item()),
+                        "start_command_0": float(start_command[idx, 0].item()) if command_dim > 0 else math.nan,
+                        "start_command_1": float(start_command[idx, 1].item()) if command_dim > 1 else math.nan,
+                        "start_command_2": float(start_command[idx, 2].item()) if command_dim > 2 else math.nan,
+                        "start_obs_norm": float(start_obs_norm[idx].item()),
+                        "start_action_l2": float(start_action_l2[idx].item()),
                     }
                 )
                 returns[idx] = 0.0
@@ -123,8 +137,14 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, float]:
     return {
         "return_mean": float(returns.mean().item()),
         "return_std": float(returns.std(unbiased=False).item()),
+        "return_min": float(returns.min().item()),
+        "return_p10": float(torch.quantile(returns, 0.10).item()),
+        "return_median": float(torch.quantile(returns, 0.50).item()),
         "episode_length_mean": float(lengths.mean().item()),
         "episode_length_std": float(lengths.std(unbiased=False).item()),
+        "episode_length_min": float(lengths.min().item()),
+        "episode_length_p10": float(torch.quantile(lengths, 0.10).item()),
+        "episode_length_median": float(torch.quantile(lengths, 0.50).item()),
         "fall_rate_mean": float(falls.mean().item()),
         "timeout_rate_mean": float(timeouts.mean().item()),
     }
@@ -171,7 +191,19 @@ def main() -> None:
     write_csv(
         output_dir / "eval_episodes.csv",
         rows,
-        ["episode", "env_slot", "return", "length", "terminated", "truncated"],
+        [
+            "episode",
+            "env_slot",
+            "return",
+            "length",
+            "terminated",
+            "truncated",
+            "start_command_0",
+            "start_command_1",
+            "start_command_2",
+            "start_obs_norm",
+            "start_action_l2",
+        ],
     )
     summary = {
         "policy_checkpoint": args.policy_checkpoint,
