@@ -299,7 +299,12 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - array: `0-2%1`
   - initial scheduler state: pending for priority
+- Submitted an H100 fallback for the same ramp25 eval manifest:
+  - Slurm job: `9268692`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - array: `0-2%1`
+  - reason: A100 job `9268504` remained pending; policy-eval output checks and lock files should prevent duplicate completed results if both arrays start
 
 ## Next Action
 
-Monitor Slurm job `9268504`. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
+Monitor Slurm jobs `9268504` and `9268692`. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
