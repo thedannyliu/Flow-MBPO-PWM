@@ -48,7 +48,14 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - Slurm job: `9237329`
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - expected artifacts: final and best rollout MP4/W&B videos for seeds 0-2
+- Rollout job `9237329` completed on `embers`.
+  - final aggregate: return `21.5481`, length `267.89`, fall `0.222`
+  - best aggregate: return `21.5937`, length `267.89`, fall `0.222`
+  - prior expert-filtered BC final aggregate: return `19.0827`, length `238.22`, fall `0.333`
+  - interpretation: uniform sampling is a modest BC rollout improvement but still far below expert collector return `82.6090` and length `1000.00`
+- Refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `21` aggregate rows.
+- Added tracked `results/master_policy_comparison.csv` with collector, BC, and representative PWM rows.
 
 ## Next Action
 
-Monitor Slurm job `9237329`. After all rollout rows complete, export `rollout_comparison_20260528` again and compare uniform BC against the prior expert-filtered BC baseline. Do not claim BC improvement until the rollout MP4/W&B videos and fall rates are available.
+Next BC/IL work should improve stability beyond the uniform-sampling gain. Good candidates are longer BC, larger actor capacity, action smoothness loss, or medium-plus-expert curricula. Do not resume PWM sweeps until BC is closer to medium or collector behavior.
