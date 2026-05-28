@@ -1579,3 +1579,43 @@ already complete or redundant:
 cancelled = 9233776_3, 9234013
 remaining active 2x2 policy job = 9210910_7, gpu-rtx6000, qos embers
 ```
+
+2x2 row7 completion and rollout at 2026-05-28 03:03 EDT:
+
+```text
+policy job = 9210910_7, gpu-rtx6000, qos embers, completed
+row = flow_endpoint+flow seed2
+W&B policy run = btxwrgsy
+final eval = return -3.0830, episode length 48.35
+best imagined return = 3891.8916 at iter 45000
+best checkpoint = true best-actor snapshot
+rollout job = 9234836_0, gpu-a100, qos embers, completed
+final rollout W&B = 7cbfvkco
+best rollout W&B = p2z4lyxt
+final rollout = return -3.0837, episode length 51.0, frames 153
+best rollout = return -3.3635, episode length 55.67, frames 167
+```
+
+Row7 again shows that best imagined return does not select a better real policy:
+the true-best snapshot is worse than the final actor by rollout return.
+
+Updated 2x2 aggregate after row7 completion:
+
+| WM | Policy | Completed | Eval return mean | Eval length mean | Final rollout return mean | Final rollout length mean |
+|---|---:|---:|---:|---:|---:|---:|
+| `flow_endpoint` | `flow` | 3/3 | -3.6674 | 60.08 | -3.5414 | 85.33 |
+| `flow_endpoint` | `mlp` | 3/3 | -4.5951 | 58.94 | -4.7720 | 60.33 |
+| `mlp_ref` | `flow` | 2/3 eval, 3/3 rollout | -3.5919 | 61.39 | -3.4818 | 66.78 |
+| `mlp_ref` | `mlp` | 3/3 | -4.5215 | 63.62 | -4.5700 | 66.33 |
+
+The flow policy variants are less bad than the MLP policy variants in this
+frozen-WM extraction table, but all policies still fail quickly and remain far
+below both the expert-filtered BC baseline and the collector. The result is
+diagnostic only; it does not support a policy-improvement claim.
+
+Active GPU queue after row7 rollout completion:
+
+```text
+no active project GPU jobs observed
+non-embers GPU jobs observed = none
+```
