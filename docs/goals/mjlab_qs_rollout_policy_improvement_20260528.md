@@ -66,7 +66,12 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - array: `0-2%1`
   - row0 started running at submit check
+- Smooth uniform-BC seed0 completed:
+  - W&B run: `48rqu8f9`
+  - eval return `49.1083`, length `624.10`
+  - final and best checkpoints written
+  - note: this is much better than uniform BC seed0 eval (`36.2848`, length `487.15`), but rollout video is still required
 
 ## Next Action
 
-Monitor Slurm job `9237622`; confirm W&B logs include `bc/action_rate_loss` and `bc/action_rate_reg`. After all three policy rows complete, render final/best rollouts and compare against the uniform BC baseline. Do not resume PWM sweeps until BC is closer to medium or collector behavior.
+Continue monitoring Slurm job `9237622`. After all three policy rows complete, render final/best rollouts and compare against the uniform BC baseline. Do not resume PWM sweeps until rollout videos prove BC is closer to medium or collector behavior.
