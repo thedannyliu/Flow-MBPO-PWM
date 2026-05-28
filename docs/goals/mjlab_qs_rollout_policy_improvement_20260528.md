@@ -252,7 +252,16 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - all rows wrote final and best checkpoints
   - note: run rows logged git `2d11de6`, a docs-only commit after weighted-loss support commit `c1d7472` and manifest commit `9f56963`
   - interpretation: downweighting medium to `0.25` does not recover expert+noisy BC robustness and underperforms the action-norm-filtered medium run. Medium data should not be used as a plain BC warmstart target in the current pipeline.
+- Added and submitted an expert+noisy Flow-policy BC sanity check:
+  - manifest commit: `257bb23`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_flowpolicy_mlp50k_20260528.csv`
+  - Slurm job: `9241796`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy BC, Flow actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-flowpolicy-20260528`
+  - purpose: isolate whether MLP actor capacity/class is a BC bottleneck before returning to PWM-style world-model policy improvement
+  - initial scheduler state: pending
 
 ## Next Action
 
-Keep PWM paused. Treat medium data as unsuitable for plain BC warm starts; next work should improve expert+noisy BC robustness directly or use medium only through a different objective such as advantage weighting.
+Monitor Slurm job `9241796`. Keep PWM paused. Compare Flow-policy BC against the current expert+noisy MLP BC scalar baseline before deciding whether policy class is a bottleneck.
