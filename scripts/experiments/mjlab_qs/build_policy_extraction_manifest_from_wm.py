@@ -13,6 +13,7 @@ TASK_IDS = {
     "velocity_flat_unitree_g1": "Mjlab-Velocity-Flat-Unitree-G1",
     "velocity_flat_unitree_go1": "Mjlab-Velocity-Flat-Unitree-Go1",
 }
+SAMPLING_MODES = ["quality_balanced", "uniform", "yaw_balanced"]
 
 
 def csv_list(raw: str) -> List[str]:
@@ -42,8 +43,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--policy-bc-reg", type=float, default=0.0)
     p.add_argument("--bc-quality-filter", default="")
     p.add_argument("--policy-quality-filter", default="")
-    p.add_argument("--bc-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
-    p.add_argument("--policy-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
+    p.add_argument("--bc-sampling", choices=SAMPLING_MODES, default="quality_balanced")
+    p.add_argument("--policy-sampling", choices=SAMPLING_MODES, default="quality_balanced")
     p.add_argument("--bc-action-rate-reg", type=float, default=0.0)
     p.add_argument("--online-finetune-rounds", type=int, default=0)
     p.add_argument("--compute-profile", default="")

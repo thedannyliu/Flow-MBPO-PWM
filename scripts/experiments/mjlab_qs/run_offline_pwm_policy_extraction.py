@@ -48,6 +48,8 @@ from scripts.experiments.mjlab_qs.run_phaseA_wm_feasibility import (
     train_loss,
 )
 
+SAMPLING_MODES = ["quality_balanced", "uniform", "yaw_balanced"]
+
 
 class Actor(nn.Module):
     """PWM-style stochastic MLP actor.
@@ -220,7 +222,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bc-lr", type=float, default=5e-4)
     p.add_argument("--bc-batch-size", type=int, default=256)
     p.add_argument("--bc-eval-every", type=int, default=1000)
-    p.add_argument("--bc-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
+    p.add_argument("--bc-sampling", choices=SAMPLING_MODES, default="quality_balanced")
     p.add_argument(
         "--bc-action-rate-reg",
         type=float,
@@ -237,7 +239,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
     )
-    p.add_argument("--policy-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
+    p.add_argument("--policy-sampling", choices=SAMPLING_MODES, default="quality_balanced")
     p.add_argument("--skip-real-eval", action="store_true")
     p.add_argument("--online-finetune-rounds", type=int, default=0)
     p.add_argument("--online-collect-windows", type=int, default=256)
@@ -319,12 +321,61 @@ def quality_counts(data: Dict[str, torch.Tensor], metadata: Dict, indices: torch
     return counts
 
 
-def sample_indices(data: Dict[str, torch.Tensor], train_idx: torch.Tensor, batch_size: int, mode: str) -> torch.Tensor:
+def build_sampling_cache(data: Dict[str, torch.Tensor], train_idx: torch.Tensor, mode: str) -> Dict:
+    if mode != "yaw_balanced":
+        return {}
+    if int(data["command"].shape[-1]) < 3:
+        raise ValueError("yaw_balanced sampling requires command_dim >= 3")
+    yaw = data["command"][train_idx, :, 2].abs().amax(dim=1).cpu()
+    edges = torch.tensor([0.175, 0.35, 0.525], dtype=yaw.dtype)
+    bin_ids = torch.bucketize(yaw, edges)
+    labels = ["[0,0.175)", "[0.175,0.35)", "[0.35,0.525)", "[0.525,inf)"]
+    bin_positions = []
+    bin_counts = {}
+    for bin_id, label in enumerate(labels):
+        positions = (bin_ids == bin_id).nonzero(as_tuple=False).squeeze(-1)
+        bin_counts[label] = int(positions.numel())
+        if positions.numel() > 0:
+            bin_positions.append(positions)
+    if not bin_positions:
+        raise ValueError("yaw_balanced sampling found zero non-empty yaw bins")
+    return {
+        "mode": mode,
+        "bin_positions": bin_positions,
+        "bin_counts": bin_counts,
+        "yaw_abs_max_edges": edges.tolist(),
+    }
+
+
+def sample_indices(
+    data: Dict[str, torch.Tensor],
+    train_idx: torch.Tensor,
+    batch_size: int,
+    mode: str,
+    cache: Dict | None = None,
+) -> torch.Tensor:
     if mode == "quality_balanced":
         return sample_train_indices(data, train_idx, batch_size)
     if mode == "uniform":
         return train_idx[torch.randint(0, train_idx.numel(), (batch_size,))]
+    if mode == "yaw_balanced":
+        cache = cache or build_sampling_cache(data, train_idx, mode)
+        bins = cache["bin_positions"]
+        chosen_bins = torch.randint(0, len(bins), (batch_size,))
+        out_positions = torch.empty(batch_size, dtype=torch.long)
+        for local_bin, positions in enumerate(bins):
+            mask = chosen_bins == local_bin
+            count = int(mask.sum().item())
+            if count:
+                out_positions[mask] = positions[torch.randint(0, positions.numel(), (count,))]
+        return train_idx[out_positions]
     raise ValueError(f"unknown sampling mode {mode!r}")
+
+
+def sampling_cache_summary(cache: Dict) -> Dict:
+    if not cache:
+        return {}
+    return {k: v for k, v in cache.items() if k != "bin_positions"}
 
 
 def build_wm(args: argparse.Namespace, data: Dict[str, torch.Tensor], device: torch.device, frozen: bool = True) -> nn.Module:
@@ -432,6 +483,7 @@ def train_actor_critic_steps(
     num_iters: int,
     run,
     t0: float,
+    sampling_cache: Dict | None = None,
     metric_prefix: str = "train",
 ) -> Tuple[float, Dict[str, float] | None, Dict[str, Dict[str, torch.Tensor]] | None]:
     best_return = -math.inf
@@ -439,7 +491,7 @@ def train_actor_critic_steps(
     best_state = None
     for local_it in range(1, num_iters + 1):
         it = start_iter + local_it
-        ids = sample_indices(data, train_idx, args.batch_size, args.policy_sampling)
+        ids = sample_indices(data, train_idx, args.batch_size, args.policy_sampling, sampling_cache)
         z_seq, c_seq = batch_windows(data, ids, device, nrm)
         imagined_return, _values, _targets, _states, _commands, action_norm = imagine_rollout(
             wm, actor, critic, z_seq[:, 0], c_seq, args.horizon, args.gamma, args.lam, args.action_l2
@@ -540,12 +592,13 @@ def behavior_clone_actor_steps(
     device: torch.device,
     run,
     t0: float,
+    sampling_cache: Dict | None = None,
 ) -> None:
     if args.bc_warmstart_iters <= 0:
         return
     opt = torch.optim.Adam(actor.parameters(), lr=args.bc_lr)
     for it in range(1, args.bc_warmstart_iters + 1):
-        ids = sample_indices(data, train_idx, args.bc_batch_size, args.bc_sampling)
+        ids = sample_indices(data, train_idx, args.bc_batch_size, args.bc_sampling, sampling_cache)
         z_seq, c_seq = batch_windows(data, ids, device, nrm)
         target = data["policy_action"][ids].to(device).float()
         z = z_seq[:, :-1].reshape(-1, int(data["phys_obs"].shape[-1]))
@@ -775,6 +828,8 @@ def main() -> None:
     data, metadata, nrm, train_idx = load_data(args, device)
     bc_train_idx = filter_train_indices(data, metadata, train_idx, args.bc_quality_filter, "BC")
     policy_train_idx = filter_train_indices(data, metadata, train_idx, args.policy_quality_filter, "policy")
+    bc_sampling_cache = build_sampling_cache(data, bc_train_idx, args.bc_sampling)
+    policy_sampling_cache = build_sampling_cache(data, policy_train_idx, args.policy_sampling)
     wm = build_wm(args, data, device, frozen=True)
     state_dim = int(data["phys_obs"].shape[-1])
     action_dim = int(data["policy_action"].shape[-1])
@@ -825,11 +880,13 @@ def main() -> None:
                 "policy_train_windows": int(policy_train_idx.numel()),
                 "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
                 "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
+                "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
+                "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
             },
         )
 
     t0 = time.time()
-    behavior_clone_actor_steps(actor, data, bc_train_idx, nrm, args, device, run, t0)
+    behavior_clone_actor_steps(actor, data, bc_train_idx, nrm, args, device, run, t0, bc_sampling_cache)
     best_return, best_payload, best_state = train_actor_critic_steps(
         wm,
         actor,
@@ -846,6 +903,7 @@ def main() -> None:
         num_iters=args.policy_iters,
         run=run,
         t0=t0,
+        sampling_cache=policy_sampling_cache,
         metric_prefix="train",
     )
     total_policy_iters = args.policy_iters
