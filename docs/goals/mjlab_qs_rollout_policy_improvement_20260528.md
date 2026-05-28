@@ -155,7 +155,16 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - W&B rollout final `201p2bk6`, `9ayrzyhd`, `hruobgdi`; best `3cepdm2x`, `1v5b2182`, `a3ferujx`
   - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `29` aggregate rows
   - interpretation: 3-episode videos can overestimate robustness. Expert-only seed0 video rollout reaches near-expert return, but its 40-episode eval has fall `0.775`; use 40-episode eval as the scalar baseline and videos as visual evidence.
+- Added and submitted an initial-condition diagnostic eval:
+  - eval runner commit: `6595924`
+  - manifest commit: `e7a877b`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_initdiag_eval40_long1000_20260528.csv`
+  - Slurm job: `9239804`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy uniform BC and expert-only BC final checkpoints, seeds 0-2, `eval_episodes=40`, `eval_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-initdiag-eval40-20260528`
+  - new per-episode fields: start command components, start normalized-observation norm, start action L2, return/length quantiles
 
 ## Next Action
 
-Keep PWM paused. Expert-only BC did not improve 40-episode robustness, so next debug should target BC/env/action robustness directly: initial-condition sensitivity, command distribution, observation/action normalization, and whether recovery or expert+medium data reduces fall rate.
+Monitor Slurm job `9239804`. Keep PWM paused. Use the initial-condition diagnostic to check whether falls correlate with command, initial observation norm, or first action magnitude before choosing the next BC/data fix.
