@@ -1507,3 +1507,23 @@ The conservative final/best rollout artifacts already exist from RTX6000 job
 9234137, so the cancelled fallback jobs would not add required evidence. The
 2x2 fallback jobs are still needed because RTX6000 row0 failed before rendering
 `mlp_ref+flow` seed0.
+
+2x2 row0 failure audit at 2026-05-28 02:56 EDT:
+
+```text
+row = mlp_ref+flow seed0
+primary completed checkpoint path = scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_pwm_flow_policy2x2_20260527/velocity_flat_unitree_g1/mlp_ref/flow/offline/policy50k/seed_0/
+checkpoint files = final_policy_extraction.pt, best_policy_extraction.pt
+missing files = summary.json, eval_summary.json
+training log = logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_9210910_0.out
+error log = logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_9210910_0.err
+failure point = after iter 50000 checkpoint save, during real-env eval setup
+failure reason = MuJoCo Warp CUDA kernel build/load failure on RTX6000
+fallback status = A100 job 9233776 and L40S job 9234013 remain pending, both qos embers
+```
+
+Do not rerun the row through `run_policy_extraction_row.py` just to recover the
+summary, because that runner does not resume from the saved actor and would
+retrain/overwrite the existing checkpoint directory. The correct recovery path
+is to render/evaluate the saved checkpoints through the rollout runner on a GPU
+class where MuJoCo Warp initializes cleanly.
