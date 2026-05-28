@@ -1308,3 +1308,27 @@ flow_endpoint + mlp = 2/3, return mean -4.70
 flow_endpoint + flow = 0/3
 new rollout added = flow_endpoint + mlp seed1, return -5.8816, episode length 63.3
 ```
+
+Expert-filtered BC protocol update at 2026-05-27 21:12 EDT:
+
+```text
+motivation = test whether high-quality QS windows alone can recover collector-like behavior before further PWM exploitation
+code change = policy extraction now supports separate BC and PWM sampling quality filters
+new CLI = --bc-quality-filter and --policy-quality-filter
+manifest builder fields = bc_quality_filter, policy_quality_filter, optional compute_profile
+expert-filtered manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bc_expert_mlp50k_20260528.csv
+stage = rerun_g1_bc_expert_mlp50k_20260528
+rows = MLP policy, seeds 0/1/2
+bc_warmstart_iters = 50000
+policy_iters = 0
+bc_quality_filter = expert,expert_noisy
+W&B project = flow-mbpo-mjlab-bc-expert-20260528
+Slurm job = 9223151, gpu-a100, qos embers, max-concurrent 1
+```
+
+The previous 10k BC baseline used all train windows and reached only
+single-digit returns. This new run is a stricter dataset/action-semantics test:
+if expert-only BC remains far below the collector, the next debugging target is
+BC capacity/training protocol or observation/action alignment rather than
+world-model policy improvement. If it improves substantially, use the same
+filter as the BC warm start for conservative PWM/Flow ablations.

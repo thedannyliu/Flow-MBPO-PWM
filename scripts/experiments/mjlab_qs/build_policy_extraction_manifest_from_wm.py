@@ -35,7 +35,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--eval-episodes", type=int, default=40)
     p.add_argument("--batch-size", type=int, default=64)
     p.add_argument("--bc-warmstart-iters", type=int, default=0)
+    p.add_argument("--bc-quality-filter", default="")
+    p.add_argument("--policy-quality-filter", default="")
     p.add_argument("--online-finetune-rounds", type=int, default=0)
+    p.add_argument("--compute-profile", default="")
     p.add_argument("--wandb-project", default="flow-mbpo-mjlab-pwm-flow-endpoint")
     p.add_argument("--skip-real-eval", action="store_true")
     p.add_argument("--disable-wandb", action="store_true")
@@ -71,6 +74,7 @@ def main() -> None:
                 for seed in seeds:
                     wm_checkpoint = root / "results" / args.wm_stage / task / wm_method / f"seed_{seed}" / "best.pt"
                     require(wm_checkpoint, args.allow_missing)
+                    compute_profile = args.compute_profile or f"policy{args.policy_iters // 1000}k"
                     rows.append(
                         {
                             "stage": args.stage,
@@ -83,13 +87,15 @@ def main() -> None:
                             "wm_method": wm_method,
                             "policy_type": policy_type,
                             "seed": str(seed),
-                            "compute_profile": f"policy{args.policy_iters // 1000}k",
+                            "compute_profile": compute_profile,
                             "online_profile": "online" if args.online_finetune_rounds else "offline",
                             "policy_iters": str(args.policy_iters),
                             "batch_size": str(args.batch_size),
                             "eval_every": str(args.eval_every),
                             "eval_episodes": str(args.eval_episodes),
                             "bc_warmstart_iters": str(args.bc_warmstart_iters),
+                            "bc_quality_filter": args.bc_quality_filter,
+                            "policy_quality_filter": args.policy_quality_filter,
                             "online_finetune_rounds": str(args.online_finetune_rounds),
                             "wandb_project": args.wandb_project,
                             "wandb_group": f"{args.stage}_{task}",

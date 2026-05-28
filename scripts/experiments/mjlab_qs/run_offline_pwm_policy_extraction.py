@@ -214,6 +214,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bc-lr", type=float, default=5e-4)
     p.add_argument("--bc-batch-size", type=int, default=256)
     p.add_argument("--bc-eval-every", type=int, default=1000)
+    p.add_argument(
+        "--bc-quality-filter",
+        default="",
+        help="Comma-separated dataset quality bins or ids for BC warm start, e.g. expert,expert_noisy.",
+    )
+    p.add_argument(
+        "--policy-quality-filter",
+        default="",
+        help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
+    )
     p.add_argument("--skip-real-eval", action="store_true")
     p.add_argument("--online-finetune-rounds", type=int, default=0)
     p.add_argument("--online-collect-windows", type=int, default=256)
@@ -240,6 +250,48 @@ def load_data(args: argparse.Namespace, device: torch.device):
     nrm = load_norm(Path(args.normalization), device)
     train_idx = (data["split_id"] == 0).nonzero(as_tuple=False).squeeze(-1)
     return data, metadata, nrm, train_idx
+
+
+def filter_train_indices(
+    data: Dict[str, torch.Tensor],
+    metadata: Dict,
+    train_idx: torch.Tensor,
+    quality_filter: str,
+    label: str,
+) -> torch.Tensor:
+    raw_bins = [x.strip() for x in quality_filter.split(",") if x.strip()]
+    if not raw_bins:
+        return train_idx
+    qmap = {str(k): int(v) for k, v in metadata.get("quality_id_map", {}).items()}
+    selected_ids = []
+    for item in raw_bins:
+        if item in qmap:
+            selected_ids.append(qmap[item])
+        else:
+            try:
+                selected_ids.append(int(item))
+            except ValueError as exc:
+                known = ",".join(sorted(qmap)) or "<none>"
+                raise ValueError(f"unknown {label} quality bin {item!r}; known bins: {known}") from exc
+    mask = torch.zeros(train_idx.shape, dtype=torch.bool)
+    qids = data["quality_bin_id"][train_idx]
+    for qid in selected_ids:
+        mask |= qids == int(qid)
+    filtered = train_idx[mask]
+    if filtered.numel() == 0:
+        raise ValueError(f"{label} quality filter {quality_filter!r} selected zero train windows")
+    return filtered
+
+
+def quality_counts(data: Dict[str, torch.Tensor], metadata: Dict, indices: torch.Tensor) -> Dict[str, int]:
+    inverse = {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+    counts: Dict[str, int] = {}
+    if indices.numel() == 0:
+        return counts
+    unique, values = torch.unique(data["quality_bin_id"][indices], return_counts=True)
+    for qid, count in zip(unique.tolist(), values.tolist()):
+        counts[inverse.get(int(qid), str(int(qid)))] = int(count)
+    return counts
 
 
 def build_wm(args: argparse.Namespace, data: Dict[str, torch.Tensor], device: torch.device, frozen: bool = True) -> nn.Module:
@@ -653,6 +705,8 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     data, metadata, nrm, train_idx = load_data(args, device)
+    bc_train_idx = filter_train_indices(data, metadata, train_idx, args.bc_quality_filter, "BC")
+    policy_train_idx = filter_train_indices(data, metadata, train_idx, args.policy_quality_filter, "policy")
     wm = build_wm(args, data, device, frozen=True)
     state_dim = int(data["phys_obs"].shape[-1])
     action_dim = int(data["policy_action"].shape[-1])
@@ -692,11 +746,20 @@ def main() -> None:
             group=args.wandb_group,
             name=args.wandb_name or f"{args.wm_method}_seed{args.seed}",
             job_type="policy_extraction",
-            config={**vars(args), "dataset_metadata": metadata, "git_sha": git_sha()},
+            config={
+                **vars(args),
+                "dataset_metadata": metadata,
+                "git_sha": git_sha(),
+                "train_windows": int(train_idx.numel()),
+                "bc_train_windows": int(bc_train_idx.numel()),
+                "policy_train_windows": int(policy_train_idx.numel()),
+                "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
+                "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
+            },
         )
 
     t0 = time.time()
-    behavior_clone_actor_steps(actor, data, train_idx, nrm, args, device, run, t0)
+    behavior_clone_actor_steps(actor, data, bc_train_idx, nrm, args, device, run, t0)
     best_return, best_payload, best_state = train_actor_critic_steps(
         wm,
         actor,
@@ -705,7 +768,7 @@ def main() -> None:
         critic_opt,
         ret_rms,
         data,
-        train_idx,
+        policy_train_idx,
         nrm,
         args,
         device,
@@ -752,7 +815,7 @@ def main() -> None:
             critic_opt,
             ret_rms,
             data,
-            train_idx,
+            policy_train_idx,
             nrm,
             args,
             device,
@@ -798,6 +861,13 @@ def main() -> None:
         "seed": args.seed,
         "online_finetune_rounds": args.online_finetune_rounds,
         "bc_warmstart_iters": args.bc_warmstart_iters,
+        "bc_quality_filter": args.bc_quality_filter,
+        "policy_quality_filter": args.policy_quality_filter,
+        "train_windows": int(train_idx.numel()),
+        "bc_train_windows": int(bc_train_idx.numel()),
+        "policy_train_windows": int(policy_train_idx.numel()),
+        "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
+        "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
         "policy_iters": args.policy_iters,
         "best_imagined_return": best_return if math.isfinite(best_return) else None,
         "best_iter": best_payload["iter"] if best_payload else None,
