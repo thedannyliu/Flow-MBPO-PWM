@@ -342,7 +342,19 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - array: `0-2%1`
   - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-yawboost-20260528`
   - initial scheduler state: pending for priority
+- High-yaw BC loss-weighting extraction job `9270759` completed on `embers`.
+  - W&B runs: seed0 `6rqyhfoo`, seed1 `rbp4o330`, seed2 `otjwn7ml`
+  - per seed: seed0 return `53.0689`, length `677.03`, fall `0.525`; seed1 return `34.4638`, length `469.48`, fall `0.850`; seed2 return `54.5295`, length `694.92`, fall `0.525`
+  - aggregate: return `47.3541`, length `613.81`, fall `0.633`, timeout `0.367`
+  - comparison: expert+noisy uniform BC final 40-episode baseline return `45.8491`, length `594.97`, fall `0.625`
+  - all rows wrote final and best checkpoints
+  - interpretation: scalar eval is mixed. High-yaw weighting improves aggregate return/length slightly, but fall rate is not improved and seed1 is weak. This is not yet a policy-improvement claim.
+- Prepared 1000-step rollout-video manifest for high-yaw BC:
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_yawboost_20260528.csv`
+  - rows: seeds 0-2, final and best checkpoints, 3 rollout episodes, `rollout_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-yawboost-rollout1000-20260528`
+  - purpose: collect MP4/W&B video evidence before deciding whether the scalar gain is meaningful
 
 ## Next Action
 
-Monitor Slurm job `9270759`. Keep PWM paused until BC robustness improves against the expert+noisy uniform baseline.
+Submit the high-yaw BC 1000-step rollout-video manifest on `embers`. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
