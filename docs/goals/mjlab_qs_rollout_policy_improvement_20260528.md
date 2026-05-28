@@ -60,7 +60,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - stage: `rerun_g1_bc_expert_uniform_smooth1e2_mlp50k_20260528`
   - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-smooth-20260528`
   - settings: expert/expert_noisy BC, uniform sampling, `bc_action_rate_reg=0.01`, 50k BC steps, 3 seeds
+- Submitted smooth uniform-BC extraction:
+  - git SHA: `4d4488e`
+  - Slurm job: `9237622`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - row0 started running at submit check
 
 ## Next Action
 
-Submit and monitor the smooth uniform-BC ablation on `embers`, then render final/best rollouts and compare against the uniform BC baseline. Do not resume PWM sweeps until BC is closer to medium or collector behavior.
+Monitor Slurm job `9237622`; confirm W&B logs include `bc/action_rate_loss` and `bc/action_rate_reg`. After all three policy rows complete, render final/best rollouts and compare against the uniform BC baseline. Do not resume PWM sweeps until BC is closer to medium or collector behavior.
