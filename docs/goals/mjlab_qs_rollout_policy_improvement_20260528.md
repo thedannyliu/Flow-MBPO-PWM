@@ -135,7 +135,21 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - rows: seeds 0-2, MLP actor, `policy_iters=0`, `bc_warmstart_iters=50000`, `bc_quality_filter=expert`, `bc_sampling=uniform`
   - W&B project: `flow-mbpo-mjlab-bc-expertonly-20260528`
+- Expert-only BC extraction job `9239193` completed on `embers`.
+  - seed0 return `33.1208`, length `445.48`, fall `0.775`, timeout `0.225`
+  - seed1 return `26.7469`, length `366.13`, fall `0.875`, timeout `0.125`
+  - seed2 return `35.9865`, length `469.23`, fall `0.750`, timeout `0.250`
+  - aggregate return `31.9514`, length `426.94`, fall `0.800`, timeout `0.200`
+  - W&B policy runs: `7thwj7p8`, `iubh2utj`, `r9fw5ujg`
+  - note: policy rows logged git `d3a34eb`, a docs-only commit after manifest commit `094e76f`
+- Added and submitted 1000-step expert-only BC rollout rendering:
+  - rollout manifest commit: `2f4d814`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_expertonly_20260528.csv`
+  - Slurm job: `9239482`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert-only BC seeds 0-2, final and best checkpoints, `rollout_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-expertonly-rollout1000-20260528`
 
 ## Next Action
 
-Monitor Slurm job `9239193`. If expert-only BC improves fall rate, render 1000-step final/best MP4s and run 40-episode eval; if it fails, debug action/observation/env matching before PWM.
+Monitor Slurm job `9239482`. Expert-only BC did not improve the 40-episode fall rate; use the rollout videos to complete the evidence record, then keep PWM paused and debug BC/env/action robustness.
