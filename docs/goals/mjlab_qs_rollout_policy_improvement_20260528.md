@@ -377,7 +377,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
   - array: `0-1%1`
   - reason: A100 job `9273837` remained pending; rollout locks/output checks should prevent duplicate completed artifacts
+- Submitted L40S fallback for the same remaining high-yaw BC rollout rows:
+  - Slurm job: `9274072`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - array: `0-1%1`
+  - requested `--cpus 4` to satisfy the L40S partition CPU:GPU limit
+  - immediately after fallback submission, A100 job `9273837_0` started running
 
 ## Next Action
 
-Monitor remaining rollout jobs `9273837` and `9273970`, then refresh rollout comparison after all videos are complete. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
+Monitor remaining rollout jobs `9273837`, `9273970`, and `9274072`, then refresh rollout comparison after all videos are complete. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
