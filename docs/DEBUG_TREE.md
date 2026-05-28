@@ -17,7 +17,7 @@ Current expert-filtered BC rollout is return `19.0827`, length `238.22`, fall `0
 1. Check that `bc_quality_filter=expert,expert_noisy` selects the expected windows.
 2. Compare train action MSE, action norm, and rollout action norm.
 3. Verify observation split and command normalization match the real MJLab actor observations.
-4. Test longer BC, larger policy capacity, balanced expert/expert_noisy sampling, and action smoothness.
+4. Test longer BC, larger policy capacity, `quality_balanced` versus `uniform` expert/expert_noisy sampling, and action smoothness.
 5. Do not launch more PWM sweeps until BC is credible.
 
 ## World Model Looks Good But Rollout Fails

@@ -220,6 +220,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bc-lr", type=float, default=5e-4)
     p.add_argument("--bc-batch-size", type=int, default=256)
     p.add_argument("--bc-eval-every", type=int, default=1000)
+    p.add_argument("--bc-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
     p.add_argument(
         "--bc-quality-filter",
         default="",
@@ -230,6 +231,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
     )
+    p.add_argument("--policy-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
     p.add_argument("--skip-real-eval", action="store_true")
     p.add_argument("--online-finetune-rounds", type=int, default=0)
     p.add_argument("--online-collect-windows", type=int, default=256)
@@ -309,6 +311,14 @@ def quality_counts(data: Dict[str, torch.Tensor], metadata: Dict, indices: torch
     for qid, count in zip(unique.tolist(), values.tolist()):
         counts[inverse.get(int(qid), str(int(qid)))] = int(count)
     return counts
+
+
+def sample_indices(data: Dict[str, torch.Tensor], train_idx: torch.Tensor, batch_size: int, mode: str) -> torch.Tensor:
+    if mode == "quality_balanced":
+        return sample_train_indices(data, train_idx, batch_size)
+    if mode == "uniform":
+        return train_idx[torch.randint(0, train_idx.numel(), (batch_size,))]
+    raise ValueError(f"unknown sampling mode {mode!r}")
 
 
 def build_wm(args: argparse.Namespace, data: Dict[str, torch.Tensor], device: torch.device, frozen: bool = True) -> nn.Module:
@@ -423,7 +433,7 @@ def train_actor_critic_steps(
     best_state = None
     for local_it in range(1, num_iters + 1):
         it = start_iter + local_it
-        ids = sample_train_indices(data, train_idx, args.batch_size)
+        ids = sample_indices(data, train_idx, args.batch_size, args.policy_sampling)
         z_seq, c_seq = batch_windows(data, ids, device, nrm)
         imagined_return, _values, _targets, _states, _commands, action_norm = imagine_rollout(
             wm, actor, critic, z_seq[:, 0], c_seq, args.horizon, args.gamma, args.lam, args.action_l2
@@ -529,7 +539,7 @@ def behavior_clone_actor_steps(
         return
     opt = torch.optim.Adam(actor.parameters(), lr=args.bc_lr)
     for it in range(1, args.bc_warmstart_iters + 1):
-        ids = sample_train_indices(data, train_idx, args.bc_batch_size)
+        ids = sample_indices(data, train_idx, args.bc_batch_size, args.bc_sampling)
         z_seq, c_seq = batch_windows(data, ids, device, nrm)
         target = data["policy_action"][ids].to(device).float()
         z = z_seq[:, :-1].reshape(-1, int(data["phys_obs"].shape[-1]))

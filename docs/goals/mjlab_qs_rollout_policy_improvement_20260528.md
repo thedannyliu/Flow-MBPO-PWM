@@ -26,7 +26,9 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - Policy rollout summaries now log fall rate directly and distinguish termination from time-limit truncation.
   - Rollout comparison export now prefers `fall_rate_mean` from summary JSON when available.
 - Made BC-only/no-policy-update extraction rows write an evaluable true snapshot for `best_policy_extraction.pt`, with metadata explaining that best equals the current actor when no imagined-return update was run.
+- Exposed `bc_sampling` and `policy_sampling` in policy extraction manifests. Existing behavior is `quality_balanced`; the next ablation tests `uniform` expert/expert_noisy BC sampling to check whether batch composition is part of the BC weakness.
+- Prepared tracked manifest `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_mlp50k_20260528.csv`.
 
 ## Next Action
 
-Do not launch larger PWM or Flow sweeps yet. The next experiment should improve or debug BC/IL so expert-filtered BC preserves more collector behavior. Success requires real MJLab eval plus rollout MP4/W&B video that beats the current expert-filtered BC baseline, not just lower BC loss.
+Submit and monitor the uniform expert/expert_noisy BC ablation with `embers`, then render final and best rollout MP4s. Success requires real MJLab eval plus rollout MP4/W&B video that beats the current expert-filtered BC baseline, not just lower BC loss.
