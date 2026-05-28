@@ -1719,3 +1719,31 @@ standalone manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcr
 standalone job = 9235536, gpu-h200, qos embers
 reason = avoid waiting on stale array task-limit scheduling; row locks still protect the shared output path
 ```
+
+Conservative ablation row0 rollout and queue cleanup at 2026-05-28 03:28 EDT:
+
+```text
+row = mlp_ref+mlp seed0
+rollout job = 9235522_0, gpu-h200, qos embers, completed
+final rollout W&B = 0okrhnzj
+best rollout W&B = co77axyn
+final rollout = return -1.0999, episode length 54.67, frames 164
+best rollout = return -1.0999, episode length 54.67, frames 164
+cancelled redundant jobs = 9234991 gpu-a100, 9235185 gpu-h100, 9235633 gpu-h100 rollout
+```
+
+This is the least-bad PWM-style extracted policy so far by return, and the
+final/best rollouts are consistent with the scalar eval. It still terminates
+early around 55 steps, so it remains far below expert-filtered BC and collector
+behavior. Treat this as evidence that stronger BC anchoring reduces failure
+severity, not as successful policy improvement.
+
+Flow-endpoint row launch at 2026-05-28 03:28 EDT:
+
+```text
+active job = 9235536_0, gpu-h200, qos embers, running
+row = flow_endpoint+mlp seed0
+W&B run = essrq3vm
+startup check = BC warmstart active, bc/action_mse decreased from 0.3330 at iter 1 to 0.00128 at iter 13000
+non-embers GPU jobs observed = none
+```
