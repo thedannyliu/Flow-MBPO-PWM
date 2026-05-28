@@ -366,7 +366,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - canceled the stuck pending remainder of `9271630`
   - prepared remaining-rollout manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_yawboost_remaining_20260528.csv`
   - remaining rows: seeds 1-2, final and best checkpoints, same rollout output stage
+- Submitted remaining high-yaw BC rollout rows:
+  - manifest/partial-results commit: `b8bba8b`
+  - Slurm job: `9273837`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-1%1`
+  - initial scheduler state: pending for priority
 
 ## Next Action
 
-Submit the remaining high-yaw BC rollout manifest on `embers`, then refresh rollout comparison after all videos are complete. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
+Monitor remaining rollout job `9273837`, then refresh rollout comparison after all videos are complete. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
