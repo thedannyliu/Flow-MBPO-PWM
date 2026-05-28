@@ -112,7 +112,14 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - commit: `ba8d4fb`
   - added `eval/fall_rate_mean`, `eval/timeout_rate_mean`, and `eval/max_steps`
   - purpose: make future 40-episode non-video eval directly comparable with rollout termination accounting
+- Added a reusable policy-checkpoint eval runner and submitted a 40-episode long-horizon BC robustness eval:
+  - code/manifest commit: `ed5bdf3`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_eval40_long1000_uniform_vs_smooth_20260528.csv`
+  - Slurm job: `9238737`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: uniform BC and smooth uniform BC, seeds 0-2, final and best checkpoints, `eval_episodes=40`, `eval_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-eval40-long1000-20260528`
 
 ## Next Action
 
-Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references. Before resuming PWM sweeps, run or inspect a 40-episode eval with the new fall-rate logging to quantify BC robustness beyond the 3-video-episode sample.
+Monitor Slurm job `9238737`. Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references, and use the 40-episode eval to quantify BC robustness beyond the 3-video-episode sample.
