@@ -96,7 +96,16 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - rows: uniform BC and smooth uniform BC, seeds 0-2, final and best checkpoints, `rollout_max_steps=1000`
   - purpose: test whether the apparent BC eval vs rendered-rollout mismatch is partly caused by the previous 300-step video cap
+- Long 1000-step BC rollout job `9238133` completed on `embers`.
+  - uniform final aggregate: return `41.8965`, length `547.78`, fall `0.667`
+  - uniform best aggregate: return `40.5848`, length `534.22`, fall `0.778`
+  - smooth final aggregate: return `41.8199`, length `561.78`, fall `0.667`
+  - smooth best aggregate: return `41.3141`, length `555.11`, fall `0.667`
+  - W&B uniform final `63wb3ny8`, `p1uf8prz`, `dh62wzn5`; uniform best `sw1490kx`, `wt2rpc4b`, `4b5czw08`
+  - W&B smooth final `jk37cnb5`, `gzglei3v`, `l2e22v98`; smooth best `3bnvjxoe`, `bhl80a7z`, `d9yc0hwx`
+  - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `27` aggregate rows
+  - interpretation: the previous 300-step video cap materially understated BC return/length, but smoothness is still neutral and fall rates remain high
 
 ## Next Action
 
-Monitor Slurm job `9238133`. If 1000-step rollouts recover the higher policy-eval returns or lengths, refresh the comparison report with a clear max-step label before making any BC/PWM claims. If they remain near the 300-step evidence, target environment/eval wrapper mismatch before resuming PWM sweeps.
+Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references. Before resuming PWM sweeps, update comparison/report wording to separate 300-step video sanity from 1000-step return evidence, then investigate why BC still falls in 2/3 seeds under long horizon.
