@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import shlex
 import statistics
 from pathlib import Path
 from typing import Any
@@ -58,6 +59,26 @@ def rollout_fall_rate(summary_path: Path, summary: dict[str, Any]) -> float | No
     return fall_rate_from_rollout_csv(summary_path)
 
 
+def command_option(command: str | None, option: str) -> str:
+    if not command:
+        return ""
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return ""
+    for idx, part in enumerate(parts[:-1]):
+        if part == option:
+            return parts[idx + 1]
+    return ""
+
+
+def summary_max_steps(summary: dict[str, Any]) -> str:
+    direct = summary.get("max_steps")
+    if direct not in {None, ""}:
+        return str(direct)
+    return command_option(summary.get("command"), "--max-steps")
+
+
 def classify_policy_stage(stage: str, compute_profile: str) -> str:
     if "bc_only" in stage or "policy0k" in compute_profile:
         return "bc_only"
@@ -92,6 +113,7 @@ def load_policy_records(root: Path) -> list[dict[str, Any]]:
                 "return_std": fnum(data.get("return_std")),
                 "episode_length_mean": fnum(data.get("episode_length_mean")),
                 "fall_rate_mean": rollout_fall_rate(path, data),
+                "max_steps": summary_max_steps(data),
                 "num_episodes": int(data.get("num_episodes") or 0),
                 "num_frames": int(data.get("num_frames") or 0),
                 "video": data.get("video", ""),
@@ -124,6 +146,7 @@ def load_collector_records(root: Path) -> list[dict[str, Any]]:
                 "return_std": fnum(data.get("return_std")),
                 "episode_length_mean": fnum(data.get("episode_length_mean")),
                 "fall_rate_mean": fnum(data.get("fall_rate_mean")),
+                "max_steps": summary_max_steps(data),
                 "num_episodes": int(data.get("num_episodes") or 0),
                 "num_frames": int(data.get("num_frames") or 0),
                 "video": data.get("video", ""),
@@ -146,6 +169,7 @@ def aggregate(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         groups.setdefault(key, []).append(record)
     rows = []
     for (family, stage, variant, profile, checkpoint_kind), group in sorted(groups.items()):
+        max_steps_values = sorted({row["max_steps"] for row in group if row.get("max_steps")})
         rows.append(
             {
                 "family": family,
@@ -153,6 +177,7 @@ def aggregate(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "variant": variant,
                 "profile": profile,
                 "checkpoint_kind": checkpoint_kind,
+                "max_steps": max_steps_values[0] if len(max_steps_values) == 1 else "mixed" if max_steps_values else "",
                 "n": len(group),
                 "return_mean": mean([row["return_mean"] for row in group]),
                 "return_std_across_rows": std([row["return_mean"] for row in group]),
@@ -184,6 +209,7 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "variant",
         "profile",
         "checkpoint_kind",
+        "max_steps",
         "n",
         "return_mean",
         "return_std_across_rows",
@@ -209,8 +235,8 @@ def write_markdown(path: Path, rows: list[dict[str, Any]], expert_return: float 
         "",
         f"Expert-return reference: {fmt(expert_return)}",
         "",
-        "| Family | Stage | Variant | Checkpoint | n | Return | Gap to Expert | Length | Fall |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|",
+        "| Family | Stage | Variant | Checkpoint | Max Steps | n | Return | Gap to Expert | Length | Fall |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in top:
         lines.append(
@@ -221,6 +247,7 @@ def write_markdown(path: Path, rows: list[dict[str, Any]], expert_return: float 
                     row["stage"],
                     row["variant"],
                     row["checkpoint_kind"],
+                    str(row.get("max_steps", "")),
                     str(row["n"]),
                     fmt(row["return_mean"]),
                     fmt(row["return_gap_to_expert"]),
