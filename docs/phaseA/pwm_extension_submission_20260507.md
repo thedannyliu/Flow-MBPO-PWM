@@ -1747,3 +1747,24 @@ W&B run = essrq3vm
 startup check = BC warmstart active, bc/action_mse decreased from 0.3330 at iter 1 to 0.00128 at iter 13000
 non-embers GPU jobs observed = none
 ```
+
+Flow-endpoint row completion and rollout at 2026-05-28 03:42 EDT:
+
+```text
+row = flow_endpoint+mlp seed0
+policy job = 9235536_0, gpu-h200, qos embers, completed
+W&B policy run = essrq3vm
+scalar eval = return -2.6031, episode length 45.05
+best imagined return = 298.1030 at iter 2000
+rollout job = 9235953_0, gpu-h200, qos embers, completed
+final rollout W&B = r6a6kk1b
+best rollout W&B = vpx6ve3v
+final rollout = return -2.6911, episode length 47.00, frames 141
+best rollout = return -2.6911, episode length 47.00, frames 141
+```
+
+The flow-endpoint world model row did not improve real-environment behavior in
+this conservative BC-warmstart setting. Its final and true-best actor snapshots
+match closely and both fail earlier than the `mlp_ref+mlp` row0 rollout. The
+result reinforces that imagined-return gains are not sufficient evidence for
+policy improvement.
