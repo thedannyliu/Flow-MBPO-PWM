@@ -715,6 +715,8 @@ def main() -> None:
         t0=t0,
         metric_prefix="train",
     )
+    if best_payload is None:
+        best_return = float("nan")
     torch.save(
         {
             "actor": best_state["actor"] if best_state is not None else actor.state_dict(),
@@ -795,7 +797,9 @@ def main() -> None:
         "policy_type": args.policy_type,
         "seed": args.seed,
         "online_finetune_rounds": args.online_finetune_rounds,
-        "best_imagined_return": best_return,
+        "bc_warmstart_iters": args.bc_warmstart_iters,
+        "policy_iters": args.policy_iters,
+        "best_imagined_return": best_return if math.isfinite(best_return) else None,
         "best_iter": best_payload["iter"] if best_payload else None,
         "wall_clock_seconds": time.time() - t0,
         **{f"eval/{k}": v for k, v in eval_summary.items()},

@@ -1255,3 +1255,23 @@ Rows already completed or already running before this code change cannot recover
 their true best actor from the existing artifact. Newly started rows will produce
 a real best checkpoint; older rows need a rerun if final-vs-best comparison is
 required for the same seed.
+
+BC-only baseline start at 2026-05-27 20:53 EDT:
+
+```text
+motivation = verify action semantics, observation split, normalization, env match, and dataset quality before further WM exploitation
+collector target scale = expert collector return roughly 80-95, episode length roughly 999
+current extracted-policy scale = return roughly -5 to -3, episode length roughly 55-74
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bc_only_mlp10k_20260527.csv
+stage = rerun_g1_bc_only_mlp10k_20260527
+rows = mlp_ref placeholder WM + MLP policy, seeds 0/1/2
+bc_warmstart_iters = 10000
+policy_iters = 0
+W&B project = flow-mbpo-mjlab-bc-baseline-20260527
+```
+
+The BC-only run intentionally does not do imagined-return policy optimization.
+It still uses the policy-extraction runner so it shares actor definitions,
+normalization, real-env eval, W&B logging, and rollout-video tooling with the
+PWM/Flow experiments. The runner now writes `best_imagined_return = null` for
+BC-only rows rather than serializing an invalid infinite value.
