@@ -383,7 +383,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - array: `0-1%1`
   - requested `--cpus 4` to satisfy the L40S partition CPU:GPU limit
   - immediately after fallback submission, A100 job `9273837_0` started running
+- High-yaw BC 1000-step rollout rendering is partially complete.
+  - final checkpoint is complete for seeds 0-2: aggregate return `41.0197`, length `551.22`, fall `0.667`
+  - final per seed: seed0 return `34.7897`, length `423.00`, fall `0.667`; seed1 W&B `ta7rp0at`, return `60.5562`, length `863.00`, fall `0.333`; seed2 W&B `0d52f11r`, return `27.7132`, length `367.67`, fall `1.000`
+  - best checkpoint is complete for seed0 and seed2: seed0 W&B `zhuu4ubc`, return `34.8338`, length `423.33`, fall `0.667`; seed2 W&B `704qp2np`, return `28.0114`, length `370.33`, fall `1.000`
+  - seed1 best W&B `06ovzzr6` is still rendering on A100 job `9273837_0`; A100 duplicate `9273837_1` and H100 fallback `9273970` remain pending
+  - interpretation so far: high-yaw loss weighting does not beat the expert+noisy uniform BC 1000-step rollout baseline (`41.8965`, length `547.78`, fall `0.667`) on final-checkpoint videos, despite the slight 40-episode scalar eval gain. Wait for seed1 best before refreshing the rollout comparison report.
 
 ## Next Action
 
-Monitor remaining rollout jobs `9273837`, `9273970`, and `9274072`, then refresh rollout comparison after all videos are complete. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
+Monitor seed1 best rollout on job `9273837_0`, cancel pending duplicates after completion, then refresh rollout comparison. Keep PWM paused until BC robustness improves with rollout videos, not just scalar eval.
