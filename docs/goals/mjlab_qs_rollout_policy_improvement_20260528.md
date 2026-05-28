@@ -174,7 +174,16 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
     - expert-only: yaw command `-0.333`, initial action L2 `-0.316`
   - short episodes under 200 steps had higher mean yaw command than long episodes over 900 steps in both profiles; start obs norm was constant at `0.7115`
   - interpretation: failures are more consistent with command coverage/recovery weakness than with a reset-state distribution bug. Expert-only data again underperforms expert+noisy data, so PWM should remain paused until BC robustness improves.
+- Added and submitted a yaw-balanced BC sampling sanity check:
+  - code/manifest commit: `4f8ce7c`
+  - new sampling mode: `yaw_balanced`, which samples uniformly across bins of max absolute yaw command within the already-filtered train windows
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_yawbal_mlp50k_20260528.csv`
+  - Slurm job: `9240159`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=yaw_balanced`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-yawbal-20260528`
+  - initial scheduler state: pending
 
 ## Next Action
 
-Keep PWM paused. The next BC/data fix should target command-conditioned robustness, especially yaw/recovery coverage, before resuming PWM-style actor improvement.
+Monitor Slurm job `9240159`. Keep PWM paused. If yaw-balanced BC improves 40-episode robustness, render 1000-step final/best videos and compare against the uniform BC baseline; if not, move to recovery/medium-data coverage rather than more smoothness-only tuning.
