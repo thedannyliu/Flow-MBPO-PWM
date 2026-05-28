@@ -1,0 +1,74 @@
+# MJLab QS Runbook
+
+This runbook is for Velocity Flat Unitree G1 rollout-based evidence.
+
+## Baseline Rollout Comparison
+
+Regenerate the saved aggregate report after any completed rollout:
+
+```bash
+python scripts/experiments/mjlab_qs/export_rollout_comparison.py \
+  --output-csv scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv \
+  --output-md scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.md
+```
+
+The current reference report is `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv`.
+
+## Policy Extraction
+
+Build policy manifests from existing world-model checkpoints:
+
+```bash
+python scripts/experiments/mjlab_qs/build_policy_extraction_manifest_from_wm.py \
+  --stage <stage> \
+  --wm-stage <wm_stage> \
+  --dataset-stage <dataset_stage> \
+  --output scripts/outputs/mjlab_qs/manifests/<stage>.csv \
+  --tasks velocity_flat_unitree_g1 \
+  --wm-methods mlp_ref,flow_endpoint \
+  --policy-types mlp,flow \
+  --seeds 0,1,2 \
+  --wandb-project <wandb_project>
+```
+
+For formal runs, leave W&B enabled. Each run must record git SHA, branch, full command, dataset, normalization, seed, WM checkpoint, final checkpoint, and best checkpoint.
+
+Submit on PACE-Phoenix with `embers` QOS:
+
+```bash
+bash scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind policy_extract \
+  --manifest scripts/outputs/mjlab_qs/manifests/<stage>.csv \
+  --gpu-type H100 \
+  --partition gpu-h100 \
+  --qos embers \
+  --max-concurrent 1 \
+  --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python
+```
+
+Do not use `inferno` without explicit user approval.
+
+## Policy Rollout Rendering
+
+After policy extraction, render final and true-best actors:
+
+```bash
+bash scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind policy_rollout \
+  --manifest scripts/outputs/mjlab_qs/manifests/<stage>.csv \
+  --gpu-type H100 \
+  --partition gpu-h100 \
+  --qos embers \
+  --time 02:00:00 \
+  --max-concurrent 1 \
+  --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python
+```
+
+The rollout runner skips legacy `best_policy_extraction.pt` files that are not true actor snapshots.
+
+## Current Experiment Order
+
+1. Improve or debug expert-filtered BC/IL.
+2. Verify world models with long-horizon, reward, termination, and expert-in-model diagnostics.
+3. Only then rerun conservative BC-warmstarted PWM 2x2.
+4. Add SigReg only after long-horizon behavior and real rollout are part of the comparison.

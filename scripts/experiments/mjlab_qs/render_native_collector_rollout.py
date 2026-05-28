@@ -66,6 +66,17 @@ def git_sha() -> str:
         return "unknown"
 
 
+def git_branch() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def command_line() -> str:
+    return " ".join([sys.executable, *sys.argv])
+
+
 def build_env_and_policy(args: argparse.Namespace):
     patch_mujoco_compatibility()
     patch_headless_display_dependency()
@@ -230,7 +241,7 @@ def main() -> None:
             group=args.wandb_group,
             name=args.wandb_name or f"{args.collector_id or args.method}_seed{args.seed}_rollout",
             job_type="native_collector_rollout_video",
-            config={**vars(args), "git_sha": git_sha()},
+            config={**vars(args), "git_sha": git_sha(), "git_branch": git_branch(), "command": command_line()},
         )
     t0 = time.time()
     frames, step_rows, episode_rows = collect_rollout(args)
@@ -256,6 +267,8 @@ def main() -> None:
         "fall_rate_mean": float(terminated.mean().item()) if terminated.numel() else None,
         "wall_clock_seconds": time.time() - t0,
         "git_sha": git_sha(),
+        "git_branch": git_branch(),
+        "command": command_line(),
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     if run is not None:

@@ -250,6 +250,17 @@ def git_sha() -> str:
         return "unknown"
 
 
+def git_branch() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def command_line() -> str:
+    return " ".join([sys.executable, *sys.argv])
+
+
 def load_data(args: argparse.Namespace, device: torch.device):
     data = torch.load(args.dataset, map_location="cpu", weights_only=False)
     metadata = json.loads(Path(args.metadata).read_text(encoding="utf-8"))
@@ -765,6 +776,8 @@ def main() -> None:
                 **vars(args),
                 "dataset_metadata": metadata,
                 "git_sha": git_sha(),
+                "git_branch": git_branch(),
+                "command": command_line(),
                 "train_windows": int(train_idx.numel()),
                 "bc_train_windows": int(bc_train_idx.numel()),
                 "policy_train_windows": int(policy_train_idx.numel()),
@@ -891,6 +904,16 @@ def main() -> None:
         "best_imagined_return": best_return if math.isfinite(best_return) else None,
         "best_iter": best_payload["iter"] if best_payload else None,
         "wall_clock_seconds": time.time() - t0,
+        "dataset": args.dataset,
+        "metadata": args.metadata,
+        "normalization": args.normalization,
+        "wm_checkpoint": args.wm_checkpoint,
+        "output_dir": str(output_dir),
+        "final_checkpoint": str(output_dir / "final_policy_extraction.pt"),
+        "best_checkpoint": str(output_dir / "best_policy_extraction.pt"),
+        "git_sha": git_sha(),
+        "git_branch": git_branch(),
+        "command": command_line(),
         **{f"eval/{k}": v for k, v in eval_summary.items()},
     }
     (output_dir / "eval_summary.json").write_text(json.dumps(eval_summary, indent=2), encoding="utf-8")

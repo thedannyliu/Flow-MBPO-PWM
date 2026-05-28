@@ -63,6 +63,17 @@ def git_sha() -> str:
         return "unknown"
 
 
+def git_branch() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def command_line() -> str:
+    return " ".join([sys.executable, *sys.argv])
+
+
 def build_actor(ckpt: dict[str, Any], state_dim: int, command_dim: int, action_dim: int, device: torch.device):
     ckpt_args = ckpt["args"]
     if ckpt_args.get("policy_type", "mlp") == "mlp":
@@ -167,9 +178,11 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
             if c.shape[-1] and "command_mean" in nrm:
                 c = norm(c, nrm["command_mean"], nrm["command_std"])
             action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
-            next_obs_td, reward, done, _extras = env.step(action)
+            next_obs_td, reward, done, extras = env.step(action)
             reward = reward.to(device).float().reshape(-1)
             done = done.to(device).bool().reshape(-1)
+            time_out = extras.get("time_outs", torch.zeros_like(done)).to(device).bool().reshape(-1)
+            terminated = done & (~time_out)
             ep_return += reward[:1]
             ep_len += 1
             step_rows.append(
@@ -179,6 +192,8 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
                     "reward": float(reward[0].item()),
                     "action_l2": float(action[0].pow(2).mean().sqrt().item()),
                     "done": int(done[0].item()),
+                    "terminated": int(terminated[0].item()),
+                    "truncated": int(time_out[0].item()),
                 }
             )
             if bool(done[0].item()) or int(ep_len[0].item()) >= args.max_steps:
@@ -187,7 +202,8 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
                         "episode": episodes_done,
                         "return": float(ep_return[0].item()),
                         "length": int(ep_len[0].item()),
-                        "terminated": int(done[0].item()),
+                        "terminated": int(terminated[0].item()),
+                        "truncated": int(time_out[0].item()),
                     }
                 )
                 episodes_done += 1
@@ -250,16 +266,19 @@ def main() -> None:
                 "max_steps": args.max_steps,
                 "video_fps": args.video_fps,
                 "git_sha": git_sha(),
+                "git_branch": git_branch(),
+                "command": command_line(),
                 **ckpt_args,
             },
         )
     frames, step_rows, episode_rows = collect_rollout(actor, ckpt_args, nrm, args)
     video_path = output_dir / "rollout.mp4"
     write_video(frames, video_path, args.video_fps, args.require_mp4)
-    write_csv(output_dir / "rollout_steps.csv", step_rows, ["episode_slot", "step", "reward", "action_l2", "done"])
-    write_csv(output_dir / "rollout_summary.csv", episode_rows, ["episode", "return", "length", "terminated"])
+    write_csv(output_dir / "rollout_steps.csv", step_rows, ["episode_slot", "step", "reward", "action_l2", "done", "terminated", "truncated"])
+    write_csv(output_dir / "rollout_summary.csv", episode_rows, ["episode", "return", "length", "terminated", "truncated"])
     returns = torch.tensor([row["return"] for row in episode_rows], dtype=torch.float32)
     lengths = torch.tensor([row["length"] for row in episode_rows], dtype=torch.float32)
+    terminated = torch.tensor([row["terminated"] for row in episode_rows], dtype=torch.float32)
     summary = {
         "policy_checkpoint": args.policy_checkpoint,
         "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
@@ -269,7 +288,11 @@ def main() -> None:
         "return_mean": float(returns.mean().item()) if returns.numel() else None,
         "return_std": float(returns.std(unbiased=False).item()) if returns.numel() else None,
         "episode_length_mean": float(lengths.mean().item()) if lengths.numel() else None,
+        "fall_rate_mean": float(terminated.mean().item()) if terminated.numel() else None,
         "wall_clock_seconds": time.time() - t0,
+        "git_sha": git_sha(),
+        "git_branch": git_branch(),
+        "command": command_line(),
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     if run is not None:
@@ -279,6 +302,7 @@ def main() -> None:
             {
                 "rollout/return_mean": summary["return_mean"],
                 "rollout/episode_length_mean": summary["episode_length_mean"],
+                "rollout/fall_rate_mean": summary["fall_rate_mean"],
                 "rollout/video": wandb.Video(str(video_path), fps=args.video_fps, format="mp4"),
             }
         )

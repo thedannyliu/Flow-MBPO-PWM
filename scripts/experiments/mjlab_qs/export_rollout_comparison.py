@@ -51,6 +51,13 @@ def fall_rate_from_rollout_csv(summary_path: Path) -> float | None:
     return sum(float(row["terminated"]) for row in rows) / len(rows)
 
 
+def rollout_fall_rate(summary_path: Path, summary: dict[str, Any]) -> float | None:
+    direct = fnum(summary.get("fall_rate_mean"))
+    if direct is not None:
+        return direct
+    return fall_rate_from_rollout_csv(summary_path)
+
+
 def classify_policy_stage(stage: str, compute_profile: str) -> str:
     if "bc_only" in stage or "policy0k" in compute_profile:
         return "bc_only"
@@ -84,7 +91,7 @@ def load_policy_records(root: Path) -> list[dict[str, Any]]:
                 "return_mean": fnum(data.get("return_mean")),
                 "return_std": fnum(data.get("return_std")),
                 "episode_length_mean": fnum(data.get("episode_length_mean")),
-                "fall_rate_mean": fall_rate_from_rollout_csv(path),
+                "fall_rate_mean": rollout_fall_rate(path, data),
                 "num_episodes": int(data.get("num_episodes") or 0),
                 "num_frames": int(data.get("num_frames") or 0),
                 "video": data.get("video", ""),
