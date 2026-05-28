@@ -1446,3 +1446,17 @@ remaining 2x2 training row = flow_endpoint+flow seed2, job 9210910_7, qos embers
 The scalar 2x2 refresh still shows all learned policies far below the collector
 and expert-filtered BC baselines. The new rollout job is required before making
 any qualitative comparison among these variants.
+
+Best-checkpoint rollout status at 2026-05-28 02:28 EDT:
+
+```text
+true-best snapshots currently available = flow_endpoint+flow seed1, conservative mlp_ref+mlp seed0, conservative flow_endpoint+mlp seed0
+legacy best checkpoints = most older 2x2 rows; these are not valid actor snapshots and are skipped by the rollout runner
+A100 rollout jobs = 9233776 for new 2x2 rows, 9233777 for conservative BC-warmstart rows, both qos embers and pending
+L40S fallback rollout jobs = 9234013 for new 2x2 rows, 9234014 for conservative BC-warmstart rows, both qos embers and pending
+```
+
+Until one of these rollout arrays completes, "best" only means best imagined
+return inside the world model. It does not prove better real-environment
+behavior. Current final-checkpoint evidence still says the PWM variants collapse
+far below expert-filtered BC and collector behavior.
