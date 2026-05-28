@@ -244,7 +244,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - loss weights: `bc_quality_loss_weights=medium:0.25`
   - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-w025-20260528`
   - initial scheduler state: pending
+- Weighted-medium BC extraction job `9241333` completed on `embers`.
+  - seed0 W&B `ltslmhpw`: return `39.4082`, length `513.10`, fall `0.700`, timeout `0.300`
+  - seed1 W&B `30r9a4xf`: return `33.1968`, length `461.65`, fall `0.875`, timeout `0.125`
+  - seed2 W&B `rbi83678`: return `45.6027`, length `600.30`, fall `0.675`, timeout `0.325`
+  - aggregate: return `39.4026`, length `525.02`, fall `0.750`, timeout `0.250`
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `2d11de6`, a docs-only commit after weighted-loss support commit `c1d7472` and manifest commit `9f56963`
+  - interpretation: downweighting medium to `0.25` does not recover expert+noisy BC robustness and underperforms the action-norm-filtered medium run. Medium data should not be used as a plain BC warmstart target in the current pipeline.
 
 ## Next Action
 
-Monitor Slurm job `9241333`. Keep PWM paused. Use the 40-episode eval to decide whether lightly weighted medium data is useful or whether medium requires a different objective.
+Keep PWM paused. Treat medium data as unsuitable for plain BC warm starts; next work should improve expert+noisy BC robustness directly or use medium only through a different objective such as advantage weighting.

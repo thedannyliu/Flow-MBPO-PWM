@@ -20,8 +20,9 @@ Current 40-episode expert+noisy uniform BC eval is return `45.7831`, length `589
 4. Check command-conditioned failures. The initial-condition diagnostic found constant start obs norm, but episode length had moderately negative correlation with yaw command and first-action L2.
 5. Prefer data/BC changes that improve yaw and recovery coverage before more smoothness-only runs; expert-only data did not improve robustness.
 6. Do not mix medium data uniformly into BC as a default. The expert+noisy+medium uniform run lowered return and increased fall rate. A train-window audit found medium windows are not terminal-adjacent, but have higher action norm than expert windows, so filter or downweight high-action-norm medium windows before reuse.
-7. Do not treat action-norm-filtered medium as sufficient. Filtering medium windows at action norm `0.39` improved over naive medium mixing but still underperformed expert+noisy uniform BC; use medium through weighting/AWAC-style objectives or more targeted recovery selection.
-8. Do not launch more PWM sweeps until BC is credible.
+7. Do not treat action-norm-filtered or loss-weighted medium as sufficient. Filtering medium windows at action norm `0.39` and downweighting medium BC loss to `0.25` both underperformed expert+noisy uniform BC.
+8. Avoid medium as a plain BC warmstart target in the current pipeline; use it only with a different objective or after a stronger data-selection diagnostic.
+9. Do not launch more PWM sweeps until BC is credible.
 
 ## World Model Looks Good But Rollout Fails
 
