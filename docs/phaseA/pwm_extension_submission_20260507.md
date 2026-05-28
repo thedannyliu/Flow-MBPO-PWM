@@ -1372,3 +1372,26 @@ The rollout videos confirm the same qualitative conclusion as the scalar evals:
 expert-filtered BC is much better than the failed frozen-WM extracted policies,
 but it is still unstable and not close to the collector baseline. Treat this as
 the minimum BC warm-start baseline, not as a solved imitation policy.
+
+Conservative BC-warmstart PWM start at 2026-05-27 21:36 EDT:
+
+```text
+code change = PWM actor optimization supports --policy-bc-reg
+regularizer = MSE between actor actions and dataset policy_action on sampled real windows
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg1_mlpwm_vs_flowwm_seed0_20260528.csv
+stage = rerun_g1_bcwarm_pwm_bcreg1_mlpwm_vs_flowwm_seed0_20260528
+rows = mlp_ref + mlp seed0, flow_endpoint + mlp seed0
+bc_warmstart_iters = 50000
+policy_iters = 10000
+policy_bc_reg = 1.0
+bc_quality_filter = expert,expert_noisy
+policy_quality_filter = expert,expert_noisy
+W&B project = flow-mbpo-mjlab-bcwarm-pwm-bcreg-20260528
+Slurm job = 9223782, gpu-a100, qos embers, max-concurrent 1
+```
+
+This is the first PWM-style policy-improvement run that starts from the stronger
+expert-filtered BC protocol and keeps the actor tied to real dataset actions
+during imagined-return optimization. It is intentionally limited to seed0 and
+MLP policy while comparing MLP vs flow-endpoint world models; expand to more
+seeds and flow policies only after rollout videos show non-degenerate behavior.
