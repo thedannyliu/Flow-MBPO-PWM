@@ -128,7 +128,14 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - W&B smooth final `benhpxk0`, `p2gd1c4q`, `82yg2rqe`; smooth best `i0eu5bzd`, `lpj1nolj`, `c0pkwvnd`
   - note: eval rows logged git `6694f41`, a docs-only commit after the code/manifest commit `ed5bdf3`
   - interpretation: 40-episode eval confirms BC is much stronger than 300-step videos suggested, but fall rate remains too high and action-rate smoothness is not a reliable improvement
+- Added and submitted the missing expert-only BC sanity check:
+  - manifest commit: `094e76f`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expertonly_uniform_mlp50k_20260528.csv`
+  - Slurm job: `9239193`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: seeds 0-2, MLP actor, `policy_iters=0`, `bc_warmstart_iters=50000`, `bc_quality_filter=expert`, `bc_sampling=uniform`
+  - W&B project: `flow-mbpo-mjlab-bc-expertonly-20260528`
 
 ## Next Action
 
-Treat 1000-step, 40-episode uniform BC final as the current scalar BC baseline, paired with existing 1000-step MP4 videos. Before resuming PWM sweeps, investigate why BC still falls in most long-horizon eval episodes and whether expert-only or recovery-data BC can reduce fall rate.
+Monitor Slurm job `9239193`. If expert-only BC improves fall rate, render 1000-step final/best MP4s and run 40-episode eval; if it fails, debug action/observation/env matching before PWM.
