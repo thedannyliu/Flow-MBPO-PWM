@@ -35,7 +35,11 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-20260528`
   - array: `0-2%1`
   - status at submit check: pending
+- Submitted A100 fallback for the same manifest and output paths:
+  - Slurm job: `9237030`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - reason: H100 array remained pending; per-row output locks prevent duplicate work
 
 ## Next Action
 
-Monitor Slurm job `9236994`. After all three policy rows complete, submit a `policy_rollout` array for the same manifest so final and best snapshots get MP4/W&B videos. Success requires real MJLab eval plus rollout MP4/W&B video that beats the current expert-filtered BC baseline, not just lower BC loss.
+Monitor Slurm jobs `9236994` and `9237030`. After all three policy rows complete, submit a `policy_rollout` array for the same manifest so final and best snapshots get MP4/W&B videos. Success requires real MJLab eval plus rollout MP4/W&B video that beats the current expert-filtered BC baseline, not just lower BC loss.
