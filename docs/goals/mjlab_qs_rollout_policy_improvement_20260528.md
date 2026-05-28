@@ -71,7 +71,25 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - eval return `49.1083`, length `624.10`
   - final and best checkpoints written
   - note: this is much better than uniform BC seed0 eval (`36.2848`, length `487.15`), but rollout video is still required
+- Smooth uniform-BC extraction completed on Slurm job `9237622`:
+  - seed0 W&B `48rqu8f9`: eval return `49.1083`, length `624.10`, git `b3a06cf`
+  - seed1 W&B `yuoi3zdp`: eval return `35.3721`, length `478.23`, git `f71489b`
+  - seed2 W&B `in0vwa34`: eval return `53.7020`, length `678.42`, git `f71489b`
+  - all rows wrote final and best checkpoints
+  - note: seed1/2 logged a docs-only git SHA after the seed0 note commit; code/config remained from smooth-BC support
+- Submitted smooth uniform-BC rollout rendering:
+  - Slurm job: `9237887`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - expected artifacts: final and best rollout MP4/W&B videos for seeds 0-2
+- Smooth uniform-BC rollout job `9237887` completed on `embers`.
+  - final rollout per seed: seed0 return `27.9737`, length `300.00`, fall `0.000`; seed1 return `22.3277`, length `300.00`, fall `0.000`; seed2 return `14.3850`, length `203.67`, fall `0.667`
+  - best rollout per seed: seed0 return `28.0072`, length `300.00`, fall `0.000`; seed1 return `22.3120`, length `300.00`, fall `0.000`; seed2 return `14.3807`, length `203.67`, fall `0.667`
+  - final aggregate: return `21.5621`, length `267.89`, fall `0.222`
+  - best aggregate: return `21.5666`, length `267.89`, fall `0.222`
+  - W&B rollout runs: final `5f9et04a`, `lk9cr22p`, `2quaut5a`; best `o2fpcvmb`, `e4hj0jlj`, `rz1h2svk`
+  - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `23` aggregate rows
+  - interpretation: action-rate smoothness improved policy-extraction eval but did not materially improve 300-step rendered rollout over uniform BC (`21.5481` final, `21.5937` best)
 
 ## Next Action
 
-Continue monitoring Slurm job `9237622`. After all three policy rows complete, render final/best rollouts and compare against the uniform BC baseline. Do not resume PWM sweeps until rollout videos prove BC is closer to medium or collector behavior.
+Use the smooth-BC result as a negative/neutral ablation for rollout evidence. The next BC sanity lever should target the rollout/eval mismatch directly before resuming PWM sweeps, because BC eval gains are not yet predictive of rendered rollout improvement.
