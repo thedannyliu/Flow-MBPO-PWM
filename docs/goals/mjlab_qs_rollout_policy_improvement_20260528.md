@@ -399,7 +399,14 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - rows: seeds 0-2, final and best checkpoints, `eval_episodes=40`, `eval_max_steps=1000`, `eval_num_envs=16`
   - W&B project: `flow-mbpo-mjlab-bc-yawboost-initdiag-eval40-20260528`
   - purpose: check whether high-yaw loss weighting changes start-command, yaw, initial-action, and short-episode failure patterns before spending more rollout-video jobs
+- High-yaw BC initdiag eval job `9278096` completed on `embers`.
+  - final W&B runs `3knvcw2y`, `4ipy06sa`, `uozant9o`: aggregate return `44.3636`, length `570.12`, fall `0.683`, timeout `0.317`, p10 length `122.5`
+  - best W&B runs `kqgu9loq`, `j2xq9i8q`, `s45a9oo1`: aggregate return `46.7461`, length `607.57`, fall `0.650`, timeout `0.350`, p10 length `133.3`
+  - comparison: existing expert+noisy uniform initdiag final baseline was return `45.7831`, length `589.43`, fall `0.667`, timeout `0.333`, p10 length `132.9`
+  - high-yaw slice did not improve: uniform high-yaw (`abs(yaw) >= 0.525`) length `443.8`, fall `0.816`; yawboost final length `440.9`, fall `0.825`; yawboost best length `433.1`, fall `0.800`
+  - low-yaw slice improved only for yawboost best: uniform low-yaw length `687.4`, fall `0.597`; yawboost best length `744.8`, fall `0.518`
+  - interpretation: high-yaw loss weighting does not address high-yaw/recovery failures. The best-checkpoint scalar gain is not supported by high-yaw slice behavior or rollout videos, so it is not a policy-improvement claim.
 
 ## Next Action
 
-Monitor initdiag eval job `9278096`, then compare its per-episode slices to the existing expert+noisy uniform initdiag baseline. Keep PWM paused until BC robustness improves with rollout evidence.
+Keep PWM paused. Stop simple yaw reweighting and choose the next small diagnostic around recovery data/action-target mismatch or observation/action semantics before spending more rollout-video jobs.
