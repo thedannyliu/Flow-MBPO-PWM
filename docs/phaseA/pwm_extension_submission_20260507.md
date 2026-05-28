@@ -1674,3 +1674,14 @@ non-embers GPU jobs observed = none
 The duplicate submission is safe because `run_policy_extraction_row.py` locks
 each row output directory and skips complete rows. If one array starts first,
 the other should skip rows that are already running or complete.
+
+Conservative ablation launch update at 2026-05-28 03:11 EDT:
+
+```text
+additional fallback job = 9235185, gpu-h100, qos embers, pending
+active row = 9235104_0, gpu-h200, qos embers, running
+row = mlp_ref+mlp seed0
+W&B run = jz5juvkc
+startup check = BC warmstart active, bc/action_mse decreased from 0.3116 at iter 1 to 0.00131 at iter 6000
+non-embers GPU jobs observed = none
+```
