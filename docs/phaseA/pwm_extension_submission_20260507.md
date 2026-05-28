@@ -1660,3 +1660,17 @@ non-embers GPU jobs observed = none
 The run uses committed code `c8c4a1b` and W&B is enabled in the manifest. After
 both rows complete, render final and true-best rollout MP4s before interpreting
 the scalar evals.
+
+Conservative ablation H200 fallback submission at 2026-05-28 03:16 EDT:
+
+```text
+primary job = 9234991, gpu-a100, qos embers, still pending
+fallback job = 9235104, gpu-h200, qos embers, pending
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg10_short2k_lr1e4_mlpwm_vs_flowwm_seed0_20260528.csv
+reason = A100 estimated start was unavailable; H200 fallback uses the same output paths and row locks
+non-embers GPU jobs observed = none
+```
+
+The duplicate submission is safe because `run_policy_extraction_row.py` locks
+each row output directory and skips complete rows. If one array starts first,
+the other should skip rows that are already running or complete.
