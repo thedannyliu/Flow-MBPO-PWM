@@ -89,7 +89,14 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - W&B rollout runs: final `5f9et04a`, `lk9cr22p`, `2quaut5a`; best `o2fpcvmb`, `e4hj0jlj`, `rz1h2svk`
   - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `23` aggregate rows
   - interpretation: action-rate smoothness improved policy-extraction eval but did not materially improve 300-step rendered rollout over uniform BC (`21.5481` final, `21.5937` best)
+- Added 1000-step rollout comparison support and submitted an aligned BC render sanity check:
+  - code/manifest commit: `68a328f`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_uniform_vs_smooth_20260528.csv`
+  - Slurm job: `9238133`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: uniform BC and smooth uniform BC, seeds 0-2, final and best checkpoints, `rollout_max_steps=1000`
+  - purpose: test whether the apparent BC eval vs rendered-rollout mismatch is partly caused by the previous 300-step video cap
 
 ## Next Action
 
-Use the smooth-BC result as a negative/neutral ablation for rollout evidence. The next BC sanity lever should target the rollout/eval mismatch directly before resuming PWM sweeps, because BC eval gains are not yet predictive of rendered rollout improvement.
+Monitor Slurm job `9238133`. If 1000-step rollouts recover the higher policy-eval returns or lengths, refresh the comparison report with a clear max-step label before making any BC/PWM claims. If they remain near the 300-step evidence, target environment/eval wrapper mismatch before resuming PWM sweeps.
