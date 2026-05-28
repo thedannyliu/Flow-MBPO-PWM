@@ -105,7 +105,10 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - W&B smooth final `jk37cnb5`, `gzglei3v`, `l2e22v98`; smooth best `3bnvjxoe`, `bhl80a7z`, `d9yc0hwx`
   - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `27` aggregate rows
   - interpretation: the previous 300-step video cap materially understated BC return/length, but smoothness is still neutral and fall rates remain high
+- Updated rollout comparison export to include a `max_steps` column in CSV/Markdown tables:
+  - commit: `1deaeac`
+  - purpose: prevent 300-step video sanity rows and 1000-step return-evidence rows from being read as the same horizon
 
 ## Next Action
 
-Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references. Before resuming PWM sweeps, update comparison/report wording to separate 300-step video sanity from 1000-step return evidence, then investigate why BC still falls in 2/3 seeds under long horizon.
+Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references. Before resuming PWM sweeps, investigate why BC still falls in 2/3 seeds under long horizon.
