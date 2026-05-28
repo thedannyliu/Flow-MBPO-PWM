@@ -15,7 +15,7 @@ import torch
 def output_dir(row: dict[str, str]) -> Path:
     return (
         Path("scripts/outputs/mjlab_qs/policy_rollouts")
-        / row["stage"]
+        / (row.get("rollout_stage") or row["stage"])
         / row.get("task_key", "task_unknown")
         / row["wm_method"]
         / row.get("policy_type", "mlp")
@@ -28,7 +28,7 @@ def output_dir(row: dict[str, str]) -> Path:
 def policy_dir(row: dict[str, str]) -> Path:
     return (
         Path("scripts/outputs/mjlab_qs/policy_extraction")
-        / row["stage"]
+        / (row.get("policy_stage") or row["stage"])
         / row.get("task_key", "task_unknown")
         / row["wm_method"]
         / row.get("policy_type", "mlp")
@@ -53,10 +53,16 @@ def main() -> None:
     with open(args.manifest, newline="", encoding="utf-8") as f:
         row = list(csv.DictReader(f))[args.row_index]
 
+    rollout_episodes = int(row.get("rollout_episodes") or args.rollout_episodes)
+    max_steps = int(row.get("rollout_max_steps") or args.max_steps)
+    video_fps = int(row.get("video_fps") or args.video_fps)
+    checkpoint_kinds_arg = row.get("checkpoint_kinds") or args.checkpoint_kinds
+    rollout_stage = row.get("rollout_stage") or row["stage"]
+
     out = output_dir(row)
     out.mkdir(parents=True, exist_ok=True)
     lock_path = out / ".policy_rollout.lock"
-    checkpoint_kinds = {value.strip() for value in args.checkpoint_kinds.split(",") if value.strip()}
+    checkpoint_kinds = {value.strip() for value in checkpoint_kinds_arg.split(",") if value.strip()}
 
     def checkpoint_specs() -> list[tuple[str, Path, Path]]:
         specs: list[tuple[str, Path, Path]] = []
@@ -87,6 +93,11 @@ def main() -> None:
             if all(path.exists() for path in complete_paths):
                 print(f"{kind} policy rollout already complete; skipping {render_out}", flush=True)
                 continue
+            wandb_name = (
+                f"{rollout_stage}_{row.get('task_key', 'task_unknown')}_{row['wm_method']}_"
+                f"{row.get('policy_type', 'mlp')}_{row.get('online_profile', 'offline')}_"
+                f"{row['compute_profile']}_seed{row['seed']}_{kind}_rollout"
+            )
             cmd = [
                 args.python_bin,
                 "scripts/experiments/mjlab_qs/render_policy_rollout.py",
@@ -99,21 +110,17 @@ def main() -> None:
                 "--device",
                 args.device,
                 "--rollout-episodes",
-                str(args.rollout_episodes),
+                str(rollout_episodes),
                 "--max-steps",
-                str(args.max_steps),
+                str(max_steps),
                 "--video-fps",
-                str(args.video_fps),
+                str(video_fps),
                 "--wandb-project",
                 row.get("wandb_project", "flow-mbpo-mjlab-offline-pwm-policy-extraction"),
                 "--wandb-group",
                 f"{row.get('wandb_group', row['stage'])}_rollouts",
                 "--wandb-name",
-                (
-                    f"{row['stage']}_{row.get('task_key', 'task_unknown')}_{row['wm_method']}_"
-                    f"{row.get('policy_type', 'mlp')}_{row.get('online_profile', 'offline')}_"
-                    f"{row['compute_profile']}_seed{row['seed']}_{kind}_rollout"
-                ),
+                wandb_name,
             ]
             if row.get("disable_wandb", "").lower() in {"1", "true", "yes"}:
                 cmd.append("--disable-wandb")
