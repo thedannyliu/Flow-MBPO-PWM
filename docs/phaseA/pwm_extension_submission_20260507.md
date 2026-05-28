@@ -1354,3 +1354,21 @@ but it still does not recover collector-quality behavior. The current evidence
 supports using expert-filtered BC as the next warm-start baseline, while also
 treating BC capacity/training schedule as an unresolved issue before making
 claims about PWM/Flow improvement.
+
+Expert-filtered BC rollout completion at 2026-05-27 21:29 EDT:
+
+```text
+rollout job = 9223566, gpu-a100, qos embers, completed 3/3
+rollout W&B runs = seed0 jebhwezc, seed1 ucbm020h, seed2 xfyb30lu
+rollout mp4 count = 3
+seed0 rollout = return 28.2471, episode length 300.0, frames 900
+seed1 rollout = return 14.3453, episode length 207.0, frames 621
+seed2 rollout = return 14.6558, episode length 207.67, frames 623
+aggregate rollout = return mean 19.0827, return std 6.4814
+aggregate rollout length = mean 238.22, std 43.68
+```
+
+The rollout videos confirm the same qualitative conclusion as the scalar evals:
+expert-filtered BC is much better than the failed frozen-WM extracted policies,
+but it is still unstable and not close to the collector baseline. Treat this as
+the minimum BC warm-start baseline, not as a solved imitation policy.
