@@ -1409,3 +1409,40 @@ train/imagined_return = -35.9184
 This confirms that the conservative BC term is active in the actor update after
 the 50k-step expert-filtered BC warm start. Completion still requires real-env
 eval and rollout videos for both rows.
+
+Conservative BC-warmstart PWM completion at 2026-05-28 02:21 EDT:
+
+```text
+policy job = 9223782, gpu-a100, qos embers, completed 2/2
+mlp_ref + mlp seed0 W&B = 8nb4nx3w
+flow_endpoint + mlp seed0 W&B = oel3gq67
+mlp_ref + mlp eval = return -4.0412, episode length 60.78
+flow_endpoint + mlp eval = return -2.3336, episode length 44.47
+mlp_ref best imagined return = 2270.6699 at iter 8000
+flow_endpoint best imagined return = 2018.7007 at iter 7000
+rollout job = 9233777, gpu-a100, qos embers, pending
+```
+
+This run did not preserve the expert-filtered BC behavior after 10k imagined
+policy updates, despite the BC regularizer being active. The result is another
+model-exploitation failure: imagined return increases, but real-env return
+collapses back near the failed frozen-WM extraction regime. The next conservative
+PWM attempt should reduce policy-update strength substantially before expanding
+seeds: shorter policy optimization, larger BC/action-deviation weight, lower
+actor LR, or explicit early stopping on real-env eval.
+
+2x2 policy refresh at 2026-05-28 02:21 EDT:
+
+```text
+flow_endpoint + mlp = 3/3, eval return mean -4.5951, episode length mean 58.94
+flow_endpoint + flow = 2/3, eval return mean -3.9597, episode length mean 65.94
+mlp_ref + flow = 2/3, eval return mean -3.5919, episode length mean 61.39
+mlp_ref + mlp = 3/3, eval return mean -4.5215, episode length mean 63.62
+new rollout job = 9233776, gpu-a100, qos embers, pending
+new rollout rows = mlp_ref+flow seed0, flow_endpoint+mlp seed2, flow_endpoint+flow seed0, flow_endpoint+flow seed1
+remaining 2x2 training row = flow_endpoint+flow seed2, job 9210910_7, qos embers
+```
+
+The scalar 2x2 refresh still shows all learned policies far below the collector
+and expert-filtered BC baselines. The new rollout job is required before making
+any qualitative comparison among these variants.
