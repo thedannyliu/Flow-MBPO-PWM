@@ -486,7 +486,7 @@ def train_actor_critic_steps(
                 metrics[f"{metric_prefix}/ret_rms_var"] = float(ret_rms.var.detach().item())
             print(json.dumps(metrics, sort_keys=True), flush=True)
             if run is not None:
-                wandb.log(metrics, step=it)
+                wandb.log(metrics, step=args.bc_warmstart_iters + it)
             if metrics[f"{metric_prefix}/imagined_return"] > best_return:
                 best_return = metrics[f"{metric_prefix}/imagined_return"]
                 best_payload = {"iter": it, **metrics}
@@ -812,7 +812,10 @@ def main() -> None:
         online_data = collect_online_windows(actor, args, nrm, device, args.online_collect_windows)
         torch.save(online_data, output_dir / f"online_round_{round_id}_windows.pt")
         if run is not None:
-            wandb.log({"online/round": round_id, "online/collected_windows": args.online_collect_windows}, step=total_policy_iters)
+            wandb.log(
+                {"online/round": round_id, "online/collected_windows": args.online_collect_windows},
+                step=args.bc_warmstart_iters + total_policy_iters,
+            )
         finetune_wm_on_online_windows(
             wm,
             args.wm_method,
@@ -820,7 +823,7 @@ def main() -> None:
             args,
             device,
             run,
-            global_step_offset=total_policy_iters,
+            global_step_offset=args.bc_warmstart_iters + total_policy_iters,
         )
         round_best, round_payload, round_state = train_actor_critic_steps(
             wm,
