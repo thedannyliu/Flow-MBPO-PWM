@@ -207,7 +207,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - all rows wrote final and best checkpoints
   - note: run rows logged git `ed1990f`, a docs-only commit after manifest commit `bf4e28a`
   - interpretation: naive medium mixing hurts BC robustness versus expert+noisy uniform BC. Medium data should not be mixed uniformly into BC without filtering, weighting, or a targeted recovery objective.
+- Added and ran a train-split MJLab-QS window audit:
+  - audit script commits: `198106c`, `79d2082`
+  - Slurm jobs: `9240866`, refreshed with action quantiles as `9240899`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - output: `results/mjlab_qs_window_audit_train_20260528/`
+  - terminal/fall/truncation window rates are `0.0000` for expert, expert_noisy, and medium train windows, so naive medium mixing did not fail because medium train windows are visibly terminal-adjacent.
+  - medium reward sum is close to expert (`1.2688` vs `1.2966`), but medium action norm is much larger: mean `0.3950` and p90 `0.4632` versus expert mean `0.3313` and p90 `0.3877`.
+  - interpretation: medium may hurt BC through action distribution mismatch rather than terminal-state pollution. A filtered or weighted medium-data test should target high-action-norm medium windows first.
 
 ## Next Action
 
-Keep PWM paused. The next BC/data fix should inspect medium-window quality and recovery subsets before mixing them, or try a weighted/AWAC-style use of medium data instead of plain uniform BC.
+Keep PWM paused. The next BC/data fix should test filtered or weighted medium usage, starting with high-action-norm medium-window filtering, before trying any PWM actor updates.

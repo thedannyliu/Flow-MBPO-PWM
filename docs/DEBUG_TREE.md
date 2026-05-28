@@ -19,7 +19,7 @@ Current 40-episode expert+noisy uniform BC eval is return `45.7831`, length `589
 3. Verify observation split and command normalization match the real MJLab actor observations.
 4. Check command-conditioned failures. The initial-condition diagnostic found constant start obs norm, but episode length had moderately negative correlation with yaw command and first-action L2.
 5. Prefer data/BC changes that improve yaw and recovery coverage before more smoothness-only runs; expert-only data did not improve robustness.
-6. Do not mix medium data uniformly into BC as a default. The expert+noisy+medium uniform run lowered return and increased fall rate, so medium data needs filtering, weighting, or a targeted recovery objective before reuse.
+6. Do not mix medium data uniformly into BC as a default. The expert+noisy+medium uniform run lowered return and increased fall rate. A train-window audit found medium windows are not terminal-adjacent, but have higher action norm than expert windows, so filter or downweight high-action-norm medium windows before reuse.
 7. Do not launch more PWM sweeps until BC is credible.
 
 ## World Model Looks Good But Rollout Fails

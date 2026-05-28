@@ -38,3 +38,9 @@ The current strongest BC baseline used `expert,expert_noisy`, with `282887` trai
 - Record action dimension, observation split, command position, and normalization path in W&B.
 - Confirm termination/fall stats distinguish true termination from time-limit truncation.
 - Do not mix datasets or collectors without a new ledger row and updated comparison report.
+
+## Train Window Audit: 2026-05-28
+
+Audit artifact: `results/mjlab_qs_window_audit_train_20260528/`.
+
+On the train split of `rerun_a25_native_qs_g1stage4_expertboost_20260527`, expert, expert_noisy, and medium windows all have terminal/fall/truncation window rates of `0.0000`. Medium windows therefore do not appear to hurt naive mixed BC because they are terminal-adjacent. The main observed mismatch is action scale: medium action norm mean/p90 is `0.3950`/`0.4632`, while expert is `0.3313`/`0.3877` and expert_noisy is `0.3244`/`0.3797`. Future medium-data BC tests should filter or downweight high-action-norm medium windows before mixing them into expert+noisy BC.
