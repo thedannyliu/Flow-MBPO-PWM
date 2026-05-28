@@ -73,6 +73,8 @@ def quality_stats(data: dict[str, Any], indices: torch.Tensor, quality_name: str
     action_norm = action.pow(2).mean(dim=-1).sqrt()
     action_rate = action[:, 1:] - action[:, :-1] if action.shape[1] > 1 else torch.empty(0)
     action_rate_norm = action_rate.pow(2).mean(dim=-1).sqrt() if action_rate.numel() else torch.empty(0)
+    window_action_norm_mean = action_norm.mean(dim=1)
+    window_action_rate_norm_mean = action_rate_norm.mean(dim=1) if action_rate_norm.numel() else torch.empty(0)
     terminal_window = done.any(dim=1)
     fall_window = termination.any(dim=1)
     trunc_window = truncation.any(dim=1)
@@ -92,6 +94,8 @@ def quality_stats(data: dict[str, Any], indices: torch.Tensor, quality_name: str
         "action_rate_norm_mean": float(action_rate_norm.mean().item()) if action_rate_norm.numel() else float("nan"),
     }
     row.update({f"window_reward_sum_{k}": v for k, v in safe_quantiles(window_reward_sum).items()})
+    row.update({f"window_action_norm_mean_{k}": v for k, v in safe_quantiles(window_action_norm_mean).items()})
+    row.update({f"window_action_rate_norm_mean_{k}": v for k, v in safe_quantiles(window_action_rate_norm_mean).items()})
     if command.shape[-1] >= 1:
         row["command_0_mean"] = float(command[:, :, 0].mean().item())
         row["command_0_abs_max_mean"] = float(command[:, :, 0].abs().amax(dim=1).mean().item())
@@ -133,7 +137,9 @@ def write_markdown(path: Path, rows: list[dict[str, Any]], summary: dict[str, An
         "truncation_window_rate",
         "window_reward_sum_mean",
         "action_norm_mean",
+        "window_action_norm_mean_p90",
         "action_rate_norm_mean",
+        "window_action_rate_norm_mean_p90",
         "command_2_abs_max_mean",
     ]
     lines = [
