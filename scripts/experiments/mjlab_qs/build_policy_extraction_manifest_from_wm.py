@@ -34,6 +34,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--eval-every", type=int, default=2500)
     p.add_argument("--eval-episodes", type=int, default=40)
     p.add_argument("--batch-size", type=int, default=64)
+    p.add_argument("--actor-lr", default="")
+    p.add_argument("--critic-lr", default="")
+    p.add_argument("--bc-lr", default="")
+    p.add_argument("--critic-iterations", default="")
     p.add_argument("--bc-warmstart-iters", type=int, default=0)
     p.add_argument("--policy-bc-reg", type=float, default=0.0)
     p.add_argument("--bc-quality-filter", default="")
@@ -92,6 +96,10 @@ def main() -> None:
                             "online_profile": "online" if args.online_finetune_rounds else "offline",
                             "policy_iters": str(args.policy_iters),
                             "batch_size": str(args.batch_size),
+                            "actor_lr": args.actor_lr,
+                            "critic_lr": args.critic_lr,
+                            "bc_lr": args.bc_lr,
+                            "critic_iterations": args.critic_iterations,
                             "eval_every": str(args.eval_every),
                             "eval_episodes": str(args.eval_episodes),
                             "bc_warmstart_iters": str(args.bc_warmstart_iters),

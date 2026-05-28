@@ -1619,3 +1619,27 @@ Active GPU queue after row7 rollout completion:
 no active project GPU jobs observed
 non-embers GPU jobs observed = none
 ```
+
+Conservative BC-warmstart ablation prepared at 2026-05-28 03:08 EDT:
+
+```text
+stage = rerun_g1_bcwarm_pwm_bcreg10_short2k_lr1e4_mlpwm_vs_flowwm_seed0_20260528
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg10_short2k_lr1e4_mlpwm_vs_flowwm_seed0_20260528.csv
+rows = mlp_ref+mlp seed0, flow_endpoint+mlp seed0
+bc_warmstart_iters = 50000
+policy_iters = 2000
+actor_lr = 1e-4
+critic_lr = 5e-4
+bc_lr = 5e-4
+policy_bc_reg = 10.0
+bc_quality_filter = expert,expert_noisy
+policy_quality_filter = expert,expert_noisy
+W&B project = flow-mbpo-mjlab-bcwarm-pwm-conservative-20260528
+```
+
+This is the next conservative recovery test after the BC-reg-1, 10k-policy run
+collapsed. It keeps the same expert-filtered 50k BC warm start but reduces the
+imagined policy-update budget by 5x, lowers actor LR by 5x, and increases the
+BC action anchor by 10x. Success is not higher imagined return; success requires
+preserving or improving real-env behavior relative to the expert-filtered BC
+baseline and producing final/best rollout videos.
