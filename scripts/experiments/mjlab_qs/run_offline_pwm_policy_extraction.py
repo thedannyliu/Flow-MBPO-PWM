@@ -609,6 +609,8 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
     lengths = torch.zeros(args.eval_num_envs, device=device)
     done_returns: List[float] = []
     done_lengths: List[float] = []
+    done_falls: List[float] = []
+    done_timeouts: List[float] = []
     while len(done_returns) < args.eval_episodes:
         obs = tensor_from_actor_obs(obs_td, obs_groups)
         phys, cmd = split_obs(obs, args.command_dim, args.command_position)
@@ -617,14 +619,18 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
         if c.shape[-1] and "command_mean" in nrm:
             c = norm(c, nrm["command_mean"], nrm["command_std"])
         action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
-        next_obs_td, reward, done, _extras = env.step(action)
+        next_obs_td, reward, done, extras = env.step(action)
         reward = reward.to(device).float().reshape(-1)
         done = done.to(device).bool().reshape(-1)
+        time_out = extras.get("time_outs", torch.zeros_like(done)).to(device).bool().reshape(-1)
+        terminated = done & (~time_out)
         returns = returns + reward
         lengths = lengths + 1.0
         for idx in done.nonzero(as_tuple=False).reshape(-1).tolist():
             done_returns.append(float(returns[idx].item()))
             done_lengths.append(float(lengths[idx].item()))
+            done_falls.append(float(terminated[idx].item()))
+            done_timeouts.append(float(time_out[idx].item()))
             returns[idx] = 0.0
             lengths[idx] = 0.0
             if len(done_returns) >= args.eval_episodes:
@@ -633,6 +639,8 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
     env.close()
     ret = torch.tensor(done_returns[: args.eval_episodes])
     lens = torch.tensor(done_lengths[: args.eval_episodes])
+    falls = torch.tensor(done_falls[: args.eval_episodes])
+    timeouts = torch.tensor(done_timeouts[: args.eval_episodes])
     return {
         "task_id": args.task_id,
         "resolved_task_id": args.task_id,
@@ -640,6 +648,9 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
         "return_std": float(ret.std(unbiased=False).item()),
         "episode_length_mean": float(lens.float().mean().item()),
         "episode_length_std": float(lens.float().std(unbiased=False).item()),
+        "fall_rate_mean": float(falls.float().mean().item()),
+        "timeout_rate_mean": float(timeouts.float().mean().item()),
+        "max_steps": float(args.episode_length),
         "num_episodes": float(args.eval_episodes),
     }
 
