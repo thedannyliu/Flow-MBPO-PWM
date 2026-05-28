@@ -1275,3 +1275,36 @@ It still uses the policy-extraction runner so it shares actor definitions,
 normalization, real-env eval, W&B logging, and rollout-video tooling with the
 PWM/Flow experiments. The runner now writes `best_imagined_return = null` for
 BC-only rows rather than serializing an invalid infinite value.
+
+BC-only baseline completion at 2026-05-27 21:03 EDT:
+
+```text
+policy job = 9221898, gpu-a100, qos embers, completed 3/3
+rollout job = 9222278, gpu-a100, qos embers, completed BC rollouts 3/3 plus new policy row7 rollout
+W&B project = flow-mbpo-mjlab-bc-baseline-20260527
+BC seed0 eval = return 4.5857, episode length 108.93
+BC seed1 eval = return 3.4789, episode length 93.20
+BC seed2 eval = return 3.9408, episode length 98.38
+BC seed0 rollout = return 5.4168, episode length 122.0
+BC seed1 rollout = return 4.5028, episode length 111.3
+BC seed2 rollout = return 10.9708, episode length 185.7
+```
+
+The BC-only baseline is better than the failed frozen-WM extracted policies in
+episode length, but it is still far below the expert collector scale
+(`return ~= 80-95`, `episode length ~= 999`). This suggests the dataset/action
+interface is not completely broken, but plain 10k-step BC is not enough to
+recover collector-quality locomotion. Future BC/IL work should test stronger
+training, expert-only sampling, longer training, and policy architecture before
+using BC as the starting point for PWM-style WM improvement.
+
+Policy 2x2 update at the same checkpoint:
+
+```text
+scalar aggregate = 7 / 12 complete
+mlp_ref + mlp = 3/3, return mean -4.52
+mlp_ref + flow = 2/3, return mean -3.59
+flow_endpoint + mlp = 2/3, return mean -4.70
+flow_endpoint + flow = 0/3
+new rollout added = flow_endpoint + mlp seed1, return -5.8816, episode length 63.3
+```
