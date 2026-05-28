@@ -119,7 +119,16 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - rows: uniform BC and smooth uniform BC, seeds 0-2, final and best checkpoints, `eval_episodes=40`, `eval_max_steps=1000`
   - W&B project: `flow-mbpo-mjlab-bc-eval40-long1000-20260528`
+- 40-episode long-horizon BC eval job `9238737` completed on `embers`.
+  - uniform final aggregate: return `45.8491`, length `594.97`, fall `0.625`, timeout `0.375`
+  - uniform best aggregate: return `42.0118`, length `550.79`, fall `0.683`, timeout `0.317`
+  - smooth final aggregate: return `37.6602`, length `501.34`, fall `0.742`, timeout `0.258`
+  - smooth best aggregate: return `46.6241`, length `601.92`, fall `0.658`, timeout `0.342`
+  - W&B uniform final `hsizha8n`, `xdh8gcox`, `zscvq48j`; uniform best `9hnlm351`, `vxeggehe`, `y9fon1y8`
+  - W&B smooth final `benhpxk0`, `p2gd1c4q`, `82yg2rqe`; smooth best `i0eu5bzd`, `lpj1nolj`, `c0pkwvnd`
+  - note: eval rows logged git `6694f41`, a docs-only commit after the code/manifest commit `ed5bdf3`
+  - interpretation: 40-episode eval confirms BC is much stronger than 300-step videos suggested, but fall rate remains too high and action-rate smoothness is not a reliable improvement
 
 ## Next Action
 
-Monitor Slurm job `9238737`. Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references, and use the 40-episode eval to quantify BC robustness beyond the 3-video-episode sample.
+Treat 1000-step, 40-episode uniform BC final as the current scalar BC baseline, paired with existing 1000-step MP4 videos. Before resuming PWM sweeps, investigate why BC still falls in most long-horizon eval episodes and whether expert-only or recovery-data BC can reduce fall rate.

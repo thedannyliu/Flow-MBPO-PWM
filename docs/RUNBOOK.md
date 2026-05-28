@@ -68,6 +68,24 @@ bash scripts/experiments/mjlab_qs/submit_array.sh \
 
 The rollout runner skips legacy `best_policy_extraction.pt` files that are not true actor snapshots.
 
+## Policy Checkpoint Eval
+
+Use no-video checkpoint evals to get larger episode-count return, length, fall-rate, and timeout-rate estimates. These evals complement rollout MP4 evidence; they do not replace videos.
+
+```bash
+bash scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind policy_eval \
+  --manifest scripts/experiments/mjlab_qs/manifests/<eval_stage>.csv \
+  --gpu-type A100 \
+  --partition gpu-a100 \
+  --qos embers \
+  --time 02:00:00 \
+  --max-concurrent 1 \
+  --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python
+```
+
+Manifest rows may set `policy_stage`, `eval_stage`, `eval_episodes`, `eval_num_envs`, `eval_max_steps`, and `checkpoint_kinds`. Formal evals must keep W&B enabled.
+
 ## Current Experiment Order
 
 1. Improve or debug expert-filtered BC/IL.
