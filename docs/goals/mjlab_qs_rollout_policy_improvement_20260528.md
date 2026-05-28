@@ -310,7 +310,26 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - array: `0-2%1`
   - requested `--cpus 4` to satisfy the L40S partition CPU:GPU limit
   - reason: A100 and H100 arrays remained pending for priority; output checks and lock files should prevent duplicate completed results
+- Added and ran an offline command-coverage audit over expert/expert_noisy train windows:
+  - script: `scripts/experiments/mjlab_qs/analyze_mjlab_qs_command_coverage.py`
+  - output: `results/mjlab_qs_command_coverage_train_20260528/`
+  - dataset: `scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt`
+  - selected windows: `250559`
+  - high-yaw bin (`abs(yaw) >= 0.525`) is not absent: expert `53592` windows (`26.8%`), expert_noisy `11212` windows (`22.3%`)
+  - high-yaw windows are lower-reward and higher-action than low-yaw windows:
+    - expert reward `1.1882` vs `1.4419`, action norm `0.3491` vs `0.3031`, action-rate norm `0.0387` vs `0.0042`
+    - expert_noisy reward `1.1769` vs `1.3401`, action norm `0.3405` vs `0.3084`, action-rate norm `0.0908` vs `0.0705`
+  - interpretation: the yaw failure is not just missing high-yaw train coverage. It is more consistent with harder high-yaw/recovery behavior, so simple yaw-balanced sampling alone is unlikely to solve BC robustness.
+- Ramp25 eval completed, but did not improve BC robustness.
+  - completed jobs: A100 `9268504`, H100 `9268692`; duplicate lock/output checks worked
+  - canceled pending duplicate L40S fallback `9268821`
+  - W&B runs: seed0 `84gg6hz5`, seed1 `y4c4dvs2`, seed2 `zooexgfo`
+  - aggregate over 3 seeds x 40 episodes: return `35.1589`, length `465.28`, fall `0.758`, timeout `0.242`
+  - per seed: seed0 return `36.3914`, length `477.30`, fall `0.750`; seed1 return `33.4368`, length `452.27`, fall `0.800`; seed2 return `35.6485`, length `466.27`, fall `0.725`
+  - start action was successfully ramped: mean first action L2 `0.00677` vs raw `0.16918`, ramp factor `0.04`
+  - comparison: no-ramp expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: reset action magnitude is not the main cause of BC failures. Do not render ramp25 videos or use this wrapper as a fix.
 
 ## Next Action
 
-Monitor Slurm jobs `9268504`, `9268692`, and `9268821`. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
+Keep PWM paused. Focus the next BC intervention on high-yaw/recovery robustness rather than rollout-start action ramping or simple yaw-bin balancing.
