@@ -269,7 +269,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - all rows wrote final and best checkpoints
   - run rows logged git `7148277`, the docs-only submission commit after manifest commit `257bb23`
   - interpretation: Flow-policy BC underperforms the current expert+noisy MLP BC scalar baseline (`45.8491`, length `594.97`, fall `0.625`). The MLP actor class is not the clearest current BC bottleneck, so do not spend a rollout-video job on this variant unless needed for visual debugging.
+- Ran an offline command-conditioned failure diagnostic on existing initdiag eval CSVs.
+  - output: `results/mjlab_qs_bc_command_failure_diagnostic_20260528.md`
+  - no new environment rollout was launched
+  - expert+noisy BC over 120 episodes: return `45.7831`, length `589.43`, fall `0.667`, timeout `0.333`
+  - expert+noisy high-abs-yaw bin: length `436.8`, fall `0.821`, return `31.20`, versus low/mid abs-yaw lengths `675.3`/`650.2`
+  - expert+noisy high-first-action bin: length `422.4`, fall `0.821`, versus low/mid first-action lengths `688.9`/`650.3`
+  - expert-only BC repeats the same pattern and is worse overall, so removing noisy expert data is not a fix
+  - interpretation: target yaw/recovery coverage or rollout-start action ramping before returning to PWM-style imagined policy improvement
 
 ## Next Action
 
-Keep PWM paused. The completed medium-data, yaw-balanced, smoothness, and Flow-policy BC checks all failed to produce a robust improvement over expert+noisy MLP BC. The next smallest useful action is a targeted failure diagnostic on the current expert+noisy BC baseline, especially command-conditioned falls and recovery-state coverage, before more PWM or Flow-policy sweeps.
+Keep PWM paused. The completed medium-data, yaw-balanced, smoothness, and Flow-policy BC checks all failed to produce a robust improvement over expert+noisy MLP BC. The next smallest useful intervention should directly address yaw-command and rollout-start action sensitivity in BC, then verify with the same 40-episode, 1000-step eval before any new PWM sweep.
