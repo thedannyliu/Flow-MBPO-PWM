@@ -293,7 +293,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - no policy conclusion should be drawn from this failed submission
   - removed stale failed-run `.policy_eval.lock` files so the same manifest can be rerun
   - added a clearer CUDA availability guard in `eval_policy_checkpoint.py`; future failures should identify a missing CUDA runtime before checkpoint deserialization
+- Resubmitted the ramp25 eval with the `pwm` conda environment:
+  - code/docs commit: `c8b24e0`
+  - Slurm job: `9268504`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - initial scheduler state: pending for priority
 
 ## Next Action
 
-Resubmit the ramp25 eval manifest with `--conda-env pwm` on `embers`, then monitor the new job. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
+Monitor Slurm job `9268504`. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
