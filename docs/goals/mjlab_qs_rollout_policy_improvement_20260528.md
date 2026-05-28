@@ -277,7 +277,17 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - expert+noisy high-first-action bin: length `422.4`, fall `0.821`, versus low/mid first-action lengths `688.9`/`650.3`
   - expert-only BC repeats the same pattern and is worse overall, so removing noisy expert data is not a fix
   - interpretation: target yaw/recovery coverage or rollout-start action ramping before returning to PWM-style imagined policy improvement
+- Added and submitted an eval-time rollout-start action-ramp diagnostic.
+  - code/manifest commit: `3f23f24`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_eval40_long1000_ramp25_20260528.csv`
+  - Slurm job: `9258953`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy MLP BC final checkpoints, seeds 0-2, 40 episodes, `max_steps=1000`
+  - wrapper: `action_ramp_steps=25`; actor action is linearly ramped from zero after each environment reset, with raw and post-ramp start action norms logged
+  - W&B project: `flow-mbpo-mjlab-bc-ramp25-eval40-20260528`
+  - initial scheduler state: pending for priority
+  - purpose: test whether rollout-start action sensitivity is causal before making a training-side BC change or returning to PWM
 
 ## Next Action
 
-Keep PWM paused. The completed medium-data, yaw-balanced, smoothness, and Flow-policy BC checks all failed to produce a robust improvement over expert+noisy MLP BC. The next smallest useful intervention should directly address yaw-command and rollout-start action sensitivity in BC, then verify with the same 40-episode, 1000-step eval before any new PWM sweep.
+Monitor Slurm job `9258953`. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
