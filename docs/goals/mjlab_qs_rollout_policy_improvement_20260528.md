@@ -261,7 +261,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-flowpolicy-20260528`
   - purpose: isolate whether MLP actor capacity/class is a BC bottleneck before returning to PWM-style world-model policy improvement
   - initial scheduler state: pending
+- Flow-policy BC extraction job `9241796` completed on `embers`.
+  - seed0 W&B `rbrp36ya`: return `42.1877`, length `548.55`, fall `0.750`, timeout `0.250`
+  - seed1 W&B `uk8ssouf`: return `32.8212`, length `450.50`, fall `0.800`, timeout `0.200`
+  - seed2 W&B `21kkj46t`: return `54.9577`, length `694.33`, fall `0.475`, timeout `0.525`
+  - aggregate: return `43.3222`, length `564.46`, fall `0.675`, timeout `0.325`
+  - all rows wrote final and best checkpoints
+  - run rows logged git `7148277`, the docs-only submission commit after manifest commit `257bb23`
+  - interpretation: Flow-policy BC underperforms the current expert+noisy MLP BC scalar baseline (`45.8491`, length `594.97`, fall `0.625`). The MLP actor class is not the clearest current BC bottleneck, so do not spend a rollout-video job on this variant unless needed for visual debugging.
 
 ## Next Action
 
-Monitor Slurm job `9241796`. Keep PWM paused. Compare Flow-policy BC against the current expert+noisy MLP BC scalar baseline before deciding whether policy class is a bottleneck.
+Keep PWM paused. The completed medium-data, yaw-balanced, smoothness, and Flow-policy BC checks all failed to produce a robust improvement over expert+noisy MLP BC. The next smallest useful action is a targeted failure diagnostic on the current expert+noisy BC baseline, especially command-conditioned falls and recovery-state coverage, before more PWM or Flow-policy sweeps.
