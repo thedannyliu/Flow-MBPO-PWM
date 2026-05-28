@@ -1527,3 +1527,30 @@ summary, because that runner does not resume from the saved actor and would
 retrain/overwrite the existing checkpoint directory. The correct recovery path
 is to render/evaluate the saved checkpoints through the rollout runner on a GPU
 class where MuJoCo Warp initializes cleanly.
+
+Row7 rollout preparation at 2026-05-28 02:59 EDT:
+
+```text
+row = flow_endpoint+flow seed2
+policy job = 9210910_7, gpu-rtx6000, qos embers, still running
+latest observed progress = 47500/50000 policy iterations
+output directory = scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_pwm_flow_policy2x2_20260527/velocity_flat_unitree_g1/flow_endpoint/flow/offline/policy50k/seed_2/
+current files = .policy_extraction.lock only
+prepared rollout manifest = scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_flow_endpoint_flow_seed2_rollout_20260528.csv
+```
+
+Do not submit the rollout manifest until row7 writes `final_policy_extraction.pt`
+and, if available, a true `best_policy_extraction.pt`. Once complete, submit the
+prepared rollout manifest with embers, for example:
+
+```bash
+bash scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind policy_rollout \
+  --manifest scripts/outputs/mjlab_qs/manifests/rerun_g1_pwm_flow_policy2x2_flow_endpoint_flow_seed2_rollout_20260528.csv \
+  --gpu-type A100 \
+  --partition gpu-a100 \
+  --qos embers \
+  --time 02:00:00 \
+  --max-concurrent 1 \
+  --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python
+```
