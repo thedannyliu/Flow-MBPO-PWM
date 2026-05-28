@@ -1225,3 +1225,33 @@ The scalar policy aggregate is now 6/12 complete: `mlp_ref + mlp` is 3/3,
 `flow_endpoint + flow` is 0/3. In-flight policy rows remain under `embers`:
 `mlp_ref + flow` seed0, `flow_endpoint + mlp` seeds1-2, and
 `flow_endpoint + flow` seed0; flow-policy seeds1-2 are still pending.
+
+Collector baseline comparison and true-best fix at 2026-05-27 20:19 EDT:
+
+```text
+formal G1 expert data source = native RSL-RL PPO conservative collector
+stage-probe top source = seed1 iter15000, return 80.28, episode length 996.68
+formal audit expert bin = return 94.54, episode length 999.0, fall rate 0.0
+formal audit expert_noisy expert bin = return 95.80, episode length 999.0, fall rate 0.0
+current extracted policy rollouts = return roughly -5.04 to -2.97, episode length roughly 55 to 74
+```
+
+The current extracted PWM policies are therefore not close to the data-collector
+quality. The scalar differences among extracted policies should be read as
+"less bad" rather than as good locomotion. This makes the current branch a
+diagnostic/model-exploitation ablation, not a final claim that offline PWM
+extraction beats the source policy.
+
+Bug fix:
+
+```text
+old behavior = best_policy_extraction.pt stored the final actor plus best metric payload
+new behavior = clone actor/critic state when imagined_return improves and store that true snapshot
+new checkpoint marker = is_true_best_snapshot: true
+rollout runner = renders final and best variants, but skips legacy non-snapshot best files
+```
+
+Rows already completed or already running before this code change cannot recover
+their true best actor from the existing artifact. Newly started rows will produce
+a real best checkpoint; older rows need a rerun if final-vs-best comparison is
+required for the same seed.

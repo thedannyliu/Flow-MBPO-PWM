@@ -43,6 +43,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("--policy-checkpoint", required=True)
     p.add_argument("--output-dir", required=True)
+    p.add_argument("--checkpoint-kind", default="")
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--rollout-episodes", type=int, default=3)
     p.add_argument("--max-steps", type=int, default=300)
@@ -244,6 +245,7 @@ def main() -> None:
             job_type="policy_rollout_video",
             config={
                 "policy_checkpoint": args.policy_checkpoint,
+                "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
                 "rollout_episodes": args.rollout_episodes,
                 "max_steps": args.max_steps,
                 "video_fps": args.video_fps,
@@ -260,6 +262,7 @@ def main() -> None:
     lengths = torch.tensor([row["length"] for row in episode_rows], dtype=torch.float32)
     summary = {
         "policy_checkpoint": args.policy_checkpoint,
+        "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
         "video": str(video_path),
         "num_frames": len(frames),
         "num_episodes": len(episode_rows),

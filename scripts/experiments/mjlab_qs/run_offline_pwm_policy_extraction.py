@@ -10,6 +10,7 @@ policy in the real MJLab environment.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import random
@@ -347,9 +348,10 @@ def train_actor_critic_steps(
     run,
     t0: float,
     metric_prefix: str = "train",
-) -> Tuple[float, Dict[str, float] | None]:
+) -> Tuple[float, Dict[str, float] | None, Dict[str, Dict[str, torch.Tensor]] | None]:
     best_return = -math.inf
     best_payload = None
+    best_state = None
     for local_it in range(1, num_iters + 1):
         it = start_iter + local_it
         ids = sample_train_indices(data, train_idx, args.batch_size)
@@ -421,7 +423,11 @@ def train_actor_critic_steps(
             if metrics[f"{metric_prefix}/imagined_return"] > best_return:
                 best_return = metrics[f"{metric_prefix}/imagined_return"]
                 best_payload = {"iter": it, **metrics}
-    return best_return, best_payload
+                best_state = {
+                    "actor": copy.deepcopy({k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}),
+                    "critic": copy.deepcopy({k: v.detach().cpu().clone() for k, v in critic.state_dict().items()}),
+                }
+    return best_return, best_payload, best_state
 
 
 def behavior_clone_actor_steps(
@@ -691,7 +697,7 @@ def main() -> None:
 
     t0 = time.time()
     behavior_clone_actor_steps(actor, data, train_idx, nrm, args, device, run, t0)
-    best_return, best_payload = train_actor_critic_steps(
+    best_return, best_payload, best_state = train_actor_critic_steps(
         wm,
         actor,
         critic,
@@ -711,10 +717,12 @@ def main() -> None:
     )
     torch.save(
         {
-            "actor": actor.state_dict(),
-            "critic": critic.state_dict(),
+            "actor": best_state["actor"] if best_state is not None else actor.state_dict(),
+            "critic": best_state["critic"] if best_state is not None else critic.state_dict(),
             "args": vars(args),
             "best": best_payload,
+            "checkpoint_kind": "best",
+            "is_true_best_snapshot": best_state is not None,
         },
         output_dir / "best_policy_extraction.pt",
     )
@@ -734,7 +742,7 @@ def main() -> None:
             run,
             global_step_offset=total_policy_iters,
         )
-        round_best, round_payload = train_actor_critic_steps(
+        round_best, round_payload, round_state = train_actor_critic_steps(
             wm,
             actor,
             critic,
@@ -756,9 +764,26 @@ def main() -> None:
         if round_best > best_return:
             best_return = round_best
             best_payload = round_payload
+            best_state = round_state
+            torch.save(
+                {
+                    "actor": best_state["actor"] if best_state is not None else actor.state_dict(),
+                    "critic": best_state["critic"] if best_state is not None else critic.state_dict(),
+                    "args": vars(args),
+                    "best": best_payload,
+                    "checkpoint_kind": "best",
+                    "is_true_best_snapshot": best_state is not None,
+                },
+                output_dir / "best_policy_extraction.pt",
+            )
 
     torch.save(
-        {"actor": actor.state_dict(), "critic": critic.state_dict(), "args": vars(args)},
+        {
+            "actor": actor.state_dict(),
+            "critic": critic.state_dict(),
+            "args": vars(args),
+            "checkpoint_kind": "final",
+        },
         output_dir / "final_policy_extraction.pt",
     )
     if args.skip_real_eval:
