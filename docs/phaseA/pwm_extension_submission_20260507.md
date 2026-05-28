@@ -1395,3 +1395,17 @@ expert-filtered BC protocol and keeps the actor tied to real dataset actions
 during imagined-return optimization. It is intentionally limited to seed0 and
 MLP policy while comparing MLP vs flow-endpoint world models; expand to more
 seeds and flow policies only after rollout videos show non-degenerate behavior.
+
+Warmstart regularizer verification at 2026-05-27 21:38 EDT:
+
+```text
+row0 W&B run = 8nb4nx3w
+row0 first PWM update = iter 1
+train/policy_bc_reg_loss = 0.0012539
+train/policy_bc_reg_weight = 1.0
+train/imagined_return = -35.9184
+```
+
+This confirms that the conservative BC term is active in the actor update after
+the 50k-step expert-filtered BC warm start. Completion still requires real-env
+eval and rollout videos for both rows.
