@@ -25,6 +25,7 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - Policy extraction summaries now include dataset, metadata, normalization, WM checkpoint, output directory, final checkpoint, and best checkpoint paths.
   - Policy rollout summaries now log fall rate directly and distinguish termination from time-limit truncation.
   - Rollout comparison export now prefers `fall_rate_mean` from summary JSON when available.
+- Made BC-only/no-policy-update extraction rows write an evaluable true snapshot for `best_policy_extraction.pt`, with metadata explaining that best equals the current actor when no imagined-return update was run.
 
 ## Next Action
 

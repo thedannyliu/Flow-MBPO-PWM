@@ -508,6 +508,13 @@ def train_actor_critic_steps(
     return best_return, best_payload, best_state
 
 
+def snapshot_actor_critic(actor: nn.Module, critic: nn.Module) -> Dict[str, Dict[str, torch.Tensor]]:
+    return {
+        "actor": copy.deepcopy({k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}),
+        "critic": copy.deepcopy({k: v.detach().cpu().clone() for k, v in critic.state_dict().items()}),
+    }
+
+
 def behavior_clone_actor_steps(
     actor: nn.Module,
     data: Dict[str, torch.Tensor],
@@ -806,8 +813,15 @@ def main() -> None:
         t0=t0,
         metric_prefix="train",
     )
+    total_policy_iters = args.policy_iters
     if best_payload is None:
-        best_return = float("nan")
+        best_return = -math.inf
+        best_payload = {
+            "iter": total_policy_iters,
+            "selection": "final_actor_no_policy_updates",
+            "note": "No imagined-return policy checkpoint was selected; best equals the current actor.",
+        }
+        best_state = snapshot_actor_critic(actor, critic)
     torch.save(
         {
             "actor": best_state["actor"] if best_state is not None else actor.state_dict(),
@@ -820,7 +834,6 @@ def main() -> None:
         output_dir / "best_policy_extraction.pt",
     )
 
-    total_policy_iters = args.policy_iters
     for round_id in range(1, args.online_finetune_rounds + 1):
         online_data = collect_online_windows(actor, args, nrm, device, args.online_collect_windows)
         torch.save(online_data, output_dir / f"online_round_{round_id}_windows.pt")
