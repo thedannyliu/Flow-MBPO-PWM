@@ -183,7 +183,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - rows: expert+noisy BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=yaw_balanced`
   - W&B project: `flow-mbpo-mjlab-bc-expert-yawbal-20260528`
   - initial scheduler state: pending
+- Yaw-balanced BC extraction job `9240159` completed on `embers`.
+  - seed0 W&B `fmsrrkcw`: return `47.6621`, length `612.78`, fall `0.650`, timeout `0.350`
+  - seed1 W&B `zlvloocn`: return `38.6280`, length `516.20`, fall `0.750`, timeout `0.250`
+  - seed2 W&B `oxcjyupn`: return `48.6837`, length `627.47`, fall `0.650`, timeout `0.350`
+  - aggregate: return `44.9913`, length `585.48`, fall `0.683`, timeout `0.317`
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `d5bd14c`, a docs-only commit after code/manifest commit `4f8ce7c`
+  - interpretation: yaw-balanced sampling did not improve the 40-episode BC baseline over uniform expert+noisy BC (`45.8491`, length `594.97`, fall `0.625`), so do not spend a rollout-video job on this variant unless needed for visual debugging.
 
 ## Next Action
 
-Monitor Slurm job `9240159`. Keep PWM paused. If yaw-balanced BC improves 40-episode robustness, render 1000-step final/best videos and compare against the uniform BC baseline; if not, move to recovery/medium-data coverage rather than more smoothness-only tuning.
+Keep PWM paused. The next BC/data fix should target recovery or expert+medium coverage rather than more smoothness-only or yaw-reweighting-only tuning.
