@@ -391,7 +391,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - jobs: A100 `9273837_0` completed, duplicate A100 `9273837_1` skipped/completed by output checks, L40S `9274072_1` completed, H100 fallback `9273970` canceled after artifacts were complete
   - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `31` aggregate rows
   - interpretation: high-yaw loss weighting does not beat the expert+noisy uniform BC 1000-step rollout baseline (`41.8965`, length `547.78`, fall `0.667`) on final or best videos, despite the slight 40-episode scalar eval gain. Do not claim policy improvement and do not return to PWM yet.
+- Added and submitted a high-yaw BC initdiag eval to compare per-episode failure slices against the existing uniform/expert-only initdiag baseline.
+  - manifest commit: `b112eb7`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_yawboost_initdiag_eval40_long1000_20260528.csv`
+  - Slurm job: `9278096`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: seeds 0-2, final and best checkpoints, `eval_episodes=40`, `eval_max_steps=1000`, `eval_num_envs=16`
+  - W&B project: `flow-mbpo-mjlab-bc-yawboost-initdiag-eval40-20260528`
+  - purpose: check whether high-yaw loss weighting changes start-command, yaw, initial-action, and short-episode failure patterns before spending more rollout-video jobs
 
 ## Next Action
 
-Keep PWM paused. Choose the next small BC robustness diagnostic around recovery/high-yaw failures or observation/action matching, using 40-episode eval before spending more rollout-video jobs.
+Monitor initdiag eval job `9278096`, then compare its per-episode slices to the existing expert+noisy uniform initdiag baseline. Keep PWM paused until BC robustness improves with rollout evidence.
