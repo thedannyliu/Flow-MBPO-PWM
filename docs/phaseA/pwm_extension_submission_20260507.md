@@ -1554,3 +1554,28 @@ bash scripts/experiments/mjlab_qs/submit_array.sh \
   --max-concurrent 1 \
   --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python
 ```
+
+2x2 row0 fallback rollout completion at 2026-05-28 03:02 EDT:
+
+```text
+rollout job = 9233776_0, gpu-a100, qos embers, completed
+row = mlp_ref+flow seed0
+checkpoint kind = final
+rollout return = -3.0762
+rollout episode length = 73.0
+frames = 219
+video = scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/velocity_flat_unitree_g1/mlp_ref/flow/offline/policy50k/seed_0/rollout.mp4
+W&B run = 0gcy0xu9
+best checkpoint status = legacy/non-snapshot, skipped by rollout runner
+```
+
+This fills the main evidence gap left by the RTX6000 MuJoCo/Warp eval failure.
+The result remains a collapsed policy and is consistent with the broader 2x2
+rollout pattern. After row0 completed, the remaining A100 fallback row and the
+L40S duplicate fallback were cancelled because their target rollouts were
+already complete or redundant:
+
+```text
+cancelled = 9233776_3, 9234013
+remaining active 2x2 policy job = 9210910_7, gpu-rtx6000, qos embers
+```
