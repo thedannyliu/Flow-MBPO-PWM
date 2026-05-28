@@ -1643,3 +1643,20 @@ imagined policy-update budget by 5x, lowers actor LR by 5x, and increases the
 BC action anchor by 10x. Success is not higher imagined return; success requires
 preserving or improving real-env behavior relative to the expert-filtered BC
 baseline and producing final/best rollout videos.
+
+Conservative BC-warmstart ablation submission at 2026-05-28 03:10 EDT:
+
+```text
+Slurm job = 9234991
+partition = gpu-a100
+qos = embers
+array rows = 0-1
+max concurrent = 1
+time limit = 03:00:00
+state at submission check = PENDING
+non-embers GPU jobs observed = none
+```
+
+The run uses committed code `c8c4a1b` and W&B is enabled in the manifest. After
+both rows complete, render final and true-best rollout MP4s before interpreting
+the scalar evals.
