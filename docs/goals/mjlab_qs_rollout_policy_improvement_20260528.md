@@ -28,7 +28,14 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
 - Made BC-only/no-policy-update extraction rows write an evaluable true snapshot for `best_policy_extraction.pt`, with metadata explaining that best equals the current actor when no imagined-return update was run.
 - Exposed `bc_sampling` and `policy_sampling` in policy extraction manifests. Existing behavior is `quality_balanced`; the next ablation tests `uniform` expert/expert_noisy BC sampling to check whether batch composition is part of the BC weakness.
 - Prepared tracked manifest `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_mlp50k_20260528.csv`.
+- Submitted the uniform expert/expert_noisy BC ablation:
+  - git SHA: `163a626`
+  - Slurm job: `9236994`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-20260528`
+  - array: `0-2%1`
+  - status at submit check: pending
 
 ## Next Action
 
-Submit and monitor the uniform expert/expert_noisy BC ablation with `embers`, then render final and best rollout MP4s. Success requires real MJLab eval plus rollout MP4/W&B video that beats the current expert-filtered BC baseline, not just lower BC loss.
+Monitor Slurm job `9236994`. After all three policy rows complete, submit a `policy_rollout` array for the same manifest so final and best snapshots get MP4/W&B videos. Success requires real MJLab eval plus rollout MP4/W&B video that beats the current expert-filtered BC baseline, not just lower BC loss.
