@@ -39,7 +39,16 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - Slurm job: `9237030`
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - reason: H100 array remained pending; per-row output locks prevent duplicate work
+- Policy extraction completed on A100 fallback job `9237030`; unused H100 job `9236994` was cancelled.
+  - seed0 eval: return `36.2848`, length `487.15`
+  - seed1 eval: return `39.8943`, length `535.67`
+  - seed2 eval: return `61.9562`, length `766.70`
+  - all rows wrote final and best checkpoints
+- Submitted rollout rendering for the same manifest:
+  - Slurm job: `9237329`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - expected artifacts: final and best rollout MP4/W&B videos for seeds 0-2
 
 ## Next Action
 
-Monitor Slurm jobs `9236994` and `9237030`. After all three policy rows complete, submit a `policy_rollout` array for the same manifest so final and best snapshots get MP4/W&B videos. Success requires real MJLab eval plus rollout MP4/W&B video that beats the current expert-filtered BC baseline, not just lower BC loss.
+Monitor Slurm job `9237329`. After all rollout rows complete, export `rollout_comparison_20260528` again and compare uniform BC against the prior expert-filtered BC baseline. Do not claim BC improvement until the rollout MP4/W&B videos and fall rates are available.
