@@ -35,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--eval-episodes", type=int, default=40)
     p.add_argument("--batch-size", type=int, default=64)
     p.add_argument("--bc-warmstart-iters", type=int, default=0)
+    p.add_argument("--policy-bc-reg", type=float, default=0.0)
     p.add_argument("--bc-quality-filter", default="")
     p.add_argument("--policy-quality-filter", default="")
     p.add_argument("--online-finetune-rounds", type=int, default=0)
@@ -94,6 +95,7 @@ def main() -> None:
                             "eval_every": str(args.eval_every),
                             "eval_episodes": str(args.eval_episodes),
                             "bc_warmstart_iters": str(args.bc_warmstart_iters),
+                            "policy_bc_reg": str(args.policy_bc_reg),
                             "bc_quality_filter": args.bc_quality_filter,
                             "policy_quality_filter": args.policy_quality_filter,
                             "online_finetune_rounds": str(args.online_finetune_rounds),

@@ -210,6 +210,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--command-dim", type=int, default=3)
     p.add_argument("--command-position", choices=["tail", "head", "none"], default="tail")
     p.add_argument("--action-l2", type=float, default=1.0e-4)
+    p.add_argument(
+        "--policy-bc-reg",
+        type=float,
+        default=0.0,
+        help="Weight for dataset-action BC regularization during imagined-return policy optimization.",
+    )
     p.add_argument("--bc-warmstart-iters", type=int, default=0)
     p.add_argument("--bc-lr", type=float, default=5e-4)
     p.add_argument("--bc-batch-size", type=int, default=256)
@@ -418,7 +424,14 @@ def train_actor_critic_steps(
         if ret_rms is not None:
             ret_rms.update(actor_objective)
             actor_objective = actor_objective / torch.sqrt(ret_rms.var + 1e-5)
-        actor_loss = -actor_objective.mean()
+        bc_reg_loss = torch.zeros((), device=device)
+        if args.policy_bc_reg > 0.0:
+            h = min(args.horizon, z_seq.shape[1] - 1, c_seq.shape[1])
+            z_anchor = z_seq[:, :h].reshape(-1, int(data["phys_obs"].shape[-1]))
+            c_anchor = c_seq[:, :h].reshape(-1, int(data["command"].shape[-1]))
+            a_anchor = data["policy_action"][ids, :h].to(device).float().reshape(-1, int(data["policy_action"].shape[-1]))
+            bc_reg_loss = F.mse_loss(actor(z_anchor, c_anchor, deterministic=True), a_anchor)
+        actor_loss = -actor_objective.mean() + float(args.policy_bc_reg) * bc_reg_loss
         actor_opt.zero_grad(set_to_none=True)
         actor_loss.backward()
         actor_grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), args.actor_grad_norm)
@@ -459,6 +472,8 @@ def train_actor_critic_steps(
                 "iter": it,
                 f"{metric_prefix}/imagined_return": float(imagined_return.detach().mean().item()),
                 f"{metric_prefix}/actor_loss": float(actor_loss.detach().item()),
+                f"{metric_prefix}/policy_bc_reg_loss": float(bc_reg_loss.detach().item()),
+                f"{metric_prefix}/policy_bc_reg_weight": float(args.policy_bc_reg),
                 f"{metric_prefix}/critic_loss": float(critic_loss.detach().item()),
                 f"{metric_prefix}/action_norm": float(action_norm.detach().item()),
                 f"{metric_prefix}/actor_std": float(actor.std_mean().detach().item()),
@@ -861,6 +876,7 @@ def main() -> None:
         "seed": args.seed,
         "online_finetune_rounds": args.online_finetune_rounds,
         "bc_warmstart_iters": args.bc_warmstart_iters,
+        "policy_bc_reg": args.policy_bc_reg,
         "bc_quality_filter": args.bc_quality_filter,
         "policy_quality_filter": args.policy_quality_filter,
         "train_windows": int(train_idx.numel()),

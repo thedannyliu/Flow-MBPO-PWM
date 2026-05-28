@@ -102,6 +102,8 @@ def main() -> None:
         row.get("episode_length", "1000"),
         "--action-l2",
         row.get("action_l2", "1e-4"),
+        "--policy-bc-reg",
+        row.get("policy_bc_reg", "0.0"),
         "--bc-warmstart-iters",
         row.get("bc_warmstart_iters", "0"),
         "--bc-lr",
