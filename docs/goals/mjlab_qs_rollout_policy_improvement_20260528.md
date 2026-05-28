@@ -108,7 +108,11 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
 - Updated rollout comparison export to include a `max_steps` column in CSV/Markdown tables:
   - commit: `1deaeac`
   - purpose: prevent 300-step video sanity rows and 1000-step return-evidence rows from being read as the same horizon
+- Updated policy-extraction real-env eval logging:
+  - commit: `ba8d4fb`
+  - added `eval/fall_rate_mean`, `eval/timeout_rate_mean`, and `eval/max_steps`
+  - purpose: make future 40-episode non-video eval directly comparable with rollout termination accounting
 
 ## Next Action
 
-Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references. Before resuming PWM sweeps, investigate why BC still falls in 2/3 seeds under long horizon.
+Treat 1000-step BC as the current rollout baseline when comparing against medium and expert collector references. Before resuming PWM sweeps, run or inspect a 40-episode eval with the new fall-rate logging to quantify BC robustness beyond the 3-video-episode sample.
