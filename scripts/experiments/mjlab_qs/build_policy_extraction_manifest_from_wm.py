@@ -44,6 +44,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--policy-quality-filter", default="")
     p.add_argument("--bc-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
     p.add_argument("--policy-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
+    p.add_argument("--bc-action-rate-reg", type=float, default=0.0)
     p.add_argument("--online-finetune-rounds", type=int, default=0)
     p.add_argument("--compute-profile", default="")
     p.add_argument("--wandb-project", default="flow-mbpo-mjlab-pwm-flow-endpoint")
@@ -110,6 +111,7 @@ def main() -> None:
                             "policy_quality_filter": args.policy_quality_filter,
                             "bc_sampling": args.bc_sampling,
                             "policy_sampling": args.policy_sampling,
+                            "bc_action_rate_reg": str(args.bc_action_rate_reg),
                             "online_finetune_rounds": str(args.online_finetune_rounds),
                             "wandb_project": args.wandb_project,
                             "wandb_group": f"{args.stage}_{task}",

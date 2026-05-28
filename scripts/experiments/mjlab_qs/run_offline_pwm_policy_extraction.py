@@ -222,6 +222,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bc-eval-every", type=int, default=1000)
     p.add_argument("--bc-sampling", choices=["quality_balanced", "uniform"], default="quality_balanced")
     p.add_argument(
+        "--bc-action-rate-reg",
+        type=float,
+        default=0.0,
+        help="Weight for an action-rate smoothness penalty during BC warm start.",
+    )
+    p.add_argument(
         "--bc-quality-filter",
         default="",
         help="Comma-separated dataset quality bins or ids for BC warm start, e.g. expert,expert_noisy.",
@@ -546,7 +552,12 @@ def behavior_clone_actor_steps(
         c = c_seq.reshape(-1, int(data["command"].shape[-1]))
         a_target = target.reshape(-1, int(data["policy_action"].shape[-1]))
         pred = actor(z, c, deterministic=True)
-        loss = F.mse_loss(pred, a_target)
+        action_mse = F.mse_loss(pred, a_target)
+        pred_seq = pred.reshape_as(target)
+        action_rate_loss = torch.zeros((), device=device)
+        if target.shape[1] > 1:
+            action_rate_loss = (pred_seq[:, 1:] - pred_seq[:, :-1]).pow(2).mean()
+        loss = action_mse + float(args.bc_action_rate_reg) * action_rate_loss
         opt.zero_grad(set_to_none=True)
         loss.backward()
         grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), args.actor_grad_norm)
@@ -554,8 +565,11 @@ def behavior_clone_actor_steps(
         if it == 1 or it == args.bc_warmstart_iters or it % args.bc_eval_every == 0:
             metrics = {
                 "bc/iter": it,
-                "bc/action_mse": float(loss.detach().item()),
+                "bc/loss": float(loss.detach().item()),
+                "bc/action_mse": float(action_mse.detach().item()),
                 "bc/action_l1": float((pred.detach() - a_target).abs().mean().item()),
+                "bc/action_rate_loss": float(action_rate_loss.detach().item()),
+                "bc/action_rate_reg": float(args.bc_action_rate_reg),
                 "bc/actor_grad_norm": float(grad.detach().item()),
                 "bc/target_action_norm": float(a_target.pow(2).mean(dim=-1).sqrt().mean().item()),
                 "bc/pred_action_norm": float(pred.detach().pow(2).mean(dim=-1).sqrt().mean().item()),

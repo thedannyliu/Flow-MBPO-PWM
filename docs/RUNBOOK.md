@@ -33,7 +33,7 @@ python scripts/experiments/mjlab_qs/build_policy_extraction_manifest_from_wm.py 
 
 For formal runs, leave W&B enabled. Each run must record git SHA, branch, full command, dataset, normalization, seed, WM checkpoint, final checkpoint, and best checkpoint.
 
-BC-only runs use the same runner with `--policy-iters 0`. Use `--bc-sampling quality_balanced` to balance selected quality bins per batch, or `--bc-sampling uniform` to preserve the filtered dataset proportions.
+BC-only runs use the same runner with `--policy-iters 0`. Use `--bc-sampling quality_balanced` to balance selected quality bins per batch, or `--bc-sampling uniform` to preserve the filtered dataset proportions. Use `--bc-action-rate-reg <weight>` for an opt-in action-rate smoothness penalty during BC warm start.
 
 Submit on PACE-Phoenix with `embers` QOS:
 

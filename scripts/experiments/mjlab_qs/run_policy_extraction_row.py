@@ -119,6 +119,8 @@ def main() -> None:
         row_value(row, "bc_eval_every", "1000"),
         "--bc-sampling",
         row_value(row, "bc_sampling", "quality_balanced"),
+        "--bc-action-rate-reg",
+        row_value(row, "bc_action_rate_reg", "0.0"),
         "--bc-quality-filter",
         row_value(row, "bc_quality_filter", ""),
         "--policy-quality-filter",

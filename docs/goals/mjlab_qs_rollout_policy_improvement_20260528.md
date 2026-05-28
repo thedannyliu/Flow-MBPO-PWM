@@ -55,7 +55,12 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - interpretation: uniform sampling is a modest BC rollout improvement but still far below expert collector return `82.6090` and length `1000.00`
 - Refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `21` aggregate rows.
 - Added tracked `results/master_policy_comparison.csv` with collector, BC, and representative PWM rows.
+- Added opt-in BC action-rate regularization (`--bc-action-rate-reg`) and prepared tracked manifest `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_smooth1e2_mlp50k_20260528.csv`.
+  - purpose: test whether explicit action smoothness improves real rollout stability beyond the uniform-sampling BC gain
+  - stage: `rerun_g1_bc_expert_uniform_smooth1e2_mlp50k_20260528`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-smooth-20260528`
+  - settings: expert/expert_noisy BC, uniform sampling, `bc_action_rate_reg=0.01`, 50k BC steps, 3 seeds
 
 ## Next Action
 
-Next BC/IL work should improve stability beyond the uniform-sampling gain. Good candidates are longer BC, larger actor capacity, action smoothness loss, or medium-plus-expert curricula. Do not resume PWM sweeps until BC is closer to medium or collector behavior.
+Submit and monitor the smooth uniform-BC ablation on `embers`, then render final/best rollouts and compare against the uniform BC baseline. Do not resume PWM sweeps until BC is closer to medium or collector behavior.
