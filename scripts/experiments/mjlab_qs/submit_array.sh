@@ -79,6 +79,8 @@ elif [[ "$KIND" == "native_collector" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_mjlab_native_collector_row.py"
 elif [[ "$KIND" == "native_collection" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_native_collection_row.py"
+elif [[ "$KIND" == "native_collector_rollout" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_native_collector_rollout_row.py"
 fi
 
 WRAP="cd ${PROJECT_ROOT}"
