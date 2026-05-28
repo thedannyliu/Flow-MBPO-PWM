@@ -123,6 +123,8 @@ def main() -> None:
         row_value(row, "bc_action_rate_reg", "0.0"),
         "--bc-quality-filter",
         row_value(row, "bc_quality_filter", ""),
+        "--bc-quality-window-action-norm-max",
+        row_value(row, "bc_quality_window_action_norm_max", ""),
         "--policy-quality-filter",
         row_value(row, "policy_quality_filter", ""),
         "--policy-sampling",

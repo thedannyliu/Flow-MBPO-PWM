@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bc-warmstart-iters", type=int, default=0)
     p.add_argument("--policy-bc-reg", type=float, default=0.0)
     p.add_argument("--bc-quality-filter", default="")
+    p.add_argument("--bc-quality-window-action-norm-max", default="")
     p.add_argument("--policy-quality-filter", default="")
     p.add_argument("--bc-sampling", choices=SAMPLING_MODES, default="quality_balanced")
     p.add_argument("--policy-sampling", choices=SAMPLING_MODES, default="quality_balanced")
@@ -109,6 +110,7 @@ def main() -> None:
                             "bc_warmstart_iters": str(args.bc_warmstart_iters),
                             "policy_bc_reg": str(args.policy_bc_reg),
                             "bc_quality_filter": args.bc_quality_filter,
+                            "bc_quality_window_action_norm_max": args.bc_quality_window_action_norm_max,
                             "policy_quality_filter": args.policy_quality_filter,
                             "bc_sampling": args.bc_sampling,
                             "policy_sampling": args.policy_sampling,

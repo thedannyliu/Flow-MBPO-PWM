@@ -235,6 +235,11 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated dataset quality bins or ids for BC warm start, e.g. expert,expert_noisy.",
     )
     p.add_argument(
+        "--bc-quality-window-action-norm-max",
+        default="",
+        help="Comma-separated quality:max_action_norm filters applied after BC quality filtering, e.g. medium:0.39.",
+    )
+    p.add_argument(
         "--policy-quality-filter",
         default="",
         help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
@@ -308,6 +313,63 @@ def filter_train_indices(
     if filtered.numel() == 0:
         raise ValueError(f"{label} quality filter {quality_filter!r} selected zero train windows")
     return filtered
+
+
+def parse_quality_thresholds(raw: str, metadata: Dict, label: str) -> Dict[int, float]:
+    out: Dict[int, float] = {}
+    if not raw.strip():
+        return out
+    qmap = {str(k): int(v) for k, v in metadata.get("quality_id_map", {}).items()}
+    for item in [x.strip() for x in raw.split(",") if x.strip()]:
+        if ":" not in item:
+            raise ValueError(f"{label} entry {item!r} must have form quality:max_value")
+        quality_raw, value_raw = [x.strip() for x in item.split(":", 1)]
+        if quality_raw in qmap:
+            qid = qmap[quality_raw]
+        else:
+            try:
+                qid = int(quality_raw)
+            except ValueError as exc:
+                known = ",".join(sorted(qmap)) or "<none>"
+                raise ValueError(f"unknown {label} quality bin {quality_raw!r}; known bins: {known}") from exc
+        out[int(qid)] = float(value_raw)
+    return out
+
+
+def filter_indices_by_quality_action_norm(
+    data: Dict[str, torch.Tensor],
+    metadata: Dict,
+    indices: torch.Tensor,
+    raw_thresholds: str,
+    label: str,
+) -> Tuple[torch.Tensor, Dict[str, Dict[str, float | int]]]:
+    thresholds = parse_quality_thresholds(raw_thresholds, metadata, label)
+    if not thresholds:
+        return indices, {}
+    qids = data["quality_bin_id"][indices]
+    action_norm = data["policy_action"][indices].float().pow(2).mean(dim=-1).sqrt().mean(dim=1)
+    keep = torch.ones(indices.shape, dtype=torch.bool)
+    inverse = {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+    diagnostics: Dict[str, Dict[str, float | int]] = {}
+    for qid, threshold in thresholds.items():
+        qmask = qids == int(qid)
+        before = int(qmask.sum().item())
+        if before == 0:
+            diagnostics[inverse.get(int(qid), str(int(qid)))] = {"threshold": threshold, "before": 0, "after": 0}
+            continue
+        qkeep = action_norm <= threshold
+        keep &= (~qmask) | qkeep
+        after = int((qmask & qkeep).sum().item())
+        diagnostics[inverse.get(int(qid), str(int(qid)))] = {
+            "threshold": threshold,
+            "before": before,
+            "after": after,
+            "kept_fraction": after / max(1, before),
+        }
+    filtered = indices[keep]
+    if filtered.numel() == 0:
+        raise ValueError(f"{label} action-norm filter {raw_thresholds!r} selected zero train windows")
+    return filtered, diagnostics
 
 
 def quality_counts(data: Dict[str, torch.Tensor], metadata: Dict, indices: torch.Tensor) -> Dict[str, int]:
@@ -827,6 +889,13 @@ def main() -> None:
 
     data, metadata, nrm, train_idx = load_data(args, device)
     bc_train_idx = filter_train_indices(data, metadata, train_idx, args.bc_quality_filter, "BC")
+    bc_train_idx, bc_action_norm_filter_diagnostics = filter_indices_by_quality_action_norm(
+        data,
+        metadata,
+        bc_train_idx,
+        args.bc_quality_window_action_norm_max,
+        "BC quality action-norm",
+    )
     policy_train_idx = filter_train_indices(data, metadata, train_idx, args.policy_quality_filter, "policy")
     bc_sampling_cache = build_sampling_cache(data, bc_train_idx, args.bc_sampling)
     policy_sampling_cache = build_sampling_cache(data, policy_train_idx, args.policy_sampling)
@@ -880,6 +949,7 @@ def main() -> None:
                 "policy_train_windows": int(policy_train_idx.numel()),
                 "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
                 "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
+                "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
                 "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
                 "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
             },
@@ -1000,6 +1070,7 @@ def main() -> None:
         "bc_warmstart_iters": args.bc_warmstart_iters,
         "policy_bc_reg": args.policy_bc_reg,
         "bc_quality_filter": args.bc_quality_filter,
+        "bc_quality_window_action_norm_max": args.bc_quality_window_action_norm_max,
         "policy_quality_filter": args.policy_quality_filter,
         "bc_sampling": args.bc_sampling,
         "policy_sampling": args.policy_sampling,
@@ -1009,6 +1080,7 @@ def main() -> None:
         "policy_train_windows": int(policy_train_idx.numel()),
         "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
         "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
+        "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
         "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
         "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
         "policy_iters": args.policy_iters,
