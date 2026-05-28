@@ -1332,3 +1332,25 @@ if expert-only BC remains far below the collector, the next debugging target is
 BC capacity/training protocol or observation/action alignment rather than
 world-model policy improvement. If it improves substantially, use the same
 filter as the BC warm start for conservative PWM/Flow ablations.
+
+Expert-filtered BC completion update at 2026-05-27 21:26 EDT:
+
+```text
+policy job = 9223151, gpu-a100, qos embers, completed 3/3
+W&B runs = seed0 lb2x51ov, seed1 6aqpoqs5, seed2 znsudeac
+train windows = 282887
+BC train windows = 250559
+BC quality counts = expert 200178, expert_noisy 50381
+seed0 eval = return 46.1703, episode length 604.58
+seed1 eval = return 36.6089, episode length 490.75
+seed2 eval = return 46.6763, episode length 613.15
+aggregate eval = return mean 43.1518, return std 4.6312
+aggregate length = mean 569.49, std 55.79
+rollout job = 9223566, gpu-a100, qos embers, final checkpoints only
+```
+
+Expert-filtered BC is a major improvement over the all-window 10k BC baseline,
+but it still does not recover collector-quality behavior. The current evidence
+supports using expert-filtered BC as the next warm-start baseline, while also
+treating BC capacity/training schedule as an unresolved issue before making
+claims about PWM/Flow improvement.
