@@ -149,7 +149,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
   - rows: expert-only BC seeds 0-2, final and best checkpoints, `rollout_max_steps=1000`
   - W&B project: `flow-mbpo-mjlab-bc-expertonly-rollout1000-20260528`
+- Expert-only BC 1000-step rollout job `9239482` completed on `embers`.
+  - final rollout aggregate: return `52.4252`, length `673.11`, fall `0.667`
+  - best rollout aggregate: return `53.6917`, length `697.44`, fall `0.667`
+  - W&B rollout final `201p2bk6`, `9ayrzyhd`, `hruobgdi`; best `3cepdm2x`, `1v5b2182`, `a3ferujx`
+  - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `29` aggregate rows
+  - interpretation: 3-episode videos can overestimate robustness. Expert-only seed0 video rollout reaches near-expert return, but its 40-episode eval has fall `0.775`; use 40-episode eval as the scalar baseline and videos as visual evidence.
 
 ## Next Action
 
-Monitor Slurm job `9239482`. Expert-only BC did not improve the 40-episode fall rate; use the rollout videos to complete the evidence record, then keep PWM paused and debug BC/env/action robustness.
+Keep PWM paused. Expert-only BC did not improve 40-episode robustness, so next debug should target BC/env/action robustness directly: initial-condition sensitivity, command distribution, observation/action normalization, and whether recovery or expert+medium data reduces fall rate.
