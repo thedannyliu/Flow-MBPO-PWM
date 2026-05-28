@@ -73,6 +73,16 @@ def apply_action_ramp(action: torch.Tensor, lengths: torch.Tensor, ramp_steps: i
     return action * factor.unsqueeze(-1), factor
 
 
+def resolve_device(requested: str) -> torch.device:
+    device = torch.device(requested)
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise SystemExit(
+            f"CUDA device requested ({requested}) but torch.cuda.is_available() is false. "
+            "Check the Slurm GPU allocation and Python/conda environment."
+        )
+    return device
+
+
 @torch.no_grad()
 def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor], args: argparse.Namespace):
     device = torch.device(args.device)
@@ -167,10 +177,11 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, float]:
 
 def main() -> None:
     args = parse_args()
-    device = torch.device(args.device)
+    device = resolve_device(args.device)
+    args.device = str(device)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    ckpt = torch.load(args.policy_checkpoint, map_location=device, weights_only=False)
+    ckpt = torch.load(args.policy_checkpoint, map_location="cpu", weights_only=False)
     ckpt_args = ckpt["args"]
     data, _metadata, nrm, _train_idx = load_data(argparse.Namespace(**ckpt_args), device)
     actor = build_actor(

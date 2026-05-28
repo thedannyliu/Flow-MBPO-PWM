@@ -287,7 +287,13 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - W&B project: `flow-mbpo-mjlab-bc-ramp25-eval40-20260528`
   - initial scheduler state: pending for priority
   - purpose: test whether rollout-start action sensitivity is causal before making a training-side BC change or returning to PWM
+- Ramp25 eval job `9258953` failed before producing rollout evidence.
+  - all rows exited with code `1:0`
+  - cause: the job used the default `python`, which loaded a CPU-only PyTorch environment; checkpoint loading failed because `--device cuda:0` was requested while `torch.cuda.is_available()` was false
+  - no policy conclusion should be drawn from this failed submission
+  - removed stale failed-run `.policy_eval.lock` files so the same manifest can be rerun
+  - added a clearer CUDA availability guard in `eval_policy_checkpoint.py`; future failures should identify a missing CUDA runtime before checkpoint deserialization
 
 ## Next Action
 
-Monitor Slurm job `9258953`. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
+Resubmit the ramp25 eval manifest with `--conda-env pwm` on `embers`, then monitor the new job. Keep PWM paused. If ramp25 improves the same 40-episode, 1000-step eval, render MP4s with the same wrapper before treating it as useful real-rollout evidence; if it does not, focus the next BC intervention on yaw-command/recovery coverage rather than rollout-start action ramping.
