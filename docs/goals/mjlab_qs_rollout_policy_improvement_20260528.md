@@ -225,7 +225,16 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - filter: `bc_quality_window_action_norm_max=medium:0.39`, chosen near the expert train-window action-norm p90 (`0.3877`)
   - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-actnorm-20260528`
   - initial scheduler state: pending
+- Filtered-medium BC extraction job `9240994` completed on `embers`.
+  - seed0 W&B `u66jjvhn`: return `46.9981`, length `614.38`, fall `0.600`, timeout `0.400`
+  - seed1 W&B `u2199ttx`: return `38.2174`, length `515.33`, fall `0.775`, timeout `0.225`
+  - seed2 W&B `x58pv5un`: return `38.7710`, length `510.58`, fall `0.725`, timeout `0.275`
+  - aggregate: return `41.3288`, length `546.76`, fall `0.700`, timeout `0.300`
+  - filter retained `14393 / 31600` medium train windows (`45.55%`)
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `ada801b`, a docs-only commit after filter support commit `ebbd6fe` and manifest commit `8eba601`
+  - interpretation: action-norm filtering improves over naive medium mixing (`37.1504`, length `489.88`, fall `0.767`) but still underperforms expert+noisy uniform BC (`45.8491`, length `594.97`, fall `0.625`). Do not render this variant unless needed for visual debugging.
 
 ## Next Action
 
-Monitor Slurm job `9240994`. Keep PWM paused. Use the 40-episode eval to decide whether filtered medium data is worth rendering or whether medium should move to weighting/AWAC-style use only.
+Keep PWM paused. Medium data should move to weighting/AWAC-style use or more targeted recovery selection rather than plain BC mixing.
