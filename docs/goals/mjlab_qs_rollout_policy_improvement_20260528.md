@@ -215,7 +215,17 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - terminal/fall/truncation window rates are `0.0000` for expert, expert_noisy, and medium train windows, so naive medium mixing did not fail because medium train windows are visibly terminal-adjacent.
   - medium reward sum is close to expert (`1.2688` vs `1.2966`), but medium action norm is much larger: mean `0.3950` and p90 `0.4632` versus expert mean `0.3313` and p90 `0.3877`.
   - interpretation: medium may hurt BC through action distribution mismatch rather than terminal-state pollution. A filtered or weighted medium-data test should target high-action-norm medium windows first.
+- Added and submitted a filtered-medium BC check:
+  - filter support commit: `ebbd6fe`
+  - manifest commit: `8eba601`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_noisy_medium_actnorm039_mlp50k_20260528.csv`
+  - Slurm job: `9240994`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy+medium BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - filter: `bc_quality_window_action_norm_max=medium:0.39`, chosen near the expert train-window action-norm p90 (`0.3877`)
+  - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-actnorm-20260528`
+  - initial scheduler state: pending
 
 ## Next Action
 
-Keep PWM paused. The next BC/data fix should test filtered or weighted medium usage, starting with high-action-norm medium-window filtering, before trying any PWM actor updates.
+Monitor Slurm job `9240994`. Keep PWM paused. Use the 40-episode eval to decide whether filtered medium data is worth rendering or whether medium should move to weighting/AWAC-style use only.
