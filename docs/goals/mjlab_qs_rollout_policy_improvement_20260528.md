@@ -191,7 +191,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - all rows wrote final and best checkpoints
   - note: run rows logged git `d5bd14c`, a docs-only commit after code/manifest commit `4f8ce7c`
   - interpretation: yaw-balanced sampling did not improve the 40-episode BC baseline over uniform expert+noisy BC (`45.8491`, length `594.97`, fall `0.625`), so do not spend a rollout-video job on this variant unless needed for visual debugging.
+- Added and submitted an expert+noisy+medium BC coverage check:
+  - manifest commit: `bf4e28a`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_noisy_medium_uniform_mlp50k_20260528.csv`
+  - Slurm job: `9240496`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy+medium BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-20260528`
+  - initial scheduler state: pending
 
 ## Next Action
 
-Keep PWM paused. The next BC/data fix should target recovery or expert+medium coverage rather than more smoothness-only or yaw-reweighting-only tuning.
+Monitor Slurm job `9240496`. Keep PWM paused. Use the 40-episode eval to decide whether adding medium/recovery coverage is useful before spending video-render budget.
