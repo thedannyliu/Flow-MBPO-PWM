@@ -199,7 +199,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - rows: expert+noisy+medium BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
   - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-20260528`
   - initial scheduler state: pending
+- Expert+noisy+medium BC extraction job `9240496` completed on `embers`.
+  - seed0 W&B `luzcp7ki`: return `31.4065`, length `422.83`, fall `0.800`, timeout `0.200`
+  - seed1 W&B `4ey00xkn`: return `36.9901`, length `493.17`, fall `0.800`, timeout `0.200`
+  - seed2 W&B `faijzxg3`: return `43.0546`, length `553.62`, fall `0.700`, timeout `0.300`
+  - aggregate: return `37.1504`, length `489.88`, fall `0.767`, timeout `0.233`
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `ed1990f`, a docs-only commit after manifest commit `bf4e28a`
+  - interpretation: naive medium mixing hurts BC robustness versus expert+noisy uniform BC. Medium data should not be mixed uniformly into BC without filtering, weighting, or a targeted recovery objective.
 
 ## Next Action
 
-Monitor Slurm job `9240496`. Keep PWM paused. Use the 40-episode eval to decide whether adding medium/recovery coverage is useful before spending video-render budget.
+Keep PWM paused. The next BC/data fix should inspect medium-window quality and recovery subsets before mixing them, or try a weighted/AWAC-style use of medium data instead of plain uniform BC.
