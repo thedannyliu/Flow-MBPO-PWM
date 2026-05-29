@@ -89,6 +89,16 @@ python scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py \
   --require-complete
 ```
 
+Then prepare a conservative synthetic replay buffer before any policy update:
+
+```bash
+python scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py \
+  --synthetic-buffer scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1/synthetic_buffer.pt \
+  --output-dir scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90 \
+  --lambda-uncertainty 0.5 \
+  --uncertainty-quantile-termination 0.90
+```
+
 ## Formal v0 Run Gate
 
 Run one formal seed on `embers` only after the smoke path passes:

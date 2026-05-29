@@ -510,7 +510,13 @@ Use these locations as the durable record before launching new work:
   - script: `scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py`
   - report targets: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.csv` and `.md`
   - purpose: make the first MLP-vs-Flow smoke diagnostics directly comparable once either queued job writes `summary.json`.
+- Added conservative synthetic replay preparation for Flow-MBPO v0.
+  - script: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - input: `synthetic_buffer.pt` from the smoke generator
+  - outputs: `synthetic_replay.pt` plus `summary.json`
+  - features: `reward_conservative = reward_raw - lambda_uncertainty * uncertainty`, combined next-state/reward uncertainty, optional uncertainty-quantile termination, and optional transition subsampling
+  - validation: py-compile, CLI help, and a `/tmp` fake-buffer run with `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.75`, and `max_transitions=6`
 
 ## Next Action
 
-Keep PWM paused. Wait for either Flow-MBPO v0 smoke job to produce `summary.json` and `synthetic_buffer.pt`, then inspect MLP-vs-Flow synthetic reward, next-state delta, and uncertainty diagnostics. Only after bounded smoke diagnostics should a formal one-seed Flow-MBPO v0 run be launched on `embers`.
+Keep PWM paused. Wait for either Flow-MBPO v0 smoke job to produce `summary.json` and `synthetic_buffer.pt`, then inspect MLP-vs-Flow synthetic reward, next-state delta, and uncertainty diagnostics. If bounded, prepare conservative replay from the selected smoke buffer before implementing or launching any policy update.
