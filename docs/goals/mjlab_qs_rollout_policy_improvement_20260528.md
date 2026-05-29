@@ -506,6 +506,10 @@ Use these locations as the durable record before launching new work:
   - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
   - reason: A100 job `9324608` remained pending for priority; `summary.json` plus `synthetic_buffer.pt` completion checks and `.flow_mbpo_v0_smoke.lock` prevent duplicate writers if both jobs start.
   - status at submit check: both `9324608` and `9324851` pending for priority
+- Added a Flow-MBPO smoke summary exporter.
+  - script: `scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py`
+  - report targets: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.csv` and `.md`
+  - purpose: make the first MLP-vs-Flow smoke diagnostics directly comparable once either queued job writes `summary.json`.
 
 ## Next Action
 

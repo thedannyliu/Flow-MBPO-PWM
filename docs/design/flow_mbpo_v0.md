@@ -80,6 +80,15 @@ python scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py \
   --horizon 1
 ```
 
+After smoke jobs finish, export a compact MLP-vs-Flow diagnostic table:
+
+```bash
+python scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py \
+  --output-csv scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.csv \
+  --output-md scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.md \
+  --require-complete
+```
+
 ## Formal v0 Run Gate
 
 Run one formal seed on `embers` only after the smoke path passes:
