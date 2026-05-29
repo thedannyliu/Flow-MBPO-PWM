@@ -250,6 +250,12 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated min_abs_yaw:weight values for BC action MSE, e.g. 0.35:1.5,0.525:2.0.",
     )
     p.add_argument(
+        "--bc-source-start0-loss-weight",
+        type=float,
+        default=1.0,
+        help="BC action-MSE weight for source_start==0 reset-like windows.",
+    )
+    p.add_argument(
         "--policy-quality-filter",
         default="",
         help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
@@ -486,6 +492,39 @@ def window_yaw_abs_weights(
     for threshold, weight in raw_weights:
         weights = torch.where(yaw_abs >= float(threshold), torch.full_like(weights, float(weight)), weights)
     return weights
+
+
+def window_source_start0_weights(
+    data: Dict[str, torch.Tensor],
+    ids: torch.Tensor,
+    start0_weight: float,
+    device: torch.device,
+) -> torch.Tensor:
+    if start0_weight < 0.0:
+        raise ValueError(f"BC source_start==0 loss weight must be non-negative, got {start0_weight}")
+    weights = torch.ones(ids.shape, device=device, dtype=torch.float32)
+    if abs(start0_weight - 1.0) < 1e-12:
+        return weights
+    start0 = data["source_start"][ids].to(device).long() == 0
+    return torch.where(start0, torch.full_like(weights, float(start0_weight)), weights)
+
+
+def source_start0_weight_diagnostics(
+    data: Dict[str, torch.Tensor],
+    indices: torch.Tensor,
+    start0_weight: float,
+) -> Dict[str, float | int]:
+    start0 = data["source_start"][indices].long() == 0
+    start0_windows = int(start0.sum().item())
+    total_windows = int(indices.numel())
+    weighted_total = float(total_windows - start0_windows + start0_windows * float(start0_weight))
+    return {
+        "weight": float(start0_weight),
+        "start0_windows": start0_windows,
+        "total_windows": total_windows,
+        "start0_fraction": start0_windows / max(1, total_windows),
+        "weighted_start0_fraction": (start0_windows * float(start0_weight)) / max(1.0e-8, weighted_total),
+    }
 
 
 def build_sampling_cache(data: Dict[str, torch.Tensor], train_idx: torch.Tensor, mode: str) -> Dict:
@@ -777,6 +816,7 @@ def behavior_clone_actor_steps(
         per_action_mse = (pred - a_target).pow(2).mean(dim=-1)
         window_weights = window_quality_weights(data, ids, quality_loss_weights or {}, device)
         window_weights = window_weights * window_yaw_abs_weights(data, ids, yaw_abs_loss_weights or [], device)
+        window_weights = window_weights * window_source_start0_weights(data, ids, args.bc_source_start0_loss_weight, device)
         weights = window_weights[:, None].expand_as(target[..., 0]).reshape(-1)
         action_mse = (per_action_mse * weights).sum() / weights.sum().clamp_min(1e-8)
         pred_seq = pred.reshape_as(target)
@@ -1068,6 +1108,9 @@ def main() -> None:
                 "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
                 "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
                 "bc_quality_loss_weights": quality_weight_summary(bc_quality_loss_weights, metadata),
+                "bc_source_start0_loss_weight_diagnostics": source_start0_weight_diagnostics(
+                    data, bc_train_idx, args.bc_source_start0_loss_weight
+                ),
                 "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
                 "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
             },
@@ -1203,6 +1246,7 @@ def main() -> None:
         "bc_quality_window_action_norm_max": args.bc_quality_window_action_norm_max,
         "bc_quality_loss_weights": quality_weight_summary(bc_quality_loss_weights, metadata),
         "bc_yaw_abs_loss_weights": yaw_abs_weight_summary(bc_yaw_abs_loss_weights),
+        "bc_source_start0_loss_weight": args.bc_source_start0_loss_weight,
         "policy_quality_filter": args.policy_quality_filter,
         "bc_sampling": args.bc_sampling,
         "policy_sampling": args.policy_sampling,
@@ -1214,6 +1258,9 @@ def main() -> None:
         "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
         "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
         "bc_yaw_abs_loss_weight_diagnostics": yaw_abs_weight_diagnostics(data, bc_train_idx, bc_yaw_abs_loss_weights),
+        "bc_source_start0_loss_weight_diagnostics": source_start0_weight_diagnostics(
+            data, bc_train_idx, args.bc_source_start0_loss_weight
+        ),
         "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
         "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
         "policy_iters": args.policy_iters,

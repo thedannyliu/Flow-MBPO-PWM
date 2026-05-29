@@ -129,6 +129,8 @@ def main() -> None:
         row_value(row, "bc_quality_loss_weights", ""),
         "--bc-yaw-abs-loss-weights",
         row_value(row, "bc_yaw_abs_loss_weights", ""),
+        "--bc-source-start0-loss-weight",
+        row_value(row, "bc_source_start0_loss_weight", "1.0"),
         "--policy-quality-filter",
         row_value(row, "policy_quality_filter", ""),
         "--policy-sampling",
