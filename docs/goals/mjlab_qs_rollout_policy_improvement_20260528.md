@@ -427,13 +427,20 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - interpretation: action timing is unlikely to explain the BC failures, but reset/zero-last-action conditioning remains a plausible underrepresented failure axis.
 - Added a targeted reset-start BC loss-weighting diagnostic.
   - code commit: `2cc6486`
+  - manifest commit: `c348c94`
   - new option: `--bc-source-start0-loss-weight`, applied only during BC action-MSE warm start
   - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_resetw25_mlp50k_20260528.csv`
   - rows: seeds 0-2, expert+noisy BC, MLP actor, uniform sampling, 50k BC steps, no PWM policy updates
   - weight: `25.0`, making reset-start windows roughly `9%` effective mass instead of about `0.4%`
   - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-resetw25-20260528`
   - purpose: test whether underrepresented reset-start conditioning explains part of the remaining BC robustness gap before spending more rollout-video jobs or returning to PWM.
+- Submitted reset-start BC loss-weighting extraction.
+  - Slurm job: `9304777`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - command: `scripts/experiments/mjlab_qs/submit_array.sh --kind policy_extract --manifest scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_resetw25_mlp50k_20260528.csv --gpu-type A100 --partition gpu-a100 --qos embers --max-concurrent 1 --time 04:00:00 --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python`
+  - purpose: produce 40-episode real-eval scalar evidence and final/best actor checkpoints before deciding whether videos are warranted.
 
 ## Next Action
 
-Keep PWM paused. Run the reset-start weighting diagnostic on `embers`; compare its 40-episode real-eval return, length, fall rate, and final/best checkpoints against the expert+noisy uniform BC baseline before deciding whether any rollout-video job is warranted.
+Keep PWM paused. Monitor reset-start weighting job `9304777`; compare its 40-episode real-eval return, length, fall rate, and final/best checkpoints against the expert+noisy uniform BC baseline before deciding whether any rollout-video job is warranted.
