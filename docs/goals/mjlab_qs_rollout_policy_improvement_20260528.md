@@ -446,7 +446,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
   - array: `0-2%1`
   - reason: A100 job `9304777` remained pending for priority; runner lock and completion checks protect duplicate output directories.
+- Reset-start BC loss-weighting extraction completed on A100 job `9304777`.
+  - H100 fallback job `9304809` was canceled after all A100 rows completed
+  - W&B runs: seed0 `595om0z6`, seed1 `yfg6c0ek`, seed2 `9l63dpyo`
+  - per seed: seed0 return `40.8380`, length `549.08`, fall `0.725`, timeout `0.275`; seed1 return `35.2293`, length `473.60`, fall `0.800`, timeout `0.200`; seed2 return `59.3097`, length `741.33`, fall `0.400`, timeout `0.600`
+  - aggregate: return `45.1257`, length `588.00`, fall `0.642`, timeout `0.358`
+  - effective reset-start weighting was applied: `1024 / 250559` train windows were `source_start == 0`, raw fraction `0.00409`, weighted fraction `0.09305`
+  - comparison: expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: reset-start loss weighting does not improve BC robustness. Do not spend a rollout-video job on resetw25, and keep PWM paused.
 
 ## Next Action
 
-Keep PWM paused. Monitor reset-start weighting jobs `9304777` and `9304809`; compare the completed 40-episode real-eval return, length, fall rate, and final/best checkpoints against the expert+noisy uniform BC baseline before deciding whether any rollout-video job is warranted.
+Keep PWM paused. Reset-start weighting, yaw weighting, yaw-balanced sampling, action ramping, medium mixing, and action-target/timing audits have not found a BC fix. Next diagnostic should target recovery-state coverage or a stronger data/IL method rather than another simple scalar loss reweight.
