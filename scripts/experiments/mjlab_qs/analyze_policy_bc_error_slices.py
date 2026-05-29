@@ -41,6 +41,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--yaw-edges", default="0.175,0.35,0.525")
     p.add_argument("--chunk-size", type=int, default=4096)
     p.add_argument("--max-windows", type=int, default=0)
+    p.add_argument("--sample-seed", type=int, default=0)
     p.add_argument("--device", default="cpu")
     return p.parse_args()
 
@@ -282,10 +283,20 @@ def main() -> None:
     for quality_id in quality_ids:
         qmask |= data["quality_bin_id"].long() == int(quality_id)
     indices = (mask & qmask).nonzero(as_tuple=False).squeeze(-1)
-    if args.max_windows > 0:
-        indices = indices[: args.max_windows]
+    if args.max_windows > 0 and indices.numel() > args.max_windows:
+        generator = torch.Generator().manual_seed(int(args.sample_seed))
+        positions = torch.randperm(indices.numel(), generator=generator)[: args.max_windows]
+        indices = indices[positions.sort().values]
     if indices.numel() == 0:
         raise SystemExit("selected zero windows")
+    if args.max_windows > 0:
+        data = {
+            "phys_obs": data["phys_obs"][indices].clone(),
+            "command": data["command"][indices].clone(),
+            "policy_action": data["policy_action"][indices].clone(),
+            "quality_bin_id": data["quality_bin_id"][indices].clone(),
+        }
+        indices = torch.arange(data["quality_bin_id"].shape[0])
     yaw_edges = parse_float_list(args.yaw_edges)
     rows: list[dict[str, Any]] = []
     for label, checkpoint_path in specs:
@@ -311,6 +322,8 @@ def main() -> None:
         "qualities": args.qualities,
         "yaw_edges": args.yaw_edges,
         "selected_windows": int(indices.numel()),
+        "max_windows": int(args.max_windows),
+        "sample_seed": int(args.sample_seed),
         "checkpoints": [{"label": label, "path": str(path)} for label, path in specs],
         "git_sha": git_sha(),
         "git_branch": git_branch(),

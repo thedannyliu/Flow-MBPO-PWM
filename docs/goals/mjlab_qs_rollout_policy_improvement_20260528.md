@@ -406,6 +406,15 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - high-yaw slice did not improve: uniform high-yaw (`abs(yaw) >= 0.525`) length `443.8`, fall `0.816`; yawboost final length `440.9`, fall `0.825`; yawboost best length `433.1`, fall `0.800`
   - low-yaw slice improved only for yawboost best: uniform low-yaw length `687.4`, fall `0.597`; yawboost best length `744.8`, fall `0.518`
   - interpretation: high-yaw loss weighting does not address high-yaw/recovery failures. The best-checkpoint scalar gain is not supported by high-yaw slice behavior or rollout videos, so it is not a policy-improvement claim.
+- Added and ran a sampled offline BC action-error slice audit.
+  - script: `scripts/experiments/mjlab_qs/analyze_policy_bc_error_slices.py`
+  - output: `results/mjlab_qs_policy_bc_error_yawboost_20260528/`
+  - sample: `2000` expert/expert_noisy train windows, fixed `sample_seed=20260528`
+  - compared uniform final seeds 0-2 against yawboost final seeds 0-2
+  - high-yaw aggregate (`abs(yaw) >= 0.525`) was essentially unchanged: uniform action MSE `0.000481`, L2 error `0.012954`; yawboost action MSE `0.000478`, L2 error `0.013044`
+  - expert high-yaw target fitting got slightly worse: uniform expert high-yaw MSE `0.000066`, L2 `0.005396`; yawboost expert high-yaw MSE `0.000067`, L2 `0.005541`
+  - expert_noisy high-yaw got only a tiny MSE decrease: uniform `0.002468`, L2 `0.049181`; yawboost `0.002450`, L2 `0.049007`
+  - interpretation: the yawboost loss does not materially improve logged-action matching on high-yaw windows. Real high-yaw failures are unlikely to be fixed by more simple yaw loss weighting.
 
 ## Next Action
 
