@@ -500,7 +500,13 @@ Use these locations as the durable record before launching new work:
   - runs in one allocation: MLP reference WM ensemble H1 smoke, then Flow endpoint WM ensemble H1 smoke
   - output dirs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/mlp_ref_ensemble_seed0_h1` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1`
   - purpose: verify synthetic buffer generation and uncertainty diagnostics before implementing any policy update.
+- Added a smoke output lock/completion guard and submitted an H100 fallback for the same Flow-MBPO v0 smoke diagnostics.
+  - lock commit: `3bda4e9`
+  - H100 fallback Slurm job: `9324851`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - reason: A100 job `9324608` remained pending for priority; `summary.json` plus `synthetic_buffer.pt` completion checks and `.flow_mbpo_v0_smoke.lock` prevent duplicate writers if both jobs start.
+  - status at submit check: both `9324608` and `9324851` pending for priority
 
 ## Next Action
 
-Keep PWM paused. Build the smallest Flow-MBPO v0 smoke path: shared synthetic-transition API for existing MLP/Flow world models, short synthetic rollouts from real dataset states, uncertainty diagnostics, and a saved synthetic buffer report with W&B disabled. Only after bounded smoke diagnostics should a formal one-seed Flow-MBPO v0 run be launched on `embers`.
+Keep PWM paused. Wait for either Flow-MBPO v0 smoke job to produce `summary.json` and `synthetic_buffer.pt`, then inspect MLP-vs-Flow synthetic reward, next-state delta, and uncertainty diagnostics. Only after bounded smoke diagnostics should a formal one-seed Flow-MBPO v0 run be launched on `embers`.
