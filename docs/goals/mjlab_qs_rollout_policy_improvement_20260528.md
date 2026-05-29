@@ -420,7 +420,20 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - scanned train/val/test windows for expert, expert_noisy, and medium qualities in `d_qs_core_h16.pt`
   - max absolute difference, mean absolute difference, and nonzero-difference fraction were all exactly `0.0`
   - interpretation: the current BC target is not failing because `policy_action` and `env_action` diverge. Action-target mismatch must be elsewhere, such as action timing, observation/last-action semantics, recovery-state coverage, or environment stochasticity.
+- Audited observation/action timing and reset-start coverage.
+  - window builder alignment is `obs_t -> action_t`; `phys_obs[:, 1:, 67:96]` matches the corresponding stored policy actions exactly across train/val/test and expert, expert_noisy, and medium qualities
+  - no last-action off-by-one was found
+  - reset-like `source_start == 0` windows are sparse: expert/expert_noisy train windows are about `0.4%` reset-start, with high-yaw reset-start windows similarly sparse inside the high-yaw bin
+  - interpretation: action timing is unlikely to explain the BC failures, but reset/zero-last-action conditioning remains a plausible underrepresented failure axis.
+- Added a targeted reset-start BC loss-weighting diagnostic.
+  - code commit: `2cc6486`
+  - new option: `--bc-source-start0-loss-weight`, applied only during BC action-MSE warm start
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_resetw25_mlp50k_20260528.csv`
+  - rows: seeds 0-2, expert+noisy BC, MLP actor, uniform sampling, 50k BC steps, no PWM policy updates
+  - weight: `25.0`, making reset-start windows roughly `9%` effective mass instead of about `0.4%`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-resetw25-20260528`
+  - purpose: test whether underrepresented reset-start conditioning explains part of the remaining BC robustness gap before spending more rollout-video jobs or returning to PWM.
 
 ## Next Action
 
-Keep PWM paused. Stop simple yaw reweighting and choose the next small diagnostic around recovery-state coverage or observation/last-action semantics before spending more rollout-video jobs.
+Keep PWM paused. Run the reset-start weighting diagnostic on `embers`; compare its 40-episode real-eval return, length, fall rate, and final/best checkpoints against the expert+noisy uniform BC baseline before deciding whether any rollout-video job is warranted.
