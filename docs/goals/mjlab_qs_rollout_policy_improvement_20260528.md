@@ -516,6 +516,12 @@ Use these locations as the durable record before launching new work:
   - outputs: `synthetic_replay.pt` plus `summary.json`
   - features: `reward_conservative = reward_raw - lambda_uncertainty * uncertainty`, combined next-state/reward uncertainty, optional uncertainty-quantile termination, and optional transition subsampling
   - validation: py-compile, CLI help, and a `/tmp` fake-buffer run with `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.75`, and `max_transitions=6`
+- Submitted an L40S fallback for the same Flow-MBPO v0 smoke diagnostics.
+  - Slurm job: `9325185`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - resources: `4` CPUs, `128G` memory, `01:00:00`
+  - reason: A100 job `9324608` and H100 fallback `9324851` both remained pending for priority; smoke output locks protect the shared output directories.
+  - status at submit check: `9324608`, `9324851`, and `9325185` all pending for priority
 
 ## Next Action
 
