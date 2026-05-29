@@ -73,6 +73,39 @@ def apply_action_ramp(action: torch.Tensor, lengths: torch.Tensor, ramp_steps: i
     return action * factor.unsqueeze(-1), factor
 
 
+def l2_mean_sqrt(value: torch.Tensor) -> float:
+    if value.numel() == 0:
+        return math.nan
+    return float(value.float().pow(2).mean().sqrt().item())
+
+
+def terminal_obs_summary(
+    phys: torch.Tensor,
+    cmd: torch.Tensor,
+    z: torch.Tensor,
+    action: torch.Tensor,
+    raw_action: torch.Tensor,
+    reward: torch.Tensor,
+    idx: int,
+    command_dim: int,
+) -> dict[str, float]:
+    phys_i = phys[idx].float()
+    cmd_i = cmd[idx].float()
+    return {
+        "final_command_0": float(cmd_i[0].item()) if command_dim > 0 else math.nan,
+        "final_command_1": float(cmd_i[1].item()) if command_dim > 1 else math.nan,
+        "final_command_2": float(cmd_i[2].item()) if command_dim > 2 else math.nan,
+        "final_obs_norm": l2_mean_sqrt(z[idx]),
+        "final_action_l2": l2_mean_sqrt(action[idx]),
+        "final_raw_action_l2": l2_mean_sqrt(raw_action[idx]),
+        "final_prev_action_l2": l2_mean_sqrt(phys_i[67:96]) if phys_i.numel() >= 96 else math.nan,
+        "final_base_lin_vel_l2": l2_mean_sqrt(phys_i[0:3]) if phys_i.numel() >= 3 else math.nan,
+        "final_base_ang_vel_l2": l2_mean_sqrt(phys_i[3:6]) if phys_i.numel() >= 6 else math.nan,
+        "final_projected_gravity_z": float(phys_i[8].item()) if phys_i.numel() >= 9 else math.nan,
+        "final_reward": float(reward[idx].item()),
+    }
+
+
 def resolve_device(requested: str) -> torch.device:
     device = torch.device(requested)
     if device.type == "cuda" and not torch.cuda.is_available():
@@ -142,6 +175,7 @@ def collect_eval(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor],
                         "start_action_l2": float(start_action_l2[idx].item()),
                         "raw_start_action_l2": float(raw_start_action_l2[idx].item()),
                         "start_action_ramp_factor": float(start_action_ramp_factor[idx].item()),
+                        **terminal_obs_summary(phys, cmd, z, action, raw_action, reward, idx, command_dim),
                     }
                 )
                 returns[idx] = 0.0
@@ -232,6 +266,17 @@ def main() -> None:
             "start_action_l2",
             "raw_start_action_l2",
             "start_action_ramp_factor",
+            "final_command_0",
+            "final_command_1",
+            "final_command_2",
+            "final_obs_norm",
+            "final_action_l2",
+            "final_raw_action_l2",
+            "final_prev_action_l2",
+            "final_base_lin_vel_l2",
+            "final_base_ang_vel_l2",
+            "final_projected_gravity_z",
+            "final_reward",
         ],
     )
     summary = {
@@ -241,6 +286,15 @@ def main() -> None:
         "eval_num_envs": args.eval_num_envs,
         "max_steps": args.max_steps,
         "action_ramp_steps": args.action_ramp_steps,
+        "terminal_obs_summary_fields": [
+            "final_obs_norm",
+            "final_action_l2",
+            "final_prev_action_l2",
+            "final_base_lin_vel_l2",
+            "final_base_ang_vel_l2",
+            "final_projected_gravity_z",
+            "final_reward",
+        ],
         "wall_clock_seconds": time.time() - t0,
         "git_sha": git_sha(),
         "git_branch": git_branch(),

@@ -454,7 +454,11 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - effective reset-start weighting was applied: `1024 / 250559` train windows were `source_start == 0`, raw fraction `0.00409`, weighted fraction `0.09305`
   - comparison: expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
   - interpretation: reset-start loss weighting does not improve BC robustness. Do not spend a rollout-video job on resetw25, and keep PWM paused.
+- Added terminal-state summaries to no-video policy eval outputs.
+  - file: `scripts/experiments/mjlab_qs/eval_policy_checkpoint.py`
+  - new `eval_episodes.csv` fields: final command, normalized obs norm, final action/raw-action L2, final previous-action L2 from actor obs, base linear/angular velocity norms, projected gravity z, and final reward from the last pre-terminal step
+  - purpose: enable recovery/failure-state diagnostics without rendering more videos or launching more BC loss-reweighting ablations.
 
 ## Next Action
 
-Keep PWM paused. Reset-start weighting, yaw weighting, yaw-balanced sampling, action ramping, medium mixing, and action-target/timing audits have not found a BC fix. Next diagnostic should target recovery-state coverage or a stronger data/IL method rather than another simple scalar loss reweight.
+Keep PWM paused. Run a small terminal-state eval manifest for uniform BC and resetw25 final checkpoints, then compare terminal/fall state summaries before deciding whether to add recovery data or change the IL method.
