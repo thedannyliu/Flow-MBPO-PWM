@@ -33,6 +33,19 @@ Priority shift:
 - Current PWM-style extracted policies remain collapsed. The least-bad conservative row is return `-1.0999`, length `54.67`, fall rate `1.000`.
 - True best actor snapshots are now saved for new policy-extraction runs and rollout tooling evaluates final plus true-best checkpoints.
 
+## Evidence Record Map
+
+Use these locations as the durable record before launching new work:
+
+- This file is the chronological goal log and includes the latest interpretation of each run.
+- `docs/EXPERIMENT_LEDGER.md` is the compact formal-evidence table for collector, BC, PWM, and diagnostic policy runs, with W&B IDs, checkpoint/output paths, and conclusions.
+- `docs/design/flow_mbpo_v0.md` records the current Flow-MBPO v0 design, first smoke-test scope, and baseline gates.
+- `results/master_policy_comparison.csv` keeps the tracked summary of collector, BC, and representative PWM rows.
+- `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md` are the generated rollout aggregate reports, including horizon-aware rollout rows.
+- Per-run artifacts remain under `scripts/outputs/mjlab_qs/policy_extraction/`, `scripts/outputs/mjlab_qs/policy_evals/`, `scripts/outputs/mjlab_qs/policy_rollouts/`, and `scripts/outputs/mjlab_qs/native_collector_rollouts/`; these hold checkpoints, summaries, per-episode CSVs, and MP4s.
+- Slurm stdout/stderr logs are under `logs/slurm/mjlab_qs/`; the current pending Flow-MBPO smoke job will write to `logs/slurm/mjlab_qs/flow_mbpo_v0_smoke/9324608.out` and `.err`.
+- The first Flow-MBPO v0 smoke outputs are expected at `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/mlp_ref_ensemble_seed0_h1/` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1/`.
+
 ## Work This Goal
 
 - Created this concise goal log so future turns have a single current-state checkpoint.
