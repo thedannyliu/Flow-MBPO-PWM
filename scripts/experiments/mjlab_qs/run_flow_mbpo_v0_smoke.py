@@ -9,6 +9,7 @@ real MJLab-QS dataset states.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import math
 import os
@@ -187,6 +188,19 @@ def main() -> None:
         raise SystemExit(f"CUDA device requested ({args.device}) but torch.cuda.is_available() is false")
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    complete_paths = [output_dir / "summary.json", output_dir / "synthetic_buffer.pt"]
+    if all(path.exists() for path in complete_paths):
+        print(f"flow-mbpo v0 smoke already complete; skipping {output_dir}", flush=True)
+        return
+    lock_file = (output_dir / ".flow_mbpo_v0_smoke.lock").open("w", encoding="utf-8")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print(f"flow-mbpo v0 smoke already running; skipping {output_dir}", flush=True)
+        return
+    if all(path.exists() for path in complete_paths):
+        print(f"flow-mbpo v0 smoke already complete; skipping {output_dir}", flush=True)
+        return
     t0 = time.time()
 
     data = torch.load(args.dataset, map_location="cpu", weights_only=False)
