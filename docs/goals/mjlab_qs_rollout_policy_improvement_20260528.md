@@ -475,6 +475,11 @@ Priority shift:
   - file: `scripts/experiments/mjlab_qs/eval_policy_checkpoint.py`
   - new `eval_episodes.csv` fields: final command, normalized obs norm, final action/raw-action L2, final previous-action L2 from actor obs, base linear/angular velocity norms, projected gravity z, and final reward from the last pre-terminal step
   - purpose: enable recovery/failure-state diagnostics without rendering more videos or launching more BC loss-reweighting ablations.
+- Redirected the next phase to the high-value Flow-MBPO v0 track.
+  - plan: `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md`
+  - design: `docs/design/flow_mbpo_v0.md`
+  - smoke script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py`
+  - purpose: produce bounded short-horizon synthetic rollout diagnostics from real dataset states using existing MLP/Flow WM checkpoints and a BC-warmstarted actor before any new policy update.
 
 ## Next Action
 

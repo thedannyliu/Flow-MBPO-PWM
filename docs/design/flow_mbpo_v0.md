@@ -63,6 +63,23 @@ Implement a CPU/GPU smoke path with W&B disabled:
    - source dataset split/quality counts.
 5. Do not update policy until the synthetic buffer diagnostics are bounded and reproducible.
 
+Initial script:
+
+```bash
+python scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py \
+  --dataset scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt \
+  --metadata scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json \
+  --normalization scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json \
+  --policy-checkpoint scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final_policy_extraction.pt \
+  --wm-checkpoint scripts/outputs/mjlab_qs/results/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/mlp_ref/seed_0/best.pt \
+  --wm-checkpoint scripts/outputs/mjlab_qs/results/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/mlp_ref/seed_1/best.pt \
+  --wm-checkpoint scripts/outputs/mjlab_qs/results/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/mlp_ref/seed_2/best.pt \
+  --output-dir scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/mlp_ref_ensemble_seed0_h1 \
+  --device cuda:0 \
+  --num-starts 256 \
+  --horizon 1
+```
+
 ## Formal v0 Run Gate
 
 Run one formal seed on `embers` only after the smoke path passes:
