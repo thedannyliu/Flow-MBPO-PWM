@@ -415,7 +415,12 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - expert high-yaw target fitting got slightly worse: uniform expert high-yaw MSE `0.000066`, L2 `0.005396`; yawboost expert high-yaw MSE `0.000067`, L2 `0.005541`
   - expert_noisy high-yaw got only a tiny MSE decrease: uniform `0.002468`, L2 `0.049181`; yawboost `0.002450`, L2 `0.049007`
   - interpretation: the yawboost loss does not materially improve logged-action matching on high-yaw windows. Real high-yaw failures are unlikely to be fixed by more simple yaw loss weighting.
+- Audited `policy_action` versus `env_action` in the current window dataset.
+  - collection code records `env_action` as a clone of `policy_action` for both legacy and native MJLab-QS collectors
+  - scanned train/val/test windows for expert, expert_noisy, and medium qualities in `d_qs_core_h16.pt`
+  - max absolute difference, mean absolute difference, and nonzero-difference fraction were all exactly `0.0`
+  - interpretation: the current BC target is not failing because `policy_action` and `env_action` diverge. Action-target mismatch must be elsewhere, such as action timing, observation/last-action semantics, recovery-state coverage, or environment stochasticity.
 
 ## Next Action
 
-Keep PWM paused. Stop simple yaw reweighting and choose the next small diagnostic around recovery data/action-target mismatch or observation/action semantics before spending more rollout-video jobs.
+Keep PWM paused. Stop simple yaw reweighting and choose the next small diagnostic around recovery-state coverage or observation/last-action semantics before spending more rollout-video jobs.
