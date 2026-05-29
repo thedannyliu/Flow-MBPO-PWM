@@ -522,7 +522,21 @@ Use these locations as the durable record before launching new work:
   - resources: `4` CPUs, `128G` memory, `01:00:00`
   - reason: A100 job `9324608` and H100 fallback `9324851` both remained pending for priority; smoke output locks protect the shared output directories.
   - status at submit check: `9324608`, `9324851`, and `9325185` all pending for priority
+- Flow-MBPO v0 H1 smoke diagnostics completed on L40S job `9325185`.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:29`, max RSS `13136712K`
+  - canceled duplicate pending jobs `9324608` and `9324851` after outputs were complete
+  - git logged by smoke summaries: `fac5d01`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.csv` and `.md`
+  - MLP reference ensemble H1: transitions `256`, reward mean `0.0127`, next-state delta L2 mean `0.3069`, next-state uncertainty mean `0.0306`, reward uncertainty mean `0.0282`, action L2 mean `0.3307`, predicted done `0.000`
+  - Flow endpoint ensemble H1: transitions `256`, reward mean `0.1409`, next-state delta L2 mean `0.2743`, next-state uncertainty mean `0.0263`, reward uncertainty mean `0.0307`, action L2 mean `0.3280`, predicted done `0.000`
+  - interpretation: the synthetic-buffer path works for existing MLP and Flow endpoint ensembles and produces bounded one-step diagnostics. Flow endpoint is slightly lower delta/next-state-uncertainty and higher synthetic reward on this smoke sample, but this is diagnostic only and is not a policy-improvement claim.
+- Prepared conservative replay buffers from both completed H1 smoke buffers.
+  - MLP replay: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/mlp_ref_ensemble_seed0_h1_unc0p5_q0p90/`
+  - Flow endpoint replay: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90/`
+  - settings: `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, transitions `256`
+  - MLP conservative replay: raw reward mean `0.0127`, conservative reward mean `-0.0167`, uncertainty mean `0.0587`, uncertainty p90 `0.1257`, uncertainty-done fraction `0.1016`
+  - Flow conservative replay: raw reward mean `0.1409`, conservative reward mean `0.1124`, uncertainty mean `0.0570`, uncertainty p90 `0.1111`, uncertainty-done fraction `0.1016`
 
 ## Next Action
 
-Keep PWM paused. Wait for either Flow-MBPO v0 smoke job to produce `summary.json` and `synthetic_buffer.pt`, then inspect MLP-vs-Flow synthetic reward, next-state delta, and uncertainty diagnostics. If bounded, prepare conservative replay from the selected smoke buffer before implementing or launching any policy update.
+Keep PWM paused. The H1 smoke and conservative replay path are now validated. Next implement the smallest model-free policy-update step that consumes mixed real/synthetic batches from the BC warm start, with W&B enabled for formal runs and real MJLab eval/video as the only policy-improvement gate.
