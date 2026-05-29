@@ -480,6 +480,13 @@ Priority shift:
   - design: `docs/design/flow_mbpo_v0.md`
   - smoke script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py`
   - purpose: produce bounded short-horizon synthetic rollout diagnostics from real dataset states using existing MLP/Flow WM checkpoints and a BC-warmstarted actor before any new policy update.
+- Submitted Flow-MBPO v0 synthetic-buffer smoke diagnostics.
+  - Slurm job: `9324608`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - W&B: disabled
+  - runs in one allocation: MLP reference WM ensemble H1 smoke, then Flow endpoint WM ensemble H1 smoke
+  - output dirs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/mlp_ref_ensemble_seed0_h1` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1`
+  - purpose: verify synthetic buffer generation and uncertainty diagnostics before implementing any policy update.
 
 ## Next Action
 
