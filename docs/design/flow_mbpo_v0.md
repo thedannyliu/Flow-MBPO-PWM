@@ -99,6 +99,25 @@ python scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py \
   --uncertainty-quantile-termination 0.90
 ```
 
+The first model-free policy-update implementation slice is AWR-style weighted
+behavior regression on mixed real/synthetic batches:
+
+```bash
+python scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py \
+  --dataset scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt \
+  --metadata scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json \
+  --normalization scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json \
+  --policy-checkpoint scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final_policy_extraction.pt \
+  --synthetic-replay scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90/synthetic_replay.pt \
+  --output-dir scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_smoke \
+  --update-iters 1000 \
+  --enable-wandb
+```
+
+This script writes a final actor and a training-loss snapshot. The training-loss
+snapshot is not a true best actor; a formal claim still requires real-eval-based
+best selection plus final/best real eval and videos.
+
 ## Formal v0 Run Gate
 
 Run one formal seed on `embers` only after the smoke path passes:

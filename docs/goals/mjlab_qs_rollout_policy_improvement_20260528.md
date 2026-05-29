@@ -536,7 +536,14 @@ Use these locations as the durable record before launching new work:
   - settings: `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, transitions `256`
   - MLP conservative replay: raw reward mean `0.0127`, conservative reward mean `-0.0167`, uncertainty mean `0.0587`, uncertainty p90 `0.1257`, uncertainty-done fraction `0.1016`
   - Flow conservative replay: raw reward mean `0.1409`, conservative reward mean `0.1124`, uncertainty mean `0.0570`, uncertainty p90 `0.1111`, uncertainty-done fraction `0.1016`
+- Added the first model-free policy-update infrastructure for Flow-MBPO v0.
+  - script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - objective: AWR-style weighted behavior regression on mixed real dataset actions and conservative synthetic replay actions
+  - safeguards: BC anchor loss, advantage-temperature and weight clipping, synthetic done masking, output completion check, and output lock
+  - outputs: `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `summary.json`
+  - caveat: the current `best_policy_extraction.pt` is selected by training loss only and is marked `is_true_best_snapshot=False`; a formal policy-improvement run still needs real-eval-based best selection and final/best real eval/videos.
+  - validation: py-compile, CLI help, `/tmp` fake dataset/checkpoint/replay two-iteration run, checkpoint load check, and completion-skip check
 
 ## Next Action
 
-Keep PWM paused. The H1 smoke and conservative replay path are now validated. Next implement the smallest model-free policy-update step that consumes mixed real/synthetic batches from the BC warm start, with W&B enabled for formal runs and real MJLab eval/video as the only policy-improvement gate.
+Keep PWM paused. The H1 smoke, conservative replay path, and first AWR update script are now in place. Next run a W&B-disabled full-data AWR smoke on `embers`; if it writes checkpoints cleanly, add real-eval-based best selection before launching any formal W&B policy-improvement run.
