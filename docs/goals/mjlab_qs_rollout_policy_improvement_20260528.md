@@ -543,7 +543,18 @@ Use these locations as the durable record before launching new work:
   - outputs: `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `summary.json`
   - caveat: the current `best_policy_extraction.pt` is selected by training loss only and is marked `is_true_best_snapshot=False`; a formal policy-improvement run still needs real-eval-based best selection and final/best real eval/videos.
   - validation: py-compile, CLI help, `/tmp` fake dataset/checkpoint/replay two-iteration run, checkpoint load check, and completion-skip check
+- Ran a W&B-disabled full-data Flow-MBPO v0 AWR update smoke.
+  - Slurm job: `9325565`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:11`, max RSS `6973236K`
+  - git logged by summary: `7dd5c0c`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_smoke20/`
+  - inputs: expert+noisy uniform BC seed0 final checkpoint and Flow endpoint conservative replay `flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90`
+  - settings: `update_iters=20`, real batch `128`, synthetic batch `128`, actor LR `1e-5`, `bc_anchor_weight=0.1`, W&B disabled
+  - final metrics at iter 20: loss `0.0006066`, real loss `0.0005496`, synthetic loss `0.00000178`, BC anchor loss `0.0005523`, real reward mean `0.0813`, synthetic conservative reward mean `0.1167`, synthetic done fraction in batch `0.0781`
+  - wrote `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `summary.json`; checkpoint load check passed
+  - interpretation: the full-data mixed real/synthetic AWR update path works mechanically. This remains a smoke test only; no real MJLab eval or video has been run, and the best checkpoint is not real-eval-selected.
 
 ## Next Action
 
-Keep PWM paused. The H1 smoke, conservative replay path, and first AWR update script are now in place. Next run a W&B-disabled full-data AWR smoke on `embers`; if it writes checkpoints cleanly, add real-eval-based best selection before launching any formal W&B policy-improvement run.
+Keep PWM paused. The H1 smoke, conservative replay path, and first full-data AWR update smoke are now in place. Next add real-eval-based best selection/evaluation plumbing for Flow-MBPO v0 before launching a formal W&B policy-improvement run.
