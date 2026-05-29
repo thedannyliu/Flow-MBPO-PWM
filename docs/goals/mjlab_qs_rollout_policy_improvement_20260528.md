@@ -7,6 +7,23 @@ Branch: `mjlab-qs-rollout-policy-improvement`
 
 Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-first evidence. Use prior completed work as evidence where it already satisfies the goal, especially `docs/phaseA/pwm_extension_submission_20260507.md` and `docs/plans/mjlab_pwm_flow_next_steps_20260528.md`.
 
+## 2026-05-29 Direction Update
+
+The next phase should stop expanding low-value BC/data micro-debugging and move toward the high-value Flow-MBPO track in `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md` and `docs/design/flow_mbpo_v0.md`.
+
+Research question:
+
+> Can Flow-based world models provide useful short-horizon synthetic rollouts for real policy improvement in Velocity Flat Unitree G1, beyond better imagined return or lower world-model loss?
+
+Priority shift:
+
+- Keep collector/reference and BC baselines as rollout-first anchors.
+- Treat BC as the warm start and minimum baseline, not the main research endpoint.
+- Do not spend major effort on more yaw weighting, reset weighting, small action smoothing sweeps, or medium-data mixing unless directly required to unblock Flow-MBPO.
+- Implement Flow-MBPO v0: model ensembles generate conservative short synthetic rollouts from real dataset states; a BC-warmstarted policy is updated with model-free SAC/AWAC/PPO-style losses on mixed real/synthetic batches.
+- Add uncertainty penalties, uncertainty early termination, rollout-horizon sweep, real/synthetic ratio sweep, and real-eval-based stopping before broad method expansion.
+- Success still requires real MJLab eval, rollout MP4/W&B videos, return, episode length, fall rate, and comparison to collector/reference/BC baselines.
+
 ## Current Evidence
 
 - Collector/reference rollouts exist with W&B videos and MP4s. Expert collector return is `82.6090`, length is `1000.00`, and fall rate is `0.000`.
@@ -461,4 +478,4 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
 
 ## Next Action
 
-Keep PWM paused. Run a small terminal-state eval manifest for uniform BC and resetw25 final checkpoints, then compare terminal/fall state summaries before deciding whether to add recovery data or change the IL method.
+Keep PWM paused. Build the smallest Flow-MBPO v0 smoke path: shared synthetic-transition API for existing MLP/Flow world models, short synthetic rollouts from real dataset states, uncertainty diagnostics, and a saved synthetic buffer report with W&B disabled. Only after bounded smoke diagnostics should a formal one-seed Flow-MBPO v0 run be launched on `embers`.
