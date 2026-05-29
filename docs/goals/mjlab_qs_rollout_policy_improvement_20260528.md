@@ -441,7 +441,12 @@ Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-f
   - command: `scripts/experiments/mjlab_qs/submit_array.sh --kind policy_extract --manifest scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_resetw25_mlp50k_20260528.csv --gpu-type A100 --partition gpu-a100 --qos embers --max-concurrent 1 --time 04:00:00 --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python`
   - initial scheduler state: pending for priority
   - purpose: produce 40-episode real-eval scalar evidence and final/best actor checkpoints before deciding whether videos are warranted.
+- Submitted H100 fallback for the same reset-start BC extraction manifest.
+  - Slurm job: `9304809`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - array: `0-2%1`
+  - reason: A100 job `9304777` remained pending for priority; runner lock and completion checks protect duplicate output directories.
 
 ## Next Action
 
-Keep PWM paused. Monitor reset-start weighting job `9304777`; compare its 40-episode real-eval return, length, fall rate, and final/best checkpoints against the expert+noisy uniform BC baseline before deciding whether any rollout-video job is warranted.
+Keep PWM paused. Monitor reset-start weighting jobs `9304777` and `9304809`; compare the completed 40-episode real-eval return, length, fall rate, and final/best checkpoints against the expert+noisy uniform BC baseline before deciding whether any rollout-video job is warranted.
