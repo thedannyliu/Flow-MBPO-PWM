@@ -566,7 +566,13 @@ Use these locations as the durable record before launching new work:
   - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_realeval_smoke2/`
   - settings: `update_iters=2`, `real_eval_every=2`, `real_eval_episodes=2`, `real_eval_num_envs=2`, W&B disabled
   - purpose: verify that `best_policy_extraction.pt` becomes a real-eval-selected true snapshot before any formal W&B run
+- Tiny real-eval AWR smoke job `9325783` completed successfully.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:52`, max RSS `8331412K`
+  - git logged by summary: `fea6e5d`
+  - real-eval plumbing result over 2 episodes: return `84.5692`, length `1000.00`, fall `0.000`, timeout `1.000`
+  - checkpoints: final checkpoint wrote normally; best checkpoint is `checkpoint_kind=best_real_eval` and `is_true_best_snapshot=True`
+  - interpretation: real-eval-based best snapshot selection works mechanically for Flow-MBPO v0 AWR. The 2-episode scalar result is not a policy-improvement claim and still needs formal W&B run, 40-episode eval, and rollout videos.
 
 ## Next Action
 
-Keep PWM paused. Wait for real-eval smoke job `9325783`; if it succeeds and writes a true-best checkpoint, inspect the scalar result only as a plumbing check, then prepare the first formal one-seed W&B Flow-MBPO v0 AWR run with real eval and videos.
+Keep PWM paused. Prepare the first formal one-seed W&B Flow-MBPO v0 AWR run with real-eval best selection, then run 40-episode eval and rollout videos for final plus true-best checkpoints before making any policy-improvement claim.
