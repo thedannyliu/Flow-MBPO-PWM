@@ -560,7 +560,13 @@ Use these locations as the durable record before launching new work:
   - behavior: when real eval is enabled, the script evaluates the actor every `N` update iterations and at the final iteration, selects the best snapshot by real return, and saves `best_policy_extraction.pt` with `checkpoint_kind=best_real_eval` and `is_true_best_snapshot=True`
   - when real eval is disabled, behavior remains smoke-safe: best is selected by training loss and marked `is_true_best_snapshot=False`
   - validation so far: py-compile, CLI help, and `/tmp` fake-data run with real eval disabled confirmed the non-real-eval path still writes final plus non-true-best checkpoints
+- Submitted a tiny W&B-disabled real-eval AWR smoke to validate true-best checkpoint plumbing.
+  - Slurm job: `9325783`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_realeval_smoke2/`
+  - settings: `update_iters=2`, `real_eval_every=2`, `real_eval_episodes=2`, `real_eval_num_envs=2`, W&B disabled
+  - purpose: verify that `best_policy_extraction.pt` becomes a real-eval-selected true snapshot before any formal W&B run
 
 ## Next Action
 
-Keep PWM paused. The H1 smoke, conservative replay path, first full-data AWR update smoke, and real-eval-based best-selection plumbing are now in place. Next run a W&B-disabled tiny real-eval AWR smoke on `embers` to verify the true-best checkpoint path before launching a formal W&B policy-improvement run.
+Keep PWM paused. Wait for real-eval smoke job `9325783`; if it succeeds and writes a true-best checkpoint, inspect the scalar result only as a plumbing check, then prepare the first formal one-seed W&B Flow-MBPO v0 AWR run with real eval and videos.
