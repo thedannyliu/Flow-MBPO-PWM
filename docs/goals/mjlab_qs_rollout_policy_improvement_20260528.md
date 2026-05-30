@@ -572,7 +572,16 @@ Use these locations as the durable record before launching new work:
   - real-eval plumbing result over 2 episodes: return `84.5692`, length `1000.00`, fall `0.000`, timeout `1.000`
   - checkpoints: final checkpoint wrote normally; best checkpoint is `checkpoint_kind=best_real_eval` and `is_true_best_snapshot=True`
   - interpretation: real-eval-based best snapshot selection works mechanically for Flow-MBPO v0 AWR. The 2-episode scalar result is not a policy-improvement claim and still needs formal W&B run, 40-episode eval, and rollout videos.
+- Submitted the first formal one-seed Flow-MBPO v0 AWR run.
+  - Slurm job: `9325942`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-20260529`
+  - W&B group/name: `flow_endpoint_h1_unc0p5_q0p90_formal_s0` / `flow_endpoint_h1_unc0p5_q0p90_seed0_awr1k`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/`
+  - settings: Flow endpoint H1 conservative replay, seed `0`, `update_iters=1000`, real batch `128`, synthetic batch `128`, actor LR `1e-5`, `bc_anchor_weight=0.1`, `real_eval_every=500`, `real_eval_episodes=8`, `real_eval_num_envs=16`
+  - initial scheduler state: pending for priority
+  - note: this is the first formal training run only. It still requires separate 40-episode final/true-best eval and rollout videos before any policy-improvement claim.
 
 ## Next Action
 
-Keep PWM paused. Prepare the first formal one-seed W&B Flow-MBPO v0 AWR run with real-eval best selection, then run 40-episode eval and rollout videos for final plus true-best checkpoints before making any policy-improvement claim.
+Keep PWM paused. Wait for formal AWR job `9325942`; if it completes, inspect W&B/checkpoints, then run 40-episode eval and rollout videos for final plus true-best checkpoints before making any policy-improvement claim.
