@@ -23,6 +23,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from scripts.experiments.mjlab_qs.render_policy_rollout import build_actor, command_line, git_branch, git_sha  # noqa: E402
+from scripts.experiments.mjlab_qs.run_offline_pwm_policy_extraction import real_env_eval  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,6 +47,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
     p.add_argument("--quality-filter", default="expert,expert_noisy")
     p.add_argument("--log-every", type=int, default=100)
+    p.add_argument("--real-eval-every", type=int, default=0)
+    p.add_argument("--real-eval-episodes", type=int, default=8)
+    p.add_argument("--real-eval-num-envs", type=int, default=16)
+    p.add_argument("--episode-length", type=int, default=1000)
+    p.add_argument("--task-id", default="Mjlab-Velocity-Flat-Unitree-G1")
+    p.add_argument("--command-dim", type=int, default=3)
+    p.add_argument("--command-position", choices=["tail", "head", "none"], default="tail")
     p.add_argument("--enable-wandb", action="store_true")
     p.add_argument("--wandb-project", default="flow-mbpo-mjlab-flow-mbpo-v0-awr")
     p.add_argument("--wandb-group", default="")
@@ -142,6 +150,37 @@ def weighted_mse(pred: torch.Tensor, target: torch.Tensor, weights: torch.Tensor
     return (per_row * weights).sum() / weights.sum().clamp_min(1.0e-8)
 
 
+def eval_namespace(args: argparse.Namespace) -> argparse.Namespace:
+    return argparse.Namespace(
+        task_id=args.task_id,
+        eval_num_envs=int(args.real_eval_num_envs),
+        eval_episodes=int(args.real_eval_episodes),
+        episode_length=int(args.episode_length),
+        command_dim=int(args.command_dim),
+        command_position=args.command_position,
+        device=args.device,
+        seed=int(args.seed),
+    )
+
+
+@torch.no_grad()
+def real_eval_snapshot(
+    actor,
+    args: argparse.Namespace,
+    nrm: dict[str, torch.Tensor],
+    device: torch.device,
+    iteration: int,
+) -> dict[str, float | str]:
+    was_training = actor.training
+    actor.eval()
+    summary = real_env_eval(actor, eval_namespace(args), nrm, device)
+    if was_training:
+        actor.train()
+    out: dict[str, float | str] = {f"real_eval/{key}": value for key, value in summary.items()}
+    out["real_eval/iter"] = float(iteration)
+    return out
+
+
 def main() -> None:
     args = parse_args()
     torch.manual_seed(args.seed)
@@ -200,7 +239,10 @@ def main() -> None:
         )
 
     best_loss = float("inf")
-    best_actor = None
+    best_loss_actor = None
+    best_real_return = -float("inf")
+    best_real_eval: dict[str, float | str] | None = None
+    best_real_actor = None
     last_metrics: dict[str, float] = {}
     for it in range(1, int(args.update_iters) + 1):
         rz, rc, ra, rr = sample_real_batch(data, real_indices, nrm, int(args.real_batch_size), device)
@@ -221,7 +263,7 @@ def main() -> None:
         loss_value = float(loss.detach().item())
         if loss_value < best_loss:
             best_loss = loss_value
-            best_actor = {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}
+            best_loss_actor = {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}
         if it == 1 or it == int(args.update_iters) or it % int(args.log_every) == 0:
             last_metrics = {
                 "awr/iter": float(it),
@@ -240,6 +282,16 @@ def main() -> None:
             print(json.dumps(last_metrics, sort_keys=True), flush=True)
             if run is not None:
                 run.log(last_metrics, step=it)
+        if int(args.real_eval_every) > 0 and (it == int(args.update_iters) or it % int(args.real_eval_every) == 0):
+            eval_metrics = real_eval_snapshot(actor, args, nrm, device, it)
+            print(json.dumps(eval_metrics, sort_keys=True), flush=True)
+            if run is not None:
+                run.log(eval_metrics, step=it)
+            real_return = float(eval_metrics["real_eval/return_mean"])
+            if real_return > best_real_return:
+                best_real_return = real_return
+                best_real_eval = eval_metrics
+                best_real_actor = {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}
 
     ckpt_args = dict(policy_ckpt.get("args", {}))
     ckpt_args.update(
@@ -264,14 +316,25 @@ def main() -> None:
         },
         final_checkpoint,
     )
-    torch.save(
-        {
-            "actor": best_actor if best_actor is not None else actor.state_dict(),
+    best_payload: dict[str, Any]
+    if best_real_actor is not None:
+        best_payload = {
+            "actor": best_real_actor,
+            "args": ckpt_args,
+            "checkpoint_kind": "best_real_eval",
+            "is_true_best_snapshot": True,
+            "best_real_eval": best_real_eval,
+        }
+    else:
+        best_payload = {
+            "actor": best_loss_actor if best_loss_actor is not None else actor.state_dict(),
             "args": ckpt_args,
             "checkpoint_kind": "best_training_loss",
             "is_true_best_snapshot": False,
-            "note": "Best is selected by AWR training loss only; real-eval best must be selected by formal eval.",
-        },
+            "note": "Best is selected by AWR training loss only; enable --real-eval-every for true best.",
+        }
+    torch.save(
+        best_payload,
         best_checkpoint,
     )
     summary: dict[str, Any] = config | {
@@ -279,6 +342,9 @@ def main() -> None:
         "final_checkpoint": str(final_checkpoint),
         "best_checkpoint": str(best_checkpoint),
         "best_training_loss": best_loss,
+        "best_real_return": best_real_return if math.isfinite(best_real_return) else None,
+        "best_real_eval": best_real_eval,
+        "best_is_true_snapshot": best_real_actor is not None,
         "last_metrics": last_metrics,
         "synthetic_reward_conservative": summarize_tensor(replay["reward_conservative"]),
         "synthetic_done_fraction": float(replay["done"].float().mean().item()),

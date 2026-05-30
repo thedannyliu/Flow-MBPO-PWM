@@ -114,9 +114,11 @@ python scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py \
   --enable-wandb
 ```
 
-This script writes a final actor and a training-loss snapshot. The training-loss
-snapshot is not a true best actor; a formal claim still requires real-eval-based
-best selection plus final/best real eval and videos.
+This script writes a final actor and, by default, a training-loss snapshot. Add
+`--real-eval-every <N>` to run periodic real MJLab eval during the update; in
+that mode `best_policy_extraction.pt` is a true real-eval-selected snapshot and
+is marked `is_true_best_snapshot=true`. A formal claim still requires final and
+true-best 40-episode real eval plus rollout videos.
 
 ## Formal v0 Run Gate
 

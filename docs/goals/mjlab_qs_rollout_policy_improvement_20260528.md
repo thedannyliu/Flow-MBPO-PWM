@@ -554,7 +554,13 @@ Use these locations as the durable record before launching new work:
   - final metrics at iter 20: loss `0.0006066`, real loss `0.0005496`, synthetic loss `0.00000178`, BC anchor loss `0.0005523`, real reward mean `0.0813`, synthetic conservative reward mean `0.1167`, synthetic done fraction in batch `0.0781`
   - wrote `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `summary.json`; checkpoint load check passed
   - interpretation: the full-data mixed real/synthetic AWR update path works mechanically. This remains a smoke test only; no real MJLab eval or video has been run, and the best checkpoint is not real-eval-selected.
+- Added optional real-eval-based best snapshot selection to the Flow-MBPO v0 AWR update path.
+  - option: `--real-eval-every N`
+  - eval controls: `--real-eval-episodes`, `--real-eval-num-envs`, `--episode-length`, `--task-id`, `--command-dim`, and `--command-position`
+  - behavior: when real eval is enabled, the script evaluates the actor every `N` update iterations and at the final iteration, selects the best snapshot by real return, and saves `best_policy_extraction.pt` with `checkpoint_kind=best_real_eval` and `is_true_best_snapshot=True`
+  - when real eval is disabled, behavior remains smoke-safe: best is selected by training loss and marked `is_true_best_snapshot=False`
+  - validation so far: py-compile, CLI help, and `/tmp` fake-data run with real eval disabled confirmed the non-real-eval path still writes final plus non-true-best checkpoints
 
 ## Next Action
 
-Keep PWM paused. The H1 smoke, conservative replay path, and first full-data AWR update smoke are now in place. Next add real-eval-based best selection/evaluation plumbing for Flow-MBPO v0 before launching a formal W&B policy-improvement run.
+Keep PWM paused. The H1 smoke, conservative replay path, first full-data AWR update smoke, and real-eval-based best-selection plumbing are now in place. Next run a W&B-disabled tiny real-eval AWR smoke on `embers` to verify the true-best checkpoint path before launching a formal W&B policy-improvement run.
