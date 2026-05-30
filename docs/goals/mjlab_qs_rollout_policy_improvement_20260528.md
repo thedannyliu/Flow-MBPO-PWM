@@ -581,7 +581,29 @@ Use these locations as the durable record before launching new work:
   - settings: Flow endpoint H1 conservative replay, seed `0`, `update_iters=1000`, real batch `128`, synthetic batch `128`, actor LR `1e-5`, `bc_anchor_weight=0.1`, `real_eval_every=500`, `real_eval_episodes=8`, `real_eval_num_envs=16`
   - initial scheduler state: pending for priority
   - note: this is the first formal training run only. It still requires separate 40-episode final/true-best eval and rollout videos before any policy-improvement claim.
+- Formal one-seed Flow-MBPO v0 AWR training job `9325942` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:44`, max RSS `8347388K`
+  - W&B run: `onx7k5bo`
+  - 8-episode real eval during training was weak: iter500 return `20.8623`, length `292.875`, fall `1.000`; iter1000 return `17.5540`, length `263.75`, fall `1.000`
+  - best checkpoint was selected by real eval at iter `500` and is marked `is_true_best_snapshot=True`
+  - interpretation: training-time 8-episode eval suggested collapse, so independent 40-episode eval was required before deciding whether videos were warranted.
+- Formal 40-episode eval for Flow-MBPO v0 AWR seed0 completed on job `9326058`.
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:01:35`, max RSS `7842324K`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-eval40-20260529`
+  - W&B final/best runs: `kjv0wbco`, `kxsus0py`
+  - final checkpoint 40-episode eval: return `42.3442`, length `555.65`, fall `0.725`, timeout `0.275`
+  - true-best checkpoint 40-episode eval: return `57.2850`, length `734.28`, fall `0.500`, timeout `0.500`
+  - comparison: expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: final underperforms BC, but true-best exceeds the BC scalar baseline on return, episode length, and fall rate for seed0. This is promising but not yet a policy-improvement claim because rollout MP4/W&B videos are still required and this is one seed.
+- Submitted 1000-step rollout-video rendering for the Flow-MBPO v0 AWR seed0 final and true-best checkpoints.
+  - Slurm job: `9348826`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-rollout1000-20260530`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/`
+  - settings: final and best checkpoints, `3` rollout episodes each, `max_steps=1000`
+  - initial scheduler state: configuring/running
 
 ## Next Action
 
-Keep PWM paused. Wait for formal AWR job `9325942`; if it completes, inspect W&B/checkpoints, then run 40-episode eval and rollout videos for final plus true-best checkpoints before making any policy-improvement claim.
+Keep PWM paused. Wait for rollout-video job `9348826`; if videos complete and true-best rollout is visually and quantitatively no worse than BC, then repeat the formal Flow-MBPO v0 AWR protocol on additional seeds before any broader claim.
