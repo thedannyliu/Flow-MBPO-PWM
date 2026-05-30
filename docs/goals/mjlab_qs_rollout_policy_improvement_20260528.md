@@ -603,7 +603,14 @@ Use these locations as the durable record before launching new work:
   - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/`
   - settings: final and best checkpoints, `3` rollout episodes each, `max_steps=1000`
   - initial scheduler state: configuring/running
+- Flow-MBPO v0 AWR seed0 rollout-video job `9348826` completed.
+  - status: `COMPLETED`, elapsed `00:02:14`, max RSS `15267216K`
+  - W&B final/best rollout runs: `aytmeezx`, `s6hrz7l1`
+  - final video rollout: return `34.9697`, length `425.00`, fall `0.667`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/final/rollout.mp4`
+  - true-best video rollout: return `34.8502`, length `424.00`, fall `0.667`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best/rollout.mp4`
+  - comparison: expert+noisy uniform BC 1000-step rollout final baseline was return `41.8965`, length `547.78`, fall `0.667`
+  - interpretation: the 40-episode true-best scalar eval beat the BC scalar baseline, but the required rollout-video evidence did not preserve BC return/length. This fails the current claim gate. Do not claim policy improvement and do not expand to more seeds until the eval/video mismatch and AWR update sensitivity are understood.
 
 ## Next Action
 
-Keep PWM paused. Wait for rollout-video job `9348826`; if videos complete and true-best rollout is visually and quantitatively no worse than BC, then repeat the formal Flow-MBPO v0 AWR protocol on additional seeds before any broader claim.
+Keep PWM paused. Treat Flow-MBPO v0 AWR seed0 as a mixed result: scalar 40-episode best improved, but video rollout failed. Next diagnose the eval/video discrepancy and reduce update aggressiveness or synthetic influence before expanding seeds.
