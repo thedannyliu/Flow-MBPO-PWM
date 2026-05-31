@@ -694,9 +694,14 @@ Use these locations as the durable record before launching new work:
   - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0/`
   - settings: same conservative AWR setup as job `9349145`, but with `real_eval_every=100` so future candidate ranking can include snapshots at iter100/200/300/400/500 plus final and best-training-loss
   - initial scheduler state: pending for priority
+- Added a candidate eval/render plan generator for Flow-MBPO AWR outputs.
+  - script: `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`
+  - behavior: scans an AWR output directory for `final`, `best`, `best_training_loss`, and `real_eval_snapshots/*_policy_extraction.pt`, then writes CSV and shell-command plans for 40-episode eval plus 10-episode rollout-video rendering
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`; `PYTHONPATH=$PWD/src:$PWD ... build_flow_mbpo_candidate_eval_plan.py --help`
+  - plan-check report for the existing conservative run: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_s0.csv` and `.sh`; found `2` candidates (`final`, `best`)
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Wait for snapshot-enabled AWR follow-up job `9349421`; then verify that `best_training_loss_policy_extraction.pt` and `real_eval_snapshots/iter_*.pt` were saved. Evaluate/rank those candidates with `rank_flow_mbpo_candidate_evidence.py` before deciding whether any checkpoint deserves more seeds.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Wait for snapshot-enabled AWR follow-up job `9349421`; then verify that `best_training_loss_policy_extraction.pt` and `real_eval_snapshots/iter_*.pt` were saved. Use `build_flow_mbpo_candidate_eval_plan.py` to generate eval/render commands for the candidate pool, execute the plan on `embers` with W&B enabled, and rank the resulting evidence with `rank_flow_mbpo_candidate_evidence.py` before deciding whether any checkpoint deserves more seeds.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
