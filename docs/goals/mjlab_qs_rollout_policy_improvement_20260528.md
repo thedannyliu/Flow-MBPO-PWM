@@ -887,11 +887,19 @@ Use these locations as the durable record before launching new work:
   - smoke settings: existing 5k trajectory/chunk H3 synthetic buffer, `lambda_uncertainty=0.5`, `lambda_fall=5.0`, uncertainty q90 termination, done/fall thresholds `0.5`, post-done truncation enabled
   - smoke result: transitions `768`, conservative reward mean `-0.053116`, uncertainty-done `0.100260`, final done `0.130208`, `fall_prob` mean `3.43e-7`, max `8.98e-6`, fall-done `0.000`
   - interpretation: the v1 replay schema now supports fall pessimism, but the current trajectory/chunk done/fall proxy is still collapsed near zero, so `lambda_fall` has almost no effect on this replay. The next method work must repair/calibrate the fall signal or use a separate support/OOD/conservative-Q signal before another formal policy update.
+- Added and ran a raw done/fall label audit.
+  - script: `scripts/experiments/mjlab_qs/analyze_mjlab_qs_done_fall_labels.py`
+  - report: `scripts/outputs/mjlab_qs/reports/done_fall_label_audit_20260531/done_fall_label_audit.md`, `.csv`, and `.json`
+  - method: load raw episode shards one at a time, avoiding the `5.7G` full window tensor; reuse the window builder's `valid_starts` rule with horizon `16`, stride `4`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/analyze_mjlab_qs_done_fall_labels.py`; CLI help
+  - result: `random_smooth`, `medium`, `expert`, and `expert_noisy` all have `done_transition_count=0`, `termination_transition_count=0`, `truncation_transition_count=0`, `fall_episode_rate=0`, `terminal_window_rate=0`, and `fall_window_rate=0`
+  - valid windows audited: random_smooth `915`, medium `37326`, expert `250009`, expert_noisy `62801`
+  - interpretation: the trajectory/chunk done/fall head collapsed because the current QS dataset contains no positive terminal/fall labels at all. Increasing `done_loss_weight` on this dataset cannot calibrate a fall head. Pessimistic v1 must either collect/include fall-positive or near-fall data, derive a state-based support/fall-risk proxy, or use OOD/conservative-Q pessimism instead of trusting model done.
 
 ## Next Action
 
 Keep PWM paused and do not claim general policy improvement. Adopt the top-conference Flow-MBPO v1 plan in `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` and `docs/design/flow_mbpo_v1_pessimistic.md` as the active method direction. The 0531 dated source notes are in `docs/goals/0531/`.
 
-Lower synthetic ratio alone did not lower matched video fall rate, and v1 replay smoke confirms the current trajectory/chunk fall proxy is collapsed near zero. The next method step should calibrate or repair the done/fall signal before trusting model termination, and add a KL/action-deviation constraint or conservative-Q fallback around trajectory/chunk H3. Run W&B-disabled smoke first, then one formal W&B seed on `embers`, and require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion.
+Lower synthetic ratio alone did not lower matched video fall rate, and v1 replay/dataset audits confirm the current trajectory/chunk fall proxy is collapsed because the QS data has no positive done/fall labels. The next method step should stop treating the learned done head as a usable safety signal on this dataset. Add fall-positive/near-fall data or a state/support/OOD risk proxy, and add a KL/action-deviation constraint or conservative-Q fallback around trajectory/chunk H3. Run W&B-disabled smoke first, then one formal W&B seed on `embers`, and require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.

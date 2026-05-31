@@ -112,6 +112,14 @@ If the done/fall head predicts near-zero for all rollout starts, do not treat it
 as a safety signal. First add class-balanced done/fall loss, near-fall
 oversampling, or auxiliary height/contact targets.
 
+Current 2026-05-31 label audit found that the existing QS raw shards have zero
+positive `done`, `termination`, and `truncation` labels across random_smooth,
+medium, expert, and expert_noisy. On this dataset, class balancing or a larger
+done-loss weight alone cannot calibrate fall prediction because there are no
+positive labels. Use fall-positive collection, near-fall/recovery data, a
+state/support/OOD risk proxy, or conservative-Q pessimism before trusting
+model-done termination.
+
 ## Policy Update
 
 Start from the strongest expert+noisy uniform BC checkpoint.
