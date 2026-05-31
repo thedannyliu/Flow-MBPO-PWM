@@ -620,7 +620,20 @@ Use these locations as the durable record before launching new work:
   - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-rollout1000-20260530`
   - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best_roll10/`
   - purpose: diagnose whether the failed 3-episode video gate is sample variance; this is not seed expansion and is not a policy-improvement claim.
+- Best-checkpoint 10-episode 1000-step rollout diagnostic `9348911` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:02:02`, max RSS `10070764K`
+  - W&B run: `okln1ewq`
+  - summary: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best_roll10/summary.json`
+  - MP4: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best_roll10/rollout.mp4`
+  - metrics: return `48.2876`, length `642.70`, fall `0.600`, return std `27.8551`, frames `6427`
+  - comparison: expert+noisy uniform BC 1000-step rollout final baseline was return `41.8965`, length `547.78`, fall `0.667`
+  - interpretation: the 10-episode best-only video diagnostic is more supportive than the earlier 3-episode video sample and clears the BC 1000-step rollout baseline on return, episode length, and fall rate for this seed0 true-best checkpoint. This still does not justify a broad policy-improvement claim because it is one seed, the final checkpoint remains weak, and the 3-episode video sample showed high variance.
 
 ## Next Action
 
-Keep PWM paused. Wait for best-only 10-episode rollout diagnostic `9348911`. If it remains below BC rollout, reduce AWR update aggressiveness or synthetic influence before any more seed expansion.
+Keep PWM paused. The seed0 Flow-MBPO v0 AWR true-best checkpoint now clears the scalar 40-episode BC baseline and the 10-episode video diagnostic baseline, but only as a one-seed, high-variance result. Before broad seed expansion, make the next step either:
+
+1. run a matched 10-episode BC seed0 rollout under the same render protocol to tighten the video comparison, or
+2. generate per-seed Flow endpoint H1 synthetic buffers/replays for seeds 1-2 before any seed1/seed2 AWR run, so seed expansion does not reuse seed0 actor-generated synthetic actions.
+
+Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
