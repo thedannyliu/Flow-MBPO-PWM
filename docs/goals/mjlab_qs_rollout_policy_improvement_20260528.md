@@ -732,9 +732,17 @@ Use these locations as the durable record before launching new work:
   - summary now records `truncate_rollouts_after_done` and `post_first_done_fraction`
   - validation: `python -m py_compile scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`; `PYTHONPATH=$PWD/src:$PWD python ... prepare_flow_mbpo_v0_synthetic_replay.py --help`; in-memory H3 truncation check; H1 replay preparation check at `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90_truncate_check/summary.json`
   - interpretation: this is infrastructure for the next H3/H5 trajectory or residual replay run, not evidence of policy improvement by itself
+- Submitted a Flow endpoint H3/H5 synthetic replay diagnostic to create a horizon-sweep baseline before changing the world-model class.
+  - Slurm job: `9350024`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - initial scheduler state: pending for priority
+  - inputs: expert+noisy uniform BC seed0 final policy and Flow endpoint WM ensemble seeds 0/1/2 from `rerun_a25_native_qs_g1stage4_expertboost_20260527`
+  - outputs: H3/H5 smoke buffers under `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h3/` and `_h5/`; truncated replay buffers under `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
+  - settings: `num_starts=256`, `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, `--truncate-rollouts-after-done`, W&B disabled
+  - interpretation: this is a diagnostic horizon-sweep baseline for endpoint rollouts, not a policy update and not policy-improvement evidence
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next useful work should change the method, not merely search more checkpoints from this run: generate H3/H5 trajectory or residual synthetic replay with `--truncate-rollouts-after-done`, then evaluate with the same matched BC scalar/video gates.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Monitor H3/H5 replay diagnostic job `9350024`. If the H3/H5 endpoint replay diagnostics are bounded, use them only as a baseline before adding trajectory/residual world-model training with the same `--truncate-rollouts-after-done` replay gate.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
