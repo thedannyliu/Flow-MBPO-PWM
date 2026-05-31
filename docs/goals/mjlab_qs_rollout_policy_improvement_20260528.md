@@ -610,7 +610,17 @@ Use these locations as the durable record before launching new work:
   - true-best video rollout: return `34.8502`, length `424.00`, fall `0.667`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best/rollout.mp4`
   - comparison: expert+noisy uniform BC 1000-step rollout final baseline was return `41.8965`, length `547.78`, fall `0.667`
   - interpretation: the 40-episode true-best scalar eval beat the BC scalar baseline, but the required rollout-video evidence did not preserve BC return/length. This fails the current claim gate. Do not claim policy improvement and do not expand to more seeds until the eval/video mismatch and AWR update sensitivity are understood.
+- Eval/video mismatch diagnostic:
+  - true-best 40-episode eval had `20 / 40` timeouts with median length `966.5`, but the 3-episode rollout video sample had only `1 / 3` timeout and two early falls around `130-142` steps.
+  - final 40-episode eval had `11 / 40` timeouts with median length `556.0`, while final 3-episode rollout had one timeout and two early falls around `137-138` steps.
+  - interpretation: the 3-episode video statistic is likely a high-variance sample of a mixed success/failure distribution. The video gate still fails as measured, but a best-only 10-episode rollout diagnostic is warranted to separate sampling noise from a systematic eval/render mismatch.
+- Submitted best-checkpoint 10-episode 1000-step rollout diagnostic.
+  - Slurm job: `9348911`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-rollout1000-20260530`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best_roll10/`
+  - purpose: diagnose whether the failed 3-episode video gate is sample variance; this is not seed expansion and is not a policy-improvement claim.
 
 ## Next Action
 
-Keep PWM paused. Treat Flow-MBPO v0 AWR seed0 as a mixed result: scalar 40-episode best improved, but video rollout failed. Next diagnose the eval/video discrepancy and reduce update aggressiveness or synthetic influence before expanding seeds.
+Keep PWM paused. Wait for best-only 10-episode rollout diagnostic `9348911`. If it remains below BC rollout, reduce AWR update aggressiveness or synthetic influence before any more seed expansion.
