@@ -318,3 +318,15 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     values mean it is still only a critic diagnostic. Tune CQL
     weight/temperature/random-action count, and consider lowering
     `critic_actor_weight`, before running any formal W&B seed.
+40. Done for actor-weight ablation. W&B-disabled Slurm job `9357054` repeated
+    the `100`-iteration random-action CQL smoke with `--critic-actor-weight 0.0`
+    and otherwise identical settings to job `9357006`. It completed on
+    `embers`, wrote actor checkpoints, and saved a loadable `final_q_critic.pt`.
+    Final metrics were critic loss `1.9366`, Bellman loss `0.08701`, CQL gap
+    `1.84959`, `Q(data)` mean `0.25059`, `Q(actor)` mean `0.25223`,
+    `Q(random)` mean `-0.42797`, and `Q(random)` max `0.73796`.
+41. Next method step: the actor-weight ablation shows the high random-action
+    max is almost unchanged when actor-Q pressure is removed. Use
+    `critic_actor_weight=0.0` as the safer critic-tuning default, and tune CQL
+    weight/temperature/random-action sampling before reintroducing actor-Q loss
+    or launching a formal W&B seed.

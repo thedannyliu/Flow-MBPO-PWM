@@ -422,3 +422,11 @@ from `0.1326` to `0.7369`, and `Q(actor)` rose with `Q(data)`. Treat this as a
 useful critic-training diagnostic, not a formal candidate. Before W&B formal
 eval, tune CQL weight, temperature, random-action count, and actor critic weight
 so the critic is conservative without creating high-valued random-action tails.
+
+The first actor-weight ablation ran in job `9357054` with
+`--critic-actor-weight 0.0` and otherwise identical settings to the 100-iteration
+random-action CQL smoke. Final CQL gap was `1.8496`, `Q(random)` mean was
+`-0.4280`, and `Q(random)` max was `0.7380`, nearly matching the actor-weight
+`0.01` run. This means the high random-action tail is mainly a critic/CQL
+sampling issue, not just actor optimization pressure. Keep actor critic weight
+off while tuning CQL weight, temperature, and sampled-action coverage.
