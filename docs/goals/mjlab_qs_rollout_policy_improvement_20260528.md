@@ -863,9 +863,24 @@ Use these locations as the durable record before launching new work:
   - best-real roll10: return `55.3382`, length `706.30`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/best_roll10/rollout.mp4`
   - comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
   - interpretation: this is the strongest trajectory/chunk Flow-MBPO result so far. AWR final passes the 40-episode scalar gate and both final/best-real roll10 videos improve return and length over matched BC final, but fall rate ties rather than improves. Under the strict gate, do not claim policy improvement yet and do not expand to seeds 1-2 as a success run.
+- Ran a lower-synthetic-ratio trajectory/chunk H3 AWR follow-up around the best current recipe.
+  - train Slurm job: `9354153`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:02:25`, max RSS `9227804K`
+  - W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v0-awr-trajchunk-20260531` / `c5eefi3r`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0/`
+  - settings: same BC seed0 final warm start and same H3 trajectory/chunk replay as above, `update_iters=500`, real batch `240`, synthetic batch `16`, BC anchor `1.0`, actor LR `1e-5`, real eval every `100` iters with `8` episodes
+  - training-time best-real snapshot: iter `100`, return `19.2824`, length `289.75`, fall `1.000`; final iter `500` real eval return `17.0372`, length `253.50`, fall `1.000`
+  - eval/render Slurm job: `9354204`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:08:12`, max RSS `9727988K`
+  - eval W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v0-awr-eval40-trajchunk-20260531`; final `r1277g19`, best-real `262xaocp`
+  - rollout W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v0-rollout-trajchunk-20260531`; final `cq51vlvk`, best-real `wpu9a0y2`
+  - final 40-episode eval: return `47.5960`, length `612.00`, fall `0.600`
+  - best-real 40-episode eval: return `39.8802`, length `527.175`, fall `0.725`
+  - final roll10: return `55.4222`, length `707.20`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0/final_roll10/rollout.mp4`
+  - best-real roll10: return `55.5495`, length `708.00`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0/best_roll10/rollout.mp4`
+  - comparison to matched seed0 BC final 40-episode eval: return `43.6600`, length `568.38`, fall `0.675`; comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
+  - interpretation: lowering the synthetic ratio from `32/256` to `16/256` preserves the useful return/length gains and final again clears the scalar BC gate, but video fall still ties matched BC instead of improving. This does not solve the strict gate; do not expand seeds or rerun this exact lowsynth variant.
 
 ## Next Action
 
-Keep PWM paused and do not claim general policy improvement. The next method step should make the trajectory/chunk H3 AWR result robust enough to lower video fall rate: test a slightly stricter update constraint or lower synthetic ratio around the current successful final checkpoint recipe, then require 40-episode eval and matched roll10 video to beat BC on return, length, and fall before any seed expansion.
+Keep PWM paused and do not claim general policy improvement. Lower synthetic ratio alone did not lower matched video fall rate. The next method step should add a stricter policy-update constraint or fall-aware candidate selection around the trajectory/chunk H3 recipe, then require 40-episode eval and matched roll10 video to beat BC on return, length, and fall before any seed expansion.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
