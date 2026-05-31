@@ -54,6 +54,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-name", default="")
     p.add_argument("--disable-wandb", action="store_true")
     p.add_argument("--action-ramp-steps", type=int, default=0)
+    p.add_argument(
+        "--save-support-features",
+        action="store_true",
+        help="Save per-step normalized state, command, action, and done flags for support/OOD calibration.",
+    )
     return p.parse_args()
 
 
@@ -162,6 +167,35 @@ def apply_action_ramp(action: torch.Tensor, ep_len: torch.Tensor, ramp_steps: in
     return action * factor.unsqueeze(-1), factor
 
 
+def append_support_feature(
+    storage: dict[str, list[torch.Tensor]],
+    z: torch.Tensor,
+    command: torch.Tensor,
+    action: torch.Tensor,
+    raw_action: torch.Tensor,
+    episode_slot: int,
+    step: int,
+    reward: torch.Tensor,
+    done: torch.Tensor,
+    terminated: torch.Tensor,
+    truncated: torch.Tensor,
+) -> None:
+    storage["state"].append(z[:1].detach().cpu())
+    storage["command"].append(command[:1].detach().cpu())
+    storage["action"].append(action[:1].detach().cpu())
+    storage["raw_action"].append(raw_action[:1].detach().cpu())
+    storage["episode_slot"].append(torch.tensor([episode_slot], dtype=torch.long))
+    storage["step"].append(torch.tensor([step], dtype=torch.long))
+    storage["reward"].append(reward[:1].detach().cpu().float())
+    storage["done"].append(done[:1].detach().cpu().bool())
+    storage["terminated"].append(terminated[:1].detach().cpu().bool())
+    storage["truncated"].append(truncated[:1].detach().cpu().bool())
+
+
+def stack_support_features(storage: dict[str, list[torch.Tensor]]) -> dict[str, torch.Tensor]:
+    return {key: torch.cat(values, dim=0) for key, values in storage.items() if values}
+
+
 @torch.no_grad()
 def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor], args: argparse.Namespace):
     device = torch.device(args.device)
@@ -169,6 +203,18 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
     frames = []
     step_rows: list[dict[str, Any]] = []
     episode_rows: list[dict[str, Any]] = []
+    support_features: dict[str, list[torch.Tensor]] = {
+        "state": [],
+        "command": [],
+        "action": [],
+        "raw_action": [],
+        "episode_slot": [],
+        "step": [],
+        "reward": [],
+        "done": [],
+        "terminated": [],
+        "truncated": [],
+    }
     ep_return = torch.zeros(1, device=device)
     ep_len = torch.zeros(1, dtype=torch.long, device=device)
     episodes_done = 0
@@ -194,6 +240,20 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
             terminated = done & (~time_out)
             ep_return += reward[:1]
             ep_len += 1
+            if args.save_support_features:
+                append_support_feature(
+                    support_features,
+                    z,
+                    c,
+                    action,
+                    raw_action,
+                    episodes_done,
+                    int(ep_len[0].item()),
+                    reward,
+                    done,
+                    terminated,
+                    time_out,
+                )
             step_rows.append(
                 {
                     "episode_slot": episodes_done,
@@ -223,7 +283,7 @@ def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tenso
             obs_td = next_obs_td
     finally:
         env.close()
-    return frames, step_rows, episode_rows
+    return frames, step_rows, episode_rows, stack_support_features(support_features)
 
 
 def write_video(frames: list[Any], path: Path, fps: int, require_mp4: bool) -> None:
@@ -283,7 +343,7 @@ def main() -> None:
                 **ckpt_args,
             },
         )
-    frames, step_rows, episode_rows = collect_rollout(actor, ckpt_args, nrm, args)
+    frames, step_rows, episode_rows, support_features = collect_rollout(actor, ckpt_args, nrm, args)
     video_path = output_dir / "rollout.mp4"
     write_video(frames, video_path, args.video_fps, args.require_mp4)
     write_csv(
@@ -292,6 +352,10 @@ def main() -> None:
         ["episode_slot", "step", "reward", "action_l2", "raw_action_l2", "action_ramp_factor", "done", "terminated", "truncated"],
     )
     write_csv(output_dir / "rollout_summary.csv", episode_rows, ["episode", "return", "length", "terminated", "truncated"])
+    support_features_path = ""
+    if args.save_support_features:
+        support_features_path = str(output_dir / "rollout_support_features.pt")
+        torch.save(support_features, support_features_path)
     returns = torch.tensor([row["return"] for row in episode_rows], dtype=torch.float32)
     lengths = torch.tensor([row["length"] for row in episode_rows], dtype=torch.float32)
     terminated = torch.tensor([row["terminated"] for row in episode_rows], dtype=torch.float32)
@@ -302,6 +366,8 @@ def main() -> None:
         "num_frames": len(frames),
         "num_episodes": len(episode_rows),
         "action_ramp_steps": args.action_ramp_steps,
+        "support_features": support_features_path,
+        "support_feature_rows": int(support_features.get("state", torch.empty(0)).shape[0]),
         "return_mean": float(returns.mean().item()) if returns.numel() else None,
         "return_std": float(returns.std(unbiased=False).item()) if returns.numel() else None,
         "episode_length_mean": float(lengths.mean().item()) if lengths.numel() else None,

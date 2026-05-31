@@ -100,3 +100,7 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
    AWR smoke. Existing rollout logs lack full state/action vectors, so support
    distance still cannot be tied to real fall events without adding richer
    rollout logging or a separate calibration collection.
+8. Done for logging: `render_policy_rollout.py --save-support-features` writes
+   per-step normalized state, command, action, raw action, reward, and done
+   flags. Next score these logged real rollout features against the support set
+   before using support penalty in another formal run.

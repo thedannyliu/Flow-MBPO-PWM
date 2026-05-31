@@ -203,3 +203,12 @@ threshold `0.201729` and `lambda_support=5.0`. It raised support penalty mean to
 Existing rollout-step logs only contain reward/action norm/done fields, not
 full state/action vectors, so support distance cannot yet be calibrated against
 real fall events from saved videos.
+
+Rollout support-feature logging is now available through
+`render_policy_rollout.py --save-support-features`. It saves
+`rollout_support_features.pt` with normalized state, normalized command,
+applied/raw actions, reward, and done/terminated/truncated flags for each
+rendered step. A W&B-disabled BC seed0 smoke wrote `50` rows with shapes
+`state=(50,96)`, `command=(50,3)`, `action=(50,29)`, and
+`raw_action=(50,29)`. Use this to calibrate support distance against real
+failures before treating support penalty as a claim-worthy safety signal.
