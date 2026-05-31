@@ -350,3 +350,31 @@ therefore infrastructure, not a formal-run trigger. The next high-value variant
 should make the synthetic rollout generator support-aware, so branches stop or
 are downweighted at the first calibrated q90 support crossing instead of only
 being repaired after the fixed buffer exists.
+
+Support-risk termination is now also available during closed-loop generation.
+`run_flow_mbpo_v0_smoke.py --support-risk-termination` builds the same
+real-data support/probe split, computes support distance for each generated
+`(state, command, action)` before advancing the model, marks threshold-crossing
+rows as `support_risk_done`, and freezes that branch state for later horizon
+steps. The buffer records `rollout_active`, `support_risk_distance`,
+`support_risk_threshold`, and `support_risk_done`. With the flag disabled, a
+fake-generator regression check confirmed that state advancement and done
+behavior remain unchanged.
+
+The first full support-aware generation smoke ran in Slurm job `9356635` on the
+trajectory/chunk 5k H3 Flow ensemble with `256` starts, horizon `3`, q90
+support threshold `0.620098`, and action weight `0.0`. It produced
+support-risk done fraction `0.09635`, rollout active fraction `0.94010`,
+horizon done fractions `[0.08203, 0.09766, 0.10938]`, support-risk distance
+mean/p90/max `0.23963`/`0.60024`/`0.97118`, and lower next-state delta mean
+`0.12522` because stopped branches no longer advance. Preparing that generated
+buffer with the usual uncertainty q90 settings yielded final replay done
+fraction `0.16406` and conservative reward mean `-0.06376`.
+
+A 20-iteration W&B-disabled AWR smoke on the support-aware generated replay ran
+in job `9356654`, wrote final, best, and best-training checkpoints, and ended
+with loss `0.001026`, synthetic reward mean `-0.04690`, and replay synthetic
+done fraction `0.1640625`. This is method-aligned infrastructure, not a policy
+claim. The next design step is to combine support-aware generated replay with a
+stronger conservative update objective, or run a carefully justified one-seed
+formal only if it has a credible path to lower fall rate than matched BC.

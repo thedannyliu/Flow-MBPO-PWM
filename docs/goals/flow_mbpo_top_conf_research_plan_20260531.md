@@ -237,3 +237,32 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     support boundary, or the policy update should use conservative-Q over
     generated/out-of-support states. Do not formalize q90 prepare-time
     support-risk termination by itself.
+29. Done for first support-aware closed-loop generation slice:
+    `run_flow_mbpo_v0_smoke.py` now has opt-in
+    `--support-risk-termination`. During model rollout generation it computes
+    support distance for the current generated `(state, command, action)`,
+    marks above-threshold rows as `support_risk_done`, marks the transition
+    done, freezes that branch state for later horizon steps, and logs
+    `rollout_active`, `support_risk_distance`, `support_risk_threshold`, and
+    `support_risk_done`. Defaults preserve the old closed-loop generator
+    behavior.
+30. Done for support-aware generation smokes. A fake generator test confirmed
+    no-support behavior still advances states normally and support-enabled
+    behavior freezes branches after threshold crossing. Full trajectory/chunk
+    H3 support-aware generation ran in job `9356635` with q90 threshold
+    `0.620098` and action weight `0.0`. It produced support-risk done fraction
+    `0.09635`, rollout active fraction `0.94010`, horizon done fractions
+    `[0.08203, 0.09766, 0.10938]`, and support-risk distance mean/p90/max
+    `0.23963`/`0.60024`/`0.97118`.
+31. Done for downstream smoke on the support-aware generated replay. Replay
+    preparation yielded final done fraction `0.16406` and conservative reward
+    mean `-0.06376`. A 20-iteration W&B-disabled AWR smoke completed in job
+    `9356654`, wrote all checkpoints, and ended with loss `0.001026` and
+    synthetic reward mean `-0.04690`.
+32. Next method step: this is the first support-risk component that affects
+    closed-loop generation, but it is still smoke-only evidence. Do not run a
+    formal seed from support-aware generation alone. Pair it with a stronger
+    conservative update objective, preferably conservative-Q over
+    out-of-support generated states/actions, or define a one-seed W&B formal
+    plan with final/true-best eval and matched videos only if there is a
+    specific reason it should improve fall rate versus matched BC.
