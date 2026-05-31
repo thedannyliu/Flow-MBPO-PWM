@@ -715,9 +715,19 @@ Use these locations as the durable record before launching new work:
   - eval W&B project/group: `flow-mbpo-mjlab-flow-mbpo-v0-candidate-eval40-20260530` / `flow_endpoint_h1_unc0p5_q0p90_cons_snap100_s0`
   - rollout W&B project/group: `flow-mbpo-mjlab-flow-mbpo-v0-candidate-rollout1000-20260530` / `flow_endpoint_h1_unc0p5_q0p90_cons_snap100_s0`
   - expected outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_eval/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0_candidates/` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0_candidates/`
+- Candidate eval/render job `9349584` completed and was ranked.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:30:23`, max RSS `9826424K`
+  - ranking report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_ranking_cons_r224_s32_anchor1_iter500_snap100_s0.csv` and `.md`
+  - W&B eval runs: final `lup6p998`, best `22pwku28`, best_training_loss `7b4gbiol`, iter100 `iy0lpp4o`, iter200 `jt8w5nut`, iter300 `4sra4u3a`, iter400 `acguvft7`, iter500 `tvjl0n8e`
+  - W&B rollout runs: final `eg5liy8q`, best `yzvbdk97`, best_training_loss `r9k93qro`, iter100 `pry2pt37`, iter200 `hirk96oj`, iter300 `shlwflzj`, iter400 `l2g8wg7g`, iter500 `xmehdj44`
+  - baseline used: matched seed0 BC final 40-episode eval return `43.6600`, length `568.38`, fall `0.675`; matched seed0 BC final 10-episode rollout return `54.1283`, length `688.40`, fall `0.400`
+  - result: no candidate passed both scalar and video gates under the strict rule that return and length must improve and fall rate must be lower than baseline
+  - closest row: `iter_000400` passed scalar eval with return `55.8213`, length `719.0750`, fall `0.4750`; rollout return `54.4738`, length `692.8000`, fall `0.4000` improved/tied the matched BC final video metrics but failed strict video gate because fall rate tied rather than improved
+  - other scalar-pass rows remained diagnostic only: `final`, `best`, `iter_000100`, and `iter_000500` passed scalar eval but failed strict video gate
+  - interpretation: checkpoint selection variance is real, but the snapshot pool still does not establish policy improvement. Do not expand this Flow endpoint AWR setup to seeds 1-2.
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Monitor candidate eval/render job `9349584`. After it completes, rank the resulting evidence with `rank_flow_mbpo_candidate_evidence.py` against the matched seed0 BC final 40-episode eval and 10-episode rollout before deciding whether any checkpoint deserves more seeds.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next useful work should change the method, not merely search more checkpoints from this run: move toward short-horizon trajectory/residual Flow-MBPO with explicit uncertainty penalties or early termination, then evaluate with the same matched BC scalar/video gates.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
