@@ -832,11 +832,40 @@ Use these locations as the durable record before launching new work:
   - wrote final, best-real, best-training-loss, and real-eval snapshot checkpoints
   - best real-eval snapshot: iter `200`, return `20.8753`, length `280.00`, fall `1.000`
   - final iter `500` real eval: return `14.3888`, length `222.125`, fall `1.000`
-  - comparison to matched seed0 BC final 40-episode eval return `43.6600`, length `568.38`, fall `0.675`, and matched seed0 BC final 10-episode rollout return `54.1283`, length `688.40`, fall `0.400`
-  - interpretation: the trajectory/chunk H3 replay plus this AWR recipe strongly degrades real behavior despite bounded synthetic replay. Do not render rollout videos, do not expand to seeds, and do not run the H5 AWR analog without a new policy-update constraint or failure diagnosis.
+  - initial interpretation: these internal 8-episode evals looked collapsed, but later matched diagnostics showed that the 8-episode protocol itself is too noisy/pessimistic for checkpoint ranking. Do not use this short eval alone to reject a candidate.
+- Added and ran a focused AWR/replay diagnostic.
+  - support commit: `13a7ab7`
+  - script: `scripts/experiments/mjlab_qs/analyze_flow_mbpo_awr_diagnostics.py`
+  - Slurm job: `9350631`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:08`, max RSS `6410368K`
+  - report: `scripts/outputs/mjlab_qs/reports/diagnostics/flow_trajectory_chunk_h3_awr_action_diagnostics_20260530.md` and `.json`
+  - synthetic replay stats: conservative reward mean `-0.0531`, p90 `1.5028`, p99 `2.6419`, max `2.6729`; AWR weight mean `1.7451`, p90 `4.7393`, p99 `14.8057`, max `15.2713`; done fraction `0.1302`
+  - action drift from BC is very small: final real-action delta mean `0.00246`, p90 `0.00379`; best-real real-action delta mean `0.00227`, p90 `0.00345`; best-training real-action delta mean `0.00242`, p90 `0.00370`
+  - interpretation: the AWR update barely moves actions in dataset/replay state space, so training MSE/action drift is not enough to rank safety. Real eval and rollout remain mandatory.
+- Ran same-protocol 8-episode eval diagnostics for BC and trajectory/chunk AWR.
+  - BC eval job: `9350668`, W&B run `uqvdqoy8`
+  - AWR eval job: `9350686`, W&B runs best-real `6h5h3dhk`, final `4khgu7wn`
+  - BC final 8-episode eval: return `17.2444`, length `259.875`, fall `1.000`
+  - AWR best-real 8-episode eval: return `17.3118`, length `260.00`, fall `1.000`
+  - AWR final 8-episode eval: return `17.3849`, length `260.75`, fall `1.000`
+  - interpretation: the short 8-episode eval protocol cannot distinguish BC from this AWR candidate and should not be used as a scalar gate for this task.
+- Ran 40-episode eval for trajectory/chunk H3 AWR final and best-real checkpoints.
+  - Slurm job: `9350719`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:02:07`, max RSS `7566.50M`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-eval40-trajchunk-20260530`
+  - W&B runs: best-real `jzo93ni3`, final `kkor9kqs`
+  - best-real 40-episode eval: return `37.5778`, length `496.05`, fall `0.800`
+  - final 40-episode eval: return `48.7296`, length `637.225`, fall `0.575`
+  - comparison: AWR final clears both matched seed0 BC final eval (`43.6600`, length `568.38`, fall `0.675`) and aggregate expert+noisy uniform BC final eval (`45.8491`, length `594.97`, fall `0.625`) on scalar return, length, and fall rate
+- Rendered 10-episode 1000-step rollout videos for trajectory/chunk H3 AWR final and best-real checkpoints.
+  - Slurm job: `9350796`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:05:52`, max RSS `9749868K`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-rollout-trajchunk-20260530`
+  - W&B runs: final `nd6nossg`, best-real `6z2t1hdh`
+  - final roll10: return `54.4904`, length `694.00`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/final_roll10/rollout.mp4`
+  - best-real roll10: return `55.3382`, length `706.30`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/best_roll10/rollout.mp4`
+  - comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
+  - interpretation: this is the strongest trajectory/chunk Flow-MBPO result so far. AWR final passes the 40-episode scalar gate and both final/best-real roll10 videos improve return and length over matched BC final, but fall rate ties rather than improves. Under the strict gate, do not claim policy improvement yet and do not expand to seeds 1-2 as a success run.
 
 ## Next Action
 
-Keep PWM paused and do not expand the Flow endpoint or trajectory/chunk AWR setups to seeds 1-2. The next method step should diagnose why small AWR updates still collapse real rollout behavior: inspect action deltas versus BC, synthetic advantage weights, and high-reward synthetic states; then add a stricter trust-region/KL or lower synthetic ratio before any further AWR run. Do not spend rollout-video jobs on the failed trajectory/chunk H3 AWR probe.
+Keep PWM paused and do not claim general policy improvement. The next method step should make the trajectory/chunk H3 AWR result robust enough to lower video fall rate: test a slightly stricter update constraint or lower synthetic ratio around the current successful final checkpoint recipe, then require 40-episode eval and matched roll10 video to beat BC on return, length, and fall before any seed expansion.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
