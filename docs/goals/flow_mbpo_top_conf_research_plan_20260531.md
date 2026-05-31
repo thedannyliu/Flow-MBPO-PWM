@@ -214,3 +214,26 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     experiment should stop or penalize generated branches at the moment they
     cross the calibrated q90 support boundary, then run W&B-disabled AWR smoke
     before any formal W&B seed.
+26. Done for moving support-risk termination into replay preparation:
+    `prepare_flow_mbpo_v0_synthetic_replay.py` now has an opt-in
+    `--support-risk-termination` path. It builds a real-data support set,
+    calibrates a probe threshold, computes support distance for synthetic
+    transitions, marks rows above threshold as `support_risk_done`, applies an
+    optional support-risk reward penalty, and includes the support-risk done
+    mask before post-first-done branch truncation.
+27. Done for prepare-time support-risk smokes. Fake support data validated the
+    new done mask, and a no-support check preserved the prior H3 replay done
+    fraction `0.1302083`. Full q90 state/command support-risk preparation ran
+    in Slurm job `9356522` with `20000` support rows, `4096` probe rows,
+    threshold `0.620098`, action weight `0.0`, support-risk done fraction
+    `0.04818`, and final done fraction `0.171875`. A 20-iteration
+    W&B-disabled AWR smoke on that replay completed in job `9356566` and wrote
+    final/best/best-training checkpoints.
+28. Next method step remains support-aware generation or conservative-Q.
+    Prepare-time support-risk termination is cleaner than a post-hoc artifact
+    transform, but it still operates on an already generated fixed H3 buffer.
+    To address the real failure mode, the rollout generator should stop or
+    downweight branches as soon as generated states cross the calibrated q90
+    support boundary, or the policy update should use conservative-Q over
+    generated/out-of-support states. Do not formalize q90 prepare-time
+    support-risk termination by itself.

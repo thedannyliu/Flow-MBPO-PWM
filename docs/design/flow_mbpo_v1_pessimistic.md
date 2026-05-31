@@ -325,3 +325,28 @@ a claim-worthy method. The next implementation should terminate or penalize
 branches during model rollout generation when generated states cross the
 calibrated q90 support boundary, or move to conservative-Q over out-of-support
 generated states/actions.
+
+The same support-risk signal is now integrated into the normal replay
+preparation entry point. `prepare_flow_mbpo_v0_synthetic_replay.py
+--support-risk-termination` builds the real-data support/probe split, computes
+synthetic support distance, marks rows above threshold as `support_risk_done`,
+optionally subtracts a support-risk reward penalty, and includes support-risk
+done before post-first-done branch truncation. Defaults keep the old behavior
+off.
+
+Validation covered three levels: `py_compile` and CLI help; a fake support
+dataset where support-risk done was known exactly; and a no-support replay check
+that preserved the prior H3 done fraction `0.1302083`. The full q90
+state/command support-risk preparation ran in job `9356522` with `20000`
+support rows, `4096` probe rows, threshold `0.620098`, action weight `0.0`,
+support-risk done fraction `0.04818`, post-first-done fraction `0.11198`, and
+final done fraction `0.171875`. A 20-iteration W&B-disabled AWR smoke on this
+prepared replay completed in job `9356566`, wrote all three checkpoints, and
+ended with loss `0.001026` and synthetic reward mean `-0.04121`.
+
+Design implication: support-risk termination is now in the replay-preparation
+method path, but still not in closed-loop world-model rollout generation. It is
+therefore infrastructure, not a formal-run trigger. The next high-value variant
+should make the synthetic rollout generator support-aware, so branches stop or
+are downweighted at the first calibrated q90 support crossing instead of only
+being repaired after the fixed buffer exists.
