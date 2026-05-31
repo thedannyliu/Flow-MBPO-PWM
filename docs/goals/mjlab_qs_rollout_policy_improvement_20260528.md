@@ -656,9 +656,27 @@ Use these locations as the durable record before launching new work:
   - best checkpoint is a real-eval-selected true snapshot at iter `250`
   - training-time real eval: iter250 return `17.0962`, length `258.875`, fall `1.000`; iter500 return `12.3589`, length `198.75`, fall `1.000`
   - interpretation: reducing synthetic ratio and increasing BC anchor did not fix the early real-eval collapse. However the earlier AWR run also had weak 8-episode training eval before a better 40-episode eval, so treat this as a negative early signal and run one independent 40-episode final/best eval before deciding whether this conservative variant is dead.
+- Conservative AWR seed0 independent 40-episode eval completed.
+  - Slurm job: `9349193`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:02:12`, max RSS `14905120K`
+  - W&B final/best eval runs: `7vve098g`, `aapboe3b`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_eval/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - final checkpoint eval: return `60.8721`, length `759.30`, fall `0.450`, timeout `0.550`
+  - true-best checkpoint eval: return `46.1720`, length `600.60`, fall `0.700`, timeout `0.300`
+  - comparison: seed0 expert+noisy uniform BC 40-episode final eval was return `43.6600`, length `568.38`, fall `0.675`; aggregate expert+noisy uniform BC 40-episode final baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: conservative final now clears the scalar BC gate and improves over the original Flow-MBPO AWR final eval, but the real-eval-selected true-best checkpoint does not clear the fall-rate gate. Video evidence is required before any claim.
+- Conservative AWR seed0 10-episode rollout-video rendering completed.
+  - Slurm job: `9349240`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:03:53`, max RSS `9841780K`
+  - W&B final/best rollout runs: `9fsn6b8t`, `qhsxgfwo`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - final checkpoint rollout: return `47.4617`, length `625.60`, fall `0.500`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/final/rollout.mp4`
+  - true-best checkpoint rollout: return `55.5533`, length `707.60`, fall `0.400`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/best/rollout.mp4`
+  - matched BC seed0 10-episode final rollout was return `54.1283`, length `688.40`, fall `0.400`; matched BC seed0 best rollout was return `48.3119`, length `637.70`, fall `0.500`
+  - interpretation: evidence is split. Conservative final clears the 40-episode scalar gate but fails the matched BC final 10-episode video gate. Conservative true-best clears matched BC best video and slightly beats matched BC final on return/length while tying fall rate, but its 40-episode scalar eval has worse fall rate than BC. No single checkpoint clears both scalar and video gates, so there is still no policy-improvement claim.
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Run an independent 40-episode real eval for conservative AWR job `9349145` final and true-best checkpoints. If both remain below matched BC, stop this AWR variant and change the update objective or candidate selection instead of running more seed expansion.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The conservative run produced useful but split evidence: final is scalar-strong/video-weaker, while true-best is video-strong/scalar-weaker. The next step should fix candidate selection and evaluation variance before more training, for example by saving/evaluating periodic AWR snapshots or adding a small candidate-selection pass that ranks final, real-eval snapshots, and training-loss snapshots by the same 40-episode scalar plus 10-episode video protocol.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
