@@ -646,9 +646,19 @@ Use these locations as the durable record before launching new work:
   - BC best metrics: return `48.3119`, length `637.70`, fall `0.500`, return std `30.6670`, frames `6377`
   - comparison to Flow-MBPO seed0 true-best 10-episode diagnostic: Flow return `48.2876`, length `642.70`, fall `0.600`
   - interpretation: Flow-MBPO seed0 true-best does not beat the matched BC final checkpoint and is effectively tied with matched BC best on return while having a worse fall rate. This weakens the earlier 10-episode Flow result and confirms there is still no policy-improvement claim.
+- Ran a more conservative seed0 Flow-MBPO v0 AWR variant.
+  - Slurm job: `9349145`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:42`, max RSS `8289612K`
+  - W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v0-awr-conservative-20260530` / `s72fg7ef`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - settings: same seed0 Flow endpoint H1 conservative replay, real batch `224`, synthetic batch `32`, actor LR `1e-5`, BC anchor `1.0`, update iters `500`, real eval every `250`, 8 eval episodes
+  - best checkpoint is a real-eval-selected true snapshot at iter `250`
+  - training-time real eval: iter250 return `17.0962`, length `258.875`, fall `1.000`; iter500 return `12.3589`, length `198.75`, fall `1.000`
+  - interpretation: reducing synthetic ratio and increasing BC anchor did not fix the early real-eval collapse. However the earlier AWR run also had weak 8-episode training eval before a better 40-episode eval, so treat this as a negative early signal and run one independent 40-episode final/best eval before deciding whether this conservative variant is dead.
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The matched 10-episode BC comparison shows the current seed0 Flow-MBPO true-best is not better than BC under the same video protocol. The next experiment should reduce update aggressiveness or synthetic influence before seed expansion, for example a more conservative AWR variant with a smaller synthetic batch ratio, stronger BC anchor, fewer update iterations, or real-eval early stopping tuned to preserve the matched BC final rollout.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Run an independent 40-episode real eval for conservative AWR job `9349145` final and true-best checkpoints. If both remain below matched BC, stop this AWR variant and change the update objective or candidate selection instead of running more seed expansion.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
