@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -71,6 +72,22 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--support-risk-batch-size", type=int, default=64)
     p.add_argument("--support-risk-min-distance", type=float, default=-1.0)
     p.add_argument("--support-risk-top-quantile", type=float, default=-1.0)
+    p.add_argument(
+        "--conservative-q-weight",
+        type=float,
+        default=0.0,
+        help="CQL-style critic penalty weight. Default keeps the critic path disabled.",
+    )
+    p.add_argument(
+        "--critic-actor-weight",
+        type=float,
+        default=0.0,
+        help="Optional actor loss weight for maximizing the conservative critic.",
+    )
+    p.add_argument("--critic-lr", type=float, default=1.0e-4)
+    p.add_argument("--critic-hidden", type=int, default=256)
+    p.add_argument("--critic-gamma", type=float, default=0.99)
+    p.add_argument("--critic-tau", type=float, default=0.01)
     p.add_argument("--grad-norm", type=float, default=1.0)
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
     p.add_argument("--quality-filter", default="expert,expert_noisy")
@@ -151,6 +168,30 @@ def sample_real_batch(
     return z, command, action, reward
 
 
+def sample_real_transition_batch(
+    data: dict[str, torch.Tensor],
+    indices: torch.Tensor,
+    nrm: dict[str, torch.Tensor],
+    batch_size: int,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    pick = indices[torch.randint(indices.numel(), (batch_size,))]
+    phys = data["phys_obs"][pick].to(device).float()
+    command_seq = data["command"][pick].to(device).float()
+    action = data["policy_action"][pick, 0].to(device).float()
+    reward = data["reward"][pick, 0].to(device).float()
+    z = norm(phys[:, 0], nrm["phys_obs_mean"], nrm["phys_obs_std"])
+    next_idx = 1 if int(phys.shape[1]) > 1 else 0
+    next_z = norm(phys[:, next_idx], nrm["phys_obs_mean"], nrm["phys_obs_std"])
+    command = command_seq[:, 0]
+    next_command = command_seq[:, next_idx]
+    if command.shape[-1] and "command_mean" in nrm:
+        command = norm(command, nrm["command_mean"], nrm["command_std"])
+        next_command = norm(next_command, nrm["command_mean"], nrm["command_std"])
+    done = torch.zeros_like(reward, dtype=torch.bool)
+    return z, command, action, reward, next_z, next_command, done
+
+
 def sample_synthetic_batch(
     replay: dict[str, torch.Tensor],
     batch_size: int,
@@ -164,6 +205,97 @@ def sample_synthetic_batch(
     reward = replay["reward_conservative"][pick].to(device).float()
     done = replay["done"][pick].to(device).bool()
     return z, command, action, reward, done
+
+
+def sample_synthetic_transition_batch(
+    replay: dict[str, torch.Tensor],
+    batch_size: int,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    n = int(replay["reward_conservative"].shape[0])
+    pick = torch.randint(n, (batch_size,))
+    z = replay["state"][pick].to(device).float()
+    command = replay["command"][pick].to(device).float()
+    action = replay["action"][pick].to(device).float()
+    reward = replay["reward_conservative"][pick].to(device).float()
+    next_z = replay["next_state"][pick].to(device).float()
+    done = replay["done"][pick].to(device).bool()
+    return z, command, action, reward, next_z, command, done
+
+
+class QCritic(nn.Module):
+    def __init__(self, state_dim: int, command_dim: int, action_dim: int, hidden: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(state_dim + command_dim + action_dim, hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, 1),
+        )
+
+    def forward(self, state: torch.Tensor, command: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        return self.net(torch.cat([state, command, action], dim=-1)).squeeze(-1)
+
+
+def soft_update(target: nn.Module, source: nn.Module, tau: float) -> None:
+    with torch.no_grad():
+        for target_param, source_param in zip(target.parameters(), source.parameters()):
+            target_param.mul_(1.0 - float(tau)).add_(source_param, alpha=float(tau))
+
+
+def set_requires_grad(module: nn.Module, enabled: bool) -> None:
+    for param in module.parameters():
+        param.requires_grad_(enabled)
+
+
+def train_conservative_critic(
+    critic: QCritic,
+    target_critic: QCritic,
+    actor,
+    opt: torch.optim.Optimizer,
+    data: dict[str, torch.Tensor],
+    real_indices: torch.Tensor,
+    replay: dict[str, torch.Tensor],
+    nrm: dict[str, torch.Tensor],
+    args: argparse.Namespace,
+    device: torch.device,
+) -> dict[str, float]:
+    rz, rc, ra, rr, rnz, rnc, rd = sample_real_transition_batch(
+        data, real_indices, nrm, int(args.real_batch_size), device
+    )
+    sz, sc, sa, sr, snz, snc, sd = sample_synthetic_transition_batch(replay, int(args.synthetic_batch_size), device)
+    z = torch.cat([rz, sz], dim=0)
+    c = torch.cat([rc, sc], dim=0)
+    a = torch.cat([ra, sa], dim=0)
+    r = torch.cat([rr, sr], dim=0)
+    nz = torch.cat([rnz, snz], dim=0)
+    nc = torch.cat([rnc, snc], dim=0)
+    d = torch.cat([rd, sd], dim=0)
+    with torch.no_grad():
+        next_action = actor(nz, nc, deterministic=True).clamp(-1.0, 1.0)
+        target_q = r + float(args.critic_gamma) * (~d).float() * target_critic(nz, nc, next_action)
+    q_data = critic(z, c, a)
+    bellman_loss = F.mse_loss(q_data, target_q)
+    with torch.no_grad():
+        actor_action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+    q_actor = critic(z, c, actor_action)
+    cql_gap = q_actor - q_data
+    cql_loss = F.softplus(cql_gap).mean()
+    loss = bellman_loss + float(args.conservative_q_weight) * cql_loss
+    opt.zero_grad(set_to_none=True)
+    loss.backward()
+    opt.step()
+    soft_update(target_critic, critic, float(args.critic_tau))
+    return {
+        "critic/loss": float(loss.detach().item()),
+        "critic/bellman_loss": float(bellman_loss.detach().item()),
+        "critic/cql_loss": float(cql_loss.detach().item()),
+        "critic/cql_gap_mean": float(cql_gap.detach().mean().item()),
+        "critic/q_data_mean": float(q_data.detach().mean().item()),
+        "critic/q_actor_mean": float(q_actor.detach().mean().item()),
+        "critic/target_q_mean": float(target_q.detach().mean().item()),
+    }
 
 
 def advantage_weights(reward: torch.Tensor, temperature: float, weight_clip: float) -> torch.Tensor:
@@ -420,6 +552,15 @@ def main() -> None:
     real_indices = select_real_indices(data, metadata, args)
     support_state = build_support_state(data, real_indices, nrm, args, device)
     support_risk_state = load_support_risk_state(args, device)
+    critic_enabled = float(args.conservative_q_weight) > 0.0 or float(args.critic_actor_weight) > 0.0
+    critic = None
+    target_critic = None
+    critic_opt = None
+    if critic_enabled:
+        critic = QCritic(state_dim, command_dim, action_dim, int(args.critic_hidden)).to(device)
+        target_critic = QCritic(state_dim, command_dim, action_dim, int(args.critic_hidden)).to(device)
+        target_critic.load_state_dict(critic.state_dict())
+        critic_opt = torch.optim.Adam(critic.parameters(), lr=float(args.critic_lr))
     opt = torch.optim.Adam(actor.parameters(), lr=float(args.actor_lr))
     ckpt_args = dict(policy_ckpt.get("args", {}))
     ckpt_args.update(
@@ -433,6 +574,8 @@ def main() -> None:
             "flow_mbpo_v0_support_risk_penalty_weight": float(args.support_risk_penalty_weight),
             "flow_mbpo_v0_support_risk_features": args.support_risk_features,
             "flow_mbpo_v0_support_threshold": float(support_state["threshold"].item()) if support_state is not None else None,
+            "flow_mbpo_v1_conservative_q_weight": float(args.conservative_q_weight),
+            "flow_mbpo_v1_critic_actor_weight": float(args.critic_actor_weight),
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -454,6 +597,9 @@ def main() -> None:
         "support_risk_rows": int(support_risk_state["rows"].item()) if support_risk_state is not None else 0,
         "support_risk_total_rows": int(support_risk_state["total_rows"].item()) if support_risk_state is not None else 0,
         "support_risk_selection_threshold": float(support_risk_state["selection_threshold"].item()) if support_risk_state is not None else None,
+        "critic_enabled": bool(critic_enabled),
+        "conservative_q_weight": float(args.conservative_q_weight),
+        "critic_actor_weight": float(args.critic_actor_weight),
     }
     if args.enable_wandb:
         import wandb
@@ -474,6 +620,11 @@ def main() -> None:
     last_metrics: dict[str, float] = {}
     real_eval_snapshot_paths: list[str] = []
     for it in range(1, int(args.update_iters) + 1):
+        critic_metrics: dict[str, float] = {}
+        if critic is not None and target_critic is not None and critic_opt is not None:
+            critic_metrics = train_conservative_critic(
+                critic, target_critic, actor, critic_opt, data, real_indices, replay, nrm, args, device
+            )
         rz, rc, ra, rr = sample_real_batch(data, real_indices, nrm, int(args.real_batch_size), device)
         sz, sc, sa, sr, sd = sample_synthetic_batch(replay, int(args.synthetic_batch_size), device)
         real_pred = actor(rz, rc, deterministic=True).clamp(-1.0, 1.0)
@@ -505,6 +656,19 @@ def main() -> None:
             risk_source_distance = real_pred.new_zeros(1)
             support_risk_loss = real_pred.new_zeros(())
             support_risk_distance = real_pred.new_zeros(1)
+        if critic is not None and float(args.critic_actor_weight) > 0.0:
+            set_requires_grad(critic, False)
+            q_real_actor = critic(rz, rc, real_pred)
+            if bool((~sd).any().item()):
+                q_synth_actor = critic(sz, sc, synth_pred)
+                critic_actor_loss = -0.5 * (
+                    q_real_actor.mean() + (q_synth_actor * (~sd).float()).sum() / (~sd).float().sum().clamp_min(1.0)
+                )
+            else:
+                critic_actor_loss = -q_real_actor.mean()
+            set_requires_grad(critic, True)
+        else:
+            critic_actor_loss = real_pred.new_zeros(())
         loss = (
             real_loss
             + synth_loss
@@ -512,6 +676,7 @@ def main() -> None:
             + float(args.action_deviation_weight) * action_deviation_loss
             + float(args.support_action_penalty_weight) * support_action_loss
             + float(args.support_risk_penalty_weight) * support_risk_loss
+            + float(args.critic_actor_weight) * critic_actor_loss
         )
         opt.zero_grad(set_to_none=True)
         loss.backward()
@@ -532,6 +697,7 @@ def main() -> None:
                 "awr/action_deviation_loss": float(action_deviation_loss.detach().item()),
                 "awr/support_action_loss": float(support_action_loss.detach().item()),
                 "awr/support_risk_loss": float(support_risk_loss.detach().item()),
+                "awr/critic_actor_loss": float(critic_actor_loss.detach().item()),
                 "awr/support_risk_source_distance_mean": float(risk_source_distance.detach().mean().item()),
                 "awr/support_risk_source_distance_p90": float(torch.quantile(risk_source_distance.detach(), 0.90).item()),
                 "awr/support_risk_source_distance_max": float(risk_source_distance.detach().max().item()),
@@ -545,6 +711,7 @@ def main() -> None:
                 "awr/synthetic_done_fraction": float(sd.float().mean().item()),
                 "awr/grad_norm": float(grad.detach().item()),
                 "wall_clock_seconds": time.time() - t0,
+                **critic_metrics,
             }
             print(json.dumps(last_metrics, sort_keys=True), flush=True)
             if run is not None:
@@ -577,6 +744,7 @@ def main() -> None:
     final_checkpoint = output_dir / "final_policy_extraction.pt"
     best_checkpoint = output_dir / "best_policy_extraction.pt"
     best_training_checkpoint = output_dir / "best_training_loss_policy_extraction.pt"
+    critic_checkpoint = output_dir / "final_q_critic.pt"
     torch.save(
         {
             "actor": actor.state_dict(),
@@ -616,11 +784,24 @@ def main() -> None:
         best_payload,
         best_checkpoint,
     )
+    if critic is not None and target_critic is not None:
+        torch.save(
+            {
+                "critic": critic.state_dict(),
+                "target_critic": target_critic.state_dict(),
+                "args": ckpt_args,
+                "checkpoint_kind": "final_q_critic",
+                "conservative_q_weight": float(args.conservative_q_weight),
+                "critic_actor_weight": float(args.critic_actor_weight),
+            },
+            critic_checkpoint,
+        )
     summary: dict[str, Any] = config | {
         "output_dir": str(output_dir),
         "final_checkpoint": str(final_checkpoint),
         "best_checkpoint": str(best_checkpoint),
         "best_training_checkpoint": str(best_training_checkpoint),
+        "critic_checkpoint": str(critic_checkpoint) if critic is not None else None,
         "real_eval_snapshot_checkpoints": real_eval_snapshot_paths,
         "best_training_loss": best_loss,
         "best_real_return": best_real_return if math.isfinite(best_real_return) else None,
@@ -631,6 +812,7 @@ def main() -> None:
         "synthetic_done_fraction": float(replay["done"].float().mean().item()),
         "support_probe_distance": summarize_tensor(support_state["probe_distance"]) if support_state is not None else None,
         "support_risk_source_distance": summarize_tensor(support_risk_state["source_distance"]) if support_risk_state is not None else None,
+        "critic_enabled": bool(critic_enabled),
         "wall_clock_seconds": time.time() - t0,
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

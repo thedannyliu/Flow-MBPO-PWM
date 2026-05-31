@@ -266,3 +266,24 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     out-of-support generated states/actions, or define a one-seed W&B formal
     plan with final/true-best eval and matched videos only if there is a
     specific reason it should improve fall rate versus matched BC.
+33. Done for first conservative-Q critic integration:
+    `run_flow_mbpo_v0_awr_update.py` now has an opt-in deterministic Q critic
+    path controlled by `--conservative-q-weight` and `--critic-actor-weight`.
+    The critic trains on mixed real/synthetic one-step transitions with Bellman
+    loss plus a CQL-style `softplus(Q(actor_action) - Q(data_action))` penalty.
+    When requested, the actor receives a small `-Q(actor)` loss from the frozen
+    critic for that actor step. The script saves `final_q_critic.pt` when the
+    critic is enabled.
+34. Done for conservative-Q smokes. CPU fake data validated finite critic
+    metrics. W&B-disabled Slurm job `9356778` ran `20` iterations on the
+    support-aware generated H3 replay with `--conservative-q-weight 1.0` and
+    `--critic-actor-weight 0.01`. It completed and wrote actor checkpoints.
+    Final critic metrics were critic loss `0.76992`, Bellman loss `0.07677`,
+    CQL loss `0.69315`, CQL gap mean `1.38e-5`, `Q(data)` mean `0.09484`, and
+    `Q(actor)` mean `0.09485`. Job `9356793` confirmed `final_q_critic.pt` is
+    written and loadable.
+35. Next method step: tune conservative-Q only under W&B-disabled smoke until
+    it shows a meaningful conservative gap or stable actor effect. The first
+    20-iteration smoke proves mechanics, not usefulness; the near-zero CQL gap
+    suggests the critic has not yet learned a useful distinction between data
+    and actor actions. Do not launch a formal seed from this configuration.

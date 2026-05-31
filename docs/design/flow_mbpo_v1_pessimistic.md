@@ -378,3 +378,23 @@ done fraction `0.1640625`. This is method-aligned infrastructure, not a policy
 claim. The next design step is to combine support-aware generated replay with a
 stronger conservative update objective, or run a carefully justified one-seed
 formal only if it has a credible path to lower fall rate than matched BC.
+
+A first conservative-Q update path is now implemented. In
+`run_flow_mbpo_v0_awr_update.py`, `--conservative-q-weight > 0` trains a
+deterministic Q critic on mixed real/synthetic one-step transitions with Bellman
+loss plus a CQL-style `softplus(Q(actor_action) - Q(data_action))` penalty.
+`--critic-actor-weight > 0` can add a small actor loss that maximizes the
+current conservative critic while the existing AWR/BC-anchor losses remain in
+place. The path is opt-in and saves `final_q_critic.pt` with both critic and
+target critic state when enabled.
+
+Validation so far is mechanical. `py_compile`, CLI help, and a CPU fake-data
+critic smoke passed. W&B-disabled job `9356778` ran `20` iterations on the
+support-aware generated H3 replay with conservative-Q weight `1.0` and actor
+critic weight `0.01`; it wrote actor checkpoints and logged critic loss
+`0.76992`, Bellman loss `0.07677`, CQL loss `0.69315`, CQL gap mean
+`1.38e-5`, `Q(data)` mean `0.09484`, and `Q(actor)` mean `0.09485`. Job
+`9356793` confirmed the critic checkpoint is written and loadable. The near-zero
+CQL gap means this is not yet a useful conservative separation; tune critic
+training length, CQL weight, sampled actions, or generated-state mix before any
+formal run.
