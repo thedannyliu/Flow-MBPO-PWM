@@ -102,5 +102,17 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
    rollout logging or a separate calibration collection.
 8. Done for logging: `render_policy_rollout.py --save-support-features` writes
    per-step normalized state, command, action, raw action, reward, and done
-   flags. Next score these logged real rollout features against the support set
-   before using support penalty in another formal run.
+   flags.
+9. Done for scoring infrastructure: `score_rollout_support_distance.py` scores
+   logged real rollout features against the same expert+noisy normalized
+   `(state, command, action)` nearest-neighbor support set used by the replay
+   penalty. Fake-data validation passed, and Slurm jobs `9355461`/`9355480`
+   scored the 50-step no-fall BC smoke. On that smoke, q50 threshold `0.201729`
+   gave support-penalty mean `0.3135`; q90 threshold `0.622495` gave penalty
+   mean `0.0468` and tail-10 penalty `0.0`. This confirms the scoring path and
+   suggests q50 is too aggressive for uncalibrated real rollout states.
+10. Next calibration step: render longer matched BC and Flow-MBPO rollouts with
+    `--save-support-features`, score episodes containing both falls and
+    timeouts, and test whether support distance or tail-window support distance
+    separates failed from successful real segments. If it does not, prioritize
+    conservative-Q pessimism over another support-penalty formal run.

@@ -212,3 +212,16 @@ rendered step. A W&B-disabled BC seed0 smoke wrote `50` rows with shapes
 `state=(50,96)`, `command=(50,3)`, `action=(50,29)`, and
 `raw_action=(50,29)`. Use this to calibrate support distance against real
 failures before treating support penalty as a claim-worthy safety signal.
+
+`score_rollout_support_distance.py` now performs that scoring step for saved
+real rollout features. It reuses the support-set construction and normalized
+feature definition from `add_flow_mbpo_support_penalty.py`, then writes per-step
+CSV, per-episode CSV, scored tensors, and a JSON summary. It passed
+`py_compile`, a fake-data terminated/truncated episode check, and two Slurm
+smokes on the 50-step no-fall BC rollout support artifact. With the same
+`20000` support rows and `4096` probe rows, q50 threshold `0.201729` produced
+rollout support-penalty mean `0.3135`, while q90 threshold `0.622495` produced
+mean `0.0468` and tail-10 penalty `0.0`. Treat this as calibration
+infrastructure only: the first scored rollout has no fall or timeout, so the
+next required evidence is full matched BC/Flow rollouts with support features
+covering both failed and successful episodes.
