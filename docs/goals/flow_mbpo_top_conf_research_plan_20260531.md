@@ -175,3 +175,20 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     Use support distance as model-rollout pessimism or early termination over
     generated states, or implement conservative-Q on out-of-support generated
     states/actions.
+20. Done for state/command replay pessimism smoke: job `9356199` reran support
+    replay scoring with `--action-weight 0.0`. State-only q90 was still mild
+    on the current H3 synthetic replay: threshold `0.620098`, support penalty
+    mean `0.00548`, reward mean `-0.08050`. State-only q50 was strong:
+    threshold `0.200275`, support penalty mean/p90/max
+    `0.09559`/`0.32431`/`0.77090`, reward mean `-0.53106`. These are almost
+    identical to the full-feature support replay numbers, confirming synthetic
+    replay support distance is state-dominated.
+21. Done for AWR smoke on state-only q50 replay: job `9356236` completed `20`
+    W&B-disabled AWR iterations and wrote final/best/best-training checkpoints.
+    Final loss was `0.001026`, synthetic reward mean was `-0.3223`, and
+    synthetic done fraction was `0.0`.
+22. Next method step: state/command replay reward pessimism is mechanically
+    usable, but q50 is broad and q90 is mild. Do not formalize either as-is.
+    Implement a targeted support-risk termination or conservative-Q objective
+    that reacts when model-generated states cross the calibrated real-rollout
+    risk boundary.

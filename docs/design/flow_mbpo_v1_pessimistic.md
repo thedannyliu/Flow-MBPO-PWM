@@ -287,3 +287,16 @@ out-of-support state back into support.
 Design implication: support distance should move into model-rollout pessimism,
 early termination, or a conservative-Q objective over generated/rollout states.
 Do not run a formal seed from the actor-only support-penalty path.
+
+State/command-only replay reward pessimism is also mechanically available. Job
+`9356199` reran `add_flow_mbpo_support_penalty.py` on the trajectory/chunk H3
+synthetic replay with `--action-weight 0.0`. The q90 state support penalty was
+mild, with threshold `0.620098`, penalty mean `0.00548`, and reward mean
+`-0.08050`. The q50 state support penalty was much stronger, with threshold
+`0.200275`, penalty mean/p90/max `0.09559`/`0.32431`/`0.77090`, and reward mean
+`-0.53106`. These values are nearly identical to the full-feature support
+replay, again showing that support risk is state-dominated. A 20-iteration
+W&B-disabled AWR smoke on the q50 state replay completed in job `9356236` and
+wrote all checkpoints. Treat this as a usable replay-pessimism path, but not as
+a formal setting: q90 is too mild on current synthetic replay, while q50 is too
+broad relative to stable real rollout segments.
