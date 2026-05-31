@@ -679,9 +679,16 @@ Use these locations as the durable record before launching new work:
   - behavior: future AWR runs now save `best_training_loss_policy_extraction.pt` and one checkpoint under `real_eval_snapshots/` for each `--real-eval-every` evaluation point, in addition to existing final and best checkpoints
   - purpose: support the next candidate-selection step without relying only on final or noisy 8-episode best-real-eval snapshots
   - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; `PYTHONPATH=$PWD/src:$PWD ... run_flow_mbpo_v0_awr_update.py --help`
+- Added a Flow-MBPO candidate evidence ranking utility and ran it on the conservative AWR evidence.
+  - script: `scripts/experiments/mjlab_qs/rank_flow_mbpo_candidate_evidence.py`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_ranking_cons_r224_s32_anchor1_iter500_s0.csv` and `.md`
+  - baseline used for this seed0 ranking: BC seed0 final 40-episode eval plus matched BC seed0 final 10-episode rollout
+  - result: `final` passes scalar gate but fails video gate; `best` fails scalar gate and fails strict video gate because fall rate ties the matched BC final instead of improving it
+  - interpretation: the ranking utility makes the split evidence explicit and prevents treating a single strong scalar or video result as a policy-improvement claim.
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/rank_flow_mbpo_candidate_evidence.py`; `PYTHONPATH=$PWD/src:$PWD ... rank_flow_mbpo_candidate_evidence.py --help`
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The conservative run produced useful but split evidence: final is scalar-strong/video-weaker, while true-best is video-strong/scalar-weaker. The next step should use the new AWR snapshot persistence in a small follow-up run or add a candidate-selection pass that ranks final, real-eval snapshots, and training-loss snapshots by the same 40-episode scalar plus 10-episode video protocol.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The conservative run produced useful but split evidence, and the candidate ranking confirms no existing candidate clears both scalar and video gates. The next step should use the new AWR snapshot persistence in a small follow-up run, then rank final, real-eval snapshots, and training-loss snapshots with `rank_flow_mbpo_candidate_evidence.py` before deciding whether any checkpoint deserves more seeds.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
