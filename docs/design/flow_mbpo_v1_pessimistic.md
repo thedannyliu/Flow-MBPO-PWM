@@ -430,3 +430,11 @@ random-action CQL smoke. Final CQL gap was `1.8496`, `Q(random)` mean was
 `0.01` run. This means the high random-action tail is mainly a critic/CQL
 sampling issue, not just actor optimization pressure. Keep actor critic weight
 off while tuning CQL weight, temperature, and sampled-action coverage.
+
+The first CQL-weight stress test ran in job `9357126` with
+`--conservative-q-weight 5.0`, `--critic-actor-weight 0.0`, and otherwise the
+same random-action setup. It did not fix the tail: final `Q(random)` max rose to
+`1.0219` versus `0.7380` for weight `1.0`, while `Q(data)` and `Q(actor)` also
+rose and Bellman loss worsened. Higher CQL weight is therefore not a clean safety
+knob here. Use weight `1.0` for the next smokes and tune temperature or random
+action coverage instead.
