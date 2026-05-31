@@ -353,3 +353,15 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     Q scale better than temperature `1.0`, but it likely makes the conservative
     gap too weak. Do not formalize it. Test an intermediate temperature such as
     `0.5` before reintroducing actor-Q pressure or launching a formal W&B seed.
+46. Done for intermediate-temperature CQL smoke. W&B-disabled Slurm job
+    `9357227` repeated the critic-only random-action smoke with
+    `--critic-cql-temperature 0.5`, CQL weight `1.0`, random actions `10`, and
+    actor critic weight `0.0`. It completed on `embers` and wrote all expected
+    checkpoints. Final metrics were critic loss `0.82317`, Bellman loss
+    `0.08494`, CQL gap `0.73823`, `Q(data)` mean `0.23597`, `Q(actor)` mean
+    `0.23751`, `Q(random)` mean `-0.39914`, and `Q(random)` max `0.66968`.
+47. Next method step: temperature `0.5` is the best compromise among the three
+    short temperature smokes: more conservative than `0.1`, with lower tail than
+    `1.0`. It is still smoke-only evidence. Continue with either a longer
+    W&B-disabled temp-`0.5` run or a small real-eval plumbing check before any
+    formal W&B seed.

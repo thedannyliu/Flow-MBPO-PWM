@@ -446,3 +446,11 @@ temperature `1.0`, and `Q(data)`/`Q(actor)` stayed near `0.18` instead of
 `0.25`. The cost is that CQL gap fell to `0.0658`, which may be too weak for
 policy improvement. The next tuning point should be an intermediate temperature,
 for example `0.5`, before any formal W&B run.
+
+The intermediate temperature smoke ran in job `9357227` with temperature `0.5`.
+It landed between the previous endpoints: final CQL gap `0.7382`,
+`Q(random)` mean `-0.3991`, and `Q(random)` max `0.6697`. This is the cleanest
+short-smoke compromise so far: stronger than temperature `0.1` and less tail
+heavy than temperature `1.0`. It still does not provide real policy evidence.
+Use this setting only for the next W&B-disabled continuation or a small
+real-eval plumbing check, not for a policy-improvement claim.
