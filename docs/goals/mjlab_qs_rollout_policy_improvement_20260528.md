@@ -707,9 +707,17 @@ Use these locations as the durable record before launching new work:
   - validation: `python -m py_compile scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`; `PYTHONPATH=$PWD/src:$PWD ... build_flow_mbpo_candidate_eval_plan.py --help`
   - plan-check report for the existing conservative run: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_s0.csv` and `.sh`; found `2` candidates (`final`, `best`)
   - snapshot candidate plan: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_snap100_s0.csv` and `.sh`; found `8` candidates (`final`, `best`, `best_training_loss`, `iter_000100`, `iter_000200`, `iter_000300`, `iter_000400`, `iter_000500`)
+- Submitted the 8-candidate snapshot eval/render plan.
+  - Slurm job: `9349584`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - initial scheduler state: `RUNNING` on `atl1-1-02-002-29-0`
+  - plan: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_snap100_s0.sh`
+  - eval W&B project/group: `flow-mbpo-mjlab-flow-mbpo-v0-candidate-eval40-20260530` / `flow_endpoint_h1_unc0p5_q0p90_cons_snap100_s0`
+  - rollout W&B project/group: `flow-mbpo-mjlab-flow-mbpo-v0-candidate-rollout1000-20260530` / `flow_endpoint_h1_unc0p5_q0p90_cons_snap100_s0`
+  - expected outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_eval/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0_candidates/` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0_candidates/`
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Execute the 8-candidate snapshot eval/render plan on `embers` with W&B enabled, then rank the resulting evidence with `rank_flow_mbpo_candidate_evidence.py` against the matched seed0 BC final 40-episode eval and 10-episode rollout before deciding whether any checkpoint deserves more seeds.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Monitor candidate eval/render job `9349584`. After it completes, rank the resulting evidence with `rank_flow_mbpo_candidate_evidence.py` against the matched seed0 BC final 40-episode eval and 10-episode rollout before deciding whether any checkpoint deserves more seeds.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
