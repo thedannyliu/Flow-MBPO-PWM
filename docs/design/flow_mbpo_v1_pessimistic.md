@@ -398,3 +398,17 @@ critic weight `0.01`; it wrote actor checkpoints and logged critic loss
 CQL gap means this is not yet a useful conservative separation; tune critic
 training length, CQL weight, sampled actions, or generated-state mix before any
 formal run.
+
+Random-action CQL is now the first tuning step for that critic. With
+`--critic-random-actions K`, the critic samples `K` uniform actions per state,
+evaluates actor plus random actions, and uses a temperature-scaled logsumexp OOD
+value against `Q(data)`. Defaults keep the earlier actor-only CQL path. A CPU
+fake-data smoke with `critic_random_actions=4` passed, and W&B-disabled job
+`9356862` ran `20` iterations on the support-aware generated H3 replay with
+`K=10`, conservative-Q weight `1.0`, CQL temperature `1.0`, and actor critic
+weight `0.01`. Final metrics were critic loss `2.41859`, Bellman loss
+`0.07703`, CQL loss/gap `2.34156`, `Q(data)` mean `0.10054`, `Q(actor)` mean
+`0.10057`, `Q(random)` mean `0.03787`, and `Q(random)` max `0.19931`. This
+produces a meaningful conservative training gap, unlike the actor-only smoke,
+but remains W&B-disabled mechanical evidence. Do not formalize until a longer or
+better-tuned smoke shows stable critic/actor behavior.

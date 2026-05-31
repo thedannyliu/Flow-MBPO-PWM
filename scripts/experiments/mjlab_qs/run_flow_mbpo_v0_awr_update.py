@@ -88,6 +88,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--critic-hidden", type=int, default=256)
     p.add_argument("--critic-gamma", type=float, default=0.99)
     p.add_argument("--critic-tau", type=float, default=0.01)
+    p.add_argument(
+        "--critic-random-actions",
+        type=int,
+        default=0,
+        help="Number of uniform random actions per state for CQL logsumexp. Default preserves actor-only CQL.",
+    )
+    p.add_argument("--critic-cql-temperature", type=float, default=1.0)
     p.add_argument("--grad-norm", type=float, default=1.0)
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
     p.add_argument("--quality-filter", default="expert,expert_noisy")
@@ -280,8 +287,23 @@ def train_conservative_critic(
     with torch.no_grad():
         actor_action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
     q_actor = critic(z, c, actor_action)
-    cql_gap = q_actor - q_data
-    cql_loss = F.softplus(cql_gap).mean()
+    q_random_mean = q_actor.new_zeros(())
+    q_random_max = q_actor.new_zeros(())
+    if int(args.critic_random_actions) > 0:
+        k = int(args.critic_random_actions)
+        z_rep = z[:, None, :].expand(-1, k, -1).reshape(-1, z.shape[-1])
+        c_rep = c[:, None, :].expand(-1, k, -1).reshape(-1, c.shape[-1])
+        random_actions = torch.empty(z.shape[0], k, a.shape[-1], device=z.device).uniform_(-1.0, 1.0)
+        q_random = critic(z_rep, c_rep, random_actions.reshape(-1, a.shape[-1])).reshape(z.shape[0], k)
+        q_ood = torch.cat([q_actor[:, None], q_random], dim=1)
+        temp = max(float(args.critic_cql_temperature), 1.0e-6)
+        cql_gap = temp * torch.logsumexp(q_ood / temp, dim=1) - q_data
+        cql_loss = cql_gap.mean()
+        q_random_mean = q_random.detach().mean()
+        q_random_max = q_random.detach().max()
+    else:
+        cql_gap = q_actor - q_data
+        cql_loss = F.softplus(cql_gap).mean()
     loss = bellman_loss + float(args.conservative_q_weight) * cql_loss
     opt.zero_grad(set_to_none=True)
     loss.backward()
@@ -294,6 +316,8 @@ def train_conservative_critic(
         "critic/cql_gap_mean": float(cql_gap.detach().mean().item()),
         "critic/q_data_mean": float(q_data.detach().mean().item()),
         "critic/q_actor_mean": float(q_actor.detach().mean().item()),
+        "critic/q_random_mean": float(q_random_mean.item()),
+        "critic/q_random_max": float(q_random_max.item()),
         "critic/target_q_mean": float(target_q.detach().mean().item()),
     }
 
@@ -576,6 +600,8 @@ def main() -> None:
             "flow_mbpo_v0_support_threshold": float(support_state["threshold"].item()) if support_state is not None else None,
             "flow_mbpo_v1_conservative_q_weight": float(args.conservative_q_weight),
             "flow_mbpo_v1_critic_actor_weight": float(args.critic_actor_weight),
+            "flow_mbpo_v1_critic_random_actions": int(args.critic_random_actions),
+            "flow_mbpo_v1_critic_cql_temperature": float(args.critic_cql_temperature),
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -600,6 +626,8 @@ def main() -> None:
         "critic_enabled": bool(critic_enabled),
         "conservative_q_weight": float(args.conservative_q_weight),
         "critic_actor_weight": float(args.critic_actor_weight),
+        "critic_random_actions": int(args.critic_random_actions),
+        "critic_cql_temperature": float(args.critic_cql_temperature),
     }
     if args.enable_wandb:
         import wandb
@@ -793,6 +821,8 @@ def main() -> None:
                 "checkpoint_kind": "final_q_critic",
                 "conservative_q_weight": float(args.conservative_q_weight),
                 "critic_actor_weight": float(args.critic_actor_weight),
+                "critic_random_actions": int(args.critic_random_actions),
+                "critic_cql_temperature": float(args.critic_cql_temperature),
             },
             critic_checkpoint,
         )

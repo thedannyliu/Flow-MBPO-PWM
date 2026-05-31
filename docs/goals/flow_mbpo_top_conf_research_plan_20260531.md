@@ -287,3 +287,21 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     20-iteration smoke proves mechanics, not usefulness; the near-zero CQL gap
     suggests the critic has not yet learned a useful distinction between data
     and actor actions. Do not launch a formal seed from this configuration.
+36. Done for random-action conservative-Q tuning infrastructure:
+    `run_flow_mbpo_v0_awr_update.py` now supports `--critic-random-actions` and
+    `--critic-cql-temperature`. With random actions enabled, the CQL term samples
+    uniform actions in `[-1, 1]`, evaluates actor plus random actions, and uses a
+    temperature-scaled logsumexp OOD value against `Q(data)`. The default
+    `--critic-random-actions 0` preserves the first actor-only CQL smoke.
+37. Done for the first random-action conservative-Q smoke. CPU fake data with
+    `critic_random_actions=4` produced finite metrics. W&B-disabled Slurm job
+    `9356862` ran `20` iterations on the support-aware generated H3 replay with
+    `--conservative-q-weight 1.0`, `--critic-random-actions 10`,
+    `--critic-cql-temperature 1.0`, and `--critic-actor-weight 0.01`. It wrote
+    actor checkpoints and `final_q_critic.pt`. Final critic metrics were loss
+    `2.41859`, Bellman loss `0.07703`, CQL loss `2.34156`, CQL gap mean
+    `2.34156`, `Q(data)` mean `0.10054`, `Q(actor)` mean `0.10057`,
+    `Q(random)` mean `0.03787`, and `Q(random)` max `0.19931`. This fixes the
+    near-zero CQL-gap diagnostic from actor-only CQL, but it remains smoke-only
+    evidence. Next tune training duration, CQL weight, and random-action mix
+    before any formal W&B seed.
