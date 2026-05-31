@@ -725,9 +725,16 @@ Use these locations as the durable record before launching new work:
   - closest row: `iter_000400` passed scalar eval with return `55.8213`, length `719.0750`, fall `0.4750`; rollout return `54.4738`, length `692.8000`, fall `0.4000` improved/tied the matched BC final video metrics but failed strict video gate because fall rate tied rather than improved
   - other scalar-pass rows remained diagnostic only: `final`, `best`, `iter_000100`, and `iter_000500` passed scalar eval but failed strict video gate
   - interpretation: checkpoint selection variance is real, but the snapshot pool still does not establish policy improvement. Do not expand this Flow endpoint AWR setup to seeds 1-2.
+- Added rollout-consistent synthetic replay truncation for the next Flow-MBPO method iteration.
+  - script: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new flag: `--truncate-rollouts-after-done`
+  - behavior: for multi-step synthetic rollouts with `start_index` and `horizon_step`, mark every transition after the first model-done or uncertainty-done transition from the same start as done, preventing AWR from training on post-termination imagined states
+  - summary now records `truncate_rollouts_after_done` and `post_first_done_fraction`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`; `PYTHONPATH=$PWD/src:$PWD python ... prepare_flow_mbpo_v0_synthetic_replay.py --help`; in-memory H3 truncation check; H1 replay preparation check at `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90_truncate_check/summary.json`
+  - interpretation: this is infrastructure for the next H3/H5 trajectory or residual replay run, not evidence of policy improvement by itself
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next useful work should change the method, not merely search more checkpoints from this run: move toward short-horizon trajectory/residual Flow-MBPO with explicit uncertainty penalties or early termination, then evaluate with the same matched BC scalar/video gates.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next useful work should change the method, not merely search more checkpoints from this run: generate H3/H5 trajectory or residual synthetic replay with `--truncate-rollouts-after-done`, then evaluate with the same matched BC scalar/video gates.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.

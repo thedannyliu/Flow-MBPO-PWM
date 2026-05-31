@@ -96,8 +96,14 @@ python scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py \
   --synthetic-buffer scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1/synthetic_buffer.pt \
   --output-dir scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90 \
   --lambda-uncertainty 0.5 \
-  --uncertainty-quantile-termination 0.90
+  --uncertainty-quantile-termination 0.90 \
+  --truncate-rollouts-after-done
 ```
+
+For `H > 1` replay, keep `--truncate-rollouts-after-done` enabled. It marks
+all later synthetic transitions from the same start as done after the first
+model-done or uncertainty-done transition, so the policy update cannot train on
+post-termination imagined states.
 
 The first model-free policy-update implementation slice is AWR-style weighted
 behavior regression on mixed real/synthetic batches:
