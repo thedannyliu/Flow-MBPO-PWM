@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare conservative Flow-MBPO v0 synthetic replay from a smoke buffer."""
+"""Prepare conservative Flow-MBPO synthetic replay from a smoke buffer."""
 
 from __future__ import annotations
 
@@ -28,7 +28,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--synthetic-buffer", required=True)
     p.add_argument("--output-dir", required=True)
     p.add_argument("--lambda-uncertainty", type=float, default=0.0)
+    p.add_argument("--lambda-fall", type=float, default=0.0)
     p.add_argument("--uncertainty-quantile-termination", type=float, default=0.0)
+    p.add_argument("--done-threshold", type=float, default=0.5)
+    p.add_argument("--fall-threshold", type=float, default=0.5)
     p.add_argument(
         "--truncate-rollouts-after-done",
         action="store_true",
@@ -110,15 +113,21 @@ def rollout_post_done_mask(buffer: dict[str, torch.Tensor], done: torch.Tensor) 
 def prepare_replay(
     buffer: dict[str, torch.Tensor],
     lambda_uncertainty: float,
+    lambda_fall: float,
     termination_quantile: float,
+    done_threshold: float,
+    fall_threshold: float,
     truncate_rollouts_after_done: bool,
 ) -> dict[str, torch.Tensor]:
     reward = buffer["reward"].float()
     next_unc = buffer["next_state_uncertainty"].float()
     reward_unc = buffer["reward_uncertainty"].float()
     uncertainty = next_unc + reward_unc
-    done = buffer["done"].bool()
-    uncertainty_done = torch.zeros_like(done)
+    done_probability = buffer.get("done_probability", torch.zeros_like(reward)).float()
+    fall_prob = buffer.get("fall_prob", buffer.get("fall_probability", done_probability)).float()
+    done_model = buffer["done"].bool() | (done_probability >= float(done_threshold))
+    fall_done = fall_prob >= float(fall_threshold)
+    uncertainty_done = torch.zeros_like(done_model)
     threshold = torch.tensor(float("inf"))
     if termination_quantile > 0.0:
         q = min(max(float(termination_quantile), 0.0), 1.0)
@@ -129,10 +138,13 @@ def prepare_replay(
     replay = dict(buffer)
     replay["uncertainty"] = uncertainty
     replay["reward_raw"] = reward
-    replay["reward_conservative"] = reward - float(lambda_uncertainty) * uncertainty
-    replay["done_model"] = done
+    replay["done_probability"] = done_probability
+    replay["fall_prob"] = fall_prob
+    replay["reward_conservative"] = reward - float(lambda_uncertainty) * uncertainty - float(lambda_fall) * fall_prob
+    replay["done_model"] = done_model
+    replay["done_fall"] = fall_done
     replay["done_uncertainty"] = uncertainty_done
-    done_combined = done | uncertainty_done
+    done_combined = done_model | fall_done | uncertainty_done
     if truncate_rollouts_after_done:
         post_done = rollout_post_done_mask(buffer, done_combined)
     else:
@@ -140,6 +152,8 @@ def prepare_replay(
     replay["done_post_first_done"] = post_done
     replay["done"] = done_combined | post_done
     replay["uncertainty_termination_threshold"] = threshold.repeat(reward.shape[0])
+    replay["done_threshold"] = torch.full_like(reward, float(done_threshold))
+    replay["fall_threshold"] = torch.full_like(reward, float(fall_threshold))
     return replay
 
 
@@ -157,7 +171,10 @@ def main() -> None:
     replay = prepare_replay(
         buffer,
         args.lambda_uncertainty,
+        args.lambda_fall,
         args.uncertainty_quantile_termination,
+        args.done_threshold,
+        args.fall_threshold,
         args.truncate_rollouts_after_done,
     )
 
@@ -172,7 +189,10 @@ def main() -> None:
         "output_dir": str(output_dir),
         "replay_path": str(replay_path),
         "lambda_uncertainty": float(args.lambda_uncertainty),
+        "lambda_fall": float(args.lambda_fall),
         "uncertainty_quantile_termination": float(args.uncertainty_quantile_termination),
+        "done_threshold": float(args.done_threshold),
+        "fall_threshold": float(args.fall_threshold),
         "truncate_rollouts_after_done": bool(args.truncate_rollouts_after_done),
         "max_transitions": int(args.max_transitions),
         "seed": int(args.seed),
@@ -180,7 +200,10 @@ def main() -> None:
         "raw_reward": summarize_tensor(replay["reward_raw"]),
         "conservative_reward": summarize_tensor(replay["reward_conservative"]),
         "uncertainty": summarize_tensor(replay["uncertainty"]),
+        "done_probability": summarize_tensor(replay["done_probability"]),
+        "fall_prob": summarize_tensor(replay["fall_prob"]),
         "model_done_fraction": float(replay["done_model"].float().mean().item()),
+        "fall_done_fraction": float(replay["done_fall"].float().mean().item()),
         "uncertainty_done_fraction": float(replay["done_uncertainty"].float().mean().item()),
         "post_first_done_fraction": float(replay["done_post_first_done"].float().mean().item()),
         "done_fraction": float(done.mean().item()),

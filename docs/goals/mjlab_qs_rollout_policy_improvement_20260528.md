@@ -878,11 +878,20 @@ Use these locations as the durable record before launching new work:
   - best-real roll10: return `55.5495`, length `708.00`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0/best_roll10/rollout.mp4`
   - comparison to matched seed0 BC final 40-episode eval: return `43.6600`, length `568.38`, fall `0.675`; comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
   - interpretation: lowering the synthetic ratio from `32/256` to `16/256` preserves the useful return/length gains and final again clears the scalar BC gate, but video fall still ties matched BC instead of improving. This does not solve the strict gate; do not expand seeds or rerun this exact lowsynth variant.
+- Added the first Flow-MBPO v1 fall-aware replay plumbing.
+  - script: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new replay args/fields: `--lambda-fall`, `--done-threshold`, `--fall-threshold`, `fall_prob`, `done_probability`, `done_fall`, `done_threshold`, and `fall_threshold`
+  - behavior: `reward_conservative = reward_raw - lambda_uncertainty * uncertainty - lambda_fall * fall_prob`; final replay `done` now combines model done, fall-threshold done, uncertainty done, and optional post-first-done truncation
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`; CLI help; in-memory fake-buffer check that fall penalty, model done, fall done, and post-first-done truncation behave as expected
+  - W&B-disabled trajectory/chunk H3 replay smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_fall5_q0p90_trunc/`
+  - smoke settings: existing 5k trajectory/chunk H3 synthetic buffer, `lambda_uncertainty=0.5`, `lambda_fall=5.0`, uncertainty q90 termination, done/fall thresholds `0.5`, post-done truncation enabled
+  - smoke result: transitions `768`, conservative reward mean `-0.053116`, uncertainty-done `0.100260`, final done `0.130208`, `fall_prob` mean `3.43e-7`, max `8.98e-6`, fall-done `0.000`
+  - interpretation: the v1 replay schema now supports fall pessimism, but the current trajectory/chunk done/fall proxy is still collapsed near zero, so `lambda_fall` has almost no effect on this replay. The next method work must repair/calibrate the fall signal or use a separate support/OOD/conservative-Q signal before another formal policy update.
 
 ## Next Action
 
 Keep PWM paused and do not claim general policy improvement. Adopt the top-conference Flow-MBPO v1 plan in `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` and `docs/design/flow_mbpo_v1_pessimistic.md` as the active method direction. The 0531 dated source notes are in `docs/goals/0531/`.
 
-Lower synthetic ratio alone did not lower matched video fall rate. The next method step should implement the smallest pessimistic v1 slice around trajectory/chunk H3: add fall-aware replay fields and conservative reward plumbing, calibrate or repair the collapsed done/fall signal before trusting model termination, and add a KL/action-deviation constraint or conservative-Q fallback. Run W&B-disabled smoke first, then one formal W&B seed on `embers`, and require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion.
+Lower synthetic ratio alone did not lower matched video fall rate, and v1 replay smoke confirms the current trajectory/chunk fall proxy is collapsed near zero. The next method step should calibrate or repair the done/fall signal before trusting model termination, and add a KL/action-deviation constraint or conservative-Q fallback around trajectory/chunk H3. Run W&B-disabled smoke first, then one formal W&B seed on `embers`, and require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
