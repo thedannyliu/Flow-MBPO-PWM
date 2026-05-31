@@ -185,3 +185,13 @@ Final 40-episode eval was return `43.9079`, length `577.45`, fall `0.725`;
 best-real 40-episode eval was return `41.4285`, length `544.575`, fall
 `0.750`. Final/best-real roll10 videos had fall `0.400`, tying matched BC
 rather than improving it. Do not expand this variant.
+
+Current support/OOD status: `add_flow_mbpo_support_penalty.py` can augment a
+synthetic replay with normalized real-data nearest-neighbor distance over
+`(state, command, action)` and subtract a calibrated support penalty from
+`reward_conservative`. The first W&B-disabled smoke used `20000` expert+noisy
+support rows, `4096` disjoint probe rows, q90 threshold `0.622495`, and
+`lambda_support=5.0`. The current H3 replay had support-distance p90 `0.5258`,
+so the penalty was mild; support penalty mean was `0.00544` and p90 was `0.0`.
+This path is mechanically clean but still needs calibration against real
+failures before a formal run.

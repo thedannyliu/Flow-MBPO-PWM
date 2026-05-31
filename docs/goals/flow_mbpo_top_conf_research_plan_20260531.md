@@ -92,3 +92,7 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
    regressed versus matched BC and rollout fall still tied BC. Do not expand it.
    Next add a real fall/support/OOD risk signal or conservative-Q penalty before
    another formal policy update.
+6. Partly done: state/action support-OOD replay penalty plumbing is implemented
+   and passed W&B-disabled replay/AWR smokes. The first q90 support setting is a
+   mild penalty on the current H3 replay, so it needs calibration or a stronger
+   local-support variant before any formal run.
