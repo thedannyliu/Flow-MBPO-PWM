@@ -756,9 +756,21 @@ Use these locations as the durable record before launching new work:
   - settings: `train_iters=100`, `base_pretrain_iters=100`, `batch_size=128`, `eval_batch_size=512`, hidden `256`, W&B disabled
   - outputs: `scripts/outputs/mjlab_qs/results/flow_mbpo_v0_residual_smoke_20260530/velocity_flat_unitree_g1/residual_flow_frozen_mlp/seed_{0,1,2}/`
   - interpretation: this is a mechanical residual-training smoke only. If it writes usable `best.pt` checkpoints, generate residual H3/H5 replay through the same truncation gate before any AWR policy update.
+- Residual Flow world-model smoke job `9350121` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:01:45`, max RSS `6867752K`
+  - wrote `best.pt` and `summary.json` for seeds `0,1,2`
+  - seed0 summary: best iter `0`, test rollout dyn MSE H16 `0.9705`, test reward MSE `0.6665`, rollout error ratio `4.4272`
+  - seed1 summary: best iter `0`, test rollout dyn MSE H16 `1.0380`, test reward MSE `0.6796`, rollout error ratio `5.1285`
+  - seed2 summary: best iter `0`, test rollout dyn MSE H16 `0.9553`, test reward MSE `0.6535`, rollout error ratio `4.4253`
+  - interpretation: the residual path writes loadable checkpoints, but this 100-iter smoke did not improve validation loss after iter0. Treat these only as mechanical inputs for residual replay plumbing, not as trained residual models.
+- Submitted residual Flow H3/H5 replay diagnostics using the smoke checkpoints.
+  - Slurm job: `9350157`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - settings: same BC policy, `num_starts=256`, H3/H5, `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, `--truncate-rollouts-after-done`, W&B disabled
+  - outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/residual_flow_frozen_mlp_smoke_ensemble_seed0_h3/` and `_h5/`; replay dirs under `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/residual_flow_frozen_mlp_smoke_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Monitor residual smoke job `9350121`; if it completes, use the residual checkpoints to generate H3/H5 replay through the same `--truncate-rollouts-after-done` gate and compare against the endpoint horizon baseline before any policy update.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Monitor residual replay job `9350157`; if it completes, compare residual H3/H5 replay diagnostics against the endpoint horizon baseline before any policy update.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
