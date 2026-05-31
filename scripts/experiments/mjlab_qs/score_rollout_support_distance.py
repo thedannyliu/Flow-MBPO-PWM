@@ -258,15 +258,25 @@ def grouped_episode_stats(rows: list[dict[str, Any]], key: str) -> dict[str, Any
     lengths = torch.tensor([row["length"] for row in group], dtype=torch.float32)
     returns = torch.tensor([row["return"] for row in group], dtype=torch.float32)
     dist = torch.tensor([row["support_distance_max"] for row in group], dtype=torch.float32)
+    dist_tail10_mean = torch.tensor([row["support_distance_tail10_mean"] for row in group], dtype=torch.float32)
+    dist_tail10_max = torch.tensor([row["support_distance_tail10_max"] for row in group], dtype=torch.float32)
     penalty = torch.tensor([row["support_penalty_max"] for row in group], dtype=torch.float32)
+    penalty_tail10_mean = torch.tensor([row["support_penalty_tail10_mean"] for row in group], dtype=torch.float32)
+    penalty_tail10_max = torch.tensor([row["support_penalty_tail10_max"] for row in group], dtype=torch.float32)
     return {
         "episodes": len(group),
         "length_mean": finite_mean(lengths),
         "return_mean": finite_mean(returns),
         "support_distance_max_mean": finite_mean(dist),
         "support_distance_max_max": finite_max(dist),
+        "support_distance_tail10_mean_mean": finite_mean(dist_tail10_mean),
+        "support_distance_tail10_max_mean": finite_mean(dist_tail10_max),
+        "support_distance_tail10_max_max": finite_max(dist_tail10_max),
         "support_penalty_max_mean": finite_mean(penalty),
         "support_penalty_max_max": finite_max(penalty),
+        "support_penalty_tail10_mean_mean": finite_mean(penalty_tail10_mean),
+        "support_penalty_tail10_max_mean": finite_mean(penalty_tail10_max),
+        "support_penalty_tail10_max_max": finite_max(penalty_tail10_max),
     }
 
 

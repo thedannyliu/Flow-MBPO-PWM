@@ -116,3 +116,19 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     timeouts, and test whether support distance or tail-window support distance
     separates failed from successful real segments. If it does not, prioritize
     conservative-Q pessimism over another support-penalty formal run.
+11. Done for first real-failure calibration: W&B-disabled job `9355621`
+    rerendered matched BC seed0 final and Flow trajectory/chunk lowsynth final
+    as 10-episode, 1000-step rollouts with support features. Refresh job
+    `9355785` regenerated q50/q90 scorer summaries after adding grouped
+    tail-window stats. q90 support distance strongly separates terminated from
+    timeout episodes in both policies. BC terminated episodes had support
+    distance max mean `11.7936` and tail10 mean `6.0608`, versus timeout max
+    mean `1.7309` and tail10 mean `0.8289`. Flow terminated episodes had max
+    mean `12.8382` and tail10 mean `6.3886`, versus timeout max mean `1.4489`
+    and tail10 mean `0.5694`.
+12. Next method step: convert the calibrated support signal into a conservative
+    support-risk objective. Prefer a risk gate/penalty based on high or late
+    support-distance spikes rather than the raw q50 threshold, because q50
+    penalized even a no-fall 50-step BC segment heavily. Run W&B-disabled AWR
+    smoke first, then formal W&B only if the smoke remains mechanically clean
+    and the objective is plausibly targeted at the observed fall signal.

@@ -225,3 +225,22 @@ mean `0.0468` and tail-10 penalty `0.0`. Treat this as calibration
 infrastructure only: the first scored rollout has no fall or timeout, so the
 next required evidence is full matched BC/Flow rollouts with support features
 covering both failed and successful episodes.
+
+The first matched support-feature calibration is now available. Job `9355621`
+rendered BC seed0 final and Flow trajectory/chunk lowsynth final for 10
+episodes at `max_steps=1000` with W&B disabled and support features enabled;
+job `9355785` refreshed q50/q90 scores after adding grouped tail-window stats.
+BC rerendered at return `48.2874`, length `635.20`, fall `0.500`; Flow
+rerendered at return `54.5913`, length `694.00`, fall `0.400`. Under the q90
+real-probe threshold `0.622495`, terminated episodes show large late support
+spikes while timeout episodes remain much closer to support. For BC, terminated
+episodes had support-distance max mean `11.7936` and tail10 mean `6.0608`,
+versus timeout max mean `1.7309` and tail10 mean `0.8289`. For Flow, terminated
+episodes had max mean `12.8382` and tail10 mean `6.3886`, versus timeout max
+mean `1.4489` and tail10 mean `0.5694`.
+
+Design implication: support distance is now a plausible real-fall risk proxy,
+but raw q50 support gating is too aggressive. The next replay/policy update
+should use a q90-style support-risk penalty or late-spike gate calibrated from
+real rollout features, then clear W&B-disabled AWR smoke before any formal W&B
+seed.
