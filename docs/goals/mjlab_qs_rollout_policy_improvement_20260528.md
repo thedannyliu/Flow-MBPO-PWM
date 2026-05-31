@@ -881,6 +881,8 @@ Use these locations as the durable record before launching new work:
 
 ## Next Action
 
-Keep PWM paused and do not claim general policy improvement. Lower synthetic ratio alone did not lower matched video fall rate. The next method step should add a stricter policy-update constraint or fall-aware candidate selection around the trajectory/chunk H3 recipe, then require 40-episode eval and matched roll10 video to beat BC on return, length, and fall before any seed expansion.
+Keep PWM paused and do not claim general policy improvement. Adopt the top-conference Flow-MBPO v1 plan in `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` and `docs/design/flow_mbpo_v1_pessimistic.md` as the active method direction. The 0531 dated source notes are in `docs/goals/0531/`.
+
+Lower synthetic ratio alone did not lower matched video fall rate. The next method step should implement the smallest pessimistic v1 slice around trajectory/chunk H3: add fall-aware replay fields and conservative reward plumbing, calibrate or repair the collapsed done/fall signal before trusting model termination, and add a KL/action-deviation constraint or conservative-Q fallback. Run W&B-disabled smoke first, then one formal W&B seed on `embers`, and require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
