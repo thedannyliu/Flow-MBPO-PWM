@@ -62,6 +62,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--support-state-weight", type=float, default=1.0)
     p.add_argument("--support-command-weight", type=float, default=1.0)
     p.add_argument("--support-action-weight", type=float, default=1.0)
+    p.add_argument(
+        "--support-risk-features",
+        default="",
+        help="Comma-separated rollout_support_scores.pt files. High-distance states receive an actor support penalty.",
+    )
+    p.add_argument("--support-risk-penalty-weight", type=float, default=0.0)
+    p.add_argument("--support-risk-batch-size", type=int, default=64)
+    p.add_argument("--support-risk-min-distance", type=float, default=-1.0)
+    p.add_argument("--support-risk-top-quantile", type=float, default=-1.0)
     p.add_argument("--grad-norm", type=float, default=1.0)
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
     p.add_argument("--quality-filter", default="expert,expert_noisy")
@@ -213,7 +222,7 @@ def build_support_state(
     args: argparse.Namespace,
     device: torch.device,
 ) -> dict[str, Any] | None:
-    if float(args.support_action_penalty_weight) <= 0.0:
+    if float(args.support_action_penalty_weight) <= 0.0 and float(args.support_risk_penalty_weight) <= 0.0:
         return None
     generator = torch.Generator().manual_seed(int(args.seed))
     perm = real_indices[torch.randperm(real_indices.numel(), generator=generator)]
@@ -240,6 +249,65 @@ def build_support_state(
         "probe_rows": int(probe_indices.numel()),
         "args": args,
     }
+
+
+def load_support_risk_state(args: argparse.Namespace, device: torch.device) -> dict[str, torch.Tensor] | None:
+    if float(args.support_risk_penalty_weight) <= 0.0:
+        return None
+    paths = [Path(item.strip()) for item in str(args.support_risk_features).split(",") if item.strip()]
+    if not paths:
+        raise ValueError("--support-risk-penalty-weight requires at least one --support-risk-features path")
+    states: list[torch.Tensor] = []
+    commands: list[torch.Tensor] = []
+    distances: list[torch.Tensor] = []
+    for path in paths:
+        payload = torch.load(path, map_location="cpu", weights_only=False)
+        if not isinstance(payload, dict):
+            raise TypeError(f"{path} must contain a dict")
+        for key in ["state", "command", "support_distance"]:
+            if key not in payload or not torch.is_tensor(payload[key]):
+                raise ValueError(f"{path} is missing tensor key {key!r}")
+        states.append(payload["state"].float())
+        commands.append(payload["command"].float())
+        distances.append(payload["support_distance"].float())
+    state = torch.cat(states, dim=0)
+    command = torch.cat(commands, dim=0)
+    distance = torch.cat(distances, dim=0)
+    finite = torch.isfinite(distance)
+    if float(args.support_risk_min_distance) >= 0.0:
+        keep = finite & (distance >= float(args.support_risk_min_distance))
+        threshold = float(args.support_risk_min_distance)
+    elif float(args.support_risk_top_quantile) >= 0.0:
+        q = min(max(float(args.support_risk_top_quantile), 0.0), 1.0)
+        threshold = float(torch.quantile(distance[finite], q).item())
+        keep = finite & (distance >= threshold)
+    else:
+        keep = finite
+        threshold = math.nan
+    if int(keep.sum().item()) == 0:
+        raise ValueError(
+            f"No support-risk rows selected from {args.support_risk_features!r}; "
+            "lower --support-risk-min-distance or --support-risk-top-quantile"
+        )
+    return {
+        "state": state[keep].to(device),
+        "command": command[keep].to(device),
+        "source_distance": distance[keep].to(device),
+        "selection_threshold": torch.tensor(threshold, dtype=torch.float32, device=device),
+        "rows": torch.tensor(int(keep.sum().item()), dtype=torch.long),
+        "total_rows": torch.tensor(int(distance.numel()), dtype=torch.long),
+    }
+
+
+def sample_support_risk_batch(
+    risk_state: dict[str, torch.Tensor] | None,
+    batch_size: int,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None:
+    if risk_state is None:
+        return None
+    n = int(risk_state["state"].shape[0])
+    pick = torch.randint(n, (int(batch_size),), device=risk_state["state"].device)
+    return risk_state["state"][pick], risk_state["command"][pick], risk_state["source_distance"][pick]
 
 
 def support_action_penalty(
@@ -351,6 +419,7 @@ def main() -> None:
             param.requires_grad_(False)
     real_indices = select_real_indices(data, metadata, args)
     support_state = build_support_state(data, real_indices, nrm, args, device)
+    support_risk_state = load_support_risk_state(args, device)
     opt = torch.optim.Adam(actor.parameters(), lr=float(args.actor_lr))
     ckpt_args = dict(policy_ckpt.get("args", {}))
     ckpt_args.update(
@@ -361,6 +430,8 @@ def main() -> None:
             "flow_mbpo_v0_update_iters": int(args.update_iters),
             "flow_mbpo_v0_action_deviation_weight": float(args.action_deviation_weight),
             "flow_mbpo_v0_support_action_penalty_weight": float(args.support_action_penalty_weight),
+            "flow_mbpo_v0_support_risk_penalty_weight": float(args.support_risk_penalty_weight),
+            "flow_mbpo_v0_support_risk_features": args.support_risk_features,
             "flow_mbpo_v0_support_threshold": float(support_state["threshold"].item()) if support_state is not None else None,
             "dataset": args.dataset,
             "metadata": args.metadata,
@@ -379,6 +450,10 @@ def main() -> None:
         "support_rows": int(support_state["support_rows"]) if support_state is not None else 0,
         "support_probe_rows": int(support_state["probe_rows"]) if support_state is not None else 0,
         "support_threshold": float(support_state["threshold"].item()) if support_state is not None else None,
+        "support_risk_features": args.support_risk_features,
+        "support_risk_rows": int(support_risk_state["rows"].item()) if support_risk_state is not None else 0,
+        "support_risk_total_rows": int(support_risk_state["total_rows"].item()) if support_risk_state is not None else 0,
+        "support_risk_selection_threshold": float(support_risk_state["selection_threshold"].item()) if support_risk_state is not None else None,
     }
     if args.enable_wandb:
         import wandb
@@ -421,12 +496,22 @@ def main() -> None:
         real_support_loss, real_support_distance = support_action_penalty(rz, rc, real_pred, support_state)
         synth_support_loss, synth_support_distance = support_action_penalty(sz, sc, synth_pred, support_state, (~sd).float())
         support_action_loss = 0.5 * (real_support_loss + synth_support_loss)
+        risk_batch = sample_support_risk_batch(support_risk_state, int(args.support_risk_batch_size))
+        if risk_batch is not None:
+            risk_z, risk_c, risk_source_distance = risk_batch
+            risk_pred = actor(risk_z, risk_c, deterministic=True).clamp(-1.0, 1.0)
+            support_risk_loss, support_risk_distance = support_action_penalty(risk_z, risk_c, risk_pred, support_state)
+        else:
+            risk_source_distance = real_pred.new_zeros(1)
+            support_risk_loss = real_pred.new_zeros(())
+            support_risk_distance = real_pred.new_zeros(1)
         loss = (
             real_loss
             + synth_loss
             + float(args.bc_anchor_weight) * anchor_loss
             + float(args.action_deviation_weight) * action_deviation_loss
             + float(args.support_action_penalty_weight) * support_action_loss
+            + float(args.support_risk_penalty_weight) * support_risk_loss
         )
         opt.zero_grad(set_to_none=True)
         loss.backward()
@@ -446,8 +531,13 @@ def main() -> None:
                 "awr/bc_anchor_loss": float(anchor_loss.detach().item()),
                 "awr/action_deviation_loss": float(action_deviation_loss.detach().item()),
                 "awr/support_action_loss": float(support_action_loss.detach().item()),
+                "awr/support_risk_loss": float(support_risk_loss.detach().item()),
+                "awr/support_risk_source_distance_mean": float(risk_source_distance.detach().mean().item()),
+                "awr/support_risk_source_distance_p90": float(torch.quantile(risk_source_distance.detach(), 0.90).item()),
+                "awr/support_risk_source_distance_max": float(risk_source_distance.detach().max().item()),
                 **support_distance_metrics("awr/real_support_distance", real_support_distance, support_threshold),
                 **support_distance_metrics("awr/synthetic_support_distance", synth_support_distance, support_threshold),
+                **support_distance_metrics("awr/risk_support_distance", support_risk_distance, support_threshold),
                 "awr/real_reward_mean": float(rr.detach().mean().item()),
                 "awr/synthetic_reward_mean": float(sr.detach().mean().item()),
                 "awr/real_weight_mean": float(real_weights.detach().mean().item()),
@@ -540,6 +630,7 @@ def main() -> None:
         "synthetic_reward_conservative": summarize_tensor(replay["reward_conservative"]),
         "synthetic_done_fraction": float(replay["done"].float().mean().item()),
         "support_probe_distance": summarize_tensor(support_state["probe_distance"]) if support_state is not None else None,
+        "support_risk_source_distance": summarize_tensor(support_risk_state["source_distance"]) if support_risk_state is not None else None,
         "wall_clock_seconds": time.time() - t0,
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

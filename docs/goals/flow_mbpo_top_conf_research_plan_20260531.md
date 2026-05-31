@@ -158,3 +158,20 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     Either add rollout-state/high-risk-state augmentation so the support-risk
     loss sees the failure distribution, or move to a conservative-Q objective
     that penalizes actor actions outside support more directly.
+17. Done for high-risk rollout-state diagnostic: `run_flow_mbpo_v0_awr_update.py`
+    now accepts scored rollout support tensors through `--support-risk-features`
+    and can sample high-distance rollout states during AWR. Job `9356122`
+    selected `133` rows with support distance at least `2.0` from the matched
+    BC/Flow calibration rollouts. The risk loss saw those states
+    (`support_risk_loss=4.5367`, risk active fraction `1.0`), but actor risk
+    distance matched the source distance because the high distance is dominated
+    by the state/command component.
+18. Done for action-ablation diagnosis: scorer job `9356143` recomputed rollout
+    support distance with `--action-weight 0.0`. Fall-vs-timeout separation was
+    essentially unchanged: BC terminated tail10 `6.0567` versus timeout
+    `0.8253`; Flow terminated `6.3846` versus timeout `0.5662`. The support
+    signal is therefore primarily state/command OOD, not action OOD.
+19. Next method step: do not spend more runs on actor-only support penalties.
+    Use support distance as model-rollout pessimism or early termination over
+    generated states, or implement conservative-Q on out-of-support generated
+    states/actions.

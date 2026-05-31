@@ -271,3 +271,19 @@ unchanged in a 20-iteration smoke. The current AWR batches therefore do not
 expose the high-risk late rollout states where falls occur. Prefer
 rollout-state/high-risk-state augmentation or a conservative-Q penalty before a
 formal support-risk run.
+
+High-risk rollout-state augmentation has now been tested as a diagnostic. AWR
+can load scored rollout support tensors via `--support-risk-features`, select
+rows with high recorded support distance, and apply the support penalty to the
+current actor on those states. Job `9356122` selected `133` high-risk rows
+(`support_distance >= 2.0`) from the matched BC/Flow calibration rollouts. The
+risk loss was active (`support_risk_loss=4.5367`, active fraction `1.0`), but
+the actor risk support distance stayed equal to the source distance. A follow-up
+scorer run with `--action-weight 0.0` showed the same fall-vs-timeout
+separation as the full feature distance. The support-fall signal is therefore
+mostly state/command OOD. Actor-only support penalties cannot move an already
+out-of-support state back into support.
+
+Design implication: support distance should move into model-rollout pessimism,
+early termination, or a conservative-Q objective over generated/rollout states.
+Do not run a formal seed from the actor-only support-penalty path.
