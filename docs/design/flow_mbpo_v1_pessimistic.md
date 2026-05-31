@@ -157,6 +157,14 @@ W&B disabled:
 6. Verify final and best checkpoints load.
 7. Make no policy-improvement claim.
 
+Current smoke status: the trajectory/chunk H3 AWR action-deviation smoke passed
+mechanically in Slurm job `9354631` using commit `17a2545`. The artifact is
+`scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_actdev10_iter20_s0/`.
+It ran `20` AWR iterations with real batch `240`, synthetic batch `16`, BC
+anchor `1.0`, and `--action-deviation-weight 10.0`; it saved final, best, and
+best-training-loss checkpoints. This only validates the update path and does
+not provide real-rollout evidence.
+
 ## Formal Checklist
 
 W&B enabled, `embers` QOS:

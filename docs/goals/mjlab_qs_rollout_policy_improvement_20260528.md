@@ -902,11 +902,21 @@ Use these locations as the durable record before launching new work:
   - logged metric: `awr/action_deviation_loss`; checkpoint args record `flow_mbpo_v0_action_deviation_weight`
   - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; CLI help; `/tmp` CPU fake dataset/replay 2-iteration run with `--action-deviation-weight 2.0`, checkpoint load check, and summary check for `awr/action_deviation_loss`
   - interpretation: this implements the v1 "KL/action-deviation to BC or previous policy" safeguard without relying on the unusable learned done/fall head. It is infrastructure only until a W&B-disabled trajectory/chunk H3 smoke and then formal W&B run prove real rollout value.
+- Ran the W&B-disabled trajectory/chunk H3 AWR action-deviation smoke.
+  - code commit: `17a2545`
+  - Slurm job: `9354631`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:14`, max RSS `6805432K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_actdev10_iter20_s0/`
+  - log: `logs/slurm/mjlab_qs/flow_mbpo_v1_awr_smoke/9354631.out`
+  - settings: existing expert+noisy H16 QS dataset, BC seed0 final warm start, trajectory/chunk H3 replay, `update_iters=20`, real batch `240`, synthetic batch `16`, BC anchor `1.0`, action-deviation weight `10.0`, actor LR `1e-5`, real eval disabled, W&B disabled
+  - summary: `real_train_windows=250559`, `synthetic_transitions=768`, conservative synthetic reward mean `-0.053114`, synthetic done fraction `0.130208`
+  - final iter metrics: loss `0.00108105`, real loss `0.00053796`, synthetic loss `2.72e-7`, BC anchor loss `0.00053876`, action-deviation loss `4.06e-7`, synthetic batch done fraction `0.0`
+  - checkpoints verified present: `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `best_training_loss_policy_extraction.pt`
+  - interpretation: the v1 action-deviation AWR path is mechanically clean on the current best trajectory/chunk H3 recipe. This is not a policy-improvement result because it has no real eval or video; it only clears the smoke gate for a single formal W&B seed on `embers`.
 
 ## Next Action
 
 Keep PWM paused and do not claim general policy improvement. Adopt the top-conference Flow-MBPO v1 plan in `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` and `docs/design/flow_mbpo_v1_pessimistic.md` as the active method direction. The 0531 dated source notes are in `docs/goals/0531/`.
 
-Lower synthetic ratio alone did not lower matched video fall rate, and v1 replay/dataset audits confirm the current trajectory/chunk fall proxy is collapsed because the QS data has no positive done/fall labels. The next method step should stop treating the learned done head as a usable safety signal on this dataset. Run a W&B-disabled trajectory/chunk H3 AWR smoke with the new `--action-deviation-weight` safeguard around the current `r224/s32` or `r240/s16` recipe; only if that smoke is mechanically clean, run one formal W&B seed on `embers`. Require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion. In parallel, plan fall-positive/near-fall data or a state/support/OOD risk proxy before any future done-head-dependent method.
+Lower synthetic ratio alone did not lower matched video fall rate, and v1 replay/dataset audits confirm the current trajectory/chunk fall proxy is collapsed because the QS data has no positive done/fall labels. Stop treating the learned done head as a usable safety signal on this dataset. The W&B-disabled trajectory/chunk H3 AWR smoke with `--action-deviation-weight 10.0` is mechanically clean, so the next method step is one formal W&B seed on `embers` around the current `r240/s16` recipe plus the action-deviation safeguard. Require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion. In parallel, plan fall-positive/near-fall data or a state/support/OOD risk proxy before any future done-head-dependent method.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.

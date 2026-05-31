@@ -77,12 +77,15 @@ No policy-improvement claim is allowed without:
 
 ## Immediate Next Step
 
-Implement the smallest Flow-MBPO v1 pessimistic slice:
+Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
 
-1. Add fall-aware replay fields and reward penalty plumbing.
-2. Calibrate or repair the trajectory/chunk done/fall signal before relying on
+1. Done: add fall-aware replay fields and reward penalty plumbing.
+2. Still required: calibrate or repair the trajectory/chunk done/fall signal before relying on
    model termination.
-3. Add a KL/action-deviation constraint to the AWR policy update or a
+3. Done: add a KL/action-deviation constraint to the AWR policy update or a
    conservative-Q fallback.
-4. Run W&B-disabled smoke first, then one formal seed on `embers`.
-5. Evaluate/render final and true-best actors before any seed expansion.
+4. Done for smoke: W&B-disabled trajectory/chunk H3 AWR action-deviation smoke
+   passed mechanically in job `9354631`; next run one formal W&B seed on
+   `embers`.
+5. Still required: evaluate/render final and true-best actors before any seed
+   expansion.
