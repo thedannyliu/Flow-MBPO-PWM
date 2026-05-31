@@ -740,9 +740,17 @@ Use these locations as the durable record before launching new work:
   - outputs: H3/H5 smoke buffers under `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h3/` and `_h5/`; truncated replay buffers under `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
   - settings: `num_starts=256`, `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, `--truncate-rollouts-after-done`, W&B disabled
   - interpretation: this is a diagnostic horizon-sweep baseline for endpoint rollouts, not a policy update and not policy-improvement evidence
+- Flow endpoint H3/H5 replay diagnostic job `9350024` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:36`, max RSS `13053756K`
+  - command git: `63d82852cc3d2aacaa41297764e30b072985dbf9`
+  - H3 smoke: transitions `768`, reward mean `0.1515`, next-state uncertainty mean `0.0243`, next-state delta p90 `0.6136`
+  - H3 replay: uncertainty-done `0.1003`, post-first-done `0.1068`, final done fraction `0.1654`
+  - H5 smoke: transitions `1280`, reward mean `0.1505`, next-state uncertainty mean `0.0237`, next-state delta p90 `0.6072`
+  - H5 replay: uncertainty-done `0.1000`, post-first-done `0.1367`, final done fraction `0.1789`
+  - interpretation: multi-step endpoint replay is mechanically bounded and the rollout-consistent truncation path is active. This is only a horizon-sweep diagnostic; the next method change should add trajectory/residual world-model training and then reuse the same replay gate.
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Monitor H3/H5 replay diagnostic job `9350024`. If the H3/H5 endpoint replay diagnostics are bounded, use them only as a baseline before adding trajectory/residual world-model training with the same `--truncate-rollouts-after-done` replay gate.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Add trajectory/residual world-model training support next, then generate H3/H5 replay through the same `--truncate-rollouts-after-done` gate and compare against this endpoint horizon baseline before any policy update.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
