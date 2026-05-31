@@ -674,9 +674,14 @@ Use these locations as the durable record before launching new work:
   - true-best checkpoint rollout: return `55.5533`, length `707.60`, fall `0.400`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/best/rollout.mp4`
   - matched BC seed0 10-episode final rollout was return `54.1283`, length `688.40`, fall `0.400`; matched BC seed0 best rollout was return `48.3119`, length `637.70`, fall `0.500`
   - interpretation: evidence is split. Conservative final clears the 40-episode scalar gate but fails the matched BC final 10-episode video gate. Conservative true-best clears matched BC best video and slightly beats matched BC final on return/length while tying fall rate, but its 40-episode scalar eval has worse fall rate than BC. No single checkpoint clears both scalar and video gates, so there is still no policy-improvement claim.
+- Added candidate-snapshot persistence to the Flow-MBPO v0 AWR update path.
+  - script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - behavior: future AWR runs now save `best_training_loss_policy_extraction.pt` and one checkpoint under `real_eval_snapshots/` for each `--real-eval-every` evaluation point, in addition to existing final and best checkpoints
+  - purpose: support the next candidate-selection step without relying only on final or noisy 8-episode best-real-eval snapshots
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; `PYTHONPATH=$PWD/src:$PWD ... run_flow_mbpo_v0_awr_update.py --help`
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The conservative run produced useful but split evidence: final is scalar-strong/video-weaker, while true-best is video-strong/scalar-weaker. The next step should fix candidate selection and evaluation variance before more training, for example by saving/evaluating periodic AWR snapshots or adding a small candidate-selection pass that ranks final, real-eval snapshots, and training-loss snapshots by the same 40-episode scalar plus 10-episode video protocol.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The conservative run produced useful but split evidence: final is scalar-strong/video-weaker, while true-best is video-strong/scalar-weaker. The next step should use the new AWR snapshot persistence in a small follow-up run or add a candidate-selection pass that ranks final, real-eval snapshots, and training-loss snapshots by the same 40-episode scalar plus 10-episode video protocol.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.

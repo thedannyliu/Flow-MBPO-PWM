@@ -219,6 +219,19 @@ def main() -> None:
     actor.train()
     real_indices = select_real_indices(data, metadata, args)
     opt = torch.optim.Adam(actor.parameters(), lr=float(args.actor_lr))
+    ckpt_args = dict(policy_ckpt.get("args", {}))
+    ckpt_args.update(
+        {
+            "flow_mbpo_v0_update": "awr",
+            "flow_mbpo_v0_synthetic_replay": args.synthetic_replay,
+            "flow_mbpo_v0_policy_checkpoint": args.policy_checkpoint,
+            "flow_mbpo_v0_update_iters": int(args.update_iters),
+            "dataset": args.dataset,
+            "metadata": args.metadata,
+            "normalization": args.normalization,
+            "seed": int(args.seed),
+        }
+    )
     run = None
     config = vars(args) | {
         "git_sha": git_sha(),
@@ -244,6 +257,7 @@ def main() -> None:
     best_real_eval: dict[str, float | str] | None = None
     best_real_actor = None
     last_metrics: dict[str, float] = {}
+    real_eval_snapshot_paths: list[str] = []
     for it in range(1, int(args.update_iters) + 1):
         rz, rc, ra, rr = sample_real_batch(data, real_indices, nrm, int(args.real_batch_size), device)
         sz, sc, sa, sr, sd = sample_synthetic_batch(replay, int(args.synthetic_batch_size), device)
@@ -287,27 +301,29 @@ def main() -> None:
             print(json.dumps(eval_metrics, sort_keys=True), flush=True)
             if run is not None:
                 run.log(eval_metrics, step=it)
+            snapshot_path = output_dir / "real_eval_snapshots" / f"iter_{it:06d}_policy_extraction.pt"
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(
+                {
+                    "actor": {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()},
+                    "args": ckpt_args,
+                    "checkpoint_kind": "real_eval_snapshot",
+                    "is_true_best_snapshot": False,
+                    "real_eval": eval_metrics,
+                    "iteration": int(it),
+                },
+                snapshot_path,
+            )
+            real_eval_snapshot_paths.append(str(snapshot_path))
             real_return = float(eval_metrics["real_eval/return_mean"])
             if real_return > best_real_return:
                 best_real_return = real_return
                 best_real_eval = eval_metrics
                 best_real_actor = {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}
 
-    ckpt_args = dict(policy_ckpt.get("args", {}))
-    ckpt_args.update(
-        {
-            "flow_mbpo_v0_update": "awr",
-            "flow_mbpo_v0_synthetic_replay": args.synthetic_replay,
-            "flow_mbpo_v0_policy_checkpoint": args.policy_checkpoint,
-            "flow_mbpo_v0_update_iters": int(args.update_iters),
-            "dataset": args.dataset,
-            "metadata": args.metadata,
-            "normalization": args.normalization,
-            "seed": int(args.seed),
-        }
-    )
     final_checkpoint = output_dir / "final_policy_extraction.pt"
     best_checkpoint = output_dir / "best_policy_extraction.pt"
+    best_training_checkpoint = output_dir / "best_training_loss_policy_extraction.pt"
     torch.save(
         {
             "actor": actor.state_dict(),
@@ -315,6 +331,16 @@ def main() -> None:
             "checkpoint_kind": "final",
         },
         final_checkpoint,
+    )
+    torch.save(
+        {
+            "actor": best_loss_actor if best_loss_actor is not None else actor.state_dict(),
+            "args": ckpt_args,
+            "checkpoint_kind": "best_training_loss",
+            "is_true_best_snapshot": False,
+            "best_training_loss": best_loss,
+        },
+        best_training_checkpoint,
     )
     best_payload: dict[str, Any]
     if best_real_actor is not None:
@@ -341,6 +367,8 @@ def main() -> None:
         "output_dir": str(output_dir),
         "final_checkpoint": str(final_checkpoint),
         "best_checkpoint": str(best_checkpoint),
+        "best_training_checkpoint": str(best_training_checkpoint),
+        "real_eval_snapshot_checkpoints": real_eval_snapshot_paths,
         "best_training_loss": best_loss,
         "best_real_return": best_real_return if math.isfinite(best_real_return) else None,
         "best_real_eval": best_real_eval,
