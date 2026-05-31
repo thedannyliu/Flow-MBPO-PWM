@@ -628,12 +628,27 @@ Use these locations as the durable record before launching new work:
   - metrics: return `48.2876`, length `642.70`, fall `0.600`, return std `27.8551`, frames `6427`
   - comparison: expert+noisy uniform BC 1000-step rollout final baseline was return `41.8965`, length `547.78`, fall `0.667`
   - interpretation: the 10-episode best-only video diagnostic is more supportive than the earlier 3-episode video sample and clears the BC 1000-step rollout baseline on return, episode length, and fall rate for this seed0 true-best checkpoint. This still does not justify a broad policy-improvement claim because it is one seed, the final checkpoint remains weak, and the 3-episode video sample showed high variance.
+- Submitted matched 10-episode BC seed0 rollout under the same render protocol.
+  - Slurm job: `9349004`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - note: first submission `9348994` failed immediately because the submit wrapper lacked `PYTHONPATH`; `9349004` resubmitted with `PYTHONPATH=$PWD/src:$PWD`
+  - W&B project: `flow-mbpo-mjlab-bc-matched-rollout1000-20260530`
+  - W&B group: `bc_expert_uniform_seed0_matched_roll10`
+  - policy checkpoints: seed0 expert+noisy uniform BC final and true-best checkpoints from `scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/`
+  - output: `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_bc_matched_roll10_20260530/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/`
+  - purpose: tighten the Flow seed0 true-best video comparison against a same-seed, same-episode-count BC render before broader Flow-MBPO seed expansion.
+- Matched BC seed0 10-episode rollout job `9349004` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:04:00`, max RSS `9684964K`
+  - W&B final/best runs: `4vww4aow`, `ob43bmh3`
+  - final summary: `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_bc_matched_roll10_20260530/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final/summary.json`
+  - best summary: `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_bc_matched_roll10_20260530/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/best/summary.json`
+  - BC final metrics: return `54.1283`, length `688.40`, fall `0.400`, return std `33.8392`, frames `6884`
+  - BC best metrics: return `48.3119`, length `637.70`, fall `0.500`, return std `30.6670`, frames `6377`
+  - comparison to Flow-MBPO seed0 true-best 10-episode diagnostic: Flow return `48.2876`, length `642.70`, fall `0.600`
+  - interpretation: Flow-MBPO seed0 true-best does not beat the matched BC final checkpoint and is effectively tied with matched BC best on return while having a worse fall rate. This weakens the earlier 10-episode Flow result and confirms there is still no policy-improvement claim.
 
 ## Next Action
 
-Keep PWM paused. The seed0 Flow-MBPO v0 AWR true-best checkpoint now clears the scalar 40-episode BC baseline and the 10-episode video diagnostic baseline, but only as a one-seed, high-variance result. Before broad seed expansion, make the next step either:
-
-1. run a matched 10-episode BC seed0 rollout under the same render protocol to tighten the video comparison, or
-2. generate per-seed Flow endpoint H1 synthetic buffers/replays for seeds 1-2 before any seed1/seed2 AWR run, so seed expansion does not reuse seed0 actor-generated synthetic actions.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The matched 10-episode BC comparison shows the current seed0 Flow-MBPO true-best is not better than BC under the same video protocol. The next experiment should reduce update aggressiveness or synthetic influence before seed expansion, for example a more conservative AWR variant with a smaller synthetic batch ratio, stronger BC anchor, fewer update iterations, or real-eval early stopping tuned to preserve the matched BC final rollout.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
