@@ -132,3 +132,17 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     penalized even a no-fall 50-step BC segment heavily. Run W&B-disabled AWR
     smoke first, then formal W&B only if the smoke remains mechanically clean
     and the objective is plausibly targeted at the observed fall signal.
+13. Done for first support-risk objective smoke: `run_flow_mbpo_v0_awr_update.py`
+    now supports `--support-action-penalty-weight`, which penalizes current
+    actor actions whose normalized `(state, command, actor_action)` is outside
+    an expert+noisy support set. Fake-data validation passed, then W&B-disabled
+    Slurm job `9355897` ran the trajectory/chunk H3 recipe for `20` AWR
+    iterations with q90 threshold `0.622495` and support-action weight `1.0`.
+    Final support-action loss was `0.003879`, real support distance mean/p90
+    was `0.2515`/`0.6042`, and synthetic mean/p90 was `0.1762`/`0.3746`.
+    Checkpoints were written.
+14. Next method step remains calibration, not formal expansion. The q90
+    support-action penalty is mechanically clean but mild on update batches,
+    while real falls show much larger late-rollout support spikes. Test a
+    stronger support-risk variant or conservative-Q penalty before any formal
+    W&B seed.

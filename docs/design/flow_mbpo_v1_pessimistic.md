@@ -244,3 +244,19 @@ but raw q50 support gating is too aggressive. The next replay/policy update
 should use a q90-style support-risk penalty or late-spike gate calibrated from
 real rollout features, then clear W&B-disabled AWR smoke before any formal W&B
 seed.
+
+`run_flow_mbpo_v0_awr_update.py` now has an opt-in support-action penalty for
+that first policy-side risk test. When `--support-action-penalty-weight > 0`,
+it builds an expert+noisy support set over normalized
+`(state, command, actor_action)`, calibrates the threshold from a disjoint real
+probe set, and penalizes current actor actions outside support on real and
+active synthetic batches. The default weight remains `0.0`.
+
+The first W&B-disabled support-action smoke ran in Slurm job `9355897` with the
+trajectory/chunk H3 replay, `20` AWR iterations, q90 threshold `0.622495`, and
+support-action weight `1.0`. It completed mechanically and wrote final, best,
+and best-training-loss checkpoints. Final support-action loss was `0.003879`;
+real support distance mean/p90 was `0.2515`/`0.6042`; synthetic support
+distance mean/p90 was `0.1762`/`0.3746`. This confirms the objective can run,
+but it is likely too mild because update-batch distances mostly remain below
+the q90 threshold. Use this as infrastructure, not a formal-run trigger.

@@ -49,6 +49,19 @@ def parse_args() -> argparse.Namespace:
         default=0.0,
         help="KL-like MSE penalty to keep current actor actions near the frozen BC/reference actor.",
     )
+    p.add_argument(
+        "--support-action-penalty-weight",
+        type=float,
+        default=0.0,
+        help="Penalty for current actor actions whose normalized (state, command, action) is out of real-data support.",
+    )
+    p.add_argument("--support-max-rows", type=int, default=20000)
+    p.add_argument("--support-probe-rows", type=int, default=4096)
+    p.add_argument("--support-threshold", type=float, default=-1.0)
+    p.add_argument("--support-threshold-quantile", type=float, default=0.90)
+    p.add_argument("--support-state-weight", type=float, default=1.0)
+    p.add_argument("--support-command-weight", type=float, default=1.0)
+    p.add_argument("--support-action-weight", type=float, default=1.0)
     p.add_argument("--grad-norm", type=float, default=1.0)
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
     p.add_argument("--quality-filter", default="expert,expert_noisy")
@@ -156,6 +169,99 @@ def weighted_mse(pred: torch.Tensor, target: torch.Tensor, weights: torch.Tensor
     return (per_row * weights).sum() / weights.sum().clamp_min(1.0e-8)
 
 
+def support_features(
+    state: torch.Tensor,
+    command: torch.Tensor,
+    action: torch.Tensor,
+    args: argparse.Namespace,
+) -> torch.Tensor:
+    parts = [
+        state.float() * float(args.support_state_weight),
+        command.float() * float(args.support_command_weight),
+        action.float() * float(args.support_action_weight),
+    ]
+    return torch.cat(parts, dim=-1).contiguous()
+
+
+def real_support_features(
+    data: dict[str, torch.Tensor],
+    indices: torch.Tensor,
+    nrm: dict[str, torch.Tensor],
+    args: argparse.Namespace,
+    device: torch.device,
+) -> torch.Tensor:
+    phys = data["phys_obs"][indices, 0].to(device).float()
+    command = data["command"][indices, 0].to(device).float()
+    action = data["policy_action"][indices, 0].to(device).float()
+    z = norm(phys, nrm["phys_obs_mean"], nrm["phys_obs_std"])
+    if command.shape[-1] and "command_mean" in nrm:
+        command = norm(command, nrm["command_mean"], nrm["command_std"])
+    return support_features(z, command, action, args)
+
+
+def nearest_l2_per_dim(query: torch.Tensor, support: torch.Tensor) -> torch.Tensor:
+    if query.shape[-1] != support.shape[-1]:
+        raise ValueError(f"Support feature mismatch: query={query.shape[-1]}, support={support.shape[-1]}")
+    denom = math.sqrt(float(query.shape[-1]))
+    return torch.cdist(query, support, p=2).min(dim=1).values / denom
+
+
+def build_support_state(
+    data: dict[str, torch.Tensor],
+    real_indices: torch.Tensor,
+    nrm: dict[str, torch.Tensor],
+    args: argparse.Namespace,
+    device: torch.device,
+) -> dict[str, Any] | None:
+    if float(args.support_action_penalty_weight) <= 0.0:
+        return None
+    generator = torch.Generator().manual_seed(int(args.seed))
+    perm = real_indices[torch.randperm(real_indices.numel(), generator=generator)]
+    support_n = min(int(args.support_max_rows), int(perm.numel()))
+    probe_n = min(int(args.support_probe_rows), max(0, int(perm.numel()) - support_n))
+    support_indices = perm[:support_n]
+    probe_indices = perm[support_n : support_n + probe_n]
+    if support_indices.numel() == 0 or probe_indices.numel() == 0:
+        raise ValueError("Need non-empty support and disjoint probe sets; reduce --support-max-rows if needed")
+    support = real_support_features(data, support_indices, nrm, args, device)
+    probe = real_support_features(data, probe_indices, nrm, args, device)
+    with torch.no_grad():
+        probe_distance = nearest_l2_per_dim(probe, support)
+        if float(args.support_threshold) >= 0.0:
+            threshold = torch.tensor(float(args.support_threshold), dtype=torch.float32, device=device)
+        else:
+            q = min(max(float(args.support_threshold_quantile), 0.0), 1.0)
+            threshold = torch.quantile(probe_distance[torch.isfinite(probe_distance)], q)
+    return {
+        "support": support,
+        "threshold": threshold.detach(),
+        "probe_distance": probe_distance.detach().cpu(),
+        "support_rows": int(support_indices.numel()),
+        "probe_rows": int(probe_indices.numel()),
+        "args": args,
+    }
+
+
+def support_action_penalty(
+    state: torch.Tensor,
+    command: torch.Tensor,
+    action: torch.Tensor,
+    support_state: dict[str, Any] | None,
+    weights: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    if support_state is None:
+        zero = action.new_zeros(())
+        return zero, action.new_zeros(action.shape[0])
+    feat = support_features(state, command, action, support_state["args"])
+    distance = nearest_l2_per_dim(feat, support_state["support"])
+    penalty = F.relu(distance - support_state["threshold"])
+    if weights is None:
+        loss = penalty.mean()
+    else:
+        loss = (penalty * weights).sum() / weights.sum().clamp_min(1.0e-8)
+    return loss, distance.detach()
+
+
 def eval_namespace(args: argparse.Namespace) -> argparse.Namespace:
     return argparse.Namespace(
         task_id=args.task_id,
@@ -230,6 +336,7 @@ def main() -> None:
         for param in reference_actor.parameters():
             param.requires_grad_(False)
     real_indices = select_real_indices(data, metadata, args)
+    support_state = build_support_state(data, real_indices, nrm, args, device)
     opt = torch.optim.Adam(actor.parameters(), lr=float(args.actor_lr))
     ckpt_args = dict(policy_ckpt.get("args", {}))
     ckpt_args.update(
@@ -239,6 +346,8 @@ def main() -> None:
             "flow_mbpo_v0_policy_checkpoint": args.policy_checkpoint,
             "flow_mbpo_v0_update_iters": int(args.update_iters),
             "flow_mbpo_v0_action_deviation_weight": float(args.action_deviation_weight),
+            "flow_mbpo_v0_support_action_penalty_weight": float(args.support_action_penalty_weight),
+            "flow_mbpo_v0_support_threshold": float(support_state["threshold"].item()) if support_state is not None else None,
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -252,6 +361,10 @@ def main() -> None:
         "command": command_line(),
         "real_train_windows": int(real_indices.numel()),
         "synthetic_transitions": int(replay["reward_conservative"].shape[0]),
+        "support_action_penalty_enabled": support_state is not None,
+        "support_rows": int(support_state["support_rows"]) if support_state is not None else 0,
+        "support_probe_rows": int(support_state["probe_rows"]) if support_state is not None else 0,
+        "support_threshold": float(support_state["threshold"].item()) if support_state is not None else None,
     }
     if args.enable_wandb:
         import wandb
@@ -291,11 +404,15 @@ def main() -> None:
             )
         else:
             action_deviation_loss = real_pred.new_zeros(())
+        real_support_loss, real_support_distance = support_action_penalty(rz, rc, real_pred, support_state)
+        synth_support_loss, synth_support_distance = support_action_penalty(sz, sc, synth_pred, support_state, (~sd).float())
+        support_action_loss = 0.5 * (real_support_loss + synth_support_loss)
         loss = (
             real_loss
             + synth_loss
             + float(args.bc_anchor_weight) * anchor_loss
             + float(args.action_deviation_weight) * action_deviation_loss
+            + float(args.support_action_penalty_weight) * support_action_loss
         )
         opt.zero_grad(set_to_none=True)
         loss.backward()
@@ -313,6 +430,11 @@ def main() -> None:
                 "awr/synthetic_loss": float(synth_loss.detach().item()),
                 "awr/bc_anchor_loss": float(anchor_loss.detach().item()),
                 "awr/action_deviation_loss": float(action_deviation_loss.detach().item()),
+                "awr/support_action_loss": float(support_action_loss.detach().item()),
+                "awr/real_support_distance_mean": float(real_support_distance.detach().mean().item()),
+                "awr/real_support_distance_p90": float(torch.quantile(real_support_distance.detach(), 0.90).item()),
+                "awr/synthetic_support_distance_mean": float(synth_support_distance.detach().mean().item()),
+                "awr/synthetic_support_distance_p90": float(torch.quantile(synth_support_distance.detach(), 0.90).item()),
                 "awr/real_reward_mean": float(rr.detach().mean().item()),
                 "awr/synthetic_reward_mean": float(sr.detach().mean().item()),
                 "awr/real_weight_mean": float(real_weights.detach().mean().item()),
@@ -404,6 +526,7 @@ def main() -> None:
         "last_metrics": last_metrics,
         "synthetic_reward_conservative": summarize_tensor(replay["reward_conservative"]),
         "synthetic_done_fraction": float(replay["done"].float().mean().item()),
+        "support_probe_distance": summarize_tensor(support_state["probe_distance"]) if support_state is not None else None,
         "wall_clock_seconds": time.time() - t0,
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
