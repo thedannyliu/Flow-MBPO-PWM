@@ -365,3 +365,15 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     `1.0`. It is still smoke-only evidence. Continue with either a longer
     W&B-disabled temp-`0.5` run or a small real-eval plumbing check before any
     formal W&B seed.
+48. Done for temp-`0.5` real-eval plumbing check. W&B-disabled Slurm job
+    `9357292` reran the temp-`0.5`, CQL weight `1.0`, random-action `10`,
+    actor-weight `0.0` setting with `real_eval_every=100` and
+    `real_eval_episodes=8`. It completed on `embers`, wrote final,
+    best-real-eval, best-training, real-eval snapshot, and critic checkpoints.
+    The best checkpoint is correctly marked `checkpoint_kind=best_real_eval` and
+    `is_true_best_snapshot=True`.
+49. Result: the real-eval plumbing works, but the candidate is not promising.
+    Iter-100 8-episode eval was return `18.7727`, length `283.50`, fall
+    `1.000`, timeout `0.000`, far below matched BC. Do not formalize this
+    conservative-Q setting. Either keep conservative-Q as a diagnostic or change
+    the update objective before spending W&B/video budget.

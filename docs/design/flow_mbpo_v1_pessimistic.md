@@ -454,3 +454,12 @@ short-smoke compromise so far: stronger than temperature `0.1` and less tail
 heavy than temperature `1.0`. It still does not provide real policy evidence.
 Use this setting only for the next W&B-disabled continuation or a small
 real-eval plumbing check, not for a policy-improvement claim.
+
+That real-eval plumbing check ran in job `9357292` with W&B disabled. The code
+path works: final, best-real-eval, best-training, real-eval snapshot, and critic
+checkpoints were written, and `best_policy_extraction.pt` is marked as a true
+best-real-eval snapshot. The actual 8-episode eval was poor: return `18.7727`,
+length `283.50`, fall `1.000`. This rejects the current temp-`0.5`
+conservative-Q setting as a formal candidate. Conservative-Q can remain a
+diagnostic, but the policy-update objective needs another change before W&B
+formal eval/video is worth running.
