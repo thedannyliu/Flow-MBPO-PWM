@@ -105,6 +105,18 @@ all later synthetic transitions from the same start as done after the first
 model-done or uncertainty-done transition, so the policy update cannot train on
 post-termination imagined states.
 
+For single-model diagnostics, do not apply quantile uncertainty termination when
+all uncertainty values are identical. With zero-spread uncertainty, there is no
+ranking signal and the replay builder should leave `done_uncertainty` false.
+
+The first trajectory/chunk WM implementation is exposed as
+`--method flow_trajectory_chunk` in `run_phaseA_wm_feasibility.py`. It predicts
+chunk intermediate states plus per-step reward and done logits, and
+`run_flow_mbpo_v0_smoke.py` records `done_probability` when the checkpoint
+supports it. Treat short smoke checkpoints as plumbing checks only; a replay
+buffer whose untrained done head marks every transition done should not be used
+for AWR.
+
 The first model-free policy-update implementation slice is AWR-style weighted
 behavior regression on mixed real/synthetic batches:
 

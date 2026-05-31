@@ -122,8 +122,10 @@ def prepare_replay(
     threshold = torch.tensor(float("inf"))
     if termination_quantile > 0.0:
         q = min(max(float(termination_quantile), 0.0), 1.0)
-        threshold = torch.quantile(uncertainty, q)
-        uncertainty_done = uncertainty >= threshold
+        finite_uncertainty = uncertainty[torch.isfinite(uncertainty)]
+        if finite_uncertainty.numel() > 0 and finite_uncertainty.max() > finite_uncertainty.min():
+            threshold = torch.quantile(finite_uncertainty, q)
+            uncertainty_done = uncertainty >= threshold
     replay = dict(buffer)
     replay["uncertainty"] = uncertainty
     replay["reward_raw"] = reward

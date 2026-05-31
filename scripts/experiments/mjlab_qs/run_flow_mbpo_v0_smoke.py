@@ -35,6 +35,7 @@ from scripts.experiments.mjlab_qs.render_policy_rollout import (  # noqa: E402
     git_sha,
 )
 from scripts.experiments.mjlab_qs.run_phaseA_wm_feasibility import (  # noqa: E402
+    FlowTrajectoryChunkWM,
     FlowWM,
     MLPWM,
     ResidualFlowWM,
@@ -93,12 +94,22 @@ def model_from_checkpoint(path: Path, state_dim: int, action_dim: int, command_d
     method = str(ckpt_args.get("method", ""))
     hidden = int(ckpt_args.get("hidden", 512))
     flow_substeps = int(ckpt_args.get("flow_substeps", 4))
+    chunk_size = int(ckpt_args.get("chunk_size", 3))
     if method == "mlp_ref":
         model: nn.Module = MLPWM(state_dim, action_dim, command_dim, hidden)
     elif method in {"flow_ref", "flow_endpoint"}:
         model = FlowWM(state_dim, action_dim, command_dim, hidden, substeps=flow_substeps)
     elif method == "residual_flow_frozen_mlp":
         model = ResidualFlowWM(state_dim, action_dim, command_dim, hidden, substeps=flow_substeps)
+    elif method == "flow_trajectory_chunk":
+        model = FlowTrajectoryChunkWM(
+            state_dim,
+            action_dim,
+            command_dim,
+            hidden,
+            chunk_size=chunk_size,
+            substeps=flow_substeps,
+        )
     else:
         raise ValueError(f"Unsupported world-model method {method!r} in {path}")
     model.load_state_dict(ckpt["model"])
@@ -147,6 +158,7 @@ def generate_synthetic_buffer(
         "next_state": [],
         "next_state_uncertainty": [],
         "reward_uncertainty": [],
+        "done_probability": [],
         "done": [],
     }
     ids_device = ids.to(device)
@@ -158,8 +170,19 @@ def generate_synthetic_buffer(
         action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
         next_preds = torch.stack([model.next(z, action) for model in models], dim=0)
         reward_preds = torch.stack([model.reward(z, action, c).reshape(z.shape[0]) for model in models], dim=0)
+        done_prob_preds = []
+        for model in models:
+            done_probability = getattr(model, "done_probability", None)
+            if done_probability is not None:
+                done_prob_preds.append(done_probability(z, action, c).reshape(z.shape[0]))
         next_mean = next_preds.mean(dim=0)
         reward_mean = reward_preds.mean(dim=0)
+        if done_prob_preds:
+            done_probability_mean = torch.stack(done_prob_preds, dim=0).mean(dim=0)
+            done_model = done_probability_mean >= 0.5
+        else:
+            done_probability_mean = torch.zeros(z.shape[0], device=device)
+            done_model = torch.zeros(z.shape[0], dtype=torch.bool, device=device)
         if len(models) > 1:
             next_uncertainty = next_preds.var(dim=0, unbiased=False).mean(dim=-1).sqrt()
             reward_uncertainty = reward_preds.var(dim=0, unbiased=False).sqrt()
@@ -175,7 +198,8 @@ def generate_synthetic_buffer(
         rows["next_state"].append(next_mean.detach())
         rows["next_state_uncertainty"].append(next_uncertainty.detach())
         rows["reward_uncertainty"].append(reward_uncertainty.detach())
-        rows["done"].append(torch.zeros(z.shape[0], dtype=torch.bool, device=device))
+        rows["done_probability"].append(done_probability_mean.detach())
+        rows["done"].append(done_model.detach())
         z = next_mean
     return {key: torch.cat(value, dim=0).detach().cpu() for key, value in rows.items()}
 
@@ -248,6 +272,7 @@ def main() -> None:
         "synthetic_reward": summarize_tensor(buffer["reward"]),
         "next_state_uncertainty": summarize_tensor(buffer["next_state_uncertainty"]),
         "reward_uncertainty": summarize_tensor(buffer["reward_uncertainty"]),
+        "done_probability": summarize_tensor(buffer["done_probability"]),
         "action_l2": summarize_tensor(buffer["action"].pow(2).mean(dim=-1).sqrt()),
         "next_state_delta_l2": summarize_tensor((buffer["next_state"] - buffer["state"]).pow(2).mean(dim=-1).sqrt()),
         "predicted_done_fraction": float(buffer["done"].float().mean().item()),
@@ -268,6 +293,7 @@ def main() -> None:
             "synthetic/reward_mean": summary["synthetic_reward"]["mean"],
             "synthetic/next_state_uncertainty_mean": summary["next_state_uncertainty"]["mean"],
             "synthetic/reward_uncertainty_mean": summary["reward_uncertainty"]["mean"],
+            "synthetic/done_probability_mean": summary["done_probability"]["mean"],
             "synthetic/action_l2_mean": summary["action_l2"]["mean"],
             "synthetic/next_state_delta_l2_mean": summary["next_state_delta_l2"]["mean"],
             "synthetic/predicted_done_fraction": summary["predicted_done_fraction"],

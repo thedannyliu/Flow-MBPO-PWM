@@ -776,9 +776,27 @@ Use these locations as the durable record before launching new work:
   - H5 residual smoke: transitions `1280`, reward mean `-0.0377`, next-state uncertainty mean `0.0353`, next-state delta p90 `0.0574`
   - H5 residual replay: uncertainty-done `0.1000`, post-first-done `0.0844`, final done fraction `0.1086`, conservative reward mean `-0.0856`
   - comparison to endpoint H3/H5: residual smoke replay is mechanically bounded but reward scale is much lower than endpoint H3/H5 reward mean around `0.15`, and the residual smoke checkpoints were only 100-iter mechanical checkpoints. Do not feed this residual smoke replay into AWR as policy-improvement evidence.
+- Added the first trajectory/chunk Flow world-model path with reward and done/fall heads.
+  - scripts: `scripts/experiments/mjlab_qs/run_phaseA_wm_feasibility.py`, `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py`, `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`, `scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py`
+  - method: `flow_trajectory_chunk`
+  - behavior: predicts short action-conditioned chunks with intermediate states, per-step rewards, and per-step done logits; smoke buffers now preserve `done_probability` and model-done flags when a WM exposes a done head
+  - replay fix: uncertainty termination is skipped when the uncertainty tensor has no finite spread, preventing single-model all-zero uncertainty from marking every transition as uncertainty-done
+  - validation: `python -m py_compile` for the four touched scripts; local interface checks for chunk-only `done_probability`; degenerate-uncertainty replay check
+- Ran a mechanical trajectory/chunk smoke on `embers`.
+  - train job: `9350284`, `gpu-rtx6000`, status `COMPLETED`, exit `0:0`, elapsed `00:01:08`, max RSS `6729556K`
+  - training settings: `flow_trajectory_chunk`, seed `0`, `train_iters=2`, `batch_size=16`, `eval_batch_size=64`, hidden `64`, `flow_substeps=2`, `chunk_size=3`, W&B disabled
+  - checkpoint output: `scripts/outputs/mjlab_qs/results/flow_mbpo_v0_trajectory_chunk_smoke_check/velocity_flat_unitree_g1/flow_trajectory_chunk/seed_0/best.pt`
+  - test summary: best iter `2`, rollout dyn MSE label `H16` over `15` evaluated chunk steps `0.5796`, reward MSE `1.0245`, done BCE `0.7130`
+  - loader/replay rerun job: `9350301`, `gpu-rtx6000`, status `COMPLETED`, exit `0:0`, elapsed `00:00:11`, max RSS `6475316K`
+  - smoke output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_trajectory_chunk_smoke_seed0_h3_doneprob_v2/`
+  - replay output after degenerate-uncertainty fix: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_trajectory_chunk_smoke_seed0_h3_doneprob_v2_unc0p5_q0p90_trunc_fixed/`
+  - smoke metrics: transitions `48`, reward mean `-0.1073`, next-state delta mean `0.02561`, done probability mean `0.5109`, predicted/model done fraction `1.000`
+  - replay metrics: uncertainty-done `0.000`, model-done `1.000`, post-first-done `0.6667`, final done fraction `1.000`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_trajectory_chunk_smoke_summary_20260530.md`
+  - interpretation: this validates the mechanical trajectory/chunk training, checkpoint loading, done-probability export, and replay truncation path. It is not usable for AWR because the 2-iter untrained done head predicts done for all transitions.
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next method step should train a real residual or trajectory/chunk world-model ensemble with sufficient iterations and W&B logging, then regenerate H3/H5 replay through the same truncation gate. Do not run AWR on the 100-iter residual smoke replay.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next method step should train a real trajectory/chunk world-model ensemble with sufficient iterations and W&B logging, then regenerate H3/H5 replay through the same truncation gate. Do not run AWR on the 100-iter residual smoke replay or the 2-iter trajectory/chunk smoke replay.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.

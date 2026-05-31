@@ -103,6 +103,88 @@ class ResidualFlowWM(nn.Module):
         return self.residual.fm_loss(z0, z1 - base + z0, a, reduction=reduction)
 
 
+class FlowTrajectoryChunkWM(nn.Module):
+    def __init__(
+        self,
+        state_dim: int,
+        action_dim: int,
+        command_dim: int,
+        hidden: int,
+        chunk_size: int = 3,
+        substeps: int = 4,
+    ):
+        super().__init__()
+        self.state_dim = int(state_dim)
+        self.action_dim = int(action_dim)
+        self.command_dim = int(command_dim)
+        self.chunk_size = int(chunk_size)
+        self.substeps = int(substeps)
+        self.vel = MLP(state_dim + action_dim * self.chunk_size + 1, state_dim, hidden=hidden)
+        self.rew = MLP(state_dim + action_dim + command_dim, 1, hidden=hidden)
+        self.done = MLP(state_dim + action_dim + command_dim, 1, hidden=hidden)
+
+    def _action_flat(self, action_chunk: torch.Tensor) -> torch.Tensor:
+        if action_chunk.ndim != 3:
+            raise ValueError("action_chunk must have shape [batch, chunk, action_dim]")
+        if action_chunk.shape[1] != self.chunk_size:
+            raise ValueError(f"Expected chunk_size={self.chunk_size}, got shape={tuple(action_chunk.shape)}")
+        return action_chunk.reshape(action_chunk.shape[0], self.chunk_size * self.action_dim)
+
+    def _zero_command_chunk(self, z: torch.Tensor) -> torch.Tensor:
+        return torch.zeros(z.shape[0], self.chunk_size, self.command_dim, device=z.device, dtype=z.dtype)
+
+    def velocity(self, z: torch.Tensor, action_flat: torch.Tensor, tau: torch.Tensor) -> torch.Tensor:
+        if tau.ndim == 0:
+            tau = tau.expand(z.shape[0], 1)
+        elif tau.ndim == 1:
+            tau = tau[:, None]
+        return self.vel(torch.cat([z, action_flat, tau.to(z.device, z.dtype)], dim=-1))
+
+    def next_trajectory(
+        self,
+        z: torch.Tensor,
+        action_chunk: torch.Tensor,
+        command_chunk: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        action_flat = self._action_flat(action_chunk)
+        if command_chunk is None:
+            command_chunk = self._zero_command_chunk(z)
+        if command_chunk.shape[1] != self.chunk_size:
+            raise ValueError(f"Expected command chunk_size={self.chunk_size}, got shape={tuple(command_chunk.shape)}")
+        dt = 1.0 / max(1, self.chunk_size * self.substeps)
+        out = z
+        states = []
+        total_steps = max(1, self.chunk_size * self.substeps)
+        for i in range(total_steps):
+            tau = torch.full((z.shape[0], 1), (i + 0.5) / total_steps, device=z.device, dtype=z.dtype)
+            out = out + dt * self.velocity(out, action_flat, tau)
+            if (i + 1) % max(1, self.substeps) == 0:
+                states.append(out)
+        pred_states = torch.stack(states, dim=1)
+        prev_states = torch.cat([z[:, None], pred_states[:, :-1]], dim=1)
+        rewards = []
+        done_logits = []
+        for h in range(self.chunk_size):
+            x = torch.cat([prev_states[:, h], action_chunk[:, h], command_chunk[:, h]], dim=-1)
+            rewards.append(self.rew(x).squeeze(-1))
+            done_logits.append(self.done(x).squeeze(-1))
+        return pred_states, torch.stack(rewards, dim=1), torch.stack(done_logits, dim=1)
+
+    def next(self, z: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
+        action_chunk = a[:, None].repeat(1, self.chunk_size, 1)
+        states, _, _ = self.next_trajectory(z, action_chunk, self._zero_command_chunk(z))
+        return states[:, 0]
+
+    def reward(self, z: torch.Tensor, a: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
+        return self.rew(torch.cat([z, a, c], dim=-1)).squeeze(-1)
+
+    def done_logit(self, z: torch.Tensor, a: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
+        return self.done(torch.cat([z, a, c], dim=-1)).squeeze(-1)
+
+    def done_probability(self, z: torch.Tensor, a: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
+        return torch.sigmoid(self.done_logit(z, a, c))
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", required=True)
@@ -110,7 +192,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--normalization", required=True)
     parser.add_argument(
         "--method",
-        choices=["mlp_ref", "flow_ref", "flow_endpoint", "residual_flow_frozen_mlp"],
+        choices=["mlp_ref", "flow_ref", "flow_endpoint", "residual_flow_frozen_mlp", "flow_trajectory_chunk"],
         required=True,
     )
     parser.add_argument("--seed", type=int, default=0)
@@ -124,6 +206,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hidden", type=int, default=512)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--flow-substeps", type=int, default=4)
+    parser.add_argument("--chunk-size", type=int, default=3)
+    parser.add_argument("--done-loss-weight", type=float, default=0.1)
     parser.add_argument("--rollout-gamma", type=float, default=0.99)
     parser.add_argument("--sigreg-weight", type=float, default=0.0)
     parser.add_argument("--sigreg-projections", type=int, default=128)
@@ -215,6 +299,64 @@ def rollout_predicted_states(model: nn.Module, z: torch.Tensor, a: torch.Tensor)
     return torch.stack(states, dim=0)
 
 
+def trajectory_chunk_losses(
+    model: FlowTrajectoryChunkWM,
+    z: torch.Tensor,
+    a: torch.Tensor,
+    r: torch.Tensor,
+    c: torch.Tensor,
+    done: torch.Tensor,
+    gamma: float = 0.99,
+    done_loss_weight: float = 0.1,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    horizon = a.shape[1]
+    chunk_size = int(model.chunk_size)
+    dyn_by_step = []
+    rew_by_step = []
+    dyn_num = torch.zeros((), device=z.device)
+    dyn_den = torch.zeros((), device=z.device)
+    rew_num = torch.zeros((), device=z.device)
+    rew_den = torch.zeros((), device=z.device)
+    done_num = torch.zeros((), device=z.device)
+    done_den = torch.zeros((), device=z.device)
+    mask = torch.ones(z.shape[0], device=z.device)
+    for start in range(0, horizon - chunk_size + 1, chunk_size):
+        action_chunk = a[:, start : start + chunk_size]
+        command_chunk = c[:, start : start + chunk_size]
+        pred_states, pred_rewards, done_logits = model.next_trajectory(z[:, start], action_chunk, command_chunk)
+        target_states = z[:, start + 1 : start + chunk_size + 1]
+        target_rewards = r[:, start : start + chunk_size]
+        target_done = done[:, start : start + chunk_size].float()
+        local_mask = []
+        active = mask
+        for h in range(chunk_size):
+            weight = active * (float(gamma) ** (start + h))
+            local_mask.append(weight)
+            active = active * (~done[:, start + h]).float()
+        weights = torch.stack(local_mask, dim=1)
+        dyn_err = (pred_states - target_states).pow(2).mean(dim=-1)
+        rew_err = (pred_rewards - target_rewards).pow(2)
+        done_err = F.binary_cross_entropy_with_logits(done_logits, target_done, reduction="none")
+        dyn_num = dyn_num + (dyn_err * weights).sum()
+        dyn_den = dyn_den + weights.sum()
+        rew_num = rew_num + (rew_err * weights).sum()
+        rew_den = rew_den + weights.sum()
+        done_num = done_num + (done_err * weights).sum()
+        done_den = done_den + weights.sum()
+        for h in range(chunk_size):
+            denom = weights[:, h].sum().clamp_min(1e-8)
+            dyn_by_step.append((dyn_err[:, h] * weights[:, h]).sum() / denom)
+            rew_by_step.append((rew_err[:, h] * weights[:, h]).sum() / denom)
+        mask = active
+    dyn_losses = torch.stack(dyn_by_step)
+    rew_losses = torch.stack(rew_by_step)
+    dyn_agg = dyn_num / dyn_den.clamp_min(1e-8)
+    rew_agg = rew_num / rew_den.clamp_min(1e-8)
+    done_agg = done_num / done_den.clamp_min(1e-8)
+    total = dyn_agg + rew_agg + float(done_loss_weight) * done_agg
+    return dyn_losses, rew_losses, total, dyn_agg, rew_agg, done_agg
+
+
 def sigreg_loss(
     embeddings: torch.Tensor,
     num_projections: int = 128,
@@ -250,6 +392,7 @@ def train_loss(
     sigreg_projections: int = 128,
     sigreg_knots: int = 8,
     sigreg_bandwidth: float = 1.0,
+    done_loss_weight: float = 0.1,
     return_parts: bool = False,
 ) -> torch.Tensor | Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     if method == "flow_endpoint":
@@ -268,6 +411,17 @@ def train_loss(
         fm = fm_num / fm_den.clamp_min(1e-8)
         _, _, _, _, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
         base_loss = fm + rew_agg
+    elif method == "flow_trajectory_chunk":
+        _, _, base_loss, _, _, _ = trajectory_chunk_losses(
+            model,
+            z,
+            a,
+            r,
+            c,
+            done,
+            gamma=gamma,
+            done_loss_weight=done_loss_weight,
+        )
     else:
         _, _, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
         base_loss = dyn_agg + rew_agg
@@ -302,16 +456,22 @@ def evaluate(model: nn.Module, method: str, data: Dict[str, torch.Tensor], idx: 
     one_all = []
     dyn_agg_all = []
     rew_agg_all = []
+    done_agg_all = []
     weights = []
     for start in range(0, idx.numel(), eval_batch_size):
         ids = idx[start : start + eval_batch_size]
         z, a, r, c, done = batch(data, ids, device, nrm)
-        dyn, rew, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
+        if method == "flow_trajectory_chunk":
+            dyn, rew, _, dyn_agg, rew_agg, done_agg = trajectory_chunk_losses(model, z, a, r, c, done, gamma=gamma)
+        else:
+            dyn, rew, _, dyn_agg, rew_agg = rollout_losses(model, z, a, r, c, done, gamma=gamma)
+            done_agg = torch.zeros((), device=device)
         dyn_all.append(dyn.detach().cpu())
         rew_all.append(rew.detach().cpu())
         one_all.append(dyn[0].detach().cpu())
         dyn_agg_all.append(dyn_agg.detach().cpu())
         rew_agg_all.append(rew_agg.detach().cpu())
+        done_agg_all.append(done_agg.detach().cpu())
         weights.append(ids.numel())
     w = torch.tensor(weights, dtype=torch.float32)
     w = w / w.sum().clamp_min(1.0)
@@ -321,6 +481,8 @@ def evaluate(model: nn.Module, method: str, data: Dict[str, torch.Tensor], idx: 
         "one_step_dyn_mse": float((torch.stack(one_all) * w).sum().item()),
         "rollout_dyn_mse_H16": float((torch.stack(dyn_agg_all) * w).sum().item()),
         "reward_mse": float((torch.stack(rew_agg_all) * w).sum().item()),
+        "done_bce": float((torch.stack(done_agg_all) * w).sum().item()),
+        "rollout_eval_steps": float(dyn.numel()),
         "rollout_error_e1": float(dyn[0].item()),
         "rollout_error_e16": float(dyn[-1].item()),
         "rollout_error_ratio_e16_e1": float((dyn[-1] / dyn[0].clamp_min(1e-8)).item()),
@@ -346,6 +508,15 @@ def main() -> None:
         model: nn.Module = MLPWM(state_dim, action_dim, command_dim, args.hidden)
     elif args.method in {"flow_ref", "flow_endpoint"}:
         model = FlowWM(state_dim, action_dim, command_dim, args.hidden, substeps=args.flow_substeps)
+    elif args.method == "flow_trajectory_chunk":
+        model = FlowTrajectoryChunkWM(
+            state_dim,
+            action_dim,
+            command_dim,
+            args.hidden,
+            chunk_size=args.chunk_size,
+            substeps=args.flow_substeps,
+        )
     else:
         model = ResidualFlowWM(state_dim, action_dim, command_dim, args.hidden, substeps=args.flow_substeps)
     model.to(device)
@@ -394,6 +565,7 @@ def main() -> None:
                 sigreg_projections=args.sigreg_projections,
                 sigreg_knots=args.sigreg_knots,
                 sigreg_bandwidth=args.sigreg_bandwidth,
+                done_loss_weight=args.done_loss_weight,
                 return_parts=True,
             )
             last_train_loss = float(loss.detach().item())
