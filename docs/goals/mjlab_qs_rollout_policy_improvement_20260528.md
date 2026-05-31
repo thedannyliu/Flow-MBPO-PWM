@@ -748,9 +748,17 @@ Use these locations as the durable record before launching new work:
   - H5 smoke: transitions `1280`, reward mean `0.1505`, next-state uncertainty mean `0.0237`, next-state delta p90 `0.6072`
   - H5 replay: uncertainty-done `0.1000`, post-first-done `0.1367`, final done fraction `0.1789`
   - interpretation: multi-step endpoint replay is mechanically bounded and the rollout-consistent truncation path is active. This is only a horizon-sweep diagnostic; the next method change should add trajectory/residual world-model training and then reuse the same replay gate.
+- Submitted a residual Flow world-model smoke ensemble to produce the first residual checkpoints for the Flow-MBPO track.
+  - Slurm job: `9350121`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - initial scheduler state: pending for priority
+  - method: `residual_flow_frozen_mlp`, seeds `0,1,2`
+  - settings: `train_iters=100`, `base_pretrain_iters=100`, `batch_size=128`, `eval_batch_size=512`, hidden `256`, W&B disabled
+  - outputs: `scripts/outputs/mjlab_qs/results/flow_mbpo_v0_residual_smoke_20260530/velocity_flat_unitree_g1/residual_flow_frozen_mlp/seed_{0,1,2}/`
+  - interpretation: this is a mechanical residual-training smoke only. If it writes usable `best.pt` checkpoints, generate residual H3/H5 replay through the same truncation gate before any AWR policy update.
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Add trajectory/residual world-model training support next, then generate H3/H5 replay through the same `--truncate-rollouts-after-done` gate and compare against this endpoint horizon baseline before any policy update.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Monitor residual smoke job `9350121`; if it completes, use the residual checkpoints to generate H3/H5 replay through the same `--truncate-rollouts-after-done` gate and compare against the endpoint horizon baseline before any policy update.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
