@@ -342,3 +342,14 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     Bellman loss, and the high-valued random-action tail. Do not formalize this
     setting. Keep `critic_actor_weight=0.0`, return CQL weight to `1.0`, and
     tune temperature or sampled-action coverage next.
+44. Done for low-temperature CQL smoke. W&B-disabled Slurm job `9357174` repeated
+    the critic-only random-action smoke with `--critic-cql-temperature 0.1`,
+    CQL weight `1.0`, random actions `10`, and actor critic weight `0.0`. It
+    completed on `embers` and wrote all expected checkpoints. Final metrics were
+    critic loss `0.14584`, Bellman loss `0.08007`, CQL gap `0.06577`,
+    `Q(data)` mean `0.18269`, `Q(actor)` mean `0.18361`, `Q(random)` mean
+    `-0.19735`, and `Q(random)` max `0.44153`.
+45. Next method step: temperature `0.1` controls the high random-action tail and
+    Q scale better than temperature `1.0`, but it likely makes the conservative
+    gap too weak. Do not formalize it. Test an intermediate temperature such as
+    `0.5` before reintroducing actor-Q pressure or launching a formal W&B seed.

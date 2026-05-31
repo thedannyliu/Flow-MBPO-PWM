@@ -438,3 +438,11 @@ same random-action setup. It did not fix the tail: final `Q(random)` max rose to
 rose and Bellman loss worsened. Higher CQL weight is therefore not a clean safety
 knob here. Use weight `1.0` for the next smokes and tune temperature or random
 action coverage instead.
+
+The first temperature test ran in job `9357174` with CQL temperature `0.1`,
+weight `1.0`, random actions `10`, and actor critic weight `0.0`. It reduced the
+tail and Q scale: final `Q(random)` max was `0.4415` versus `0.7380` at
+temperature `1.0`, and `Q(data)`/`Q(actor)` stayed near `0.18` instead of
+`0.25`. The cost is that CQL gap fell to `0.0658`, which may be too weak for
+policy improvement. The next tuning point should be an intermediate temperature,
+for example `0.5`, before any formal W&B run.
