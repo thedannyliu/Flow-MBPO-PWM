@@ -192,3 +192,25 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     Implement a targeted support-risk termination or conservative-Q objective
     that reacts when model-generated states cross the calibrated real-rollout
     risk boundary.
+23. Done for first support-risk replay truncation utility:
+    `apply_flow_mbpo_support_truncation.py` marks support-risk crossings in a
+    scored synthetic replay and, by default, marks the first crossing and all
+    later rows in the same rollout branch as done. It preserves the previous
+    done mask and writes a new `synthetic_replay.pt` plus `summary.json`.
+    `py_compile` and a fake two-branch replay validated post-risk done
+    propagation and reward-penalty arithmetic.
+24. Done for replay truncation smokes on the current state-only H3 support
+    replays. q90 support-risk truncation used threshold `0.620098`, touched
+    `28/256` branches, raised done fraction from `0.13021` to `0.17188`, and
+    completed a 20-iteration W&B-disabled AWR smoke in job `9356396`. q50
+    truncation used threshold `0.200275`, touched `123/256` branches, and
+    raised done fraction to `0.48438`, which is likely too broad for a formal
+    setting. Treat q90 truncation as a mechanically clean component, not a
+    formal-run trigger.
+25. Next method step: move support-risk truncation into rollout generation
+    itself or combine it with conservative-Q. Post-hoc q90 truncation only
+    affects a small fraction of the already generated H3 replay, while real
+    failures show late support spikes after closed-loop drift. The next useful
+    experiment should stop or penalize generated branches at the moment they
+    cross the calibrated q90 support boundary, then run W&B-disabled AWR smoke
+    before any formal W&B seed.

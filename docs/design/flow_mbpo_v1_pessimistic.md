@@ -300,3 +300,28 @@ W&B-disabled AWR smoke on the q50 state replay completed in job `9356236` and
 wrote all checkpoints. Treat this as a usable replay-pessimism path, but not as
 a formal setting: q90 is too mild on current synthetic replay, while q50 is too
 broad relative to stable real rollout segments.
+
+Support-risk replay truncation is now available as the first early-termination
+component for scored synthetic replays. `apply_flow_mbpo_support_truncation.py`
+takes a replay with `support_distance` and `support_threshold`, marks rows that
+cross the support threshold, and can mark all later rows in the same
+`start_index`/`horizon_step` branch as done. It preserves the previous done mask
+for auditability and writes a new `synthetic_replay.pt` plus `summary.json`.
+
+On the current state/command-only H3 replay, q90 truncation is targeted but
+mild: threshold `0.620098`, crossing fraction `0.04818`, post-risk truncation
+fraction `0.09635`, risk branch fraction `0.10938`, and done fraction rising
+from `0.13021` to `0.17188`. A 20-iteration W&B-disabled AWR smoke on this
+q90-truncated replay completed in Slurm job `9356396`, wrote final, best, and
+best-training checkpoints, and ended with loss `0.001026` and replay synthetic
+done fraction `0.171875`.
+
+q50 truncation is much broader: threshold `0.200275`, crossing fraction
+`0.45573`, post-risk truncation fraction `0.45964`, risk branch fraction
+`0.48047`, and done fraction `0.48438`. This is useful as a stress diagnostic
+but too broad to formalize. Design implication: q90 support-risk truncation is
+mechanically clean, but post-hoc truncation of an existing H3 replay is not yet
+a claim-worthy method. The next implementation should terminate or penalize
+branches during model rollout generation when generated states cross the
+calibrated q90 support boundary, or move to conservative-Q over out-of-support
+generated states/actions.
