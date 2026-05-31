@@ -694,14 +694,22 @@ Use these locations as the durable record before launching new work:
   - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0/`
   - settings: same conservative AWR setup as job `9349145`, but with `real_eval_every=100` so future candidate ranking can include snapshots at iter100/200/300/400/500 plus final and best-training-loss
   - initial scheduler state: pending for priority
+  - final scheduler state: cancelled pending L40S job `9349421` and short H100 fallback `9349483`; RTX6000 fallback job `9349486` completed on `embers`
+  - RTX6000 fallback status: `COMPLETED`, exit `0:0`, elapsed `00:01:58`
+  - W&B run: `192csfst`
+  - command git: `23660aa196ae54562ba713f32cc9442d3fa24a71` on branch `mjlab-qs-rollout-policy-improvement`
+  - training-time 8-episode real evals remained weak and should be treated only as candidate-selection diagnostics: iter100 return `21.6009`, length `326.125`, fall `1.000`; iter200 return `17.6142`, length `263.875`, fall `1.000`; iter300 return `17.3154`, length `260.125`, fall `1.000`; iter400 return `18.8526`, length `287.250`, fall `1.000`; iter500 return `21.3358`, length `322.125`, fall `1.000`
+  - saved candidate checkpoints: `final_policy_extraction.pt`, `best_policy_extraction.pt`, `best_training_loss_policy_extraction.pt`, and `real_eval_snapshots/iter_000100_policy_extraction.pt` through `real_eval_snapshots/iter_000500_policy_extraction.pt`
+  - interpretation: the richer candidate pool exists, but there is still no policy-improvement claim because only low-count training eval has run for these snapshots; each candidate needs independent 40-episode eval plus 10-episode rollout-video evidence against the matched BC seed0 protocol
 - Added a candidate eval/render plan generator for Flow-MBPO AWR outputs.
   - script: `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`
   - behavior: scans an AWR output directory for `final`, `best`, `best_training_loss`, and `real_eval_snapshots/*_policy_extraction.pt`, then writes CSV and shell-command plans for 40-episode eval plus 10-episode rollout-video rendering
   - validation: `python -m py_compile scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`; `PYTHONPATH=$PWD/src:$PWD ... build_flow_mbpo_candidate_eval_plan.py --help`
   - plan-check report for the existing conservative run: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_s0.csv` and `.sh`; found `2` candidates (`final`, `best`)
+  - snapshot candidate plan: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_snap100_s0.csv` and `.sh`; found `8` candidates (`final`, `best`, `best_training_loss`, `iter_000100`, `iter_000200`, `iter_000300`, `iter_000400`, `iter_000500`)
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Wait for snapshot-enabled AWR follow-up job `9349421`; then verify that `best_training_loss_policy_extraction.pt` and `real_eval_snapshots/iter_*.pt` were saved. Use `build_flow_mbpo_candidate_eval_plan.py` to generate eval/render commands for the candidate pool, execute the plan on `embers` with W&B enabled, and rank the resulting evidence with `rank_flow_mbpo_candidate_evidence.py` before deciding whether any checkpoint deserves more seeds.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Execute the 8-candidate snapshot eval/render plan on `embers` with W&B enabled, then rank the resulting evidence with `rank_flow_mbpo_candidate_evidence.py` against the matched seed0 BC final 40-episode eval and 10-episode rollout before deciding whether any checkpoint deserves more seeds.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
