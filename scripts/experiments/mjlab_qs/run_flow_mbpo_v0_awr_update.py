@@ -43,6 +43,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--adv-temperature", type=float, default=1.0)
     p.add_argument("--weight-clip", type=float, default=20.0)
     p.add_argument("--bc-anchor-weight", type=float, default=0.1)
+    p.add_argument(
+        "--action-deviation-weight",
+        type=float,
+        default=0.0,
+        help="KL-like MSE penalty to keep current actor actions near the frozen BC/reference actor.",
+    )
     p.add_argument("--grad-norm", type=float, default=1.0)
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
     p.add_argument("--quality-filter", default="expert,expert_noisy")
@@ -217,6 +223,12 @@ def main() -> None:
     policy_ckpt = torch.load(args.policy_checkpoint, map_location="cpu", weights_only=False)
     actor = build_actor(policy_ckpt, state_dim, command_dim, action_dim, device)
     actor.train()
+    reference_actor = None
+    if float(args.action_deviation_weight) > 0.0:
+        reference_actor = build_actor(policy_ckpt, state_dim, command_dim, action_dim, device)
+        reference_actor.eval()
+        for param in reference_actor.parameters():
+            param.requires_grad_(False)
     real_indices = select_real_indices(data, metadata, args)
     opt = torch.optim.Adam(actor.parameters(), lr=float(args.actor_lr))
     ckpt_args = dict(policy_ckpt.get("args", {}))
@@ -226,6 +238,7 @@ def main() -> None:
             "flow_mbpo_v0_synthetic_replay": args.synthetic_replay,
             "flow_mbpo_v0_policy_checkpoint": args.policy_checkpoint,
             "flow_mbpo_v0_update_iters": int(args.update_iters),
+            "flow_mbpo_v0_action_deviation_weight": float(args.action_deviation_weight),
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -269,7 +282,21 @@ def main() -> None:
         real_loss = weighted_mse(real_pred, ra, real_weights)
         synth_loss = weighted_mse(synth_pred, sa, synth_weights)
         anchor_loss = F.mse_loss(real_pred, ra)
-        loss = real_loss + synth_loss + float(args.bc_anchor_weight) * anchor_loss
+        if reference_actor is not None:
+            with torch.no_grad():
+                ref_real = reference_actor(rz, rc, deterministic=True).clamp(-1.0, 1.0)
+                ref_synth = reference_actor(sz, sc, deterministic=True).clamp(-1.0, 1.0)
+            action_deviation_loss = 0.5 * (
+                F.mse_loss(real_pred, ref_real) + weighted_mse(synth_pred, ref_synth, (~sd).float())
+            )
+        else:
+            action_deviation_loss = real_pred.new_zeros(())
+        loss = (
+            real_loss
+            + synth_loss
+            + float(args.bc_anchor_weight) * anchor_loss
+            + float(args.action_deviation_weight) * action_deviation_loss
+        )
         opt.zero_grad(set_to_none=True)
         loss.backward()
         grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), float(args.grad_norm))
@@ -285,6 +312,7 @@ def main() -> None:
                 "awr/real_loss": float(real_loss.detach().item()),
                 "awr/synthetic_loss": float(synth_loss.detach().item()),
                 "awr/bc_anchor_loss": float(anchor_loss.detach().item()),
+                "awr/action_deviation_loss": float(action_deviation_loss.detach().item()),
                 "awr/real_reward_mean": float(rr.detach().mean().item()),
                 "awr/synthetic_reward_mean": float(sr.detach().mean().item()),
                 "awr/real_weight_mean": float(real_weights.detach().mean().item()),

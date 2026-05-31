@@ -138,6 +138,12 @@ explicit uncertainty/fall penalties do not reduce video fall rate, add a critic
 and COMBO-style conservative Q regularization on model-generated or
 out-of-support actions.
 
+Implementation status: `run_flow_mbpo_v0_awr_update.py` supports
+`--action-deviation-weight`. When enabled, it keeps a frozen copy of the
+warm-start actor and penalizes current-policy action MSE to that reference on
+real and active synthetic states. This is a deterministic-actor KL-like
+safeguard, not a full distributional KL.
+
 ## Smoke Checklist
 
 W&B disabled:
