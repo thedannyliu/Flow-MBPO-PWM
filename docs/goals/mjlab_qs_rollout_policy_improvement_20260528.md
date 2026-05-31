@@ -794,9 +794,49 @@ Use these locations as the durable record before launching new work:
   - replay metrics: uncertainty-done `0.000`, model-done `1.000`, post-first-done `0.6667`, final done fraction `1.000`
   - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_trajectory_chunk_smoke_summary_20260530.md`
   - interpretation: this validates the mechanical trajectory/chunk training, checkpoint loading, done-probability export, and replay truncation path. It is not usable for AWR because the 2-iter untrained done head predicts done for all transitions.
+- Prepared and submitted a real trajectory/chunk Flow WM ensemble run.
+  - support commit: `4fac903`
+  - changes: formal WM runs now log git SHA/branch/command; training manifests record `eval_batch_size`, `hidden`, `flow_substeps`, `chunk_size`, and `done_loss_weight`; smoke rollout now feeds an action chunk to `flow_trajectory_chunk` instead of repeating a one-step action
+  - manifest: `scripts/experiments/mjlab_qs/manifests/flow_mbpo_v0_trajchunk_wm_5k_20260530.csv`
+  - rows: `velocity_flat_unitree_g1`, `flow_trajectory_chunk`, seeds `0,1,2`
+  - settings: `train_iters=5000`, `batch_size=128`, `eval_batch_size=512`, hidden `256`, `flow_substeps=4`, `chunk_size=3`, `done_loss_weight=0.1`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-wm-trajectory-chunk-20260530`
+  - W&B runs: seed0 `98rz3yuk`, seed1 `seqn28hm`, seed2 `67d6526v`
+  - Slurm job: `9350403`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`; first submit with `8` CPUs was rejected by the RTX6000 CPU:GPU ratio, resubmitted with `6` CPUs
+- Trajectory/chunk Flow WM ensemble job `9350403` completed.
+  - status: seeds `0,1,2` all `COMPLETED`, exit `0:0`
+  - elapsed/max RSS: seed0 `00:08:55` / `13344876K`; seed1 `00:08:22` / `9816324K`; seed2 `00:08:34` / `10344196K`
+  - outputs: `scripts/outputs/mjlab_qs/results/flow_mbpo_v0_trajchunk_wm_5k_20260530/velocity_flat_unitree_g1/flow_trajectory_chunk/seed_{0,1,2}/`
+  - seed0 summary: best iter `5000`, test rollout dyn MSE label `H16` over `15` chunk steps `0.0954`, test reward MSE `0.0518`, done BCE `3.00e-7`
+  - seed1 summary: best iter `5000`, test rollout dyn MSE `0.0962`, test reward MSE `0.0519`, done BCE `2.44e-7`
+  - seed2 summary: best iter `5000`, test rollout dyn MSE `0.0966`, test reward MSE `0.0513`, done BCE `3.40e-7`
+  - interpretation: the real 5k chunk ensemble is much better than the 2-iter smoke and writes usable checkpoints. The done head is not useful for fall termination yet because it collapses toward near-zero done probability on rollout starts.
+- Generated H3/H5 synthetic smoke and conservative replay from the 5k trajectory/chunk ensemble.
+  - Slurm job: `9350467`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:27`, max RSS `6597320K`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-smoke-trajectory-chunk-20260530`
+  - W&B runs: H3 `h480qkds`, H5 `f7qb8wkz`
+  - smoke outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_trajectory_chunk_5k_ensemble_seed0_h3/` and `_h5/`
+  - replay outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_trajectory_chunk_5k_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_trajectory_chunk_5k_smoke_summary_20260530.md`
+  - H3 smoke: transitions `768`, reward mean `-0.0108`, next-state delta mean `0.1921`, next-state uncertainty mean `0.0428`, reward uncertainty mean `0.0418`, done probability mean `3.43e-7`, predicted done `0.000`
+  - H3 replay: uncertainty-done `0.1003`, model-done `0.000`, post-first-done `0.0846`, final done fraction `0.1302`, conservative reward mean `-0.0531`
+  - H5 smoke: transitions `1280`, reward mean `-0.0071`, next-state delta mean `0.1716`, next-state uncertainty mean `0.0431`, reward uncertainty mean `0.0409`, done probability mean `3.68e-7`, predicted done `0.000`
+  - H5 replay: uncertainty-done `0.1000`, model-done `0.000`, post-first-done `0.1102`, final done fraction `0.1406`, conservative reward mean `-0.0491`
+  - interpretation: trajectory/chunk replay is now mechanically viable and uncertainty-bounded. It is not a complete fall-aware model because model-done is zero, so conservatism currently comes from ensemble uncertainty rather than the done/fall head.
+- Ran a first conservative AWR policy-update probe on the trajectory/chunk H3 replay.
+  - Slurm job: `9350496`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:01:41`, max RSS `9616808K`
+  - W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v0-awr-trajchunk-20260530` / `8c2lfqo4`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - settings: expert+noisy uniform BC seed0 final warm start, H3 trajectory/chunk replay, `update_iters=500`, real batch `224`, synthetic batch `32`, BC anchor `1.0`, actor LR `1e-5`, real eval every `100` iters with `8` episodes
+  - wrote final, best-real, best-training-loss, and real-eval snapshot checkpoints
+  - best real-eval snapshot: iter `200`, return `20.8753`, length `280.00`, fall `1.000`
+  - final iter `500` real eval: return `14.3888`, length `222.125`, fall `1.000`
+  - comparison to matched seed0 BC final 40-episode eval return `43.6600`, length `568.38`, fall `0.675`, and matched seed0 BC final 10-episode rollout return `54.1283`, length `688.40`, fall `0.400`
+  - interpretation: the trajectory/chunk H3 replay plus this AWR recipe strongly degrades real behavior despite bounded synthetic replay. Do not render rollout videos, do not expand to seeds, and do not run the H5 AWR analog without a new policy-update constraint or failure diagnosis.
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next method step should train a real trajectory/chunk world-model ensemble with sufficient iterations and W&B logging, then regenerate H3/H5 replay through the same truncation gate. Do not run AWR on the 100-iter residual smoke replay or the 2-iter trajectory/chunk smoke replay.
+Keep PWM paused and do not expand the Flow endpoint or trajectory/chunk AWR setups to seeds 1-2. The next method step should diagnose why small AWR updates still collapse real rollout behavior: inspect action deltas versus BC, synthetic advantage weights, and high-reward synthetic states; then add a stricter trust-region/KL or lower synthetic ratio before any further AWR run. Do not spend rollout-video jobs on the failed trajectory/chunk H3 AWR probe.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
