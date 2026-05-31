@@ -686,9 +686,17 @@ Use these locations as the durable record before launching new work:
   - result: `final` passes scalar gate but fails video gate; `best` fails scalar gate and fails strict video gate because fall rate ties the matched BC final instead of improving it
   - interpretation: the ranking utility makes the split evidence explicit and prevents treating a single strong scalar or video result as a policy-improvement claim.
   - validation: `python -m py_compile scripts/experiments/mjlab_qs/rank_flow_mbpo_candidate_evidence.py`; `PYTHONPATH=$PWD/src:$PWD ... rank_flow_mbpo_candidate_evidence.py --help`
+- Submitted a snapshot-enabled conservative AWR follow-up to produce a richer candidate pool.
+  - Slurm job: `9349421`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-snapshots-20260530`
+  - W&B group/name: `flow_endpoint_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0` / `flow_endpoint_h1_unc0p5_q0p90_seed0_cons_snap100_iter500`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0/`
+  - settings: same conservative AWR setup as job `9349145`, but with `real_eval_every=100` so future candidate ranking can include snapshots at iter100/200/300/400/500 plus final and best-training-loss
+  - initial scheduler state: pending for priority
 
 ## Next Action
 
-Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. The conservative run produced useful but split evidence, and the candidate ranking confirms no existing candidate clears both scalar and video gates. The next step should use the new AWR snapshot persistence in a small follow-up run, then rank final, real-eval snapshots, and training-loss snapshots with `rank_flow_mbpo_candidate_evidence.py` before deciding whether any checkpoint deserves more seeds.
+Keep PWM paused and do not expand Flow-MBPO AWR to seeds 1-2 yet. Wait for snapshot-enabled AWR follow-up job `9349421`; then verify that `best_training_loss_policy_extraction.pt` and `real_eval_snapshots/iter_*.pt` were saved. Evaluate/rank those candidates with `rank_flow_mbpo_candidate_evidence.py` before deciding whether any checkpoint deserves more seeds.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
