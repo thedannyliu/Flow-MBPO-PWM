@@ -24,7 +24,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--seeds", default="0,1,2")
     p.add_argument("--train-iters", type=int, default=50000)
     p.add_argument("--batch-size", type=int, default=256)
+    p.add_argument("--eval-batch-size", type=int, default=1024)
     p.add_argument("--eval-every", type=int, default=5000)
+    p.add_argument("--hidden", type=int, default=512)
+    p.add_argument("--flow-substeps", type=int, default=4)
+    p.add_argument("--chunk-size", type=int, default=3)
+    p.add_argument("--done-loss-weight", type=float, default=0.1)
     p.add_argument("--sigreg-weight", type=float, default=0.0)
     p.add_argument("--sigreg-projections", type=int, default=128)
     p.add_argument("--sigreg-knots", type=int, default=8)
@@ -71,7 +76,12 @@ def main() -> None:
                             args.train_iters if method == "residual_flow_frozen_mlp" else 0
                         ),
                         "batch_size": str(args.batch_size),
+                        "eval_batch_size": str(args.eval_batch_size),
                         "eval_every": str(args.eval_every),
+                        "hidden": str(args.hidden),
+                        "flow_substeps": str(args.flow_substeps),
+                        "chunk_size": str(args.chunk_size),
+                        "done_loss_weight": str(args.done_loss_weight),
                         "sigreg_weight": str(args.sigreg_weight),
                         "sigreg_projections": str(args.sigreg_projections),
                         "sigreg_knots": str(args.sigreg_knots),

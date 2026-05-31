@@ -134,6 +134,12 @@ def select_start_indices(data: dict[str, torch.Tensor], metadata: dict[str, Any]
     return candidates[pick]
 
 
+def normalize_command(c_raw: torch.Tensor, nrm: dict[str, torch.Tensor]) -> torch.Tensor:
+    if c_raw.shape[-1] and "command_mean" in nrm:
+        return norm(c_raw, nrm["command_mean"], nrm["command_std"])
+    return c_raw
+
+
 @torch.no_grad()
 def generate_synthetic_buffer(
     data: dict[str, torch.Tensor],
@@ -164,17 +170,39 @@ def generate_synthetic_buffer(
     ids_device = ids.to(device)
     for h in range(horizon):
         c_raw = commands[:, h]
-        c = c_raw
-        if c.shape[-1] and "command_mean" in nrm:
-            c = norm(c, nrm["command_mean"], nrm["command_std"])
-        action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
-        next_preds = torch.stack([model.next(z, action) for model in models], dim=0)
-        reward_preds = torch.stack([model.reward(z, action, c).reshape(z.shape[0]) for model in models], dim=0)
-        done_prob_preds = []
-        for model in models:
-            done_probability = getattr(model, "done_probability", None)
-            if done_probability is not None:
-                done_prob_preds.append(done_probability(z, action, c).reshape(z.shape[0]))
+        c = normalize_command(c_raw, nrm)
+        chunk_models = all(hasattr(model, "next_trajectory") for model in models)
+        if chunk_models:
+            chunk_size = int(getattr(models[0], "chunk_size"))
+            command_chunk = []
+            action_chunk = []
+            for offset in range(chunk_size):
+                idx = min(h + offset, int(commands.shape[1]) - 1)
+                c_future = normalize_command(commands[:, idx], nrm)
+                command_chunk.append(c_future)
+                action_chunk.append(actor(z, c_future, deterministic=True).clamp(-1.0, 1.0))
+            command_chunk_t = torch.stack(command_chunk, dim=1)
+            action_chunk_t = torch.stack(action_chunk, dim=1)
+            action = action_chunk_t[:, 0]
+            next_items = []
+            reward_items = []
+            done_prob_preds = []
+            for model in models:
+                pred_states, pred_rewards, done_logits = model.next_trajectory(z, action_chunk_t, command_chunk_t)
+                next_items.append(pred_states[:, 0])
+                reward_items.append(pred_rewards[:, 0])
+                done_prob_preds.append(torch.sigmoid(done_logits[:, 0]))
+            next_preds = torch.stack(next_items, dim=0)
+            reward_preds = torch.stack(reward_items, dim=0)
+        else:
+            action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+            next_preds = torch.stack([model.next(z, action) for model in models], dim=0)
+            reward_preds = torch.stack([model.reward(z, action, c).reshape(z.shape[0]) for model in models], dim=0)
+            done_prob_preds = []
+            for model in models:
+                done_probability = getattr(model, "done_probability", None)
+                if done_probability is not None:
+                    done_prob_preds.append(done_probability(z, action, c).reshape(z.shape[0]))
         next_mean = next_preds.mean(dim=0)
         reward_mean = reward_preds.mean(dim=0)
         if done_prob_preds:

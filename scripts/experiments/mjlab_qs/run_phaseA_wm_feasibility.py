@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Dict, Tuple
@@ -18,6 +20,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
+
+
+def command_line() -> str:
+    return " ".join(sys.argv)
+
+
+def git_value(*args: str) -> str:
+    try:
+        return subprocess.check_output(["git", *args], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def git_sha() -> str:
+    return git_value("rev-parse", "HEAD")
+
+
+def git_branch() -> str:
+    return git_value("rev-parse", "--abbrev-ref", "HEAD")
 
 
 class MLP(nn.Module):
@@ -540,7 +561,13 @@ def main() -> None:
             group=args.wandb_group,
             name=args.wandb_name or f"{args.method}_seed{args.seed}",
             job_type="formal",
-            config={**vars(args), "dataset_metadata": metadata},
+            config={
+                **vars(args),
+                "dataset_metadata": metadata,
+                "git_sha": git_sha(),
+                "git_branch": git_branch(),
+                "command": command_line(),
+            },
         )
     best_val = math.inf
     best = None
@@ -594,6 +621,9 @@ def main() -> None:
             print(json.dumps(metrics, sort_keys=True))
     test_m = evaluate(model, args.method, data, test_idx, device, nrm, args.eval_batch_size, gamma=args.rollout_gamma)
     summary = {
+        "git_sha": git_sha(),
+        "git_branch": git_branch(),
+        "command": command_line(),
         "method": args.method,
         "seed": args.seed,
         "best_val_rollout_dyn_mse_H16": best_val,
