@@ -195,3 +195,11 @@ support rows, `4096` disjoint probe rows, q90 threshold `0.622495`, and
 so the penalty was mild; support penalty mean was `0.00544` and p90 was `0.0`.
 This path is mechanically clean but still needs calibration against real
 failures before a formal run.
+
+The stronger q50 support-threshold smoke used the same support/probe split with
+threshold `0.201729` and `lambda_support=5.0`. It raised support penalty mean to
+`0.09565`, p90 to `0.32410`, and reduced conservative reward mean from
+`-0.053114` to `-0.531373`; a 20-iteration AWR smoke still completed cleanly.
+Existing rollout-step logs only contain reward/action norm/done fields, not
+full state/action vectors, so support distance cannot yet be calibrated against
+real fall events from saved videos.

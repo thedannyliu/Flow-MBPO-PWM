@@ -96,3 +96,7 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
    and passed W&B-disabled replay/AWR smokes. The first q90 support setting is a
    mild penalty on the current H3 replay, so it needs calibration or a stronger
    local-support variant before any formal run.
+7. Partly done: q50 support gating is a stronger pessimistic replay and passes
+   AWR smoke. Existing rollout logs lack full state/action vectors, so support
+   distance still cannot be tied to real fall events without adding richer
+   rollout logging or a separate calibration collection.
