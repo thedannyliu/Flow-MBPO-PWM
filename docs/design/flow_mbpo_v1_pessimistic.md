@@ -260,3 +260,14 @@ real support distance mean/p90 was `0.2515`/`0.6042`; synthetic support
 distance mean/p90 was `0.1762`/`0.3746`. This confirms the objective can run,
 but it is likely too mild because update-batch distances mostly remain below
 the q90 threshold. Use this as infrastructure, not a formal-run trigger.
+
+Stress diagnostics confirm that conclusion. Active-fraction and max-distance
+logging was added to the AWR support metrics. With q90 threshold `0.622495` and
+weight `10.0`, the final real active fraction was only `0.0917` and synthetic
+active fraction was `0.0`. With q50 threshold `0.201729` and weight `1.0`, the
+final real/synthetic active fractions rose to `0.500`/`0.375` and support loss
+rose to `0.08731`, but final support-distance summaries were still essentially
+unchanged in a 20-iteration smoke. The current AWR batches therefore do not
+expose the high-risk late rollout states where falls occur. Prefer
+rollout-state/high-risk-state augmentation or a conservative-Q penalty before a
+formal support-risk run.

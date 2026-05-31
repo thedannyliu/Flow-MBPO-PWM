@@ -262,6 +262,20 @@ def support_action_penalty(
     return loss, distance.detach()
 
 
+def support_distance_metrics(prefix: str, distance: torch.Tensor, threshold: torch.Tensor | None) -> dict[str, float]:
+    distance = distance.detach()
+    metrics = {
+        f"{prefix}_mean": float(distance.mean().item()),
+        f"{prefix}_p90": float(torch.quantile(distance, 0.90).item()),
+        f"{prefix}_max": float(distance.max().item()),
+    }
+    if threshold is not None:
+        metrics[f"{prefix}_active_fraction"] = float((distance > threshold).float().mean().item())
+    else:
+        metrics[f"{prefix}_active_fraction"] = 0.0
+    return metrics
+
+
 def eval_namespace(args: argparse.Namespace) -> argparse.Namespace:
     return argparse.Namespace(
         task_id=args.task_id,
@@ -423,6 +437,7 @@ def main() -> None:
             best_loss = loss_value
             best_loss_actor = {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}
         if it == 1 or it == int(args.update_iters) or it % int(args.log_every) == 0:
+            support_threshold = support_state["threshold"] if support_state is not None else None
             last_metrics = {
                 "awr/iter": float(it),
                 "awr/loss": loss_value,
@@ -431,10 +446,8 @@ def main() -> None:
                 "awr/bc_anchor_loss": float(anchor_loss.detach().item()),
                 "awr/action_deviation_loss": float(action_deviation_loss.detach().item()),
                 "awr/support_action_loss": float(support_action_loss.detach().item()),
-                "awr/real_support_distance_mean": float(real_support_distance.detach().mean().item()),
-                "awr/real_support_distance_p90": float(torch.quantile(real_support_distance.detach(), 0.90).item()),
-                "awr/synthetic_support_distance_mean": float(synth_support_distance.detach().mean().item()),
-                "awr/synthetic_support_distance_p90": float(torch.quantile(synth_support_distance.detach(), 0.90).item()),
+                **support_distance_metrics("awr/real_support_distance", real_support_distance, support_threshold),
+                **support_distance_metrics("awr/synthetic_support_distance", synth_support_distance, support_threshold),
                 "awr/real_reward_mean": float(rr.detach().mean().item()),
                 "awr/synthetic_reward_mean": float(sr.detach().mean().item()),
                 "awr/real_weight_mean": float(real_weights.detach().mean().item()),

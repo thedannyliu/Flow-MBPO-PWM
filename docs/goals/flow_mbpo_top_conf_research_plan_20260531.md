@@ -146,3 +146,15 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     while real falls show much larger late-rollout support spikes. Test a
     stronger support-risk variant or conservative-Q penalty before any formal
     W&B seed.
+15. Done for support-action stress diagnostics: active-fraction logging was
+    added to the AWR support metrics and validated. q90 weight `10.0` rerun in
+    job `9356023` had final real/synthetic active fractions `0.0917`/`0.0`.
+    q50 weight `1.0` rerun in the same job had active fractions `0.500`/`0.375`
+    and support-action loss `0.08731`, but the final real/synthetic support
+    distance summaries remained essentially unchanged from q90. This indicates
+    the current AWR update batches do not contain the late high-support-distance
+    fall distribution seen in real rollouts.
+16. Next method step: do not formalize plain support-action regularization.
+    Either add rollout-state/high-risk-state augmentation so the support-risk
+    loss sees the failure distribution, or move to a conservative-Q objective
+    that penalizes actor actions outside support more directly.
