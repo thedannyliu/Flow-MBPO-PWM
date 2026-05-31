@@ -177,3 +177,11 @@ W&B enabled, `embers` QOS:
 6. Compare against matched BC seed0 and aggregate BC.
 7. Expand only if return/length preserve or exceed BC and fall rate is lower
    than BC in both scalar eval and video evidence.
+
+Current formal status: the trajectory/chunk H3 `r240/s16` action-deviation
+variant ran as one formal seed in Slurm jobs `9354764` and `9354806` with W&B
+run IDs `dy7hzh0r`, `fy3zyqka`, `39tx14vg`, `30xx57uc`, and `zxjfbwc7`.
+Final 40-episode eval was return `43.9079`, length `577.45`, fall `0.725`;
+best-real 40-episode eval was return `41.4285`, length `544.575`, fall
+`0.750`. Final/best-real roll10 videos had fall `0.400`, tying matched BC
+rather than improving it. Do not expand this variant.

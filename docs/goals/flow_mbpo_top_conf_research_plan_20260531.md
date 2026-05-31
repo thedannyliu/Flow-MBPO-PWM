@@ -84,8 +84,11 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
    model termination.
 3. Done: add a KL/action-deviation constraint to the AWR policy update or a
    conservative-Q fallback.
-4. Done for smoke: W&B-disabled trajectory/chunk H3 AWR action-deviation smoke
-   passed mechanically in job `9354631`; next run one formal W&B seed on
-   `embers`.
-5. Still required: evaluate/render final and true-best actors before any seed
-   expansion.
+4. Done for current slice: W&B-disabled trajectory/chunk H3 AWR action-deviation
+   smoke passed mechanically in job `9354631`, then one formal W&B seed ran on
+   `embers` in jobs `9354764` and `9354806`.
+5. Done for current slice: final and true-best actors were evaluated/rendered.
+   The action-deviation variant failed the strict gate because scalar fall
+   regressed versus matched BC and rollout fall still tied BC. Do not expand it.
+   Next add a real fall/support/OOD risk signal or conservative-Q penalty before
+   another formal policy update.

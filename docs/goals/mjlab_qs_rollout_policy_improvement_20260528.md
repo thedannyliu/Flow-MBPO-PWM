@@ -912,11 +912,27 @@ Use these locations as the durable record before launching new work:
   - final iter metrics: loss `0.00108105`, real loss `0.00053796`, synthetic loss `2.72e-7`, BC anchor loss `0.00053876`, action-deviation loss `4.06e-7`, synthetic batch done fraction `0.0`
   - checkpoints verified present: `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `best_training_loss_policy_extraction.pt`
   - interpretation: the v1 action-deviation AWR path is mechanically clean on the current best trajectory/chunk H3 recipe. This is not a policy-improvement result because it has no real eval or video; it only clears the smoke gate for a single formal W&B seed on `embers`.
+- Ran the formal W&B trajectory/chunk H3 AWR action-deviation seed.
+  - code commit: `3c8c938`
+  - train Slurm job: `9354764`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:01:23`, max RSS `9188128K`
+  - train W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v1-awr-trajchunk-20260531` / `dy7hzh0r`
+  - train output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_actdev10_iter500_s0/`
+  - settings: same expert+noisy H16 dataset, BC seed0 final warm start, and trajectory/chunk H3 replay as the lowsynth run; `update_iters=500`, real batch `240`, synthetic batch `16`, BC anchor `1.0`, action-deviation weight `10.0`, actor LR `1e-5`, real eval every `100` iters with `8` episodes
+  - training-time best-real snapshot: iter `300`, return `19.5770`, length `295.00`, fall `1.000`; final iter `500` real eval return `18.6699`, length `272.50`, fall `1.000`
+  - eval/render Slurm job: `9354806`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:08:17`, max RSS `9695988K`
+  - eval W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v1-awr-eval40-trajchunk-20260531`; final `fy3zyqka`, best-real `39tx14vg`
+  - rollout W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v1-rollout-trajchunk-20260531`; final `30xx57uc`, best-real `zxjfbwc7`
+  - final 40-episode eval: return `43.9079`, length `577.45`, fall `0.725`
+  - best-real 40-episode eval: return `41.4285`, length `544.575`, fall `0.750`
+  - final roll10: return `54.1049`, length `689.60`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_actdev10_iter500_s0/final_roll10/rollout.mp4`
+  - best-real roll10: return `54.3232`, length `691.40`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_actdev10_iter500_s0/best_roll10/rollout.mp4`
+  - comparison to matched seed0 BC final 40-episode eval: return `43.6600`, length `568.38`, fall `0.675`; comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
+  - interpretation: action deviation preserves the matched roll10 fall tie but hurts scalar eval fall versus both matched BC and the no-action-deviation lowsynth run. The final video is essentially tied with matched BC, and best-real is only slightly above return/length while fall still ties. This fails the strict gate and should not be expanded.
 
 ## Next Action
 
 Keep PWM paused and do not claim general policy improvement. Adopt the top-conference Flow-MBPO v1 plan in `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` and `docs/design/flow_mbpo_v1_pessimistic.md` as the active method direction. The 0531 dated source notes are in `docs/goals/0531/`.
 
-Lower synthetic ratio alone did not lower matched video fall rate, and v1 replay/dataset audits confirm the current trajectory/chunk fall proxy is collapsed because the QS data has no positive done/fall labels. Stop treating the learned done head as a usable safety signal on this dataset. The W&B-disabled trajectory/chunk H3 AWR smoke with `--action-deviation-weight 10.0` is mechanically clean, so the next method step is one formal W&B seed on `embers` around the current `r240/s16` recipe plus the action-deviation safeguard. Require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion. In parallel, plan fall-positive/near-fall data or a state/support/OOD risk proxy before any future done-head-dependent method.
+Lower synthetic ratio alone did not lower matched video fall rate, and the formal action-deviation run did not fix the gate: it tied matched BC final video fall and regressed 40-episode scalar fall. v1 replay/dataset audits confirm the current trajectory/chunk fall proxy is collapsed because the QS data has no positive done/fall labels, so stop treating the learned done head as a usable safety signal on this dataset. Do not expand the action-deviation variant. The next method step should add a real safety signal before another formal policy update: fall-positive/near-fall data, a state/support/OOD risk proxy, or a conservative-Q penalty that directly discourages out-of-support synthetic actions. Require final plus true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
