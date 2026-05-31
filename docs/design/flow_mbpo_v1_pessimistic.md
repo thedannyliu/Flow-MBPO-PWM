@@ -412,3 +412,13 @@ weight `0.01`. Final metrics were critic loss `2.41859`, Bellman loss
 produces a meaningful conservative training gap, unlike the actor-only smoke,
 but remains W&B-disabled mechanical evidence. Do not formalize until a longer or
 better-tuned smoke shows stable critic/actor behavior.
+
+The first longer random-action CQL smoke ran in job `9357006` for `100`
+iterations with the same support-aware generated H3 replay and `K=10`. The CQL
+gap decreased from `2.3921` at iter 1 to `1.8522` at iter 100, while
+`Q(random)` mean dropped from `0.0290` to `-0.4255`; this is the intended
+average random-action pessimism. The warning sign is that `Q(random)` max rose
+from `0.1326` to `0.7369`, and `Q(actor)` rose with `Q(data)`. Treat this as a
+useful critic-training diagnostic, not a formal candidate. Before W&B formal
+eval, tune CQL weight, temperature, random-action count, and actor critic weight
+so the critic is conservative without creating high-valued random-action tails.

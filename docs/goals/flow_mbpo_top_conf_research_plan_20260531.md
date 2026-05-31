@@ -305,3 +305,16 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     near-zero CQL-gap diagnostic from actor-only CQL, but it remains smoke-only
     evidence. Next tune training duration, CQL weight, and random-action mix
     before any formal W&B seed.
+38. Done for longer random-action conservative-Q smoke. W&B-disabled Slurm job
+    `9357006` ran the same support-aware generated H3 replay and random-action
+    CQL settings for `100` iterations. It completed on `embers`, wrote actor
+    checkpoints and a loadable `final_q_critic.pt`. Final metrics were critic
+    loss `1.9391`, Bellman loss `0.08688`, CQL gap `1.85219`, `Q(data)` mean
+    `0.25246`, `Q(actor)` mean `0.26809`, `Q(random)` mean `-0.42555`, and
+    `Q(random)` max `0.73695`. Across logged iterations, the CQL gap decreased
+    from `2.3921` to `1.8522` but did not collapse.
+39. Next method step: random-action CQL now has a persistent conservative
+    training signal, but the rising `Q(random)` max and increasing actor/data Q
+    values mean it is still only a critic diagnostic. Tune CQL
+    weight/temperature/random-action count, and consider lowering
+    `critic_actor_weight`, before running any formal W&B seed.
