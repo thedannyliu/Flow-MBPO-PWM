@@ -768,9 +768,17 @@ Use these locations as the durable record before launching new work:
   - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
   - settings: same BC policy, `num_starts=256`, H3/H5, `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, `--truncate-rollouts-after-done`, W&B disabled
   - outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/residual_flow_frozen_mlp_smoke_ensemble_seed0_h3/` and `_h5/`; replay dirs under `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/residual_flow_frozen_mlp_smoke_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
+- Residual Flow H3/H5 replay diagnostic job `9350157` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:21`, max RSS `6512632K`
+  - command git: `4e8320bcac45d659111fd2e3572eb5843766c8e7`
+  - H3 residual smoke: transitions `768`, reward mean `-0.0458`, next-state uncertainty mean `0.0356`, next-state delta p90 `0.0622`
+  - H3 residual replay: uncertainty-done `0.1003`, post-first-done `0.0677`, final done fraction `0.1029`, conservative reward mean `-0.0939`
+  - H5 residual smoke: transitions `1280`, reward mean `-0.0377`, next-state uncertainty mean `0.0353`, next-state delta p90 `0.0574`
+  - H5 residual replay: uncertainty-done `0.1000`, post-first-done `0.0844`, final done fraction `0.1086`, conservative reward mean `-0.0856`
+  - comparison to endpoint H3/H5: residual smoke replay is mechanically bounded but reward scale is much lower than endpoint H3/H5 reward mean around `0.15`, and the residual smoke checkpoints were only 100-iter mechanical checkpoints. Do not feed this residual smoke replay into AWR as policy-improvement evidence.
 
 ## Next Action
 
-Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. Monitor residual replay job `9350157`; if it completes, compare residual H3/H5 replay diagnostics against the endpoint horizon baseline before any policy update.
+Keep PWM paused and do not expand this Flow endpoint AWR setup to seeds 1-2. The next method step should train a real residual or trajectory/chunk world-model ensemble with sufficient iterations and W&B logging, then regenerate H3/H5 replay through the same truncation gate. Do not run AWR on the 100-iter residual smoke replay.
 
 Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.
