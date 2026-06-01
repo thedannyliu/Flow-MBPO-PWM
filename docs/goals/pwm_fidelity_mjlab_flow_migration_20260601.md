@@ -314,7 +314,53 @@ Keep horizon, actor-critic training, data, and eval fixed across rows. If imagin
 ## Deviations and Open Items
 
 - Absolute `/baselines/PWM` is missing; repository-local `baselines/PWM` is current with official `main`.
-- No Phase 1 smoke has been run yet in this document.
 - Current shell is CPU-only; use Slurm GPU or a GPU node for real parity.
 - Need to verify DFlex import/runtime under the `pwm` conda env before submitting formal parity.
 - Need to capture exact W&B run IDs and Slurm logs once Phase 1 jobs run.
+
+## Phase 1 Smoke Submission
+
+Submitted W&B-disabled original PWM Hopper smoke:
+
+```text
+submitted_at: 2026-06-01
+slurm_job_id: 9379551
+job_name: pwm_p1_hopper_smoke
+repo_sha: 6474b855457b0e726ea8359178af6a4e4fbf53bb
+pwm_sha: 9816252019ad8ca9a4393bceacf8a4dde711a749
+partition: gpu-h100
+qos: embers
+account: gts-agarg35
+gres: gpu:h100:1
+time_limit: 00:30:00
+wandb: disabled
+seed: 0
+env: dflex_hopper
+config: baselines/PWM/scripts/cfg/config.yaml + env=dflex_hopper + alg=pwm
+checkpoint: scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_smoke_9379551.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_smoke_9379551.err
+status_after_submit: PENDING (Priority)
+```
+
+Exact submitted command:
+
+```bash
+mkdir -p logs/slurm/pwm_phase1
+sbatch \
+  --job-name=pwm_p1_hopper_smoke \
+  --account=gts-agarg35 \
+  --partition=gpu-h100 \
+  --qos=embers \
+  --gres=gpu:h100:1 \
+  --nodes=1 \
+  --ntasks=1 \
+  --cpus-per-task=8 \
+  --mem=96G \
+  --time=00:30:00 \
+  --output=logs/slurm/pwm_phase1/pwm_p1_hopper_smoke_%j.out \
+  --error=logs/slurm/pwm_phase1/pwm_p1_hopper_smoke_%j.err \
+  --wrap='cd /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM && source ~/.bashrc && conda activate pwm && export WANDB_MODE=disabled && export PYTHONPATH=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/src:/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/external/tdmpc2:$PYTHONPATH && cd baselines/PWM/scripts && python train_dflex.py env=dflex_hopper alg=pwm general.run_wandb=False general.seed=0 general.checkpoint=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt alg.max_epochs=10 alg.save_interval=10 general.eval_runs=1 general.logdir=logs/phase1_hopper_smoke_20260601'
+```
+
+Next action: wait for job `9379551` to leave pending, inspect stdout/stderr, and only then decide whether to submit the formal W&B seed.
