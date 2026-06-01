@@ -57,6 +57,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baseline-return", type=float, default=None)
     p.add_argument("--baseline-length", type=float, default=None)
     p.add_argument("--baseline-fall", type=float, default=None)
+    p.add_argument("--notes", default="")
     p.add_argument(
         "--save-support-features",
         action="store_true",
@@ -361,16 +362,20 @@ def main() -> None:
             name=args.wandb_name or f"{ckpt_args.get('wm_method')}_{ckpt_args.get('policy_type')}_seed{ckpt_args.get('seed')}_rollout",
             job_type="policy_rollout_video",
             config={
+                **ckpt_args,
                 "policy_checkpoint": args.policy_checkpoint,
                 "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
                 "rollout_episodes": args.rollout_episodes,
                 "max_steps": args.max_steps,
                 "video_fps": args.video_fps,
                 "action_ramp_steps": args.action_ramp_steps,
+                "baseline_return": args.baseline_return,
+                "baseline_length": args.baseline_length,
+                "baseline_fall": args.baseline_fall,
+                "notes": args.notes,
                 "git_sha": git_sha(),
                 "git_branch": git_branch(),
                 "command": command_line(),
-                **ckpt_args,
             },
         )
     frames, step_rows, episode_rows, support_features = collect_rollout(actor, ckpt_args, nrm, args)
@@ -406,6 +411,14 @@ def main() -> None:
         "git_sha": git_sha(),
         "git_branch": git_branch(),
         "command": command_line(),
+        "notes": args.notes,
+        "dataset": ckpt_args.get("dataset", ""),
+        "metadata": ckpt_args.get("metadata", ""),
+        "normalization": ckpt_args.get("normalization", ""),
+        "seed": ckpt_args.get("seed", ""),
+        "task_id": ckpt_args.get("task_id", ""),
+        "wm_method": ckpt_args.get("wm_method", ""),
+        "policy_type": ckpt_args.get("policy_type", ""),
     }
     add_baseline_gate(summary, args)
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

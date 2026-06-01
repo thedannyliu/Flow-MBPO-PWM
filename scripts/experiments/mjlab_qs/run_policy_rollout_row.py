@@ -64,6 +64,7 @@ def main() -> None:
     baseline_return = row.get("rollout_baseline_return") or row.get("baseline_return")
     baseline_length = row.get("rollout_baseline_length") or row.get("baseline_length")
     baseline_fall = row.get("rollout_baseline_fall") or row.get("baseline_fall")
+    notes = row.get("notes", "")
     direct_checkpoint = row.get("policy_checkpoint")
 
     out = output_dir(row)
@@ -153,6 +154,8 @@ def main() -> None:
                         baseline_fall,
                     ]
                 )
+            if notes:
+                cmd.extend(["--notes", notes])
             subprocess.run(cmd, check=True)
 
 

@@ -1202,6 +1202,13 @@ Use these locations as the durable record before launching new work:
   - purpose: candidate snapshot eval/render can now be submitted through `scripts/experiments/mjlab_qs/submit_array.sh --kind policy_eval` and `--kind policy_rollout`, preserving the default `embers` QOS guard and W&B row-runner path instead of relying only on hand-run shell command lists.
   - validation: `py_compile`, CLI help, `/tmp` 8-candidate eval/rollout manifest generation, and monkeypatched row-runner checks confirming that direct eval/render commands include the exact checkpoint, candidate output dir, W&B project, and baseline gate flags.
   - interpretation: this is submission-protocol infrastructure only. It does not add new policy evidence, but it makes future candidate snapshot eval/render runs easier to keep on the formal `embers`/W&B/baseline-gated path.
+- Tightened eval/render provenance metadata for formal evidence.
+  - script updates: `scripts/experiments/mjlab_qs/eval_policy_checkpoint.py`, `scripts/experiments/mjlab_qs/render_policy_rollout.py`, `scripts/experiments/mjlab_qs/run_policy_eval_row.py`, `scripts/experiments/mjlab_qs/run_policy_rollout_row.py`, and `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`
+  - new eval/render arg: `--notes`
+  - behavior: eval summaries and W&B configs now record notes explicitly; rollout summaries now also record dataset, metadata, normalization, seed, task id, WM method, policy type, notes, git SHA/branch, command, checkpoint, and baseline gate fields. Row runners forward manifest `notes` to eval/render.
+  - candidate plan behavior: direct candidate plan CSV and eval/rollout manifests include `notes`, and generated W&B names now reflect actual `eval_episodes`, `max_steps`, and `rollout_episodes` instead of hard-coded `eval40` / `rollout1000_ep10`.
+  - validation: `py_compile`, CLI help checks for `--notes`, `/tmp` 8-candidate plan/manifest generation with notes, and monkeypatched row-runner command checks confirming notes and parameter-matched W&B names in both eval and rollout commands.
+  - interpretation: this is provenance hardening only. It reduces the chance that future formal candidate eval/render evidence is missing notes or dataset/run context, but it does not add policy evidence.
 
 ## Next Action
 

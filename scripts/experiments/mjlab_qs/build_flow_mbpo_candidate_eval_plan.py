@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-project-eval", default="")
     p.add_argument("--wandb-project-rollout", default="")
     p.add_argument("--wandb-group", default="")
+    p.add_argument("--notes", default="")
     p.add_argument("--eval-baseline-return", type=float, default=45.8491)
     p.add_argument("--eval-baseline-length", type=float, default=594.97)
     p.add_argument("--eval-baseline-fall", type=float, default=0.625)
@@ -119,14 +120,17 @@ def build_rows(args: argparse.Namespace) -> list[dict[str, str]]:
             eval_cmd += (
                 f" --wandb-project {shlex.quote(args.wandb_project_eval)}"
                 f" --wandb-group {shlex.quote(args.wandb_group)}"
-                f" --wandb-name {shlex.quote(args.wandb_group + '_' + name + '_eval40')}"
+                f" --wandb-name {shlex.quote(args.wandb_group + '_' + name + '_eval' + str(args.eval_episodes))}"
             )
         if args.wandb_project_rollout:
             rollout_cmd += (
                 f" --wandb-project {shlex.quote(args.wandb_project_rollout)}"
                 f" --wandb-group {shlex.quote(args.wandb_group)}"
-                f" --wandb-name {shlex.quote(args.wandb_group + '_' + name + '_rollout1000_ep10')}"
+                f" --wandb-name {shlex.quote(args.wandb_group + '_' + name + '_rollout' + str(args.max_steps) + '_ep' + str(args.rollout_episodes))}"
             )
+        if args.notes:
+            eval_cmd += f" --notes {shlex.quote(args.notes)}"
+            rollout_cmd += f" --notes {shlex.quote(args.notes)}"
         rows.append(
             {
                 "candidate": name,
@@ -139,6 +143,7 @@ def build_rows(args: argparse.Namespace) -> list[dict[str, str]]:
                 "rollout_baseline_return": str(args.rollout_baseline_return),
                 "rollout_baseline_length": str(args.rollout_baseline_length),
                 "rollout_baseline_fall": str(args.rollout_baseline_fall),
+                "notes": args.notes,
                 "eval_command": eval_cmd,
                 "rollout_command": rollout_cmd,
             }
@@ -158,6 +163,7 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
         "rollout_baseline_return",
         "rollout_baseline_length",
         "rollout_baseline_fall",
+        "notes",
         "eval_command",
         "rollout_command",
     ]
@@ -184,6 +190,7 @@ def write_eval_manifest(path: Path, rows: list[dict[str, str]], args: argparse.N
         "wandb_project",
         "wandb_group",
         "wandb_name",
+        "notes",
     ]
     stage = args.wandb_group or Path(args.eval_dir).name
     manifest_rows = []
@@ -205,6 +212,7 @@ def write_eval_manifest(path: Path, rows: list[dict[str, str]], args: argparse.N
                 "wandb_project": args.wandb_project_eval,
                 "wandb_group": args.wandb_group,
                 "wandb_name": f"{args.wandb_group}_{candidate}_eval{args.eval_episodes}" if args.wandb_group else "",
+                "notes": args.notes,
             }
         )
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -229,6 +237,7 @@ def write_rollout_manifest(path: Path, rows: list[dict[str, str]], args: argpars
         "wandb_project",
         "wandb_group",
         "wandb_name",
+        "notes",
     ]
     stage = args.wandb_group or Path(args.rollout_dir).name
     manifest_rows = []
@@ -253,6 +262,7 @@ def write_rollout_manifest(path: Path, rows: list[dict[str, str]], args: argpars
                     if args.wandb_group
                     else ""
                 ),
+                "notes": args.notes,
             }
         )
     path.parent.mkdir(parents=True, exist_ok=True)

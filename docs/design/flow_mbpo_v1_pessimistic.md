@@ -551,3 +551,11 @@ existing manifests. This lets snapshot candidates run through
 `submit_array.sh --kind policy_eval` and `--kind policy_rollout`, keeping the
 default `embers` QOS guard and W&B row-runner path instead of relying only on a
 hand-run shell command list.
+
+Formal eval/render provenance is now explicit. Both standalone eval and rollout
+accept `--notes`, row runners forward manifest `notes`, and candidate plan
+manifests include notes. Rollout summaries now mirror eval summaries by
+recording dataset, metadata, normalization, seed, task id, WM method, policy
+type, git SHA/branch, command, checkpoint, notes, and baseline gate fields.
+Candidate W&B names are derived from the actual episode/step settings, so a
+nonstandard candidate smoke is not mislabeled as `eval40` or `rollout1000_ep10`.

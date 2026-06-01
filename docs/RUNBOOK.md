@@ -99,7 +99,8 @@ python scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py \
   --output-rollout-manifest scripts/experiments/mjlab_qs/manifests/<candidate_rollout_stage>.csv \
   --wandb-project-eval <wandb_eval_project> \
   --wandb-project-rollout <wandb_rollout_project> \
-  --wandb-group <candidate_group>
+  --wandb-group <candidate_group> \
+  --notes "<dataset/config/seed/checkpoint decision notes>"
 ```
 
 Submit those manifests through `submit_array.sh --kind policy_eval` and `--kind policy_rollout` so candidate snapshots still use the `embers` QOS guard, W&B row-runner path, and baseline gate fields.

@@ -494,3 +494,17 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     keeps future candidate snapshot eval/render submissions on the existing
     `submit_array.sh` path with default `embers` QOS protection; it is not new
     policy evidence.
+67. Done for formal eval/render provenance hardening.
+    `eval_policy_checkpoint.py` and `render_policy_rollout.py` now accept
+    `--notes`; row runners forward manifest `notes`; and candidate plan CSVs
+    plus direct eval/rollout manifests carry notes. Eval summaries and W&B
+    configs record notes explicitly. Rollout summaries now also record dataset,
+    metadata, normalization, seed, task id, WM method, policy type, notes, git
+    SHA/branch, command, checkpoint, and baseline gate fields.
+68. Validation passed via `py_compile`, CLI help checks for `--notes`, `/tmp`
+    8-candidate plan/manifest generation with notes, and monkeypatched direct
+    eval/rollout row-runner command checks. The candidate builder also now
+    names W&B runs from the actual `eval_episodes`, `max_steps`, and
+    `rollout_episodes` values rather than hard-coded `eval40` and
+    `rollout1000_ep10`. This is provenance infrastructure only, not policy
+    evidence.

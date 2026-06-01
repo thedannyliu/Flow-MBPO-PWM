@@ -58,6 +58,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baseline-return", type=float, default=None)
     p.add_argument("--baseline-length", type=float, default=None)
     p.add_argument("--baseline-fall", type=float, default=None)
+    p.add_argument("--notes", default="")
     return p.parse_args()
 
 
@@ -275,6 +276,7 @@ def main() -> None:
                 "baseline_return": args.baseline_return,
                 "baseline_length": args.baseline_length,
                 "baseline_fall": args.baseline_fall,
+                "notes": args.notes,
                 "git_sha": git_sha(),
                 "git_branch": git_branch(),
                 "command": command_line(),
@@ -332,9 +334,14 @@ def main() -> None:
         "git_sha": git_sha(),
         "git_branch": git_branch(),
         "command": command_line(),
+        "notes": args.notes,
         "dataset": ckpt_args.get("dataset", ""),
         "metadata": ckpt_args.get("metadata", ""),
         "normalization": ckpt_args.get("normalization", ""),
+        "seed": ckpt_args.get("seed", ""),
+        "task_id": ckpt_args.get("task_id", ""),
+        "wm_method": ckpt_args.get("wm_method", ""),
+        "policy_type": ckpt_args.get("policy_type", ""),
         **summarize(rows),
     }
     add_baseline_gate(summary, args)
