@@ -1294,6 +1294,12 @@ Use these locations as the durable record before launching new work:
   - behavior: the default CQL OOD action source remains uniform `[-1, 1]`, preserving previous smokes. New data-noise and mixed sources let W&B-disabled critic diagnostics test local OOD actions near recorded behavior versus global uniform OOD actions.
   - validation: `py_compile`, CLI help checks, a `/tmp` fake critic fixture exercised uniform, data-noise, and mixed sources with finite critic metrics, and a monkeypatched row-runner command check confirmed manifest passthrough.
   - interpretation: this changes CQL diagnostic/update-objective coverage only. It does not add policy evidence and should be tested under W&B-disabled smoke before any formal W&B seed.
+- Added a tracked CQL OOD-source smoke manifest.
+  - manifest: `scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv`
+  - rows: two W&B-disabled `flow_mbpo_awr` smoke rows on the existing support-aware generated H3 replay, one with `critic_ood_action_source=data_noise` and one with `critic_ood_action_source=mixed`
+  - settings: `update_iters=100`, real/synthetic batch `240/16`, BC anchor `1.0`, conservative-Q weight `1.0`, actor critic weight `0.0`, random actions `10`, action-noise std `0.15`, CQL temperature `0.5`, real eval disabled
+  - validation: CSV parsed with two rows, required dataset/policy/replay paths exist, row-runner command passthrough includes the new CQL OOD args and omits W&B, and fake `sbatch` through `submit_array.sh --kind flow_mbpo_awr` preserved `--qos=embers` with array `0-1%1`
+  - interpretation: this is a reproducible W&B-disabled critic diagnostic entry point. It has not been submitted and is not policy evidence.
 
 ## Next Action
 

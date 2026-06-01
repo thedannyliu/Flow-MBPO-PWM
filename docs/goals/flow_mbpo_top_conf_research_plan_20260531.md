@@ -638,3 +638,17 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     uniform, data-noise, and mixed CQL sources with finite losses, and a
     monkeypatched row-runner command check. This is
     critic/update-objective infrastructure only, not policy evidence.
+91. Done for a tracked W&B-disabled CQL OOD-source smoke entry point.
+    Manifest
+    `scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv`
+    contains two `flow_mbpo_awr` rows using the existing support-aware generated
+    H3 replay, temp-`0.5`, CQL weight `1.0`, actor critic weight `0.0`, and
+    `critic_random_actions=10`. One row uses local `data_noise` OOD actions and
+    the other uses the `mixed` uniform/local source. Real eval and W&B are
+    disabled because this is critic diagnostics only.
+92. Validation passed by parsing the CSV, checking required dataset/policy/replay
+    paths, monkeypatching the AWR row runner to confirm the new CQL OOD fields
+    are forwarded, and fake-submitting through `submit_array.sh --kind
+    flow_mbpo_awr` to confirm `--qos=embers` and array `0-1%1` without sending a
+    real Slurm job. This manifest is not policy evidence and has not been
+    submitted.

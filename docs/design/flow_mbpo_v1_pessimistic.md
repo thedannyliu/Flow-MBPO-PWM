@@ -460,6 +460,15 @@ heavy than temperature `1.0`. It still does not provide real policy evidence.
 Use this setting only for the next W&B-disabled continuation or a small
 real-eval plumbing check, not for a policy-improvement claim.
 
+A tracked W&B-disabled manifest now covers the next sampled-action coverage
+diagnostic:
+`scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv`.
+It compares `data_noise` and `mixed` OOD action sources on the existing
+support-aware generated H3 replay with temp `0.5`, CQL weight `1.0`, actor
+critic weight `0.0`, and real eval disabled. Treat it as critic diagnostics
+only; do not use it for claims without later 40-episode eval and matched roll10
+video gates.
+
 That real-eval plumbing check ran in job `9357292` with W&B disabled. The code
 path works: final, best-real-eval, best-training, real-eval snapshot, and critic
 checkpoints were written, and `best_policy_extraction.pt` is marked as a true
