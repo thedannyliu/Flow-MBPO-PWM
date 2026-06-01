@@ -55,6 +55,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-name", default="")
     p.add_argument("--disable-wandb", action="store_true")
     p.add_argument("--action-ramp-steps", type=int, default=0)
+    p.add_argument("--baseline-return", type=float, default=None)
+    p.add_argument("--baseline-length", type=float, default=None)
+    p.add_argument("--baseline-fall", type=float, default=None)
     return p.parse_args()
 
 
@@ -209,6 +212,33 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, float]:
     }
 
 
+def add_baseline_gate(summary: dict[str, Any], args: argparse.Namespace) -> None:
+    ret = summary.get("return_mean")
+    length = summary.get("episode_length_mean")
+    fall = summary.get("fall_rate_mean")
+    configured = args.baseline_return is not None and args.baseline_length is not None and args.baseline_fall is not None
+    summary["baseline_gate_configured"] = bool(configured)
+    if args.baseline_return is not None and ret is not None:
+        baseline = float(args.baseline_return)
+        summary["baseline_return"] = baseline
+        summary["return_gap_to_baseline"] = float(ret) - baseline
+        summary["return_gate_pass"] = bool(float(ret) >= baseline)
+    if args.baseline_length is not None and length is not None:
+        baseline = float(args.baseline_length)
+        summary["baseline_length"] = baseline
+        summary["length_gap_to_baseline"] = float(length) - baseline
+        summary["length_gate_pass"] = bool(float(length) >= baseline)
+    if args.baseline_fall is not None and fall is not None:
+        baseline = float(args.baseline_fall)
+        summary["baseline_fall"] = baseline
+        summary["fall_gap_to_baseline"] = float(fall) - baseline
+        summary["fall_gate_pass"] = bool(float(fall) < baseline)
+    if configured:
+        summary["baseline_gate_pass"] = bool(
+            summary.get("return_gate_pass") and summary.get("length_gate_pass") and summary.get("fall_gate_pass")
+        )
+
+
 def main() -> None:
     args = parse_args()
     device = resolve_device(args.device)
@@ -242,6 +272,9 @@ def main() -> None:
                 "eval_num_envs": args.eval_num_envs,
                 "max_steps": args.max_steps,
                 "action_ramp_steps": args.action_ramp_steps,
+                "baseline_return": args.baseline_return,
+                "baseline_length": args.baseline_length,
+                "baseline_fall": args.baseline_fall,
                 "git_sha": git_sha(),
                 "git_branch": git_branch(),
                 "command": command_line(),
@@ -304,6 +337,7 @@ def main() -> None:
         "normalization": ckpt_args.get("normalization", ""),
         **summarize(rows),
     }
+    add_baseline_gate(summary, args)
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     if run is not None:
         run.log({f"eval/{key}": value for key, value in summary.items() if isinstance(value, (int, float))})

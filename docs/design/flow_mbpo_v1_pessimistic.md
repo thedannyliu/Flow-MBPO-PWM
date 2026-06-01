@@ -520,3 +520,12 @@ Manifest-driven rollout jobs can pass the same gate metadata. In
 `rollout_baseline_length`, and `rollout_baseline_fall` are forwarded to the
 renderer; shorter `baseline_*` aliases are accepted too. This keeps array
 rollout jobs and hand-rendered diagnostics on the same evidence protocol.
+
+Standalone policy eval now follows the same baseline gate protocol.
+`eval_policy_checkpoint.py` accepts `--baseline-return`, `--baseline-length`,
+and `--baseline-fall`, then writes gaps, pass bits, and `baseline_gate_pass` to
+`summary.json`, stdout, and W&B numeric logs. `run_policy_eval_row.py` forwards
+`eval_baseline_return`, `eval_baseline_length`, and `eval_baseline_fall` from
+manifests, with shorter `baseline_*` aliases. A two-episode W&B-disabled smoke
+in job `9370850` verified the path; it is logging evidence only and does not
+replace the required 40-episode eval.

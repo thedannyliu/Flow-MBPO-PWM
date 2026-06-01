@@ -450,3 +450,18 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     `py_compile`, static flag checks, and a monkeypatched row-runner command
     test. Formal rollout arrays can now carry matched BC baseline metadata
     without hand-written renderer commands.
+61. Done for standalone eval baseline gate logging and manifest passthrough.
+    `eval_policy_checkpoint.py` now accepts `--baseline-return`,
+    `--baseline-length`, and `--baseline-fall`, records gaps/pass bits plus
+    `baseline_gate_pass` in `summary.json`, stdout, and W&B numeric logs, and
+    uses the same strict fall-improvement rule as rollout logging.
+    `run_policy_eval_row.py` forwards `eval_baseline_return`,
+    `eval_baseline_length`, and `eval_baseline_fall`, with shorter
+    `baseline_*` aliases.
+62. Validation passed via `py_compile`, CLI help, direct formula check,
+    monkeypatched row-runner command test, and W&B-disabled Slurm job `9370850`
+    on `embers` using `gpu-v100`. That smoke ran two eval episodes of the
+    temp-`0.5` conservative-Q final checkpoint against aggregate BC scalar
+    baseline `45.8491` / `594.97` / `0.625` and confirmed the gate fields in
+    stdout and `summary.json`. This is logging infrastructure only, not policy
+    evidence.
