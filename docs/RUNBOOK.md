@@ -145,6 +145,56 @@ direct output directory, `enable_wandb=true`, `real_eval_every > 0`,
 `real_eval_selection_metric=return_length_fall`, and real-eval baseline
 return/length/fall fields.
 
+## Flow-MBPO AWR Smoke Diagnostics
+
+Use row-level dry-run before launching a new AWR smoke row:
+
+```bash
+python scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py \
+  --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv \
+  --row-index 0 \
+  --python-bin python \
+  --device cuda:0 \
+  --dry-run
+```
+
+Use array-level dry-run before submitting to Slurm:
+
+```bash
+bash scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind flow_mbpo_awr \
+  --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv \
+  --gpu-type RTX6000 \
+  --partition gpu-rtx6000 \
+  --qos embers \
+  --max-concurrent 1 \
+  --time 00:20:00 \
+  --mem 64G \
+  --cpus 4 \
+  --dry-run
+```
+
+The CQL OOD-source smoke manifest is W&B-disabled and real-eval-disabled by
+design, so do not use `--require-formal-metadata` for it. It is a critic
+diagnostic only.
+
+After the smoke rows complete, summarize them with:
+
+```bash
+python scripts/experiments/mjlab_qs/export_flow_mbpo_awr_summary.py \
+  --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv \
+  --output-csv scripts/outputs/mjlab_qs/reports/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv \
+  --output-md scripts/outputs/mjlab_qs/reports/flow_mbpo_v1_cql_ood_source_smoke_20260601.md \
+  --require-complete
+```
+
+If the rows are not complete, the exporter should fail with the number of
+missing summaries. Completed rows report CQL gap, random-action Q mean/max,
+Bellman loss, best-real fields if real eval was enabled, W&B run metadata, and
+notes. These diagnostics do not establish policy improvement; formal evidence
+still requires W&B-enabled AWR, final and gate-aware true-best checkpoints,
+40-episode real eval, matched roll10 MP4/W&B videos, and BC baseline gates.
+
 ## Current Experiment Order
 
 1. Improve or debug expert-filtered BC/IL.

@@ -1315,6 +1315,9 @@ Use these locations as the durable record before launching new work:
   - behavior: `--dry-run` prints the exact `sbatch` command after composing array/log/wrap arguments, without calling `sbatch`
   - validation: CQL OOD-source `flow_mbpo_awr` dry-run printed an `sbatch` command with `--qos=embers`, `--array=0-1%1`, and no job submission; `--require-formal-metadata` still rejected the W&B-disabled smoke manifest before printing; `--qos inferno --dry-run` still failed without explicit approval
   - interpretation: this is submission safety infrastructure. It does not submit jobs or add policy evidence.
+- Added CQL OOD-source AWR smoke workflow to `docs/RUNBOOK.md`.
+  - content: row-level dry-run command, array-level dry-run command, warning not to use formal metadata preflight on the W&B-disabled diagnostic manifest, and post-run `export_flow_mbpo_awr_summary.py --require-complete` command
+  - interpretation: this documents the safe command sequence for the current critic diagnostic path; it does not run experiments or add policy evidence.
 
 ## Next Action
 
