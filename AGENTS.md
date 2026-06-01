@@ -108,3 +108,5 @@ Tracked docs currently emphasize the MJLab restart plan in `docs/plans/`; older 
 ## Cluster & QOS Policy
 
 Current runs should target PACE-Phoenix by default. Use the `embers` QOS for GPU jobs because it is not charged to the account, though it has lower priority. Do not submit with `inferno` unless the user explicitly approves it; `inferno` has normal priority but incurs account charges.
+
+Multiple GPU jobs may be submitted at the same time when the experiment plan benefits from parallel runs and cluster capacity permits it. Prefer higher-end GPUs first, in this order unless a script or dependency requires otherwise: H200, H100, A100, L40S, then lower-tier available GPUs.
