@@ -54,6 +54,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-name", default="")
     p.add_argument("--disable-wandb", action="store_true")
     p.add_argument("--action-ramp-steps", type=int, default=0)
+    p.add_argument("--baseline-return", type=float, default=None)
+    p.add_argument("--baseline-length", type=float, default=None)
+    p.add_argument("--baseline-fall", type=float, default=None)
     p.add_argument(
         "--save-support-features",
         action="store_true",
@@ -78,6 +81,33 @@ def git_branch() -> str:
 
 def command_line() -> str:
     return " ".join([sys.executable, *sys.argv])
+
+
+def add_baseline_gate(summary: dict[str, Any], args: argparse.Namespace) -> None:
+    ret = summary.get("return_mean")
+    length = summary.get("episode_length_mean")
+    fall = summary.get("fall_rate_mean")
+    configured = args.baseline_return is not None and args.baseline_length is not None and args.baseline_fall is not None
+    summary["baseline_gate_configured"] = bool(configured)
+    if args.baseline_return is not None and ret is not None:
+        baseline = float(args.baseline_return)
+        summary["baseline_return"] = baseline
+        summary["return_gap_to_baseline"] = float(ret) - baseline
+        summary["return_gate_pass"] = bool(float(ret) >= baseline)
+    if args.baseline_length is not None and length is not None:
+        baseline = float(args.baseline_length)
+        summary["baseline_length"] = baseline
+        summary["length_gap_to_baseline"] = float(length) - baseline
+        summary["length_gate_pass"] = bool(float(length) >= baseline)
+    if args.baseline_fall is not None and fall is not None:
+        baseline = float(args.baseline_fall)
+        summary["baseline_fall"] = baseline
+        summary["fall_gap_to_baseline"] = float(fall) - baseline
+        summary["fall_gate_pass"] = bool(float(fall) < baseline)
+    if configured:
+        summary["baseline_gate_pass"] = bool(
+            summary.get("return_gate_pass") and summary.get("length_gate_pass") and summary.get("fall_gate_pass")
+        )
 
 
 def build_actor(ckpt: dict[str, Any], state_dim: int, command_dim: int, action_dim: int, device: torch.device):
@@ -377,6 +407,7 @@ def main() -> None:
         "git_branch": git_branch(),
         "command": command_line(),
     }
+    add_baseline_gate(summary, args)
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     if run is not None:
         import wandb
@@ -386,6 +417,10 @@ def main() -> None:
                 "rollout/return_mean": summary["return_mean"],
                 "rollout/episode_length_mean": summary["episode_length_mean"],
                 "rollout/fall_rate_mean": summary["fall_rate_mean"],
+                "rollout/baseline_gate_pass": summary.get("baseline_gate_pass"),
+                "rollout/return_gap_to_baseline": summary.get("return_gap_to_baseline"),
+                "rollout/length_gap_to_baseline": summary.get("length_gap_to_baseline"),
+                "rollout/fall_gap_to_baseline": summary.get("fall_gap_to_baseline"),
                 "rollout/video": wandb.Video(str(video_path), fps=args.video_fps, format="mp4"),
             }
         )

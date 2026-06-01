@@ -505,3 +505,12 @@ lower. A W&B-disabled smoke in job `9370667` verified these fields in stdout,
 `summary.json`, and the saved real-eval snapshot. This makes W&B and checkpoint
 metadata self-checking against the BC gate, but it still does not replace the
 required final 40-episode eval and roll10 MP4 comparison.
+
+Rollout rendering now mirrors that baseline gate. Supplying
+`--baseline-return`, `--baseline-length`, and `--baseline-fall` to
+`render_policy_rollout.py` records baseline values, gaps, pass bits, and
+`baseline_gate_pass` in rollout `summary.json` and W&B logs. The pass rule is
+the same as eval: return and length must meet or exceed baseline, fall must be
+strictly lower. A two-episode W&B-disabled MP4 smoke in job `9370771` verified
+the fields and wrote `rollout.mp4`; it is renderer logging evidence only, not a
+policy result.

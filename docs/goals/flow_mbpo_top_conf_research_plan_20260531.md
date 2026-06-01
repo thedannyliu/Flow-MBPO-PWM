@@ -429,3 +429,16 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     gate fields are present in stdout, `summary.json`, and the real-eval
     snapshot checkpoint. This is logging infrastructure only; the two-episode
     smoke is not policy evidence.
+58. Done for rollout baseline gate logging infrastructure.
+    `render_policy_rollout.py` now accepts `--baseline-return`,
+    `--baseline-length`, and `--baseline-fall`, then writes baseline values,
+    gaps, per-metric pass bits, and `baseline_gate_pass` into rollout
+    `summary.json` and W&B logs. The rule matches the claim policy: return and
+    length must meet or exceed baseline, while fall must be strictly lower.
+59. Validation passed via `py_compile`, CLI help, direct formula check, and
+    W&B-disabled MP4 Slurm job `9370771` on `embers` using `gpu-v100`. That
+    smoke rendered two episodes of the temp-`0.5` conservative-Q final checkpoint
+    against matched seed0 BC final roll10 baseline `54.1283` / `688.40` /
+    `0.400`, wrote `rollout.mp4`, and recorded `baseline_gate_pass=False` in
+    stdout and `summary.json`. This is renderer logging evidence only, not
+    policy evidence.
