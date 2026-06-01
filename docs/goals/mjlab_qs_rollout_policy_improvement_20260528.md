@@ -26,12 +26,31 @@ Priority shift:
 
 ## Current Evidence
 
-- Collector/reference rollouts exist with W&B videos and MP4s. Expert collector return is `82.6090`, length is `1000.00`, and fall rate is `0.000`.
-- Expert-noisy collector is similarly stable: return `80.3525`, length `1000.00`, fall rate `0.000`.
-- Medium collector reaches return `49.1935`, length `653.33`, fall rate `0.667`.
-- Expert-filtered BC is nontrivial but unstable: return `19.0827`, length `238.22`, fall rate `0.333`.
-- Current PWM-style extracted policies remain collapsed. The least-bad conservative row is return `-1.0999`, length `54.67`, fall rate `1.000`.
-- True best actor snapshots are now saved for new policy-extraction runs and rollout tooling evaluates final plus true-best checkpoints.
+- Collector/reference rollouts remain the target. Expert collector return is
+  `82.6090`, length is `1000.00`, and fall rate is `0.000`;
+  expert-noisy return is `80.3525`, length is `1000.00`, and fall rate is
+  `0.000`.
+- The strongest aggregate BC scalar baseline is expert+noisy uniform BC final:
+  return `45.8491`, length `594.97`, fall `0.625` over 40 episodes at
+  `max_steps=1000`.
+- The matched seed0 BC video baseline is final roll10: return `54.1283`,
+  length `688.40`, fall `0.400`; matched seed0 BC best roll10 is return
+  `48.3119`, length `637.70`, fall `0.500`.
+- PWM-style imagined optimization remains diagnostic only. It improved some
+  scalar imagined metrics but collapsed in real rollout and should stay paused.
+- Flow-MBPO v0/v1 trajectory-chunk AWR produced useful seed0 return/length
+  gains, but the best variants still tied matched BC video fall rate instead of
+  reducing it. No policy-improvement claim is allowed yet.
+- Current v1 work has moved from BC micro-tuning to pessimism and support-risk
+  infrastructure: support-distance calibration, support-risk replay/generation,
+  gate-aware true-best selection, real-eval early stopping, baseline-gate
+  logging, and conservative-Q smokes are mechanically clean. The latest
+  temp-`0.5` random-action CQL diagnostic tied matched BC roll10 return/length
+  approximately but did not reduce fall rate, and its short scalar eval was
+  poor. It is not a formal candidate.
+- True-best actor snapshots are saved and evaluated for new policy-extraction
+  and Flow-MBPO AWR runs; future formal runs should use the gate-aware
+  `return_length_fall` selection metric.
 
 ## Evidence Record Map
 
@@ -39,12 +58,16 @@ Use these locations as the durable record before launching new work:
 
 - This file is the chronological goal log and includes the latest interpretation of each run.
 - `docs/EXPERIMENT_LEDGER.md` is the compact formal-evidence table for collector, BC, PWM, and diagnostic policy runs, with W&B IDs, checkpoint/output paths, and conclusions.
-- `docs/design/flow_mbpo_v0.md` records the current Flow-MBPO v0 design, first smoke-test scope, and baseline gates.
+- `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md` records the shift away from low-value BC/data micro-debugging and toward Flow-MBPO.
+- `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` is the canonical current research-plan entry point; dated source notes are under `docs/goals/0531/`.
+- `docs/design/flow_mbpo_v0.md` and `docs/design/flow_mbpo_v1_pessimistic.md` record the Flow-MBPO v0/v1 method designs, pessimism requirements, smoke/formal gates, and implementation status.
 - `results/master_policy_comparison.csv` keeps the tracked summary of collector, BC, and representative PWM rows.
 - `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md` are the generated rollout aggregate reports, including horizon-aware rollout rows.
-- Per-run artifacts remain under `scripts/outputs/mjlab_qs/policy_extraction/`, `scripts/outputs/mjlab_qs/policy_evals/`, `scripts/outputs/mjlab_qs/policy_rollouts/`, and `scripts/outputs/mjlab_qs/native_collector_rollouts/`; these hold checkpoints, summaries, per-episode CSVs, and MP4s.
-- Slurm stdout/stderr logs are under `logs/slurm/mjlab_qs/`; the current pending Flow-MBPO smoke job will write to `logs/slurm/mjlab_qs/flow_mbpo_v0_smoke/9324608.out` and `.err`.
-- The first Flow-MBPO v0 smoke outputs are expected at `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/mlp_ref_ensemble_seed0_h1/` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1/`.
+- `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_ranking_*.csv` and `.md` summarize candidate snapshot eval/render gates when present.
+- Per-run artifacts remain under `scripts/outputs/mjlab_qs/policy_extraction/`, `scripts/outputs/mjlab_qs/policy_evals/`, `scripts/outputs/mjlab_qs/policy_rollouts/`, `scripts/outputs/mjlab_qs/native_collector_rollouts/`, `scripts/outputs/mjlab_qs/flow_mbpo_v0_eval/`, `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/`, `scripts/outputs/mjlab_qs/flow_mbpo_v1_eval/`, and `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/`; these hold checkpoints, summaries, per-episode CSVs, and MP4s.
+- Flow-MBPO v1 support-risk calibration artifacts are under `scripts/outputs/mjlab_qs/flow_mbpo_v1_support_calibration/`.
+- Flow-MBPO synthetic buffers, synthetic replay, and AWR smoke/formal outputs are under the corresponding `scripts/outputs/mjlab_qs/flow_mbpo_v0_*` and `scripts/outputs/mjlab_qs/flow_mbpo_v1_*` directories; local summaries and sidecar metadata now carry notes plus W&B run ids/URLs when W&B is enabled.
+- Slurm stdout/stderr logs are under `logs/slurm/mjlab_qs/`. Treat them as transient debugging records; durable conclusions belong in this goal log, the experiment ledger, and tracked design/research-plan docs.
 
 ## Work This Goal
 
