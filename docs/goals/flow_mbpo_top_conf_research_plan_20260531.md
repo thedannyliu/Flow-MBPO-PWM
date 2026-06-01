@@ -465,3 +465,17 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     baseline `45.8491` / `594.97` / `0.625` and confirmed the gate fields in
     stdout and `summary.json`. This is logging infrastructure only, not policy
     evidence.
+63. Done for candidate eval/render plan baseline metadata.
+    `build_flow_mbpo_candidate_eval_plan.py` now accepts
+    `--eval-baseline-return`, `--eval-baseline-length`,
+    `--eval-baseline-fall`, `--rollout-baseline-return`,
+    `--rollout-baseline-length`, and `--rollout-baseline-fall`. Defaults are
+    the aggregate BC scalar eval baseline `45.8491` / `594.97` / `0.625` and
+    the matched seed0 BC final roll10 baseline `54.1283` / `688.40` / `0.400`.
+64. Validation passed via `py_compile`, CLI help, and a `/tmp` plan-generation
+    check on the existing snapshot AWR output
+    `flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0`.
+    The generated CSV found `8` candidates, carried eval/rollout baseline
+    columns, and both generated standalone eval/render commands included the
+    corresponding `--baseline-*` flags. This is protocol hardening only, not
+    policy evidence.

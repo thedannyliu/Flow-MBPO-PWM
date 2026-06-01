@@ -529,3 +529,14 @@ and `--baseline-fall`, then writes gaps, pass bits, and `baseline_gate_pass` to
 manifests, with shorter `baseline_*` aliases. A two-episode W&B-disabled smoke
 in job `9370850` verified the path; it is logging evidence only and does not
 replace the required 40-episode eval.
+
+Candidate snapshot eval/render planning also carries baseline gate metadata.
+`build_flow_mbpo_candidate_eval_plan.py` writes eval baseline columns using the
+aggregate BC scalar baseline (`45.8491`, length `594.97`, fall `0.625`) and
+rollout baseline columns using the matched seed0 BC final roll10 baseline
+(`54.1283`, length `688.40`, fall `0.400`) by default. The generated commands
+pass those values to standalone eval/render via `--baseline-*`, so candidate
+plans and array manifests now follow the same gate-reporting protocol. A `/tmp`
+plan check on the existing snapshot AWR run confirmed the baseline columns and
+command flags for all `8` candidates. This is protocol hardening only, not new
+policy evidence.

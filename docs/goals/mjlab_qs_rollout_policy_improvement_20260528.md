@@ -1188,6 +1188,13 @@ Use these locations as the durable record before launching new work:
   - integration smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_eval/baseline_gate_logging_smoke_temp0p5_final_eval2/`, temp-`0.5` conservative-Q final checkpoint, 2 eval episodes, matched aggregate BC scalar baseline `45.8491` / `594.97` / `0.625`
   - smoke result: job completed on `gpu-v100` with `embers`; summary/stdout recorded `baseline_gate_pass=True` for the 2-episode smoke
   - interpretation: this is eval gate-logging infrastructure only. The 2-episode eval is not policy evidence, but future 40-episode eval arrays can now self-report whether final/best actors clear the BC scalar gate.
+- Added baseline gate metadata to the Flow-MBPO candidate eval/render plan generator.
+  - script update: `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`
+  - new args: `--eval-baseline-return`, `--eval-baseline-length`, `--eval-baseline-fall`, `--rollout-baseline-return`, `--rollout-baseline-length`, and `--rollout-baseline-fall`
+  - defaults: aggregate BC scalar eval baseline `45.8491` / `594.97` / `0.625`; matched seed0 BC final roll10 baseline `54.1283` / `688.40` / `0.400`
+  - behavior: generated CSV rows now carry eval and rollout baseline columns, and generated standalone eval/render commands pass the corresponding `--baseline-*` args to the downstream scripts
+  - validation: `py_compile`, CLI help, and a `/tmp` plan generation check against the existing snapshot AWR output `flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0`; the check found `8` candidates and confirmed baseline fields plus command-line flags in both CSV and shell outputs
+  - interpretation: this is evidence-protocol infrastructure only. It reduces the chance that future candidate snapshot eval/render plans are run without explicit BC gate metadata, but it does not add new policy evidence.
 
 ## Next Action
 

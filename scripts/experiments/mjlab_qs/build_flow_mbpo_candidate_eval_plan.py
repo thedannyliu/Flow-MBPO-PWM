@@ -25,6 +25,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-project-eval", default="")
     p.add_argument("--wandb-project-rollout", default="")
     p.add_argument("--wandb-group", default="")
+    p.add_argument("--eval-baseline-return", type=float, default=45.8491)
+    p.add_argument("--eval-baseline-length", type=float, default=594.97)
+    p.add_argument("--eval-baseline-fall", type=float, default=0.625)
+    p.add_argument("--rollout-baseline-return", type=float, default=54.1283)
+    p.add_argument("--rollout-baseline-length", type=float, default=688.40)
+    p.add_argument("--rollout-baseline-fall", type=float, default=0.400)
     return p.parse_args()
 
 
@@ -75,6 +81,12 @@ def build_rows(args: argparse.Namespace) -> list[dict[str, str]]:
                 args.eval_num_envs,
                 "--max-steps",
                 args.max_steps,
+                "--baseline-return",
+                args.eval_baseline_return,
+                "--baseline-length",
+                args.eval_baseline_length,
+                "--baseline-fall",
+                args.eval_baseline_fall,
             ]
         )
         rollout_cmd = command(
@@ -93,6 +105,12 @@ def build_rows(args: argparse.Namespace) -> list[dict[str, str]]:
                 args.rollout_episodes,
                 "--max-steps",
                 args.max_steps,
+                "--baseline-return",
+                args.rollout_baseline_return,
+                "--baseline-length",
+                args.rollout_baseline_length,
+                "--baseline-fall",
+                args.rollout_baseline_fall,
             ]
         )
         if args.wandb_project_eval:
@@ -113,6 +131,12 @@ def build_rows(args: argparse.Namespace) -> list[dict[str, str]]:
                 "checkpoint": str(ckpt),
                 "eval_output_dir": str(eval_out),
                 "rollout_output_dir": str(rollout_out),
+                "eval_baseline_return": str(args.eval_baseline_return),
+                "eval_baseline_length": str(args.eval_baseline_length),
+                "eval_baseline_fall": str(args.eval_baseline_fall),
+                "rollout_baseline_return": str(args.rollout_baseline_return),
+                "rollout_baseline_length": str(args.rollout_baseline_length),
+                "rollout_baseline_fall": str(args.rollout_baseline_fall),
                 "eval_command": eval_cmd,
                 "rollout_command": rollout_cmd,
             }
@@ -121,7 +145,20 @@ def build_rows(args: argparse.Namespace) -> list[dict[str, str]]:
 
 
 def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
-    fields = ["candidate", "checkpoint", "eval_output_dir", "rollout_output_dir", "eval_command", "rollout_command"]
+    fields = [
+        "candidate",
+        "checkpoint",
+        "eval_output_dir",
+        "rollout_output_dir",
+        "eval_baseline_return",
+        "eval_baseline_length",
+        "eval_baseline_fall",
+        "rollout_baseline_return",
+        "rollout_baseline_length",
+        "rollout_baseline_fall",
+        "eval_command",
+        "rollout_command",
+    ]
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
