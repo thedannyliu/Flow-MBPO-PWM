@@ -405,3 +405,15 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     `real_eval/selection_score` plus `real_eval/selection_metric` in both the
     best checkpoint and real-eval snapshot. This is infrastructure evidence, not
     policy evidence.
+54. Done for real-eval early-stop infrastructure. The AWR update now has opt-in
+    `--real-eval-stop-score-below`, `--real-eval-early-stop-patience`, and
+    `--real-eval-min-delta`. After each real-eval snapshot it computes the same
+    selection score used for best-real checkpoint selection and can stop the
+    loop when the actor is below a configured score threshold or stops
+    improving. Defaults leave existing runs unchanged.
+55. Validation passed via `py_compile`, CLI help, and W&B-disabled Slurm job
+    `9370641` on `embers`. That smoke intentionally set an artificial stop
+    threshold `9999` with `update_iters=5` and `real_eval_every=1`, so it
+    stopped after iter `1` and wrote `early_stop_iter=1` plus the stop reason in
+    `summary.json`. This validates the control path only; it is not policy
+    evidence.

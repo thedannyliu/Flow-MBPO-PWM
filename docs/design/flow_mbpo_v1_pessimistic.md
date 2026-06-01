@@ -485,3 +485,13 @@ but it prevents return-only checkpoint selection from silently diverging from
 the return/length/fall claim criterion. A one-iteration, two-episode
 W&B-disabled smoke in job `9370586` verified that the metric is logged into the
 snapshot and best-real checkpoint.
+
+The update loop also has opt-in real-eval early stopping. After a real-eval
+snapshot, `--real-eval-stop-score-below` can stop clearly rejected candidates by
+selection-score threshold, and `--real-eval-early-stop-patience` with
+`--real-eval-min-delta` can stop runs that stop improving. Defaults keep this
+disabled. A W&B-disabled smoke in job `9370641` forced the threshold path and
+confirmed the loop stopped at iter `1`, still writing final, best-real,
+best-training, snapshot checkpoints, and summary fields `early_stop_iter` and
+`early_stop_reason`. This is meant to conserve formal-run budget, not to relax
+the final 40-episode eval plus roll10 video gate.

@@ -120,6 +120,24 @@ def parse_args() -> argparse.Namespace:
         default=100.0,
         help="Fall-rate penalty for --real-eval-selection-metric=return_length_fall.",
     )
+    p.add_argument(
+        "--real-eval-stop-score-below",
+        type=float,
+        default=-float("inf"),
+        help="Stop after a real-eval snapshot if the selection score is below this threshold.",
+    )
+    p.add_argument(
+        "--real-eval-early-stop-patience",
+        type=int,
+        default=0,
+        help="Stop after this many consecutive real-eval snapshots without selection-score improvement. 0 disables.",
+    )
+    p.add_argument(
+        "--real-eval-min-delta",
+        type=float,
+        default=0.0,
+        help="Minimum selection-score increase counted as improvement for real-eval early stopping.",
+    )
     p.add_argument("--episode-length", type=int, default=1000)
     p.add_argument("--task-id", default="Mjlab-Velocity-Flat-Unitree-G1")
     p.add_argument("--command-dim", type=int, default=3)
@@ -632,6 +650,9 @@ def main() -> None:
             "flow_mbpo_v1_real_eval_selection_metric": args.real_eval_selection_metric,
             "flow_mbpo_v1_real_eval_length_weight": float(args.real_eval_length_weight),
             "flow_mbpo_v1_real_eval_fall_penalty": float(args.real_eval_fall_penalty),
+            "flow_mbpo_v1_real_eval_stop_score_below": float(args.real_eval_stop_score_below),
+            "flow_mbpo_v1_real_eval_early_stop_patience": int(args.real_eval_early_stop_patience),
+            "flow_mbpo_v1_real_eval_min_delta": float(args.real_eval_min_delta),
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -675,6 +696,9 @@ def main() -> None:
     best_real_score = -float("inf")
     best_real_eval: dict[str, float | str] | None = None
     best_real_actor = None
+    real_eval_no_improve_count = 0
+    early_stop_reason: str | None = None
+    early_stop_iter: int | None = None
     last_metrics: dict[str, float] = {}
     real_eval_snapshot_paths: list[str] = []
     for it in range(1, int(args.update_iters) + 1):
@@ -796,10 +820,37 @@ def main() -> None:
                 snapshot_path,
             )
             real_eval_snapshot_paths.append(str(snapshot_path))
-            if real_score > best_real_score:
+            improved = real_score > best_real_score + float(args.real_eval_min_delta)
+            if improved:
                 best_real_score = real_score
                 best_real_eval = eval_metrics
                 best_real_actor = {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}
+                real_eval_no_improve_count = 0
+            else:
+                real_eval_no_improve_count += 1
+            stop_payload: dict[str, float | str] | None = None
+            if real_score < float(args.real_eval_stop_score_below):
+                early_stop_reason = (
+                    f"selection_score {real_score:.6g} below threshold "
+                    f"{float(args.real_eval_stop_score_below):.6g}"
+                )
+            elif int(args.real_eval_early_stop_patience) > 0 and real_eval_no_improve_count >= int(
+                args.real_eval_early_stop_patience
+            ):
+                early_stop_reason = (
+                    f"selection_score did not improve for {real_eval_no_improve_count} real-eval snapshots"
+                )
+            if early_stop_reason is not None:
+                early_stop_iter = int(it)
+                stop_payload = {
+                    "real_eval/early_stop_iter": float(early_stop_iter),
+                    "real_eval/early_stop_reason": early_stop_reason,
+                    "real_eval/no_improve_count": float(real_eval_no_improve_count),
+                }
+                print(json.dumps(stop_payload, sort_keys=True), flush=True)
+                if run is not None:
+                    run.log(stop_payload, step=it)
+                break
 
     final_checkpoint = output_dir / "final_policy_extraction.pt"
     best_checkpoint = output_dir / "best_policy_extraction.pt"
@@ -873,6 +924,8 @@ def main() -> None:
         "best_real_eval_selection_metric": args.real_eval_selection_metric,
         "best_real_eval": best_real_eval,
         "best_is_true_snapshot": best_real_actor is not None,
+        "early_stop_reason": early_stop_reason,
+        "early_stop_iter": early_stop_iter,
         "last_metrics": last_metrics,
         "synthetic_reward_conservative": summarize_tensor(replay["reward_conservative"]),
         "synthetic_done_fraction": float(replay["done"].float().mean().item()),
