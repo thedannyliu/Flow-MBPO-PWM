@@ -519,3 +519,14 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     recorded summary gate of `false`; the ranking trusted the summary gate.
     Another old-style candidate without summary gate metadata used the computed
     gate and passed. This is reporting infrastructure only, not policy evidence.
+71. Done for submit-time formal metadata preflight.
+    `submit_array.sh` now has opt-in `--require-formal-metadata` for
+    `policy_eval` and `policy_rollout`. It rejects manifests before `sbatch` if
+    W&B is disabled, W&B project/group is missing, notes are missing, eval or
+    rollout baseline fields are missing, direct checkpoint output dirs are
+    missing, or direct checkpoint rows lack W&B names.
+72. Validation passed via `bash -n`, generated `/tmp` direct candidate
+    eval/rollout manifests, and fake `sbatch`. Valid manifests passed while
+    preserving `--qos=embers` and the expected array span; a bad manifest with
+    empty notes failed before fake `sbatch`. This is submission infrastructure
+    only, not policy evidence.

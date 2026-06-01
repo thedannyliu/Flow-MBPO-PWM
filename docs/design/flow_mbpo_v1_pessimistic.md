@@ -567,3 +567,11 @@ labels the source as `summary`. Older results without gate metadata still use
 the computed comparison against supplied baseline summaries and are labeled
 `computed`. This keeps reports aligned with the eval/render summaries that will
 be used for formal evidence claims.
+
+Formal candidate array submission has an opt-in preflight check.
+`submit_array.sh --require-formal-metadata` applies to `policy_eval` and
+`policy_rollout` manifests and rejects missing W&B metadata, missing notes,
+disabled W&B, missing baseline gates, and incomplete direct-checkpoint output
+paths before calling `sbatch`. This keeps formal candidate eval/render jobs on
+the same evidence protocol while leaving smoke and legacy submissions
+unchanged unless the flag is requested.

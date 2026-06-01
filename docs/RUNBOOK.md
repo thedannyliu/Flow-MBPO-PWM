@@ -103,7 +103,7 @@ python scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py \
   --notes "<dataset/config/seed/checkpoint decision notes>"
 ```
 
-Submit those manifests through `submit_array.sh --kind policy_eval` and `--kind policy_rollout` so candidate snapshots still use the `embers` QOS guard, W&B row-runner path, and baseline gate fields.
+Submit those manifests through `submit_array.sh --kind policy_eval` and `--kind policy_rollout` so candidate snapshots still use the `embers` QOS guard, W&B row-runner path, and baseline gate fields. For formal candidate eval/render, add `--require-formal-metadata`; this rejects rows with W&B disabled or missing W&B project/group, notes, baseline gates, or direct-checkpoint output directories before `sbatch`.
 
 ## Current Experiment Order
 

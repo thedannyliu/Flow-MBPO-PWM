@@ -14,6 +14,7 @@ CPUS=8
 PYTHON_BIN="python"
 CONDA_ENV="${CONDA_ENV_NAME:-}"
 DEPENDENCY=""
+REQUIRE_FORMAL_METADATA=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,6 +31,7 @@ while [[ $# -gt 0 ]]; do
     --python-bin) PYTHON_BIN="$2"; shift 2 ;;
     --conda-env) CONDA_ENV="$2"; shift 2 ;;
     --dependency) DEPENDENCY="$2"; shift 2 ;;
+    --require-formal-metadata) REQUIRE_FORMAL_METADATA=1; shift ;;
     *) echo "unknown arg $1"; exit 1 ;;
   esac
 done
@@ -60,6 +62,55 @@ with open(sys.argv[1], newline='', encoding='utf-8') as f:
     print(sum(1 for _ in csv.DictReader(f)))
 PY
 )"
+if [[ "${REQUIRE_FORMAL_METADATA}" == "1" ]]; then
+  "${PYTHON_BIN}" - <<'PY' "${MANIFEST}" "${KIND}"
+import csv
+import sys
+
+manifest, kind = sys.argv[1], sys.argv[2]
+if kind not in {"policy_eval", "policy_rollout"}:
+    raise SystemExit("--require-formal-metadata is only supported for policy_eval and policy_rollout")
+
+def present(row, key):
+    return bool(str(row.get(key, "")).strip())
+
+def disabled_wandb(row):
+    return str(row.get("disable_wandb", "")).strip().lower() in {"1", "true", "yes"}
+
+def baseline_present(row, prefix):
+    return (
+        present(row, f"{prefix}_baseline_return")
+        and present(row, f"{prefix}_baseline_length")
+        and present(row, f"{prefix}_baseline_fall")
+    ) or (present(row, "baseline_return") and present(row, "baseline_length") and present(row, "baseline_fall"))
+
+errors = []
+with open(manifest, newline="", encoding="utf-8") as f:
+    rows = list(csv.DictReader(f))
+for idx, row in enumerate(rows):
+    label = f"row {idx}"
+    if disabled_wandb(row):
+        errors.append(f"{label}: disable_wandb is set; formal metadata requires W&B enabled")
+    for key in ("wandb_project", "wandb_group", "notes"):
+        if not present(row, key):
+            errors.append(f"{label}: missing {key}")
+    if kind == "policy_eval":
+        if not baseline_present(row, "eval"):
+            errors.append(f"{label}: missing eval_baseline_* or baseline_* fields")
+        if present(row, "policy_checkpoint") and not present(row, "eval_output_dir"):
+            errors.append(f"{label}: direct checkpoint eval rows require eval_output_dir")
+    if kind == "policy_rollout":
+        if not baseline_present(row, "rollout"):
+            errors.append(f"{label}: missing rollout_baseline_* or baseline_* fields")
+        if present(row, "policy_checkpoint") and not present(row, "rollout_output_dir"):
+            errors.append(f"{label}: direct checkpoint rollout rows require rollout_output_dir")
+    if present(row, "policy_checkpoint") and not present(row, "wandb_name"):
+        errors.append(f"{label}: direct checkpoint rows require wandb_name")
+if errors:
+    raise SystemExit("Formal metadata validation failed:\n" + "\n".join(errors))
+print(f"formal metadata validation passed for {len(rows)} {kind} rows")
+PY
+fi
 ARRAY="0-$((NUM_ROWS - 1))%${MAX_CONCURRENT}"
 LOG_DIR="${PROJECT_ROOT}/logs/slurm/mjlab_qs/${KIND}"
 mkdir -p "${LOG_DIR}"

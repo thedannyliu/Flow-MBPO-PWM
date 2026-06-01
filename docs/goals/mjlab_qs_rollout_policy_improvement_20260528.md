@@ -1215,6 +1215,12 @@ Use these locations as the durable record before launching new work:
   - report update: CSV and Markdown rankings now include `scalar_gate_source` and `video_gate_source`, and the Markdown explains when a gate came from summary metadata versus recomputation
   - validation: `py_compile` and a `/tmp` synthetic ranking test where metrics beat the external baseline but `summary.json` recorded `baseline_gate_pass=false`; ranking correctly trusted the summary gate, while an old-style summary without gate metadata still used computed gates
   - interpretation: this is reporting/protocol hardening only. It avoids future disagreement between eval/render summaries and candidate ranking reports, but it does not add policy evidence.
+- Added opt-in formal metadata validation to the MJLab QS Slurm array submitter.
+  - script update: `scripts/experiments/mjlab_qs/submit_array.sh`
+  - new arg: `--require-formal-metadata`
+  - behavior: for `policy_eval` and `policy_rollout`, the submitter validates the manifest before `sbatch`. It rejects rows with W&B disabled, missing `wandb_project`, missing `wandb_group`, missing `notes`, missing eval/rollout baseline fields, missing direct-checkpoint output directories, or missing `wandb_name` on direct `policy_checkpoint` rows.
+  - validation: `bash -n`; generated `/tmp` direct candidate eval/rollout manifests with notes and fake `sbatch` to confirm validation passes, `--qos=embers` is preserved, and `--array=0-7%1` is composed; a bad manifest with empty notes failed before fake `sbatch` with `missing notes`
+  - interpretation: this is submit-time protocol hardening only. It does not add policy evidence, but it gives future formal candidate eval/render submissions a preflight check for W&B, notes, baseline gates, and direct checkpoint output paths.
 
 ## Next Action
 
