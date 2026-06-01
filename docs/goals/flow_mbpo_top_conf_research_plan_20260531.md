@@ -652,3 +652,14 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     flow_mbpo_awr` to confirm `--qos=embers` and array `0-1%1` without sending a
     real Slurm job. This manifest is not policy evidence and has not been
     submitted.
+93. Done for AWR/CQL diagnostic report export.
+    `export_flow_mbpo_awr_summary.py` reads `flow_mbpo_awr` manifests, roots, or
+    explicit AWR `summary.json` files and writes CSV/Markdown rows with
+    completion status, CQL OOD-source settings, final AWR/critic metrics, CQL
+    gap, random-action Q mean/max, best-real fields, W&B run metadata, and
+    notes. It reports unrun manifest rows as `missing` rather than silently
+    dropping them.
+94. Validation passed via `py_compile`, exporting the unrun CQL OOD-source
+    manifest as two `missing` rows, exporting two existing completed CQL summary
+    files with critic metrics, and confirming `--require-complete` fails on the
+    unrun manifest. This is reporting infrastructure only, not policy evidence.

@@ -1300,6 +1300,11 @@ Use these locations as the durable record before launching new work:
   - settings: `update_iters=100`, real/synthetic batch `240/16`, BC anchor `1.0`, conservative-Q weight `1.0`, actor critic weight `0.0`, random actions `10`, action-noise std `0.15`, CQL temperature `0.5`, real eval disabled
   - validation: CSV parsed with two rows, required dataset/policy/replay paths exist, row-runner command passthrough includes the new CQL OOD args and omits W&B, and fake `sbatch` through `submit_array.sh --kind flow_mbpo_awr` preserved `--qos=embers` with array `0-1%1`
   - interpretation: this is a reproducible W&B-disabled critic diagnostic entry point. It has not been submitted and is not policy evidence.
+- Added an AWR summary exporter for CQL/update diagnostics.
+  - script: `scripts/experiments/mjlab_qs/export_flow_mbpo_awr_summary.py`
+  - behavior: reads one or more `flow_mbpo_awr` manifests, roots, or explicit `summary.json` files and writes CSV/Markdown rows with completion status, CQL OOD source settings, last AWR loss, critic loss, CQL gap, random-action Q mean/max, best-real fields, W&B run metadata, and notes
+  - validation: `py_compile`; current CQL OOD-source manifest exports two `missing` rows; two existing completed CQL summaries export critic metrics; `--require-complete` fails on the unrun manifest with `Only 0/2 AWR summaries are complete`
+  - interpretation: this is reporting infrastructure for W&B-disabled critic diagnostics and future AWR runs. It does not add policy evidence.
 
 ## Next Action
 
