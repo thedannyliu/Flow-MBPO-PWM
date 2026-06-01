@@ -719,3 +719,111 @@ Original PWM parity is not established. The completed Hopper run is far below th
 Stop rule applied: do not port to MJLab and do not test Flow replacements yet.
 
 Next Phase 1/2 debug target: determine why the original Hopper setup plateaus near `1285` when the local reference curve reaches `~5650`. The highest-priority checks are checkpoint provenance (`PWM_HopperEnv.pt` as bootstrap asset versus paper final policy), reward scaling/sign conventions, optimizer/resume behavior when loading `general.checkpoint`, and whether the local `baselines/PWM/results/data` reference CSV was produced by the same entrypoint/config/checkpoint path.
+
+## Phase 1/2 Fidelity Debug: Environment Drift
+
+After confirming that the resolved Hydra config matched the original Hopper/PWM config, the next audit target was the runtime dependency stack. This found a major fidelity violation: the active `pwm` conda environment is not the original PWM environment described by `baselines/PWM/environment.yaml`.
+
+Original environment requirements:
+
+```text
+python: 3.10
+pytorch: 2.3
+torchvision: 0.18
+pytorch-cuda: 11.8
+cuda-toolkit: 11.8
+tensordict: 0.4.*
+torchrl: 0.4.*
+dflex: git+https://github.com/imgeorgiev/DiffRL.git/#subdirectory=dflex
+```
+
+Observed active `pwm` environment:
+
+```text
+python: 3.10.19
+torch import: 2.10.0+cu128
+torch.version.cuda: 12.8
+conda list torch: 2.9.0 pypi_0
+tensordict: 0.11.0
+torchrl: 0.11.0
+pytorch-cuda: 11.8
+cuda-version: 12.8
+cuda-nvcc: 12.4.131
+dflex direct_url commit: bb59db5cf65e63740787bf22f91bae3103b30d19
+```
+
+This is not a small patch-level drift. It changes PyTorch by multiple major/minor releases, TorchRL/TensorDict from `0.4` to `0.11`, and the CUDA toolchain from the intended `11.8` stack to a mixed `11.8/12.8` stack. The current formal and A/B parity runs therefore do not prove original PWM algorithm failure; they prove failure under a nonfaithful dependency environment.
+
+Observed symptoms consistent with this drift:
+
+```text
+formal full-checkpoint Hopper run:
+  final/true-best real-env return: ~1285
+  reference CSV final scale: ~5650
+
+full vs wm_only A/B at ~1.2M steps:
+  full: ~1266 return
+  wm_only: ~1265 return
+  reference CSV around 1.024M steps: ~3227 mean
+
+DFlex one-step probe job:
+  slurm_job_id: 9382890
+  status: FAILED
+  failure: DFlex attempted to rebuild CUDA kernels on a new node and failed in CUDA headers
+  reason: active env uses CUDA 12.8-era torch/toolchain despite original CUDA 11.8 requirement
+```
+
+Important checkpoint-load finding from the same audit:
+
+```text
+full checkpoint load:
+  loads actor, critic, world_model, RMS, and optimizer states
+  effective actor LR becomes 0.002 from checkpoint actor_opt
+  config actor_lr remains 0.0005
+
+wm_only checkpoint load:
+  loads world_model and RMS only
+  keeps actor LR at config value 0.0005
+```
+
+The full-load LR override is a real fidelity risk and was added as an explicit diagnostic mode, but the `wm_only` A/B also plateaus far below reference. Therefore the LR override is not sufficient to explain the parity failure.
+
+Current diagnosis: Phase 1 is blocked by environment fidelity, not by MJLab transfer and not yet by Flow/PWM architecture. The next valid parity run must use a clean locked original stack, or at minimum:
+
+```text
+torch==2.3.x with CUDA 11.8
+torchvision==0.18.x
+tensordict==0.4.x
+torchrl==0.4.x
+dflex from imgeorgiev/DiffRL commit bb59db5cf65e63740787bf22f91bae3103b30d19
+DFlex kernels rebuilt successfully under the same stack
+```
+
+No MJLab or Flow conclusions should be made from the current `pwm` env results.
+
+Follow-up environment reconstruction attempt:
+
+```text
+command:
+  conda create -y -p /storage/project/r-agarg35-0/eliu354/envs/pwm_orig23 \
+    python=3.10 pytorch=2.3 torchvision=0.18 pytorch-cuda=11.8 cuda-toolkit=11.8 \
+    pandas=2.2 matplotlib=3.8 seaborn=0.13 glew=2.1.0 \
+    -c pytorch -c nvidia -c defaults
+
+conda solve result:
+  python: 3.10.20
+  pytorch: 2.3.1 py3.10_cuda11.8_cudnn8.7.0_0
+  pytorch-cuda: 11.8
+  torchvision: 0.18.1 py310_cu118
+  numpy: 1.26.4
+  mkl: 2025.0.0
+  llvm-openmp: 14.0.6
+  cuda-version: 13.3
+  cuda-nvcc: 13.3.33
+  libnvjitlink: 13.3.33
+
+torch import result:
+  ImportError: libtorch_cpu.so: undefined symbol: iJIT_NotifyEvent
+```
+
+This reconstruction attempt confirms that the upstream `environment.yaml` pins are too loose for the current conda channel state. Even when the requested `pytorch` package is the intended `2.3.1` CUDA 11.8 build, the solve can still pull incompatible Intel/MKL/OpenMP and CUDA compiler-side packages. The next parity attempt needs an explicit lock file or additional pins for `mkl`, OpenMP/Intel runtime, `cuda-version`, `cuda-nvcc`, and related CUDA libraries before installing TorchRL/TensorDict/DFlex.
