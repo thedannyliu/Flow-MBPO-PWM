@@ -614,3 +614,13 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     manifests preserved `--qos=embers`, selected the AWR runner, and passed
     preflight; a bad AWR manifest failed before `sbatch`. This is submission
     infrastructure only, not policy evidence.
+87. Done for local W&B run metadata on Flow-MBPO AWR artifacts.
+    When W&B is enabled, `run_flow_mbpo_v0_awr_update.py` now records
+    `wandb_run_id` and `wandb_run_url` in `summary.json`, W&B config, and
+    checkpoint `args` for final, best, best-training, real-eval snapshot, and
+    critic checkpoints.
+88. Validation passed via `py_compile`, CLI help, and a `/tmp` fake
+    dataset/replay/checkpoint fixture with a monkeypatched W&B module. The
+    fixture verified run id/url in the summary, final/best checkpoint args,
+    W&B config update, W&B summary update, logging, and finish. This is
+    provenance infrastructure only, not policy evidence.

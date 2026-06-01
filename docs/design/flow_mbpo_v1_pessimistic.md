@@ -619,3 +619,9 @@ provide notes and direct input/output paths, and configure real-eval-based
 selection with `real_eval_selection_metric=return_length_fall`, a positive
 `real_eval_every`, and BC baseline return/length/fall gates. This makes the
 policy-update stage submit-time checked before eval/render evidence is produced.
+
+AWR update artifacts also store the W&B run id and URL locally. When W&B
+initialization succeeds, `run_flow_mbpo_v0_awr_update.py` records
+`wandb_run_id` and `wandb_run_url` in the summary and checkpoint `args`, so
+final, best, best-training, real-eval snapshot, and critic checkpoints can be
+traced back to the training run that produced them.

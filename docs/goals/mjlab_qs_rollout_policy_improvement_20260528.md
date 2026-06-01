@@ -1260,6 +1260,11 @@ Use these locations as the durable record before launching new work:
   - formal preflight: `submit_array.sh --require-formal-metadata` now requires `enable_wandb=true`, W&B project/group/name, notes, dataset/metadata/normalization, policy checkpoint, synthetic replay, direct output dir, `real_eval_every > 0`, `real_eval_selection_metric=return_length_fall`, and real-eval baseline return/length/fall for `flow_mbpo_awr` rows.
   - validation: `py_compile`, `bash -n`, CLI help, a monkeypatched row-runner command check, and fake-`sbatch` submitter checks confirmed `--qos=embers`, correct runner selection, valid metadata preflight pass, and bad AWR metadata failure before `sbatch`.
   - interpretation: this is formal policy-update submission infrastructure only. It does not add policy evidence, but it keeps future AWR training runs on the same `embers`/W&B/notes/real-eval-gate path as replay prep and eval/render.
+- Backfilled local W&B run metadata for Flow-MBPO AWR updates.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - behavior: when W&B is enabled and run initialization succeeds, the AWR updater now records `wandb_run_id` and `wandb_run_url` in `summary.json`, W&B config, and checkpoint `args` for final, best, best-training, real-eval snapshot, and critic checkpoints.
+  - validation: `py_compile`, CLI help check, and a `/tmp` fake dataset/replay/checkpoint fixture with a monkeypatched W&B module verified run id/url in `summary.json`, final/best checkpoint args, W&B config update, W&B summary update, logging, and finish.
+  - interpretation: this is AWR training artifact provenance only. It makes future AWR checkpoints self-contained enough to trace back to their W&B training run; it does not add policy evidence.
 
 ## Next Action
 

@@ -724,13 +724,32 @@ def main() -> None:
     if args.enable_wandb:
         import wandb
 
-        run = wandb.init(
+        wandb_init = getattr(wandb, "init", None)
+        if wandb_init is None:
+            raise RuntimeError("W&B logging requested but the imported wandb module has no init()")
+        run = wandb_init(
             project=args.wandb_project,
             group=args.wandb_group or "flow_mbpo_v0_awr",
             name=args.wandb_name or f"seed{args.seed}_awr_update",
             job_type="flow_mbpo_v0_awr_update",
             config=config,
         )
+        config["wandb_run_id"] = str(getattr(run, "id", "") or "")
+        config["wandb_run_url"] = str(getattr(run, "url", "") or "")
+        ckpt_args["wandb_run_id"] = config["wandb_run_id"]
+        ckpt_args["wandb_run_url"] = config["wandb_run_url"]
+        run.config.update(
+            {
+                "wandb_run_id": config["wandb_run_id"],
+                "wandb_run_url": config["wandb_run_url"],
+            },
+            allow_val_change=True,
+        )
+    else:
+        config["wandb_run_id"] = ""
+        config["wandb_run_url"] = ""
+        ckpt_args["wandb_run_id"] = ""
+        ckpt_args["wandb_run_url"] = ""
 
     best_loss = float("inf")
     best_loss_actor = None
