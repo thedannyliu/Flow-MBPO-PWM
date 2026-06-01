@@ -500,7 +500,12 @@ checkpoint: scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
 eval_runs: 12
 slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0b_9379717.out
 slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0b_9379717.err
-status_after_submit: RUNNING
+slurm_state: COMPLETED
+exit_code: 0:0
+elapsed: 02:40:39
+start: 2026-06-01T15:35:24
+end: 2026-06-01T18:16:03
+output_dir: baselines/PWM/scripts/outputs/2026-06-01/15-35-34/logs/phase1_hopper_formal_seed0_20260601
 ```
 
 Corrected command changed only the W&B notes override to a Hydra-safe value:
@@ -509,4 +514,92 @@ Corrected command changed only the W&B notes override to a Hydra-safe value:
 +wandb.notes=phase1_original_pwm_hopper_formal_seed0_main_027058c_pwm_cb7b168_upstream_9816252_checkpoint_hopper_smoke_9379661_torch_force_no_weights_only_load_evalfix
 ```
 
-Next action: monitor job `9379717`, record final metrics/checkpoints, and compare the final reward to the original Hopper target before any MJLab port.
+Artifacts from job `9379717`:
+
+```text
+init_policy.pt
+best_policy.pt
+final_policy.pt
+PWM_iter2500_rew1270.pt
+PWM_iter5000_rew1272.pt
+PWM_iter7500_rew1268.pt
+PWM_iter10000_rew1268.pt
+PWM_iter12500_rew1269.pt
+```
+
+Final training log evidence:
+
+```text
+best training-loop policy loss: -1276.41
+best training-loop reward: 1276.41
+last training line: [14937/15000] R:1271.43 T:0.0 H:13.9 S:15360000 pi_loss:-0.73 pi_grad:0.00/0.00 v_loss:0.01 wm_loss:0.00
+final eval printed by training job: mean episode loss = -77.11, mean discounted loss = -13.36, mean episode length = 1000.00
+```
+
+Important interpretation detail: `PWM.eval()` in this DFlex path still computes episode loss from the learned world-model reward while stepping the real environment only for done signals. Therefore the printed final eval is original-entrypoint load/eval evidence, but it is not yet reconciled with a true real-env return metric.
+
+## Phase 1 Checkpoint Eval
+
+The first checkpoint eval submission failed before Python because `set -u` made `source ~/.bashrc` abort on an unset `BASHRCSOURCED` shell variable:
+
+```text
+slurm_job_id: 9382641
+job_name: pwm_p1_hopper_eval_ckpts_s0
+partition: gpu-rtx6000
+qos: embers
+status: FAILED
+exit_code: 1:0
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_eval_ckpts_s0_9382641.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_eval_ckpts_s0_9382641.err
+failure: /etc/bashrc: line 12: BASHRCSOURCED: unbound variable
+```
+
+Corrected W&B-enabled eval-only job:
+
+```text
+slurm_job_id: 9382643
+job_name: pwm_p1_hopper_eval_ckpts_s0b
+main_repo_sha: b829e8ccb7595881a4486a4dde9138361523dc8d
+baseline_pwm_sha: cb7b1689afbfd4b5662e43cdbae2c360e52d56a1
+partition: gpu-rtx6000
+qos: embers
+account: gts-agarg35
+gres: gpu:rtx_6000:1
+wandb_project: flow-mbpo-pwm-fidelity
+wandb_group: phase1_original_hopper_eval_20260601
+slurm_state: COMPLETED
+exit_code: 0:0
+elapsed: 00:01:24
+start: 2026-06-01T18:22:09
+end: 2026-06-01T18:23:33
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_eval_ckpts_s0b_9382643.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_eval_ckpts_s0b_9382643.err
+```
+
+Eval-only final actor:
+
+```text
+checkpoint: baselines/PWM/scripts/outputs/2026-06-01/15-35-34/logs/phase1_hopper_formal_seed0_20260601/final_policy.pt
+wandb_run_id: elpnm8cc
+wandb_url: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/elpnm8cc
+command_core: python train_dflex.py env=dflex_hopper alg=pwm general.run_wandb=True general.train=False general.seed=0 general.checkpoint=<final_policy.pt> general.eval_runs=12 general.logdir=logs/phase1_hopper_eval_final_seed0_20260601
+result: mean episode loss = -65.72, mean discounted loss = -13.15, mean episode length = 1000.00
+```
+
+Eval-only true-best actor:
+
+```text
+checkpoint: baselines/PWM/scripts/outputs/2026-06-01/15-35-34/logs/phase1_hopper_formal_seed0_20260601/best_policy.pt
+wandb_run_id: 6jhmy3ap
+wandb_url: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/6jhmy3ap
+command_core: python train_dflex.py env=dflex_hopper alg=pwm general.run_wandb=True general.train=False general.seed=0 general.checkpoint=<best_policy.pt> general.eval_runs=12 general.logdir=logs/phase1_hopper_eval_best_seed0_20260601
+result: mean episode loss = -109.38, mean discounted loss = -15.04, mean episode length = 1000.00
+```
+
+## Phase 1 Gate Decision
+
+Original PWM parity is not established. The completed Hopper run is far below the local original Hopper reference scale recorded above (`final mean 5649.179`, `best mean 5712.018`) and also shows a large mismatch between training-loop reward around `1270` and eval-only checkpoint returns around `66` to `109` under the original DFlex eval path.
+
+Stop rule applied: do not port to MJLab and do not test Flow replacements yet.
+
+Next Phase 1/2 debug target: reconcile the original DFlex reward/eval pathways before any MJLab claim. The highest-priority checks are real-env reward versus learned-WM reward in `PWM.eval()`, checkpoint provenance (`PWM_HopperEnv.pt` as full policy checkpoint versus WM-only checkpoint), reward scaling/sign conventions, and whether the local `baselines/PWM/results/data` reference CSV was produced by the same entrypoint/config/checkpoint path.
