@@ -1234,6 +1234,13 @@ Use these locations as the durable record before launching new work:
   - replay behavior: replay preparation summaries now record `notes`, the input buffer metadata sidecar when present, and a `synthetic_replay_metadata.json` sidecar path. The replay sidecar records the preparation command, notes, input buffer notes, pessimism/termination settings, support-risk settings, transitions, done fraction, and tensor shapes without inserting non-tensor provenance into `synthetic_replay.pt`.
   - validation: `py_compile`, CLI help checks for `--notes`, and a `/tmp` fake dataset/checkpoint CPU fixture verified smoke notes in `summary.json` and `synthetic_buffer_metadata.json`, replay notes in `summary.json` and `synthetic_replay_metadata.json`, propagation of input buffer notes into replay metadata, and preservation of the existing tensor replay keys including `reward_conservative`.
   - interpretation: this is synthetic-data provenance hardening only. It does not add policy evidence, but it closes the remaining notes gap between WM rollout generation, replay preparation, AWR training, eval, and rollout rendering.
+- Added opt-in W&B logging to synthetic replay preparation.
+  - script update: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new args: `--enable-wandb`, `--wandb-project`, `--wandb-group`, and `--wandb-name`
+  - behavior: replay preparation summaries now record the W&B settings. When W&B is enabled, the script initializes a `flow_mbpo_v0_synthetic_replay` run, stores the full summary as config, and logs transition count, raw/conservative reward mean, uncertainty mean, done fraction, model/fall/uncertainty/support/post-first-done fractions.
+  - validation: `py_compile`, CLI help checks, and a `/tmp` fake synthetic-buffer fixture with a monkeypatched W&B module verified `wandb.init`, scalar logging, `finish`, summary metadata, replay sidecar metadata, input-buffer note propagation, and the existing tensor replay schema with `reward_conservative`.
+  - local environment note: the current shell imports a placeholder `wandb` module with no `init()`. The script now raises a clear `RuntimeError` if W&B logging is requested in such an environment. Formal cluster runs still need a complete W&B SDK.
+  - interpretation: this is replay-preparation provenance infrastructure only. It does not add policy evidence, but it lets future formal replay-preparation jobs satisfy the same W&B/notes protocol as training, eval, and rollout rendering.
 
 ## Next Action
 

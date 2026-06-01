@@ -556,3 +556,17 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     buffer notes into replay metadata, and preservation of the existing tensor
     replay schema with `reward_conservative`. This is provenance infrastructure
     only, not policy evidence.
+77. Done for W&B logging on synthetic replay preparation.
+    `prepare_flow_mbpo_v0_synthetic_replay.py` now accepts `--enable-wandb`,
+    `--wandb-project`, `--wandb-group`, and `--wandb-name`. When enabled, it
+    initializes a `flow_mbpo_v0_synthetic_replay` run, stores the full summary
+    as config, and logs transition count plus replay reward, uncertainty, done,
+    fall, support-risk, and post-first-done fractions.
+78. Validation passed via `py_compile`, CLI help checks, and a `/tmp` fake
+    synthetic-buffer fixture with a monkeypatched W&B module. The fixture
+    verified `wandb.init`, scalar logging, `finish`, W&B settings in
+    `summary.json`, replay sidecar metadata, input-buffer note propagation, and
+    the existing tensor replay schema with `reward_conservative`. The current
+    shell imports a placeholder `wandb` module without `init()`, so the script
+    now raises a clear `RuntimeError` if W&B logging is requested without a full
+    W&B SDK. This is provenance infrastructure only, not policy evidence.

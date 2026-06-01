@@ -68,6 +68,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--max-transitions", type=int, default=0)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--notes", default="")
+    p.add_argument("--enable-wandb", action="store_true")
+    p.add_argument("--wandb-project", default="flow-mbpo-mjlab-flow-mbpo-v0-replay")
+    p.add_argument("--wandb-group", default="")
+    p.add_argument("--wandb-name", default="")
     return p.parse_args()
 
 
@@ -331,6 +335,10 @@ def main() -> None:
         "git_branch": git_branch(),
         "command": command_line(),
         "notes": args.notes,
+        "enable_wandb": bool(args.enable_wandb),
+        "wandb_project": args.wandb_project,
+        "wandb_group": args.wandb_group,
+        "wandb_name": args.wandb_name,
         "synthetic_buffer": args.synthetic_buffer,
         "synthetic_buffer_metadata": str(input_metadata_path) if input_metadata_path.exists() else "",
         "output_dir": str(output_dir),
@@ -389,6 +397,34 @@ def main() -> None:
         encoding="utf-8",
     )
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    if args.enable_wandb:
+        import wandb
+
+        wandb_init = getattr(wandb, "init", None)
+        if wandb_init is None:
+            raise RuntimeError("W&B logging requested but the imported wandb module has no init()")
+        run = wandb_init(
+            project=args.wandb_project,
+            group=args.wandb_group or "flow_mbpo_v0_replay",
+            name=args.wandb_name or f"seed{args.seed}_synthetic_replay",
+            job_type="flow_mbpo_v0_synthetic_replay",
+            config=summary,
+        )
+        run.log(
+            {
+                "replay/transitions": summary["transitions"],
+                "replay/raw_reward_mean": summary["raw_reward"]["mean"],
+                "replay/conservative_reward_mean": summary["conservative_reward"]["mean"],
+                "replay/uncertainty_mean": summary["uncertainty"]["mean"],
+                "replay/done_fraction": summary["done_fraction"],
+                "replay/model_done_fraction": summary["model_done_fraction"],
+                "replay/fall_done_fraction": summary["fall_done_fraction"],
+                "replay/uncertainty_done_fraction": summary["uncertainty_done_fraction"],
+                "replay/support_risk_done_fraction": summary["support_risk_done_fraction"],
+                "replay/post_first_done_fraction": summary["post_first_done_fraction"],
+            }
+        )
+        run.finish()
     print(json.dumps(summary, sort_keys=True), flush=True)
 
 

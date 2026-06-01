@@ -590,3 +590,11 @@ also accepts `--notes`, writes them to `summary.json`, and emits
 `synthetic_replay_metadata.json` with the preparation settings plus any input
 buffer notes. The `.pt` artifacts remain tensor-schema compatible for existing
 AWR/support consumers; provenance is kept in JSON sidecars.
+
+Replay preparation can now log to W&B as a formal provenance step. With
+`--enable-wandb`, `prepare_flow_mbpo_v0_synthetic_replay.py` initializes a
+`flow_mbpo_v0_synthetic_replay` run, records the full summary as config, and
+logs scalar replay diagnostics such as transition count, conservative reward,
+uncertainty, and done/support-risk fractions. This keeps future formal replay
+preparation on the same W&B/notes path as AWR training, eval, and rollout
+rendering.
