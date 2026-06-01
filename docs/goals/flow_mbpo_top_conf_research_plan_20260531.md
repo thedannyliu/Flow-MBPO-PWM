@@ -377,3 +377,18 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     `1.000`, timeout `0.000`, far below matched BC. Do not formalize this
     conservative-Q setting. Either keep conservative-Q as a diagnostic or change
     the update objective before spending W&B/video budget.
+50. Done for a W&B-disabled roll10 MP4 diagnostic on that same temp-`0.5`
+    conservative-Q actor. Slurm job `9370468` rendered the final checkpoint for
+    `10` episodes at `max_steps=1000` and wrote
+    `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_temp0p5_actor0_iter100_eval8_s0/final_roll10/rollout.mp4`.
+    The result was return `54.2864`, length `689.80`, fall `0.400`, with six
+    timeouts and four short falls. The final, best-real, and iter-100 snapshot
+    actor weights are identical, so this final render also covers the true-best
+    actor for this one-eval smoke.
+51. Interpretation: the roll10 diagnostic is much better than the 8-episode
+    eval and essentially ties matched BC seed0 final roll10 (`54.1283`,
+    `688.40`, fall `0.400`), but it does not lower fall rate and the scalar
+    eval remains poor. This is variance/selection evidence, not policy
+    improvement. Do not formalize this conservative-Q branch without changing
+    the update objective or requiring a stronger 40-episode eval plus matched
+    roll10 gate.

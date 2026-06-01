@@ -463,3 +463,13 @@ length `283.50`, fall `1.000`. This rejects the current temp-`0.5`
 conservative-Q setting as a formal candidate. Conservative-Q can remain a
 diagnostic, but the policy-update objective needs another change before W&B
 formal eval/video is worth running.
+
+A W&B-disabled roll10 MP4 diagnostic of the same temp-`0.5` actor ran in job
+`9370468`. It rendered `10` episodes at `max_steps=1000` and produced return
+`54.2864`, length `689.80`, fall `0.400`. The final, best-real, and iter-100
+snapshot actor weights are identical, so this render covers the true-best actor
+for that smoke. This result is close to matched BC seed0 final roll10
+(`54.1283`, length `688.40`, fall `0.400`) but does not reduce fall rate, and it
+conflicts with the poor 8-episode scalar eval. Treat this as a selection/eval
+variance warning: a candidate that merely ties BC on one roll10 while failing
+short real eval is not ready for formal W&B evaluation.
