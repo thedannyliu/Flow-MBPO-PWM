@@ -392,3 +392,16 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     improvement. Do not formalize this conservative-Q branch without changing
     the update objective or requiring a stronger 40-episode eval plus matched
     roll10 gate.
+52. Done for gate-aware true-best selection infrastructure. The AWR update now
+    has opt-in `--real-eval-selection-metric return_length_fall`, with score
+    `return_mean + length_weight * episode_length_mean - fall_penalty *
+    fall_rate_mean`; the default remains return-only to preserve old manifests.
+    This makes best-real snapshot selection match the formal return/length/fall
+    gate better than return-only selection.
+53. Validation passed via `py_compile`, CLI help, a direct formula check, and
+    W&B-disabled Slurm job `9370586` on `embers`. That integration smoke used
+    one update iteration and two eval episodes only to verify plumbing; it wrote
+    `best_policy_extraction.pt` as a true best-real snapshot and recorded
+    `real_eval/selection_score` plus `real_eval/selection_metric` in both the
+    best checkpoint and real-eval snapshot. This is infrastructure evidence, not
+    policy evidence.

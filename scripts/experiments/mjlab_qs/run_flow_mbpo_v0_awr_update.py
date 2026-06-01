@@ -102,6 +102,24 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--real-eval-every", type=int, default=0)
     p.add_argument("--real-eval-episodes", type=int, default=8)
     p.add_argument("--real-eval-num-envs", type=int, default=16)
+    p.add_argument(
+        "--real-eval-selection-metric",
+        choices=["return", "return_length_fall"],
+        default="return",
+        help="Metric for selecting best_policy_extraction.pt from real-eval snapshots.",
+    )
+    p.add_argument(
+        "--real-eval-length-weight",
+        type=float,
+        default=0.01,
+        help="Length coefficient for --real-eval-selection-metric=return_length_fall.",
+    )
+    p.add_argument(
+        "--real-eval-fall-penalty",
+        type=float,
+        default=100.0,
+        help="Fall-rate penalty for --real-eval-selection-metric=return_length_fall.",
+    )
     p.add_argument("--episode-length", type=int, default=1000)
     p.add_argument("--task-id", default="Mjlab-Velocity-Flat-Unitree-G1")
     p.add_argument("--command-dim", type=int, default=3)
@@ -531,6 +549,15 @@ def real_eval_snapshot(
     return out
 
 
+def real_eval_selection_score(eval_metrics: dict[str, float | str], args: argparse.Namespace) -> float:
+    ret = float(eval_metrics["real_eval/return_mean"])
+    if args.real_eval_selection_metric == "return":
+        return ret
+    length = float(eval_metrics["real_eval/episode_length_mean"])
+    fall = float(eval_metrics["real_eval/fall_rate_mean"])
+    return ret + float(args.real_eval_length_weight) * length - float(args.real_eval_fall_penalty) * fall
+
+
 def main() -> None:
     args = parse_args()
     torch.manual_seed(args.seed)
@@ -602,6 +629,9 @@ def main() -> None:
             "flow_mbpo_v1_critic_actor_weight": float(args.critic_actor_weight),
             "flow_mbpo_v1_critic_random_actions": int(args.critic_random_actions),
             "flow_mbpo_v1_critic_cql_temperature": float(args.critic_cql_temperature),
+            "flow_mbpo_v1_real_eval_selection_metric": args.real_eval_selection_metric,
+            "flow_mbpo_v1_real_eval_length_weight": float(args.real_eval_length_weight),
+            "flow_mbpo_v1_real_eval_fall_penalty": float(args.real_eval_fall_penalty),
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -642,7 +672,7 @@ def main() -> None:
 
     best_loss = float("inf")
     best_loss_actor = None
-    best_real_return = -float("inf")
+    best_real_score = -float("inf")
     best_real_eval: dict[str, float | str] | None = None
     best_real_actor = None
     last_metrics: dict[str, float] = {}
@@ -746,6 +776,9 @@ def main() -> None:
                 run.log(last_metrics, step=it)
         if int(args.real_eval_every) > 0 and (it == int(args.update_iters) or it % int(args.real_eval_every) == 0):
             eval_metrics = real_eval_snapshot(actor, args, nrm, device, it)
+            real_score = real_eval_selection_score(eval_metrics, args)
+            eval_metrics["real_eval/selection_score"] = float(real_score)
+            eval_metrics["real_eval/selection_metric"] = args.real_eval_selection_metric
             print(json.dumps(eval_metrics, sort_keys=True), flush=True)
             if run is not None:
                 run.log(eval_metrics, step=it)
@@ -763,9 +796,8 @@ def main() -> None:
                 snapshot_path,
             )
             real_eval_snapshot_paths.append(str(snapshot_path))
-            real_return = float(eval_metrics["real_eval/return_mean"])
-            if real_return > best_real_return:
-                best_real_return = real_return
+            if real_score > best_real_score:
+                best_real_score = real_score
                 best_real_eval = eval_metrics
                 best_real_actor = {k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}
 
@@ -834,7 +866,11 @@ def main() -> None:
         "critic_checkpoint": str(critic_checkpoint) if critic is not None else None,
         "real_eval_snapshot_checkpoints": real_eval_snapshot_paths,
         "best_training_loss": best_loss,
-        "best_real_return": best_real_return if math.isfinite(best_real_return) else None,
+        "best_real_score": best_real_score if math.isfinite(best_real_score) else None,
+        "best_real_return": (
+            float(best_real_eval["real_eval/return_mean"]) if best_real_eval is not None else None
+        ),
+        "best_real_eval_selection_metric": args.real_eval_selection_metric,
         "best_real_eval": best_real_eval,
         "best_is_true_snapshot": best_real_actor is not None,
         "last_metrics": last_metrics,

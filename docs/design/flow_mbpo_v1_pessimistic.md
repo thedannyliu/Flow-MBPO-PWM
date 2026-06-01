@@ -473,3 +473,15 @@ for that smoke. This result is close to matched BC seed0 final roll10
 conflicts with the poor 8-episode scalar eval. Treat this as a selection/eval
 variance warning: a candidate that merely ties BC on one roll10 while failing
 short real eval is not ready for formal W&B evaluation.
+
+True-best selection now has an opt-in gate-aware score. In
+`run_flow_mbpo_v0_awr_update.py`, `--real-eval-selection-metric` defaults to
+`return` for backward compatibility, and can be set to `return_length_fall` to
+rank real-eval snapshots by
+`return_mean + length_weight * episode_length_mean - fall_penalty *
+fall_rate_mean`. The selected best checkpoint records `real_eval/selection_score`
+and `real_eval/selection_metric`. This does not replace the final formal gate,
+but it prevents return-only checkpoint selection from silently diverging from
+the return/length/fall claim criterion. A one-iteration, two-episode
+W&B-disabled smoke in job `9370586` verified that the metric is logged into the
+snapshot and best-real checkpoint.
