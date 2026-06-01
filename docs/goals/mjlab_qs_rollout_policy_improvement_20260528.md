@@ -1288,6 +1288,12 @@ Use these locations as the durable record before launching new work:
   - behavior: when W&B is enabled and run initialization succeeds, the AWR updater now records `wandb_run_id` and `wandb_run_url` in `summary.json`, W&B config, and checkpoint `args` for final, best, best-training, real-eval snapshot, and critic checkpoints.
   - validation: `py_compile`, CLI help check, and a `/tmp` fake dataset/replay/checkpoint fixture with a monkeypatched W&B module verified run id/url in `summary.json`, final/best checkpoint args, W&B config update, W&B summary update, logging, and finish.
   - interpretation: this is AWR training artifact provenance only. It makes future AWR checkpoints self-contained enough to trace back to their W&B training run; it does not add policy evidence.
+- Added conservative-Q sampled-action coverage controls.
+  - script updates: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py` and `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - new args: `--critic-ood-action-source {uniform,data_noise,mixed}` and `--critic-action-noise-std`
+  - behavior: the default CQL OOD action source remains uniform `[-1, 1]`, preserving previous smokes. New data-noise and mixed sources let W&B-disabled critic diagnostics test local OOD actions near recorded behavior versus global uniform OOD actions.
+  - validation: `py_compile`, CLI help checks, a `/tmp` fake critic fixture exercised uniform, data-noise, and mixed sources with finite critic metrics, and a monkeypatched row-runner command check confirmed manifest passthrough.
+  - interpretation: this changes CQL diagnostic/update-objective coverage only. It does not add policy evidence and should be tested under W&B-disabled smoke before any formal W&B seed.
 
 ## Next Action
 

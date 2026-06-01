@@ -624,3 +624,17 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     fixture verified run id/url in the summary, final/best checkpoint args,
     W&B config update, W&B summary update, logging, and finish. This is
     provenance infrastructure only, not policy evidence.
+89. Done for conservative-Q sampled-action coverage plumbing.
+    `run_flow_mbpo_v0_awr_update.py` now supports
+    `--critic-ood-action-source {uniform,data_noise,mixed}` plus
+    `--critic-action-noise-std` when `--critic-random-actions > 0`. The default
+    remains uniform `[-1, 1]` sampling, preserving previous CQL smokes. The
+    new data-noise and mixed modes allow W&B-disabled critic diagnostics to test
+    local OOD actions near recorded behavior as well as global uniform OOD
+    actions before any formal seed is considered.
+90. `run_flow_mbpo_awr_row.py` forwards `critic_ood_action_source` and
+    `critic_action_noise_std` from AWR manifests. Validation passed via
+    `py_compile`, CLI help, a `/tmp` fake critic fixture that exercised
+    uniform, data-noise, and mixed CQL sources with finite losses, and a
+    monkeypatched row-runner command check. This is
+    critic/update-objective infrastructure only, not policy evidence.

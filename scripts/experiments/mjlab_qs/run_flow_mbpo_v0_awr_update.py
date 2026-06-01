@@ -94,6 +94,18 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Number of uniform random actions per state for CQL logsumexp. Default preserves actor-only CQL.",
     )
+    p.add_argument(
+        "--critic-ood-action-source",
+        choices=["uniform", "data_noise", "mixed"],
+        default="uniform",
+        help="OOD action source for random-action CQL. Defaults to prior uniform [-1, 1] sampling.",
+    )
+    p.add_argument(
+        "--critic-action-noise-std",
+        type=float,
+        default=0.2,
+        help="Stddev for data-noise OOD actions used when --critic-ood-action-source includes data_noise.",
+    )
     p.add_argument("--critic-cql-temperature", type=float, default=1.0)
     p.add_argument("--grad-norm", type=float, default=1.0)
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
@@ -333,7 +345,26 @@ def train_conservative_critic(
         k = int(args.critic_random_actions)
         z_rep = z[:, None, :].expand(-1, k, -1).reshape(-1, z.shape[-1])
         c_rep = c[:, None, :].expand(-1, k, -1).reshape(-1, c.shape[-1])
-        random_actions = torch.empty(z.shape[0], k, a.shape[-1], device=z.device).uniform_(-1.0, 1.0)
+        source = str(args.critic_ood_action_source)
+        if source == "uniform":
+            random_actions = torch.empty(z.shape[0], k, a.shape[-1], device=z.device).uniform_(-1.0, 1.0)
+        elif source == "data_noise":
+            noise = torch.randn(z.shape[0], k, a.shape[-1], device=z.device) * float(args.critic_action_noise_std)
+            random_actions = (a[:, None, :] + noise).clamp(-1.0, 1.0)
+        elif source == "mixed":
+            uniform_k = max(1, k // 2)
+            noise_k = k - uniform_k
+            uniform_actions = torch.empty(z.shape[0], uniform_k, a.shape[-1], device=z.device).uniform_(-1.0, 1.0)
+            if noise_k > 0:
+                noise = torch.randn(z.shape[0], noise_k, a.shape[-1], device=z.device) * float(
+                    args.critic_action_noise_std
+                )
+                noise_actions = (a[:, None, :] + noise).clamp(-1.0, 1.0)
+                random_actions = torch.cat([uniform_actions, noise_actions], dim=1)
+            else:
+                random_actions = uniform_actions
+        else:
+            raise ValueError(f"Unknown critic OOD action source: {source}")
         q_random = critic(z_rep, c_rep, random_actions.reshape(-1, a.shape[-1])).reshape(z.shape[0], k)
         q_ood = torch.cat([q_actor[:, None], q_random], dim=1)
         temp = max(float(args.critic_cql_temperature), 1.0e-6)
@@ -683,6 +714,8 @@ def main() -> None:
             "flow_mbpo_v1_conservative_q_weight": float(args.conservative_q_weight),
             "flow_mbpo_v1_critic_actor_weight": float(args.critic_actor_weight),
             "flow_mbpo_v1_critic_random_actions": int(args.critic_random_actions),
+            "flow_mbpo_v1_critic_ood_action_source": args.critic_ood_action_source,
+            "flow_mbpo_v1_critic_action_noise_std": float(args.critic_action_noise_std),
             "flow_mbpo_v1_critic_cql_temperature": float(args.critic_cql_temperature),
             "flow_mbpo_v1_real_eval_selection_metric": args.real_eval_selection_metric,
             "flow_mbpo_v1_real_eval_length_weight": float(args.real_eval_length_weight),
@@ -719,6 +752,8 @@ def main() -> None:
         "conservative_q_weight": float(args.conservative_q_weight),
         "critic_actor_weight": float(args.critic_actor_weight),
         "critic_random_actions": int(args.critic_random_actions),
+        "critic_ood_action_source": args.critic_ood_action_source,
+        "critic_action_noise_std": float(args.critic_action_noise_std),
         "critic_cql_temperature": float(args.critic_cql_temperature),
     }
     if args.enable_wandb:
@@ -966,6 +1001,8 @@ def main() -> None:
                 "conservative_q_weight": float(args.conservative_q_weight),
                 "critic_actor_weight": float(args.critic_actor_weight),
                 "critic_random_actions": int(args.critic_random_actions),
+                "critic_ood_action_source": args.critic_ood_action_source,
+                "critic_action_noise_std": float(args.critic_action_noise_std),
                 "critic_cql_temperature": float(args.critic_cql_temperature),
             },
             critic_checkpoint,

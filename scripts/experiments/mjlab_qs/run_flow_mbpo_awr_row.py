@@ -84,6 +84,8 @@ def main() -> None:
         "critic_gamma",
         "critic_tau",
         "critic_random_actions",
+        "critic_ood_action_source",
+        "critic_action_noise_std",
         "critic_cql_temperature",
         "grad_norm",
         "split",
