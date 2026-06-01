@@ -138,6 +138,9 @@ def parse_args() -> argparse.Namespace:
         default=0.0,
         help="Minimum selection-score increase counted as improvement for real-eval early stopping.",
     )
+    p.add_argument("--real-eval-baseline-return", type=float, default=None)
+    p.add_argument("--real-eval-baseline-length", type=float, default=None)
+    p.add_argument("--real-eval-baseline-fall", type=float, default=None)
     p.add_argument("--episode-length", type=int, default=1000)
     p.add_argument("--task-id", default="Mjlab-Velocity-Flat-Unitree-G1")
     p.add_argument("--command-dim", type=int, default=3)
@@ -576,6 +579,39 @@ def real_eval_selection_score(eval_metrics: dict[str, float | str], args: argpar
     return ret + float(args.real_eval_length_weight) * length - float(args.real_eval_fall_penalty) * fall
 
 
+def add_real_eval_baseline_gate(eval_metrics: dict[str, Any], args: argparse.Namespace) -> None:
+    ret = float(eval_metrics["real_eval/return_mean"])
+    length = float(eval_metrics["real_eval/episode_length_mean"])
+    fall = float(eval_metrics["real_eval/fall_rate_mean"])
+    configured = (
+        args.real_eval_baseline_return is not None
+        and args.real_eval_baseline_length is not None
+        and args.real_eval_baseline_fall is not None
+    )
+    eval_metrics["real_eval/baseline_gate_configured"] = bool(configured)
+    if args.real_eval_baseline_return is not None:
+        baseline = float(args.real_eval_baseline_return)
+        eval_metrics["real_eval/baseline_return"] = baseline
+        eval_metrics["real_eval/return_gap_to_baseline"] = ret - baseline
+        eval_metrics["real_eval/return_gate_pass"] = bool(ret >= baseline)
+    if args.real_eval_baseline_length is not None:
+        baseline = float(args.real_eval_baseline_length)
+        eval_metrics["real_eval/baseline_length"] = baseline
+        eval_metrics["real_eval/length_gap_to_baseline"] = length - baseline
+        eval_metrics["real_eval/length_gate_pass"] = bool(length >= baseline)
+    if args.real_eval_baseline_fall is not None:
+        baseline = float(args.real_eval_baseline_fall)
+        eval_metrics["real_eval/baseline_fall"] = baseline
+        eval_metrics["real_eval/fall_gap_to_baseline"] = fall - baseline
+        eval_metrics["real_eval/fall_gate_pass"] = bool(fall < baseline)
+    if configured:
+        eval_metrics["real_eval/baseline_gate_pass"] = bool(
+            eval_metrics["real_eval/return_gate_pass"]
+            and eval_metrics["real_eval/length_gate_pass"]
+            and eval_metrics["real_eval/fall_gate_pass"]
+        )
+
+
 def main() -> None:
     args = parse_args()
     torch.manual_seed(args.seed)
@@ -653,6 +689,9 @@ def main() -> None:
             "flow_mbpo_v1_real_eval_stop_score_below": float(args.real_eval_stop_score_below),
             "flow_mbpo_v1_real_eval_early_stop_patience": int(args.real_eval_early_stop_patience),
             "flow_mbpo_v1_real_eval_min_delta": float(args.real_eval_min_delta),
+            "flow_mbpo_v1_real_eval_baseline_return": args.real_eval_baseline_return,
+            "flow_mbpo_v1_real_eval_baseline_length": args.real_eval_baseline_length,
+            "flow_mbpo_v1_real_eval_baseline_fall": args.real_eval_baseline_fall,
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -803,6 +842,7 @@ def main() -> None:
             real_score = real_eval_selection_score(eval_metrics, args)
             eval_metrics["real_eval/selection_score"] = float(real_score)
             eval_metrics["real_eval/selection_metric"] = args.real_eval_selection_metric
+            add_real_eval_baseline_gate(eval_metrics, args)
             print(json.dumps(eval_metrics, sort_keys=True), flush=True)
             if run is not None:
                 run.log(eval_metrics, step=it)

@@ -495,3 +495,13 @@ confirmed the loop stopped at iter `1`, still writing final, best-real,
 best-training, snapshot checkpoints, and summary fields `early_stop_iter` and
 `early_stop_reason`. This is meant to conserve formal-run budget, not to relax
 the final 40-episode eval plus roll10 video gate.
+
+Real-eval snapshots can now log an explicit baseline gate. Supplying
+`--real-eval-baseline-return`, `--real-eval-baseline-length`, and
+`--real-eval-baseline-fall` records gaps to baseline, pass bits for each metric,
+and `real_eval/baseline_gate_pass`. The rule matches the claim policy: return
+and episode length must be at least baseline, and fall rate must be strictly
+lower. A W&B-disabled smoke in job `9370667` verified these fields in stdout,
+`summary.json`, and the saved real-eval snapshot. This makes W&B and checkpoint
+metadata self-checking against the BC gate, but it still does not replace the
+required final 40-episode eval and roll10 MP4 comparison.

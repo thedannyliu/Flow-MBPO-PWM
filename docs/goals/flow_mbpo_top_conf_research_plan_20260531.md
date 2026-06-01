@@ -417,3 +417,15 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     stopped after iter `1` and wrote `early_stop_iter=1` plus the stop reason in
     `summary.json`. This validates the control path only; it is not policy
     evidence.
+56. Done for baseline gate logging infrastructure. The AWR update now accepts
+    `--real-eval-baseline-return`, `--real-eval-baseline-length`, and
+    `--real-eval-baseline-fall`. When all three are supplied, every real-eval
+    snapshot logs return/length/fall gaps, per-metric pass bits, and an overall
+    `real_eval/baseline_gate_pass`; return and length must meet or exceed
+    baseline, while fall must be strictly lower.
+57. Validation passed via `py_compile`, CLI help, direct formula check, and
+    W&B-disabled Slurm job `9370667` on `embers`. That smoke used matched seed0
+    BC final roll10 baseline `54.1283` / `688.40` / `0.400` and confirmed the
+    gate fields are present in stdout, `summary.json`, and the real-eval
+    snapshot checkpoint. This is logging infrastructure only; the two-episode
+    smoke is not policy evidence.
