@@ -68,10 +68,10 @@ import csv
 import sys
 
 manifest, kind = sys.argv[1], sys.argv[2]
-if kind not in {"policy_eval", "policy_rollout", "flow_mbpo_smoke", "flow_mbpo_replay"}:
+if kind not in {"policy_eval", "policy_rollout", "flow_mbpo_smoke", "flow_mbpo_replay", "flow_mbpo_awr"}:
     raise SystemExit(
         "--require-formal-metadata is only supported for policy_eval, policy_rollout, "
-        "flow_mbpo_smoke, and flow_mbpo_replay"
+        "flow_mbpo_smoke, flow_mbpo_replay, and flow_mbpo_awr"
     )
 
 def present(row, key):
@@ -89,6 +89,12 @@ def baseline_present(row, prefix):
         and present(row, f"{prefix}_baseline_length")
         and present(row, f"{prefix}_baseline_fall")
     ) or (present(row, "baseline_return") and present(row, "baseline_length") and present(row, "baseline_fall"))
+
+def positive_int(row, key):
+    try:
+        return int(str(row.get(key, "0") or "0")) > 0
+    except ValueError:
+        return False
 
 errors = []
 with open(manifest, newline="", encoding="utf-8") as f:
@@ -131,7 +137,20 @@ for idx, row in enumerate(rows):
             for key in ("support_dataset", "support_metadata", "support_normalization"):
                 if not present(row, key):
                     errors.append(f"{label}: support_risk_termination requires {key}")
-    if (present(row, "policy_checkpoint") or kind in {"flow_mbpo_smoke", "flow_mbpo_replay"}) and not present(row, "wandb_name"):
+    if kind == "flow_mbpo_awr":
+        for key in ("dataset", "metadata", "normalization", "policy_checkpoint", "synthetic_replay"):
+            if not present(row, key):
+                errors.append(f"{label}: missing {key}")
+        if not (present(row, "output_dir") or present(row, "awr_output_dir")):
+            errors.append(f"{label}: flow_mbpo_awr rows require output_dir or awr_output_dir")
+        if not positive_int(row, "real_eval_every"):
+            errors.append(f"{label}: formal flow_mbpo_awr rows require real_eval_every > 0")
+        if str(row.get("real_eval_selection_metric", "")).strip() != "return_length_fall":
+            errors.append(f"{label}: formal flow_mbpo_awr rows require real_eval_selection_metric=return_length_fall")
+        for key in ("real_eval_baseline_return", "real_eval_baseline_length", "real_eval_baseline_fall"):
+            if not present(row, key):
+                errors.append(f"{label}: missing {key}")
+    if (present(row, "policy_checkpoint") or kind in {"flow_mbpo_smoke", "flow_mbpo_replay", "flow_mbpo_awr"}) and not present(row, "wandb_name"):
         errors.append(f"{label}: formal direct-artifact rows require wandb_name")
 if errors:
     raise SystemExit("Formal metadata validation failed:\n" + "\n".join(errors))
@@ -157,6 +176,8 @@ elif [[ "$KIND" == "flow_mbpo_smoke" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_smoke_row.py"
 elif [[ "$KIND" == "flow_mbpo_replay" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_replay_row.py"
+elif [[ "$KIND" == "flow_mbpo_awr" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py"
 elif [[ "$KIND" == "original_pwm_adapter" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_original_pwm_adapter_row.py"
 elif [[ "$KIND" == "native_collector" ]]; then

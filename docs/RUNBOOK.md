@@ -129,6 +129,22 @@ For these formal synthetic rows, `--require-formal-metadata` requires
 and the required input paths. Support-risk replay rows must also include the
 support dataset, metadata, and normalization paths.
 
+Formal Flow-MBPO AWR update rows can use the same wrapper:
+
+```bash
+scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind flow_mbpo_awr \
+  --manifest scripts/experiments/mjlab_qs/manifests/<awr_stage>.csv \
+  --gpu-type H100 \
+  --require-formal-metadata
+```
+
+For `flow_mbpo_awr`, formal metadata validation requires W&B project/group/name,
+notes, dataset/metadata/normalization, policy checkpoint, synthetic replay,
+direct output directory, `enable_wandb=true`, `real_eval_every > 0`,
+`real_eval_selection_metric=return_length_fall`, and real-eval baseline
+return/length/fall fields.
+
 ## Current Experiment Order
 
 1. Improve or debug expert-filtered BC/IL.

@@ -1253,6 +1253,13 @@ Use these locations as the durable record before launching new work:
   - formal preflight: `submit_array.sh --require-formal-metadata` now covers these two synthetic kinds. It rejects missing `enable_wandb=true`, `wandb_project`, `wandb_group`, `wandb_name`, `notes`, direct output dirs, required input paths, and support-risk dataset/metadata/normalization when support-risk termination is enabled.
   - validation: `py_compile`, `bash -n`, CLI help, monkeypatched row-runner command checks for smoke and replay rows, and fake-`sbatch` submitter checks confirmed `--qos=embers`, the correct runners, `--array=0-0%1`, valid metadata preflight pass, and bad replay metadata failure before `sbatch`.
   - interpretation: this is submission-protocol infrastructure only. It lets future formal synthetic generation/preparation use the same manifest, `embers`, W&B, notes, and preflight path as candidate eval/render; it does not add policy evidence.
+- Added a Slurm-array-compatible Flow-MBPO AWR update row runner.
+  - new script: `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - submitter update: `scripts/experiments/mjlab_qs/submit_array.sh` now supports `--kind flow_mbpo_awr`
+  - behavior: AWR manifest rows run `run_flow_mbpo_v0_awr_update.py` with dataset, metadata, normalization, BC policy checkpoint, synthetic replay, output dir, update hyperparameters, support/conservative-Q settings, real-eval settings, W&B fields, and notes.
+  - formal preflight: `submit_array.sh --require-formal-metadata` now requires `enable_wandb=true`, W&B project/group/name, notes, dataset/metadata/normalization, policy checkpoint, synthetic replay, direct output dir, `real_eval_every > 0`, `real_eval_selection_metric=return_length_fall`, and real-eval baseline return/length/fall for `flow_mbpo_awr` rows.
+  - validation: `py_compile`, `bash -n`, CLI help, a monkeypatched row-runner command check, and fake-`sbatch` submitter checks confirmed `--qos=embers`, correct runner selection, valid metadata preflight pass, and bad AWR metadata failure before `sbatch`.
+  - interpretation: this is formal policy-update submission infrastructure only. It does not add policy evidence, but it keeps future AWR training runs on the same `embers`/W&B/notes/real-eval-gate path as replay prep and eval/render.
 
 ## Next Action
 

@@ -612,3 +612,10 @@ forward manifest metadata to the underlying synthetic-buffer and replay
 scripts. With `--require-formal-metadata`, these rows must enable W&B and
 provide W&B project/group/name, notes, direct output dirs, and required inputs
 before `sbatch` is called.
+
+Flow-MBPO AWR updates can now use the same array path via
+`submit_array.sh --kind flow_mbpo_awr`. Formal AWR manifests must enable W&B,
+provide notes and direct input/output paths, and configure real-eval-based
+selection with `real_eval_selection_metric=return_length_fall`, a positive
+`real_eval_every`, and BC baseline return/length/fall gates. This makes the
+policy-update stage submit-time checked before eval/render evidence is produced.

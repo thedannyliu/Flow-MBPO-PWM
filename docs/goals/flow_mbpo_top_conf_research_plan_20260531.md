@@ -597,3 +597,20 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     and replay manifests preserved `--qos=embers`, selected the correct
     runners, and passed preflight; a bad replay manifest failed before
     `sbatch`. This is submission infrastructure only, not policy evidence.
+84. Done for Slurm-array-compatible Flow-MBPO AWR updates.
+    Added `run_flow_mbpo_awr_row.py` and wired
+    `submit_array.sh --kind flow_mbpo_awr`. Manifest rows forward dataset,
+    normalization, BC policy checkpoint, synthetic replay, output dir, update
+    hyperparameters, support/conservative-Q settings, real-eval settings, W&B
+    fields, and notes to `run_flow_mbpo_v0_awr_update.py`.
+85. `submit_array.sh --require-formal-metadata` now covers `flow_mbpo_awr`.
+    It requires `enable_wandb=true`, W&B project/group/name, notes, dataset,
+    metadata, normalization, policy checkpoint, synthetic replay, direct output
+    dir, `real_eval_every > 0`,
+    `real_eval_selection_metric=return_length_fall`, and real-eval baseline
+    return/length/fall.
+86. Validation passed via `py_compile`, `bash -n`, CLI help, a monkeypatched
+    row-runner command check, and fake-`sbatch` submitter checks. Valid AWR
+    manifests preserved `--qos=embers`, selected the AWR runner, and passed
+    preflight; a bad AWR manifest failed before `sbatch`. This is submission
+    infrastructure only, not policy evidence.
