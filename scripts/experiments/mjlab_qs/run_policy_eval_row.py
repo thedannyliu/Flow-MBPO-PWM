@@ -13,6 +13,8 @@ import torch
 
 
 def output_dir(row: dict[str, str]) -> Path:
+    if row.get("policy_checkpoint") and row.get("eval_output_dir"):
+        return Path(row["eval_output_dir"])
     return (
         Path("scripts/outputs/mjlab_qs/policy_evals")
         / (row.get("eval_stage") or row["stage"])
@@ -62,6 +64,7 @@ def main() -> None:
     baseline_return = row.get("eval_baseline_return") or row.get("baseline_return")
     baseline_length = row.get("eval_baseline_length") or row.get("baseline_length")
     baseline_fall = row.get("eval_baseline_fall") or row.get("baseline_fall")
+    direct_checkpoint = row.get("policy_checkpoint")
 
     out = output_dir(row)
     out.mkdir(parents=True, exist_ok=True)
@@ -70,6 +73,10 @@ def main() -> None:
 
     def checkpoint_specs() -> list[tuple[str, Path, Path]]:
         specs: list[tuple[str, Path, Path]] = []
+        if direct_checkpoint:
+            kind = row.get("checkpoint_kind") or row.get("candidate") or "policy"
+            specs.append((kind, Path(direct_checkpoint), out))
+            return specs
         base = policy_dir(row)
         if "final" in checkpoint_kinds:
             specs.append(("final", base / "final_policy_extraction.pt", out / "final"))
@@ -97,11 +104,16 @@ def main() -> None:
             if all(path.exists() for path in complete_paths):
                 print(f"{kind} policy eval already complete; skipping {eval_out}", flush=True)
                 continue
-            wandb_name = (
-                f"{eval_stage}_{row.get('task_key', 'task_unknown')}_{row['wm_method']}_"
-                f"{row.get('policy_type', 'mlp')}_{row.get('online_profile', 'offline')}_"
-                f"{row['compute_profile']}_seed{row['seed']}_{kind}_eval"
-            )
+            if direct_checkpoint:
+                wandb_name = row.get("wandb_name") or f"{eval_stage}_{kind}_eval"
+                wandb_group = row.get("wandb_group") or f"{row['stage']}_eval"
+            else:
+                wandb_name = (
+                    f"{eval_stage}_{row.get('task_key', 'task_unknown')}_{row['wm_method']}_"
+                    f"{row.get('policy_type', 'mlp')}_{row.get('online_profile', 'offline')}_"
+                    f"{row['compute_profile']}_seed{row['seed']}_{kind}_eval"
+                )
+                wandb_group = f"{row.get('wandb_group') or row['stage']}_eval"
             cmd = [
                 args.python_bin,
                 "scripts/experiments/mjlab_qs/eval_policy_checkpoint.py",
@@ -122,9 +134,9 @@ def main() -> None:
                 "--action-ramp-steps",
                 str(action_ramp_steps),
                 "--wandb-project",
-                row.get("wandb_project", "flow-mbpo-mjlab-policy-eval"),
+                row.get("wandb_project") or "flow-mbpo-mjlab-policy-eval",
                 "--wandb-group",
-                f"{row.get('wandb_group', row['stage'])}_eval",
+                wandb_group,
                 "--wandb-name",
                 wandb_name,
             ]

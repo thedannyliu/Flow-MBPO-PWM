@@ -16,6 +16,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--rollout-dir", required=True)
     p.add_argument("--output-csv", required=True)
     p.add_argument("--output-sh", required=True)
+    p.add_argument("--output-eval-manifest", default="")
+    p.add_argument("--output-rollout-manifest", default="")
     p.add_argument("--python-bin", default="python")
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--eval-episodes", type=int, default=40)
@@ -166,6 +168,100 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
+def write_eval_manifest(path: Path, rows: list[dict[str, str]], args: argparse.Namespace) -> None:
+    fields = [
+        "stage",
+        "candidate",
+        "policy_checkpoint",
+        "checkpoint_kind",
+        "eval_output_dir",
+        "eval_episodes",
+        "eval_num_envs",
+        "eval_max_steps",
+        "eval_baseline_return",
+        "eval_baseline_length",
+        "eval_baseline_fall",
+        "wandb_project",
+        "wandb_group",
+        "wandb_name",
+    ]
+    stage = args.wandb_group or Path(args.eval_dir).name
+    manifest_rows = []
+    for row in rows:
+        candidate = row["candidate"]
+        manifest_rows.append(
+            {
+                "stage": stage,
+                "candidate": candidate,
+                "policy_checkpoint": row["checkpoint"],
+                "checkpoint_kind": candidate,
+                "eval_output_dir": row["eval_output_dir"],
+                "eval_episodes": str(args.eval_episodes),
+                "eval_num_envs": str(args.eval_num_envs),
+                "eval_max_steps": str(args.max_steps),
+                "eval_baseline_return": row["eval_baseline_return"],
+                "eval_baseline_length": row["eval_baseline_length"],
+                "eval_baseline_fall": row["eval_baseline_fall"],
+                "wandb_project": args.wandb_project_eval,
+                "wandb_group": args.wandb_group,
+                "wandb_name": f"{args.wandb_group}_{candidate}_eval{args.eval_episodes}" if args.wandb_group else "",
+            }
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(manifest_rows)
+
+
+def write_rollout_manifest(path: Path, rows: list[dict[str, str]], args: argparse.Namespace) -> None:
+    fields = [
+        "stage",
+        "candidate",
+        "policy_checkpoint",
+        "checkpoint_kind",
+        "rollout_output_dir",
+        "rollout_episodes",
+        "rollout_max_steps",
+        "rollout_baseline_return",
+        "rollout_baseline_length",
+        "rollout_baseline_fall",
+        "wandb_project",
+        "wandb_group",
+        "wandb_name",
+    ]
+    stage = args.wandb_group or Path(args.rollout_dir).name
+    manifest_rows = []
+    for row in rows:
+        candidate = row["candidate"]
+        manifest_rows.append(
+            {
+                "stage": stage,
+                "candidate": candidate,
+                "policy_checkpoint": row["checkpoint"],
+                "checkpoint_kind": candidate,
+                "rollout_output_dir": row["rollout_output_dir"],
+                "rollout_episodes": str(args.rollout_episodes),
+                "rollout_max_steps": str(args.max_steps),
+                "rollout_baseline_return": row["rollout_baseline_return"],
+                "rollout_baseline_length": row["rollout_baseline_length"],
+                "rollout_baseline_fall": row["rollout_baseline_fall"],
+                "wandb_project": args.wandb_project_rollout,
+                "wandb_group": args.wandb_group,
+                "wandb_name": (
+                    f"{args.wandb_group}_{candidate}_rollout{args.max_steps}_ep{args.rollout_episodes}"
+                    if args.wandb_group
+                    else ""
+                ),
+            }
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(manifest_rows)
+
+
 def write_shell(path: Path, rows: list[dict[str, str]]) -> None:
     lines = [
         "#!/usr/bin/env bash",
@@ -194,6 +290,10 @@ def main() -> None:
     rows = build_rows(args)
     write_csv(Path(args.output_csv), rows)
     write_shell(Path(args.output_sh), rows)
+    if args.output_eval_manifest:
+        write_eval_manifest(Path(args.output_eval_manifest), rows, args)
+    if args.output_rollout_manifest:
+        write_rollout_manifest(Path(args.output_rollout_manifest), rows, args)
     print(f"wrote {len(rows)} candidate rows to {args.output_csv} and {args.output_sh}")
 
 

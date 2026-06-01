@@ -479,3 +479,18 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     columns, and both generated standalone eval/render commands included the
     corresponding `--baseline-*` flags. This is protocol hardening only, not
     policy evidence.
+65. Done for Slurm-array-compatible candidate manifests.
+    `build_flow_mbpo_candidate_eval_plan.py` now optionally writes
+    `--output-eval-manifest` and `--output-rollout-manifest` files. These
+    manifests carry direct `policy_checkpoint` paths, candidate output dirs,
+    W&B project/group/name fields, and eval/rollout baseline columns.
+    `run_policy_eval_row.py` and `run_policy_rollout_row.py` detect
+    `policy_checkpoint` rows and run the exact snapshot checkpoint directly
+    instead of reconstructing final/best paths from a policy-extraction stage.
+66. Validation passed via `py_compile`, CLI help, `/tmp` 8-candidate manifest
+    generation, and monkeypatched row-runner command checks for one eval row
+    plus one rollout row. Both captured commands included the exact checkpoint,
+    candidate output directory, W&B project, and baseline gate flags. This
+    keeps future candidate snapshot eval/render submissions on the existing
+    `submit_array.sh` path with default `embers` QOS protection; it is not new
+    policy evidence.

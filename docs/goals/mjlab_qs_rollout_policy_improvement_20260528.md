@@ -1195,6 +1195,13 @@ Use these locations as the durable record before launching new work:
   - behavior: generated CSV rows now carry eval and rollout baseline columns, and generated standalone eval/render commands pass the corresponding `--baseline-*` args to the downstream scripts
   - validation: `py_compile`, CLI help, and a `/tmp` plan generation check against the existing snapshot AWR output `flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0`; the check found `8` candidates and confirmed baseline fields plus command-line flags in both CSV and shell outputs
   - interpretation: this is evidence-protocol infrastructure only. It reduces the chance that future candidate snapshot eval/render plans are run without explicit BC gate metadata, but it does not add new policy evidence.
+- Added Slurm-array-compatible direct checkpoint manifests for Flow-MBPO candidate eval/render.
+  - script updates: `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`, `scripts/experiments/mjlab_qs/run_policy_eval_row.py`, and `scripts/experiments/mjlab_qs/run_policy_rollout_row.py`
+  - new plan-builder outputs: optional `--output-eval-manifest` and `--output-rollout-manifest`
+  - behavior: the candidate builder can now emit manifests whose rows contain `policy_checkpoint`, candidate-specific output directories, W&B project/group/name fields, and eval/rollout baseline gate columns. `run_policy_eval_row.py` and `run_policy_rollout_row.py` detect `policy_checkpoint` and run that exact checkpoint directly instead of reconstructing `final`/`best` paths from a policy-extraction stage.
+  - purpose: candidate snapshot eval/render can now be submitted through `scripts/experiments/mjlab_qs/submit_array.sh --kind policy_eval` and `--kind policy_rollout`, preserving the default `embers` QOS guard and W&B row-runner path instead of relying only on hand-run shell command lists.
+  - validation: `py_compile`, CLI help, `/tmp` 8-candidate eval/rollout manifest generation, and monkeypatched row-runner checks confirming that direct eval/render commands include the exact checkpoint, candidate output dir, W&B project, and baseline gate flags.
+  - interpretation: this is submission-protocol infrastructure only. It does not add new policy evidence, but it makes future candidate snapshot eval/render runs easier to keep on the formal `embers`/W&B/baseline-gated path.
 
 ## Next Action
 

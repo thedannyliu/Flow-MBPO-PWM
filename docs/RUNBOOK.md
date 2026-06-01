@@ -86,6 +86,24 @@ bash scripts/experiments/mjlab_qs/submit_array.sh \
 
 Manifest rows may set `policy_stage`, `eval_stage`, `eval_episodes`, `eval_num_envs`, `eval_max_steps`, and `checkpoint_kinds`. Formal evals must keep W&B enabled.
 
+For Flow-MBPO snapshot candidates, build direct-checkpoint eval and rollout manifests with:
+
+```bash
+python scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py \
+  --awr-dir <flow_mbpo_awr_output_dir> \
+  --eval-dir <candidate_eval_output_dir> \
+  --rollout-dir <candidate_rollout_output_dir> \
+  --output-csv <candidate_plan.csv> \
+  --output-sh <candidate_plan.sh> \
+  --output-eval-manifest scripts/experiments/mjlab_qs/manifests/<candidate_eval_stage>.csv \
+  --output-rollout-manifest scripts/experiments/mjlab_qs/manifests/<candidate_rollout_stage>.csv \
+  --wandb-project-eval <wandb_eval_project> \
+  --wandb-project-rollout <wandb_rollout_project> \
+  --wandb-group <candidate_group>
+```
+
+Submit those manifests through `submit_array.sh --kind policy_eval` and `--kind policy_rollout` so candidate snapshots still use the `embers` QOS guard, W&B row-runner path, and baseline gate fields.
+
 ## Current Experiment Order
 
 1. Improve or debug expert-filtered BC/IL.

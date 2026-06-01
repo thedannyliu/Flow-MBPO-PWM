@@ -540,3 +540,14 @@ plans and array manifests now follow the same gate-reporting protocol. A `/tmp`
 plan check on the existing snapshot AWR run confirmed the baseline columns and
 command flags for all `8` candidates. This is protocol hardening only, not new
 policy evidence.
+
+Candidate snapshot eval/render can now use the standard Slurm array runners.
+The plan builder optionally emits direct-checkpoint eval and rollout manifests
+with `policy_checkpoint`, candidate-specific output directories, W&B metadata,
+and baseline gate fields. `run_policy_eval_row.py` and
+`run_policy_rollout_row.py` treat rows with `policy_checkpoint` as exact
+checkpoint jobs, while preserving the old stage-based final/best behavior for
+existing manifests. This lets snapshot candidates run through
+`submit_array.sh --kind policy_eval` and `--kind policy_rollout`, keeping the
+default `embers` QOS guard and W&B row-runner path instead of relying only on a
+hand-run shell command list.
