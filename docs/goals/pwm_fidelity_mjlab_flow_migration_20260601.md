@@ -363,4 +363,150 @@ sbatch \
   --wrap='cd /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM && source ~/.bashrc && conda activate pwm && export WANDB_MODE=disabled && export PYTHONPATH=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/src:/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/external/tdmpc2:$PYTHONPATH && cd baselines/PWM/scripts && python train_dflex.py env=dflex_hopper alg=pwm general.run_wandb=False general.seed=0 general.checkpoint=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt alg.max_epochs=10 alg.save_interval=10 general.eval_runs=1 general.logdir=logs/phase1_hopper_smoke_20260601'
 ```
 
-Next action: wait for job `9379551` to leave pending, inspect stdout/stderr, and only then decide whether to submit the formal W&B seed.
+Outcome: job `9379551` stayed pending with reason `Priority` and was canceled before running to avoid duplicate smoke jobs when an RTX6000 slot was available.
+
+## Phase 1 Smoke Debug Log
+
+The original-code smoke attempts exposed two runtime issues before a valid smoke passed:
+
+| Job | Status | Evidence | Interpretation |
+| --- | --- | --- | --- |
+| `9379606` | failed | `torch.load` rejected `RunningMeanStd` because PyTorch 2.10 defaults toward `weights_only=True` | environment compatibility issue, not an algorithm deviation |
+| `9379640` | failed | checkpoint loaded, but `alg.max_epochs=10` ended before a 1000-step Hopper episode completed; final buffer save saw no initialized replay buffer | smoke too short for original DFlex episode horizon |
+| `9379646` | failed after training/save | 80-epoch smoke initialized replay buffer and saved policies, then final eval failed because `PWM.eval()` expected 3 values from `WorldModel.step()` while DFlex scalar-reward WM returns 2 | upstream/local original eval bug under DFlex scalar-reward path |
+
+Compatibility settings retained for subsequent runs:
+
+```text
+TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
+HYDRA_FULL_ERROR=1
+PYTHONPATH=<repo>/baselines/PWM/src:<repo>/baselines/PWM/external/tdmpc2:$PYTHONPATH
+```
+
+Local baseline fix:
+
+```text
+baseline_repo: baselines/PWM
+upstream_base_sha: 9816252019ad8ca9a4393bceacf8a4dde711a749
+local_fix_sha: cb7b1689afbfd4b5662e43cdbae2c360e52d56a1
+commit: Fix DFlex PWM eval world-model step unpack
+file: baselines/PWM/src/pwm/algorithms/pwm.py
+change: in PWM.eval(), unpack `z, rew = self.wm.step(...)` and apply `self.wm.almost_two_hot_inv(rew).squeeze()`, matching the training path.
+```
+
+This is a documented deviation from pristine upstream. It is limited to making original DFlex eval match the existing DFlex training/world-model API; it does not change architecture, horizon, losses, optimizers, actor/critic sizes, reward model, or update logic.
+
+Passing W&B-disabled smoke:
+
+```text
+slurm_job_id: 9379661
+job_name: pwm_p1_hopper_smoke_evalfix
+repo_sha: 027058ca8cf73dea19113ebe6a3ba74628c86847
+baseline_pwm_sha: cb7b1689afbfd4b5662e43cdbae2c360e52d56a1
+upstream_pwm_sha: 9816252019ad8ca9a4393bceacf8a4dde711a749
+partition: gpu-rtx6000
+qos: embers
+account: gts-agarg35
+gres: gpu:rtx_6000:1
+wandb: disabled
+seed: 0
+env: dflex_hopper
+config: baselines/PWM/scripts/cfg/config.yaml + env=dflex_hopper + alg=pwm
+checkpoint: scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
+max_epochs: 80
+eval_runs: 1
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_smoke_evalfix_9379661.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_smoke_evalfix_9379661.err
+output_dir: baselines/PWM/scripts/outputs/2026-06-01/15-32-34/logs/phase1_hopper_smoke_20260601_evalfix
+artifacts: init_policy.pt, best_policy.pt, final_policy.pt
+slurm_state: COMPLETED
+exit_code: 0:0
+final_eval: mean episode loss = -377.16, mean discounted loss = -37.71, mean episode length = 1000.00
+```
+
+The smoke is not a parity result because it only ran 80 epochs. It is a runtime gate proving the original DFlex Hopper path can load the checkpoint, run original PWM actor/critic/WM updates, save final and best policies, and execute final eval with W&B disabled.
+
+## Phase 1 Formal Submission
+
+First formal submission:
+
+```text
+submitted_at: 2026-06-01
+slurm_job_id: 9379689
+job_name: pwm_p1_hopper_formal_s0
+repo_sha: 027058ca8cf73dea19113ebe6a3ba74628c86847
+baseline_pwm_sha: cb7b1689afbfd4b5662e43cdbae2c360e52d56a1
+upstream_pwm_sha: 9816252019ad8ca9a4393bceacf8a4dde711a749
+partition: gpu-rtx6000
+qos: embers
+account: gts-agarg35
+gres: gpu:rtx_6000:1
+wandb_project: flow-mbpo-pwm-fidelity
+wandb_group: phase1_original_hopper_20260601
+seed: 0
+env: dflex_hopper
+config: baselines/PWM/scripts/cfg/config.yaml + env=dflex_hopper + alg=pwm
+checkpoint: scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
+eval_runs: 12
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0_9379689.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0_9379689.err
+status: FAILED before training
+exit_code: 1:0
+failure: Hydra override parse error from long W&B notes string containing unescaped `=` tokens.
+```
+
+Exact submitted command:
+
+```bash
+mkdir -p logs/slurm/pwm_phase1
+sbatch \
+  --job-name=pwm_p1_hopper_formal_s0 \
+  --account=gts-agarg35 \
+  --partition=gpu-rtx6000 \
+  --qos=embers \
+  --gres=gpu:rtx_6000:1 \
+  --nodes=1 \
+  --ntasks=1 \
+  --cpus-per-task=6 \
+  --mem=96G \
+  --time=04:00:00 \
+  --output=logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0_%j.out \
+  --error=logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0_%j.err \
+  --wrap='cd /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM && source ~/.bashrc && conda activate pwm && export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 && export HYDRA_FULL_ERROR=1 && export WANDB_DIR=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/scripts/wandb && mkdir -p "$WANDB_DIR" && export PYTHONPATH=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/src:/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/external/tdmpc2:$PYTHONPATH && cd baselines/PWM/scripts && python train_dflex.py env=dflex_hopper alg=pwm general.run_wandb=True general.seed=0 general.checkpoint=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt general.eval_runs=12 general.logdir=logs/phase1_hopper_formal_seed0_20260601 wandb.project=flow-mbpo-pwm-fidelity wandb.group=phase1_original_hopper_20260601 +wandb.notes="Phase 1 original PWM Hopper formal seed. main_repo_sha=027058ca8cf73dea19113ebe6a3ba74628c86847 pwm_sha=cb7b1689afbfd4b5662e43cdbae2c360e52d56a1 upstream_pwm_sha=9816252019ad8ca9a4393bceacf8a4dde711a749 env=dflex_hopper alg=pwm config=baselines/PWM/scripts/cfg/config.yaml checkpoint=scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt seed=0 qos=embers partition=gpu-rtx6000 smoke_job=9379661 compatibility=TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD plus local eval unpack fix"'
+```
+
+Corrected formal W&B seed on `embers`:
+
+```text
+submitted_at: 2026-06-01
+slurm_job_id: 9379717
+job_name: pwm_p1_hopper_formal_s0b
+repo_sha: 027058ca8cf73dea19113ebe6a3ba74628c86847
+baseline_pwm_sha: cb7b1689afbfd4b5662e43cdbae2c360e52d56a1
+upstream_pwm_sha: 9816252019ad8ca9a4393bceacf8a4dde711a749
+partition: gpu-rtx6000
+qos: embers
+account: gts-agarg35
+gres: gpu:rtx_6000:1
+wandb_project: flow-mbpo-pwm-fidelity
+wandb_group: phase1_original_hopper_20260601
+wandb_entity: danny010324
+wandb_run_id: 3fzh44cb
+wandb_url: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/3fzh44cb
+seed: 0
+env: dflex_hopper
+config: baselines/PWM/scripts/cfg/config.yaml + env=dflex_hopper + alg=pwm
+checkpoint: scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
+eval_runs: 12
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0b_9379717.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_formal_s0b_9379717.err
+status_after_submit: RUNNING
+```
+
+Corrected command changed only the W&B notes override to a Hydra-safe value:
+
+```text
++wandb.notes=phase1_original_pwm_hopper_formal_seed0_main_027058c_pwm_cb7b168_upstream_9816252_checkpoint_hopper_smoke_9379661_torch_force_no_weights_only_load_evalfix
+```
+
+Next action: monitor job `9379717`, record final metrics/checkpoints, and compare the final reward to the original Hopper target before any MJLab port.
