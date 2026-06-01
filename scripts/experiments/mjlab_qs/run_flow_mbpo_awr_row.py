@@ -18,6 +18,25 @@ def present(row: dict[str, str], key: str) -> bool:
     return bool(str(row.get(key, "")).strip())
 
 
+def check_input_paths(row: dict[str, str]) -> None:
+    required = ["dataset", "metadata", "normalization", "policy_checkpoint", "synthetic_replay"]
+    errors: list[str] = []
+    for key in required:
+        if not present(row, key):
+            errors.append(f"missing {key}")
+            continue
+        path = Path(row[key])
+        if not path.exists():
+            errors.append(f"{key} does not exist: {path}")
+    if present(row, "support_risk_features"):
+        for raw_path in row["support_risk_features"].split(","):
+            path_text = raw_path.strip()
+            if path_text and not Path(path_text).exists():
+                errors.append(f"support_risk_features path does not exist: {path_text}")
+    if errors:
+        raise SystemExit("AWR row input validation failed:\n" + "\n".join(errors))
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--manifest", required=True)
@@ -25,10 +44,14 @@ def main() -> None:
     p.add_argument("--python-bin", default="python")
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--dry-run", action="store_true", help="Print the updater command without executing it.")
+    p.add_argument("--check-inputs", action="store_true", help="Validate required input paths before running.")
     args = p.parse_args()
 
     with open(args.manifest, newline="", encoding="utf-8") as f:
         row = list(csv.DictReader(f))[args.row_index]
+
+    if args.check_inputs:
+        check_input_paths(row)
 
     output_dir = Path(row.get("output_dir") or row.get("awr_output_dir") or "")
     if not str(output_dir):

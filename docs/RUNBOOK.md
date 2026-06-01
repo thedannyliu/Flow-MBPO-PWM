@@ -155,6 +155,7 @@ python scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py \
   --row-index 0 \
   --python-bin python \
   --device cuda:0 \
+  --check-inputs \
   --dry-run
 ```
 
@@ -197,7 +198,15 @@ still requires W&B-enabled AWR, final and gate-aware true-best checkpoints,
 
 ## Current Experiment Order
 
-1. Improve or debug expert-filtered BC/IL.
-2. Verify world models with long-horizon, reward, termination, and expert-in-model diagnostics.
-3. Only then rerun conservative BC-warmstarted PWM 2x2.
-4. Add SigReg only after long-horizon behavior and real rollout are part of the comparison.
+1. Keep collector/reference and best BC as fixed rollout-first gates.
+2. Do not expand more BC/data micro-tweaks unless they directly unblock
+   Flow-MBPO failure diagnosis.
+3. Continue Flow-MBPO v1 through conservative short-horizon synthetic replay,
+   support/OOD risk calibration, and conservative-Q critic diagnostics.
+4. Run only W&B-disabled smokes until a candidate has a credible path to lower
+   fall rate than matched BC.
+5. Promote to a formal W&B `embers` run only with final plus gate-aware
+   true-best checkpoints, 40-episode eval, matched roll10 videos, and baseline
+   return/length/fall gates.
+6. Keep SigReg as a targeted world-model regularization ablation judged by
+   long-horizon prediction, reward/done/fall calibration, and real rollout.

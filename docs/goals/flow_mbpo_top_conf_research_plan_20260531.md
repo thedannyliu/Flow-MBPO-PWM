@@ -675,3 +675,10 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     `--qos=embers`, array `0-1%1`, and no queued job; formal metadata preflight
     and the `inferno` QOS guard still run before dry-run output. This is
     submission safety infrastructure only, not policy evidence.
+97. Done for AWR row input-path validation.
+    `run_flow_mbpo_awr_row.py --check-inputs` validates required dataset,
+    metadata, normalization, policy checkpoint, synthetic replay, and optional
+    support-risk feature paths before running or dry-running a manifest row.
+    Validation passed on the CQL OOD-source smoke manifest and failed as expected
+    on a temporary bad manifest with a missing synthetic replay path. This is
+    submission safety infrastructure only, not policy evidence.

@@ -1318,6 +1318,16 @@ Use these locations as the durable record before launching new work:
 - Added CQL OOD-source AWR smoke workflow to `docs/RUNBOOK.md`.
   - content: row-level dry-run command, array-level dry-run command, warning not to use formal metadata preflight on the W&B-disabled diagnostic manifest, and post-run `export_flow_mbpo_awr_summary.py --require-complete` command
   - interpretation: this documents the safe command sequence for the current critic diagnostic path; it does not run experiments or add policy evidence.
+- Reconciled the active goal log with the 2026-05-29 high-value Flow-MBPO
+  objective and the 2026-05-31 top-conference v1 plan.
+  - source plans: `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md`, `docs/goals/0531/flow_mbpo_top_conf_goal_objective_20260531.txt`, `docs/goals/0531/flow_mbpo_top_conf_research_plan_20260531.md`, and `docs/goals/0531/flow_mbpo_v1_pessimistic_design_20260531.md`
+  - behavior: `docs/RUNBOOK.md` now lists the current experiment order as Flow-MBPO v1 conservative short-horizon replay, support/OOD calibration, and conservative-Q diagnostics before any formal W&B seed, instead of more BC/IL or PWM 2x2 expansion
+  - interpretation: this is documentation alignment only. The active method direction remains Pessimistic Flow-MBPO; no new policy evidence is added.
+- Added AWR row input-path validation.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - behavior: `--check-inputs` validates required dataset, metadata, normalization, policy checkpoint, synthetic replay, and optional support-risk feature paths before running or dry-running a row
+  - validation: current CQL OOD-source smoke row passed `--check-inputs --dry-run`; a temporary bad manifest with a missing synthetic replay path failed with `AWR row input validation failed`
+  - interpretation: this catches path errors before Slurm submission but does not run experiments or add policy evidence.
 
 ## Next Action
 

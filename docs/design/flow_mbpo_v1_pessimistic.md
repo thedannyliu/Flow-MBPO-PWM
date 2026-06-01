@@ -474,7 +474,8 @@ after running them. The exporter keeps unrun manifest rows as `missing` and
 extracts final critic loss, CQL gap, random-action Q mean/max, best-real fields,
 W&B metadata, and notes from completed `summary.json` files.
 Use `run_flow_mbpo_awr_row.py --dry-run` to inspect the exact updater command
-for a manifest row before launching a W&B-disabled smoke or Slurm array.
+for a manifest row before launching a W&B-disabled smoke or Slurm array; add
+`--check-inputs` to validate required input paths first.
 Use `submit_array.sh --dry-run` to inspect the composed `sbatch` command without
 submitting a job; the QOS guard and optional formal metadata preflight still
 run first.
