@@ -149,6 +149,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-project", default="flow-mbpo-mjlab-flow-mbpo-v0-awr")
     p.add_argument("--wandb-group", default="")
     p.add_argument("--wandb-name", default="")
+    p.add_argument("--notes", default="")
     return p.parse_args()
 
 
@@ -696,6 +697,7 @@ def main() -> None:
             "metadata": args.metadata,
             "normalization": args.normalization,
             "seed": int(args.seed),
+            "notes": args.notes,
         }
     )
     run = None

@@ -575,3 +575,9 @@ disabled W&B, missing baseline gates, and incomplete direct-checkpoint output
 paths before calling `sbatch`. This keeps formal candidate eval/render jobs on
 the same evidence protocol while leaving smoke and legacy submissions
 unchanged unless the flag is requested.
+
+AWR training notes are now part of checkpoint provenance. The Flow-MBPO AWR
+update script accepts `--notes`, records notes in its summary/W&B config, and
+writes them into checkpoint `args`. Downstream eval/render therefore can recover
+the training-run notes from final, best, best-training, real-eval snapshot, or
+critic checkpoints.

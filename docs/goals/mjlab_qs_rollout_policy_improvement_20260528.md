@@ -1221,6 +1221,12 @@ Use these locations as the durable record before launching new work:
   - behavior: for `policy_eval` and `policy_rollout`, the submitter validates the manifest before `sbatch`. It rejects rows with W&B disabled, missing `wandb_project`, missing `wandb_group`, missing `notes`, missing eval/rollout baseline fields, missing direct-checkpoint output directories, or missing `wandb_name` on direct `policy_checkpoint` rows.
   - validation: `bash -n`; generated `/tmp` direct candidate eval/rollout manifests with notes and fake `sbatch` to confirm validation passes, `--qos=embers` is preserved, and `--array=0-7%1` is composed; a bad manifest with empty notes failed before fake `sbatch` with `missing notes`
   - interpretation: this is submit-time protocol hardening only. It does not add policy evidence, but it gives future formal candidate eval/render submissions a preflight check for W&B, notes, baseline gates, and direct checkpoint output paths.
+- Added notes provenance to the Flow-MBPO AWR update path.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new arg: `--notes`
+  - behavior: AWR summary/W&B config already include `vars(args)`, so notes now appear in `summary.json` when supplied. The update also writes `notes` into checkpoint `args`, so final, best, best-training, real-eval snapshot, and critic checkpoints carry the training-run notes into downstream eval/render provenance.
+  - validation: `py_compile`, CLI help check for `--notes`, and a `/tmp` fake dataset/replay/checkpoint CPU smoke with `update_iters=1` verified notes in `summary.json`, `final_policy_extraction.pt`, and `best_policy_extraction.pt`. An attempted CPU smoke on the full QS dataset was killed by the local shell environment before completion, so the final validation used the smaller fake fixture.
+  - interpretation: this is training provenance hardening only. It does not add policy evidence, but it closes the formal-run notes gap on the Flow-MBPO AWR training side.
 
 ## Next Action
 

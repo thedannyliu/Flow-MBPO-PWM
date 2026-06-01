@@ -530,3 +530,14 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     preserving `--qos=embers` and the expected array span; a bad manifest with
     empty notes failed before fake `sbatch`. This is submission infrastructure
     only, not policy evidence.
+73. Done for AWR training-run notes provenance.
+    `run_flow_mbpo_v0_awr_update.py` now accepts `--notes`. Because the AWR
+    summary and W&B config already include `vars(args)`, notes are recorded in
+    `summary.json` when supplied. The script also writes notes into checkpoint
+    `args`, so final, best, best-training, real-eval snapshot, and critic
+    checkpoints can carry training-run notes into later eval/render evidence.
+74. Validation passed via `py_compile`, CLI help, and a `/tmp` fake
+    dataset/replay/checkpoint CPU smoke with `update_iters=1`. The smoke
+    verified notes in `summary.json`, `final_policy_extraction.pt`, and
+    `best_policy_extraction.pt`. This is provenance infrastructure only, not
+    policy evidence.
