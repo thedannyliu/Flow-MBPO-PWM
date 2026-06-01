@@ -68,14 +68,20 @@ import csv
 import sys
 
 manifest, kind = sys.argv[1], sys.argv[2]
-if kind not in {"policy_eval", "policy_rollout"}:
-    raise SystemExit("--require-formal-metadata is only supported for policy_eval and policy_rollout")
+if kind not in {"policy_eval", "policy_rollout", "flow_mbpo_smoke", "flow_mbpo_replay"}:
+    raise SystemExit(
+        "--require-formal-metadata is only supported for policy_eval, policy_rollout, "
+        "flow_mbpo_smoke, and flow_mbpo_replay"
+    )
 
 def present(row, key):
     return bool(str(row.get(key, "")).strip())
 
 def disabled_wandb(row):
     return str(row.get("disable_wandb", "")).strip().lower() in {"1", "true", "yes"}
+
+def enabled_wandb(row):
+    return str(row.get("enable_wandb", "")).strip().lower() in {"1", "true", "yes"}
 
 def baseline_present(row, prefix):
     return (
@@ -89,8 +95,12 @@ with open(manifest, newline="", encoding="utf-8") as f:
     rows = list(csv.DictReader(f))
 for idx, row in enumerate(rows):
     label = f"row {idx}"
-    if disabled_wandb(row):
-        errors.append(f"{label}: disable_wandb is set; formal metadata requires W&B enabled")
+    if kind in {"policy_eval", "policy_rollout"}:
+        if disabled_wandb(row):
+            errors.append(f"{label}: disable_wandb is set; formal metadata requires W&B enabled")
+    else:
+        if not enabled_wandb(row):
+            errors.append(f"{label}: enable_wandb must be true for formal synthetic runs")
     for key in ("wandb_project", "wandb_group", "notes"):
         if not present(row, key):
             errors.append(f"{label}: missing {key}")
@@ -104,8 +114,25 @@ for idx, row in enumerate(rows):
             errors.append(f"{label}: missing rollout_baseline_* or baseline_* fields")
         if present(row, "policy_checkpoint") and not present(row, "rollout_output_dir"):
             errors.append(f"{label}: direct checkpoint rollout rows require rollout_output_dir")
-    if present(row, "policy_checkpoint") and not present(row, "wandb_name"):
-        errors.append(f"{label}: direct checkpoint rows require wandb_name")
+    if kind == "flow_mbpo_smoke":
+        for key in ("dataset", "metadata", "normalization", "policy_checkpoint"):
+            if not present(row, key):
+                errors.append(f"{label}: missing {key}")
+        if not (present(row, "wm_checkpoint") or present(row, "wm_checkpoints")):
+            errors.append(f"{label}: missing wm_checkpoint or wm_checkpoints")
+        if not (present(row, "output_dir") or present(row, "smoke_output_dir")):
+            errors.append(f"{label}: flow_mbpo_smoke rows require output_dir or smoke_output_dir")
+    if kind == "flow_mbpo_replay":
+        if not present(row, "synthetic_buffer"):
+            errors.append(f"{label}: missing synthetic_buffer")
+        if not (present(row, "output_dir") or present(row, "replay_output_dir")):
+            errors.append(f"{label}: flow_mbpo_replay rows require output_dir or replay_output_dir")
+        if str(row.get("support_risk_termination", "")).strip().lower() in {"1", "true", "yes"}:
+            for key in ("support_dataset", "support_metadata", "support_normalization"):
+                if not present(row, key):
+                    errors.append(f"{label}: support_risk_termination requires {key}")
+    if (present(row, "policy_checkpoint") or kind in {"flow_mbpo_smoke", "flow_mbpo_replay"}) and not present(row, "wandb_name"):
+        errors.append(f"{label}: formal direct-artifact rows require wandb_name")
 if errors:
     raise SystemExit("Formal metadata validation failed:\n" + "\n".join(errors))
 print(f"formal metadata validation passed for {len(rows)} {kind} rows")
@@ -126,6 +153,10 @@ elif [[ "$KIND" == "policy_rollout" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_policy_rollout_row.py"
 elif [[ "$KIND" == "policy_eval" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_policy_eval_row.py"
+elif [[ "$KIND" == "flow_mbpo_smoke" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_smoke_row.py"
+elif [[ "$KIND" == "flow_mbpo_replay" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_replay_row.py"
 elif [[ "$KIND" == "original_pwm_adapter" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_original_pwm_adapter_row.py"
 elif [[ "$KIND" == "native_collector" ]]; then

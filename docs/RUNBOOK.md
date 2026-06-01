@@ -105,6 +105,30 @@ python scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py \
 
 Submit those manifests through `submit_array.sh --kind policy_eval` and `--kind policy_rollout` so candidate snapshots still use the `embers` QOS guard, W&B row-runner path, and baseline gate fields. For formal candidate eval/render, add `--require-formal-metadata`; this rejects rows with W&B disabled or missing W&B project/group, notes, baseline gates, or direct-checkpoint output directories before `sbatch`.
 
+## Synthetic Replay Jobs
+
+Formal Flow-MBPO synthetic-buffer and replay-preparation jobs can also use the
+standard array wrapper:
+
+```bash
+scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind flow_mbpo_smoke \
+  --manifest scripts/experiments/mjlab_qs/manifests/<smoke_stage>.csv \
+  --gpu-type H100 \
+  --require-formal-metadata
+
+scripts/experiments/mjlab_qs/submit_array.sh \
+  --kind flow_mbpo_replay \
+  --manifest scripts/experiments/mjlab_qs/manifests/<replay_stage>.csv \
+  --gpu-type H100 \
+  --require-formal-metadata
+```
+
+For these formal synthetic rows, `--require-formal-metadata` requires
+`enable_wandb=true`, W&B project/group/name, notes, direct output directories,
+and the required input paths. Support-risk replay rows must also include the
+support dataset, metadata, and normalization paths.
+
 ## Current Experiment Order
 
 1. Improve or debug expert-filtered BC/IL.

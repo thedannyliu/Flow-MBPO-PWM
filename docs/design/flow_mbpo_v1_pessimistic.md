@@ -604,3 +604,11 @@ run id and URL locally. When W&B initialization succeeds, both scripts rewrite
 their `summary.json` and metadata sidecar JSON with `wandb_run_id` and
 `wandb_run_url`, so a saved buffer/replay can be traced back to W&B without
 searching Slurm logs.
+
+Synthetic generation and replay preparation can now run through the standard
+MJLab QS Slurm array wrapper. `submit_array.sh` supports
+`--kind flow_mbpo_smoke` and `--kind flow_mbpo_replay`, using row runners that
+forward manifest metadata to the underlying synthetic-buffer and replay
+scripts. With `--require-formal-metadata`, these rows must enable W&B and
+provide W&B project/group/name, notes, direct output dirs, and required inputs
+before `sbatch` is called.

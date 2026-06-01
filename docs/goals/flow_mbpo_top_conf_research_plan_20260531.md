@@ -581,3 +581,19 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     W&B job types, scalar logging, finish calls, input-buffer note propagation,
     and replay tensor schema preservation. This is provenance infrastructure
     only, not policy evidence.
+81. Done for Slurm-array-compatible synthetic generation and replay preparation.
+    Added `run_flow_mbpo_smoke_row.py` and `run_flow_mbpo_replay_row.py`, and
+    wired `submit_array.sh --kind flow_mbpo_smoke` plus
+    `--kind flow_mbpo_replay`. Smoke rows forward dataset, normalization,
+    policy checkpoint, one or more WM checkpoints, support-risk settings, W&B
+    fields, and notes. Replay rows forward the synthetic buffer, pessimism,
+    support-risk, W&B, and notes settings.
+82. `submit_array.sh --require-formal-metadata` now covers those synthetic
+    kinds. It requires `enable_wandb=true`, W&B project/group/name, notes,
+    direct output dirs, required input paths, and support dataset/metadata/
+    normalization when support-risk termination is enabled.
+83. Validation passed via `py_compile`, `bash -n`, CLI help, monkeypatched
+    row-runner command checks, and fake-`sbatch` submitter checks. Valid smoke
+    and replay manifests preserved `--qos=embers`, selected the correct
+    runners, and passed preflight; a bad replay manifest failed before
+    `sbatch`. This is submission infrastructure only, not policy evidence.

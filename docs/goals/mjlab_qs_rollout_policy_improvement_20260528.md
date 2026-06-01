@@ -1246,6 +1246,13 @@ Use these locations as the durable record before launching new work:
   - behavior: when W&B is enabled and run initialization succeeds, both scripts now write `wandb_run_id` and `wandb_run_url` back into their local `summary.json` and metadata sidecar JSON files.
   - validation: `py_compile`, CLI help checks, and a `/tmp` fake dataset/checkpoint fixture with a monkeypatched W&B module verified smoke and replay run ids/URLs in summaries and sidecars, W&B job types, scalar logging, finish calls, input-buffer note propagation, and preservation of replay tensor keys.
   - interpretation: this is local artifact provenance only. It makes future synthetic-buffer and synthetic-replay artifacts self-contained enough to map back to W&B without searching external logs; it does not add policy evidence.
+- Added Slurm-array-compatible synthetic generation and replay-preparation row runners.
+  - new scripts: `scripts/experiments/mjlab_qs/run_flow_mbpo_smoke_row.py` and `scripts/experiments/mjlab_qs/run_flow_mbpo_replay_row.py`
+  - submitter update: `scripts/experiments/mjlab_qs/submit_array.sh` now supports `--kind flow_mbpo_smoke` and `--kind flow_mbpo_replay`
+  - behavior: smoke manifest rows run `run_flow_mbpo_v0_smoke.py` with dataset, metadata, normalization, policy checkpoint, one or more WM checkpoints, support-risk flags, W&B fields, and notes. Replay manifest rows run `prepare_flow_mbpo_v0_synthetic_replay.py` with synthetic-buffer path, pessimism/termination/support-risk settings, W&B fields, and notes.
+  - formal preflight: `submit_array.sh --require-formal-metadata` now covers these two synthetic kinds. It rejects missing `enable_wandb=true`, `wandb_project`, `wandb_group`, `wandb_name`, `notes`, direct output dirs, required input paths, and support-risk dataset/metadata/normalization when support-risk termination is enabled.
+  - validation: `py_compile`, `bash -n`, CLI help, monkeypatched row-runner command checks for smoke and replay rows, and fake-`sbatch` submitter checks confirmed `--qos=embers`, the correct runners, `--array=0-0%1`, valid metadata preflight pass, and bad replay metadata failure before `sbatch`.
+  - interpretation: this is submission-protocol infrastructure only. It lets future formal synthetic generation/preparation use the same manifest, `embers`, W&B, notes, and preflight path as candidate eval/render; it does not add policy evidence.
 
 ## Next Action
 
