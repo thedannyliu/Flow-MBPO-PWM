@@ -559,3 +559,11 @@ recording dataset, metadata, normalization, seed, task id, WM method, policy
 type, git SHA/branch, command, checkpoint, notes, and baseline gate fields.
 Candidate W&B names are derived from the actual episode/step settings, so a
 nonstandard candidate smoke is not mislabeled as `eval40` or `rollout1000_ep10`.
+
+Candidate ranking now prefers recorded gate metadata when available.
+`rank_flow_mbpo_candidate_evidence.py` uses `baseline_gate_pass` from eval or
+rollout summaries if the summary says a baseline gate was configured, and it
+labels the source as `summary`. Older results without gate metadata still use
+the computed comparison against supplied baseline summaries and are labeled
+`computed`. This keeps reports aligned with the eval/render summaries that will
+be used for formal evidence claims.

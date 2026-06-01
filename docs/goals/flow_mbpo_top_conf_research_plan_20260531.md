@@ -508,3 +508,14 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     `rollout_episodes` values rather than hard-coded `eval40` and
     `rollout1000_ep10`. This is provenance infrastructure only, not policy
     evidence.
+69. Done for ranking/report consistency with recorded gate metadata.
+    `rank_flow_mbpo_candidate_evidence.py` now uses `baseline_gate_pass` from
+    eval or rollout `summary.json` when `baseline_gate_configured=true`, and
+    marks that gate source as `summary`. For older summaries without recorded
+    gates, it preserves the previous behavior and computes gates from the
+    supplied baseline summary files, marked as `computed`.
+70. Validation passed via `py_compile` and a `/tmp` synthetic ranking test. In
+    that test, one candidate had metrics that beat the external baseline but a
+    recorded summary gate of `false`; the ranking trusted the summary gate.
+    Another old-style candidate without summary gate metadata used the computed
+    gate and passed. This is reporting infrastructure only, not policy evidence.

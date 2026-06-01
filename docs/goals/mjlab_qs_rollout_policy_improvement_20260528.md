@@ -1209,6 +1209,12 @@ Use these locations as the durable record before launching new work:
   - candidate plan behavior: direct candidate plan CSV and eval/rollout manifests include `notes`, and generated W&B names now reflect actual `eval_episodes`, `max_steps`, and `rollout_episodes` instead of hard-coded `eval40` / `rollout1000_ep10`.
   - validation: `py_compile`, CLI help checks for `--notes`, `/tmp` 8-candidate plan/manifest generation with notes, and monkeypatched row-runner command checks confirming notes and parameter-matched W&B names in both eval and rollout commands.
   - interpretation: this is provenance hardening only. It reduces the chance that future formal candidate eval/render evidence is missing notes or dataset/run context, but it does not add policy evidence.
+- Aligned candidate ranking with per-summary baseline gate metadata.
+  - script update: `scripts/experiments/mjlab_qs/rank_flow_mbpo_candidate_evidence.py`
+  - behavior: if an eval or rollout `summary.json` has `baseline_gate_configured=true` and `baseline_gate_pass`, the ranking now uses that recorded gate result and marks the gate source as `summary`; otherwise it falls back to the existing computed comparison against the baseline summary files and marks the source as `computed`
+  - report update: CSV and Markdown rankings now include `scalar_gate_source` and `video_gate_source`, and the Markdown explains when a gate came from summary metadata versus recomputation
+  - validation: `py_compile` and a `/tmp` synthetic ranking test where metrics beat the external baseline but `summary.json` recorded `baseline_gate_pass=false`; ranking correctly trusted the summary gate, while an old-style summary without gate metadata still used computed gates
+  - interpretation: this is reporting/protocol hardening only. It avoids future disagreement between eval/render summaries and candidate ranking reports, but it does not add policy evidence.
 
 ## Next Action
 

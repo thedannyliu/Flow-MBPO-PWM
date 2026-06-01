@@ -69,6 +69,12 @@ def better_than_baseline(candidate: dict[str, float], prefix: str, baseline: dic
     )
 
 
+def summary_gate(summary: dict[str, Any] | None, computed: bool) -> tuple[bool, str]:
+    if summary and summary.get("baseline_gate_configured") is True and "baseline_gate_pass" in summary:
+        return bool(summary["baseline_gate_pass"]), "summary"
+    return computed, "computed"
+
+
 def row_for_candidate(
     name: str,
     eval_summary: dict[str, Any] | None,
@@ -82,8 +88,10 @@ def row_for_candidate(
         row[f"rollout_{field}"] = as_float(rollout_summary, field)
     row["eval_summary"] = eval_summary.get("command", "") if eval_summary else ""
     row["rollout_video"] = rollout_summary.get("video", "") if rollout_summary else ""
-    row["scalar_gate_pass"] = better_than_baseline(row, "eval", baseline_eval)
-    row["video_gate_pass"] = better_than_baseline(row, "rollout", baseline_rollout)
+    computed_scalar_gate = better_than_baseline(row, "eval", baseline_eval)
+    computed_video_gate = better_than_baseline(row, "rollout", baseline_rollout)
+    row["scalar_gate_pass"], row["scalar_gate_source"] = summary_gate(eval_summary, computed_scalar_gate)
+    row["video_gate_pass"], row["video_gate_source"] = summary_gate(rollout_summary, computed_video_gate)
     row["joint_gate_pass"] = row["scalar_gate_pass"] and row["video_gate_pass"]
     return row
 
@@ -114,7 +122,9 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     fields = [
         "candidate",
         "scalar_gate_pass",
+        "scalar_gate_source",
         "video_gate_pass",
+        "video_gate_source",
         "joint_gate_pass",
         "eval_return_mean",
         "eval_episode_length_mean",
@@ -144,7 +154,9 @@ def write_md(
     fields = [
         "candidate",
         "scalar_gate_pass",
+        "scalar_gate_source",
         "video_gate_pass",
+        "video_gate_source",
         "joint_gate_pass",
         "eval_return_mean",
         "eval_episode_length_mean",
@@ -182,6 +194,7 @@ def write_md(
         [
             "",
             "A candidate passes only if return and episode length are above baseline and fall rate is below baseline.",
+            "Gate source is `summary` when the candidate summary recorded baseline_gate_pass; otherwise it is recomputed from the baseline summaries supplied to this ranking command.",
             "Rows that pass only one gate remain diagnostic and are not policy-improvement claims.",
             "",
         ]
