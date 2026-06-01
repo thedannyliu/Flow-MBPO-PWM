@@ -59,6 +59,9 @@ def main() -> None:
     action_ramp_steps = int(row.get("action_ramp_steps") or 0)
     checkpoint_kinds_arg = row.get("checkpoint_kinds") or args.checkpoint_kinds
     rollout_stage = row.get("rollout_stage") or row["stage"]
+    baseline_return = row.get("rollout_baseline_return") or row.get("baseline_return")
+    baseline_length = row.get("rollout_baseline_length") or row.get("baseline_length")
+    baseline_fall = row.get("rollout_baseline_fall") or row.get("baseline_fall")
 
     out = output_dir(row)
     out.mkdir(parents=True, exist_ok=True)
@@ -127,6 +130,17 @@ def main() -> None:
             ]
             if row.get("disable_wandb", "").lower() in {"1", "true", "yes"}:
                 cmd.append("--disable-wandb")
+            if baseline_return and baseline_length and baseline_fall:
+                cmd.extend(
+                    [
+                        "--baseline-return",
+                        baseline_return,
+                        "--baseline-length",
+                        baseline_length,
+                        "--baseline-fall",
+                        baseline_fall,
+                    ]
+                )
             subprocess.run(cmd, check=True)
 
 

@@ -514,3 +514,9 @@ the same as eval: return and length must meet or exceed baseline, fall must be
 strictly lower. A two-episode W&B-disabled MP4 smoke in job `9370771` verified
 the fields and wrote `rollout.mp4`; it is renderer logging evidence only, not a
 policy result.
+
+Manifest-driven rollout jobs can pass the same gate metadata. In
+`run_policy_rollout_row.py`, optional fields `rollout_baseline_return`,
+`rollout_baseline_length`, and `rollout_baseline_fall` are forwarded to the
+renderer; shorter `baseline_*` aliases are accepted too. This keeps array
+rollout jobs and hand-rendered diagnostics on the same evidence protocol.

@@ -442,3 +442,11 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     `0.400`, wrote `rollout.mp4`, and recorded `baseline_gate_pass=False` in
     stdout and `summary.json`. This is renderer logging evidence only, not
     policy evidence.
+60. Done for rollout-manifest baseline passthrough. `run_policy_rollout_row.py`
+    now accepts manifest fields `rollout_baseline_return`,
+    `rollout_baseline_length`, and `rollout_baseline_fall`, with shorter
+    aliases `baseline_return`, `baseline_length`, and `baseline_fall`, then
+    forwards them to `render_policy_rollout.py`. Validation passed via
+    `py_compile`, static flag checks, and a monkeypatched row-runner command
+    test. Formal rollout arrays can now carry matched BC baseline metadata
+    without hand-written renderer commands.
