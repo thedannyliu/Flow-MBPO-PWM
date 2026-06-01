@@ -598,3 +598,9 @@ logs scalar replay diagnostics such as transition count, conservative reward,
 uncertainty, and done/support-risk fractions. This keeps future formal replay
 preparation on the same W&B/notes path as AWR training, eval, and rollout
 rendering.
+
+Synthetic generation and replay-preparation artifacts now also store the W&B
+run id and URL locally. When W&B initialization succeeds, both scripts rewrite
+their `summary.json` and metadata sidecar JSON with `wandb_run_id` and
+`wandb_run_url`, so a saved buffer/replay can be traced back to W&B without
+searching Slurm logs.

@@ -570,3 +570,14 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     shell imports a placeholder `wandb` module without `init()`, so the script
     now raises a clear `RuntimeError` if W&B logging is requested without a full
     W&B SDK. This is provenance infrastructure only, not policy evidence.
+79. Done for local W&B run metadata on synthetic artifacts.
+    When W&B is enabled, `run_flow_mbpo_v0_smoke.py` and
+    `prepare_flow_mbpo_v0_synthetic_replay.py` now write `wandb_run_id` and
+    `wandb_run_url` into their local `summary.json` files and their metadata
+    sidecar JSON files after run initialization succeeds.
+80. Validation passed via `py_compile`, CLI help checks, and a `/tmp` fake
+    dataset/checkpoint fixture with a monkeypatched W&B module. The fixture
+    verified smoke and replay run ids/URLs in local summaries and sidecars,
+    W&B job types, scalar logging, finish calls, input-buffer note propagation,
+    and replay tensor schema preservation. This is provenance infrastructure
+    only, not policy evidence.

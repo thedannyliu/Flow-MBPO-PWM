@@ -411,6 +411,12 @@ def main() -> None:
         "git_branch": git_branch(),
         "command": command_line(),
         "notes": args.notes,
+        "enable_wandb": bool(args.enable_wandb),
+        "wandb_project": args.wandb_project,
+        "wandb_group": args.wandb_group,
+        "wandb_name": args.wandb_name,
+        "wandb_run_id": "",
+        "wandb_run_url": "",
         "dataset": args.dataset,
         "metadata": args.metadata,
         "normalization": args.normalization,
@@ -459,6 +465,8 @@ def main() -> None:
         "git_branch": summary["git_branch"],
         "command": summary["command"],
         "notes": args.notes,
+        "wandb_run_id": "",
+        "wandb_run_url": "",
         "dataset": args.dataset,
         "metadata": args.metadata,
         "normalization": args.normalization,
@@ -484,12 +492,24 @@ def main() -> None:
     if args.enable_wandb:
         import wandb
 
-        run = wandb.init(
+        wandb_init = getattr(wandb, "init", None)
+        if wandb_init is None:
+            raise RuntimeError("W&B logging requested but the imported wandb module has no init()")
+        run = wandb_init(
             project=args.wandb_project or "flow-mbpo-mjlab-flow-mbpo-v0-smoke",
             group=args.wandb_group or f"{methods[0]}_h{args.horizon}",
             name=args.wandb_name or f"{methods[0]}_seed{args.seed}_smoke",
             job_type="flow_mbpo_v0_smoke",
             config=summary,
+        )
+        summary["wandb_run_id"] = str(getattr(run, "id", "") or "")
+        summary["wandb_run_url"] = str(getattr(run, "url", "") or "")
+        buffer_metadata["wandb_run_id"] = summary["wandb_run_id"]
+        buffer_metadata["wandb_run_url"] = summary["wandb_run_url"]
+        (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        (output_dir / "synthetic_buffer_metadata.json").write_text(
+            json.dumps(buffer_metadata, indent=2),
+            encoding="utf-8",
         )
         run.log({
             "synthetic/reward_mean": summary["synthetic_reward"]["mean"],

@@ -1241,6 +1241,11 @@ Use these locations as the durable record before launching new work:
   - validation: `py_compile`, CLI help checks, and a `/tmp` fake synthetic-buffer fixture with a monkeypatched W&B module verified `wandb.init`, scalar logging, `finish`, summary metadata, replay sidecar metadata, input-buffer note propagation, and the existing tensor replay schema with `reward_conservative`.
   - local environment note: the current shell imports a placeholder `wandb` module with no `init()`. The script now raises a clear `RuntimeError` if W&B logging is requested in such an environment. Formal cluster runs still need a complete W&B SDK.
   - interpretation: this is replay-preparation provenance infrastructure only. It does not add policy evidence, but it lets future formal replay-preparation jobs satisfy the same W&B/notes protocol as training, eval, and rollout rendering.
+- Backfilled local W&B run metadata for synthetic generation and replay preparation.
+  - script updates: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py` and `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - behavior: when W&B is enabled and run initialization succeeds, both scripts now write `wandb_run_id` and `wandb_run_url` back into their local `summary.json` and metadata sidecar JSON files.
+  - validation: `py_compile`, CLI help checks, and a `/tmp` fake dataset/checkpoint fixture with a monkeypatched W&B module verified smoke and replay run ids/URLs in summaries and sidecars, W&B job types, scalar logging, finish calls, input-buffer note propagation, and preservation of replay tensor keys.
+  - interpretation: this is local artifact provenance only. It makes future synthetic-buffer and synthetic-replay artifacts self-contained enough to map back to W&B without searching external logs; it does not add policy evidence.
 
 ## Next Action
 

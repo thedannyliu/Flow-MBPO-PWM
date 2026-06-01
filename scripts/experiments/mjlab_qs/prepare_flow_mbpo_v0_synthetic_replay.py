@@ -339,6 +339,8 @@ def main() -> None:
         "wandb_project": args.wandb_project,
         "wandb_group": args.wandb_group,
         "wandb_name": args.wandb_name,
+        "wandb_run_id": "",
+        "wandb_run_url": "",
         "synthetic_buffer": args.synthetic_buffer,
         "synthetic_buffer_metadata": str(input_metadata_path) if input_metadata_path.exists() else "",
         "output_dir": str(output_dir),
@@ -375,6 +377,8 @@ def main() -> None:
         "git_branch": summary["git_branch"],
         "command": summary["command"],
         "notes": args.notes,
+        "wandb_run_id": "",
+        "wandb_run_url": "",
         "synthetic_buffer": args.synthetic_buffer,
         "synthetic_buffer_metadata": str(input_metadata_path) if input_metadata_path.exists() else "",
         "synthetic_buffer_notes": input_metadata.get("notes", "") if input_metadata is not None else "",
@@ -409,6 +413,15 @@ def main() -> None:
             name=args.wandb_name or f"seed{args.seed}_synthetic_replay",
             job_type="flow_mbpo_v0_synthetic_replay",
             config=summary,
+        )
+        summary["wandb_run_id"] = str(getattr(run, "id", "") or "")
+        summary["wandb_run_url"] = str(getattr(run, "url", "") or "")
+        replay_metadata["wandb_run_id"] = summary["wandb_run_id"]
+        replay_metadata["wandb_run_url"] = summary["wandb_run_url"]
+        (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        (output_dir / "synthetic_replay_metadata.json").write_text(
+            json.dumps(replay_metadata, indent=2),
+            encoding="utf-8",
         )
         run.log(
             {
