@@ -663,3 +663,9 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     manifest as two `missing` rows, exporting two existing completed CQL summary
     files with critic metrics, and confirming `--require-complete` fails on the
     unrun manifest. This is reporting infrastructure only, not policy evidence.
+95. Done for AWR row-runner dry-run support.
+    `run_flow_mbpo_awr_row.py --dry-run` prints the exact updater command for a
+    manifest row without running training. Dry-run on both CQL OOD-source smoke
+    rows confirmed the `data_noise` and `mixed` CQL OOD args are forwarded and
+    no summaries are created. This helps inspect W&B-disabled smoke commands
+    before Slurm submission, but it is not experiment evidence.

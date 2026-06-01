@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -23,6 +24,7 @@ def main() -> None:
     p.add_argument("--row-index", type=int, required=True)
     p.add_argument("--python-bin", default="python")
     p.add_argument("--device", default="cuda:0")
+    p.add_argument("--dry-run", action="store_true", help="Print the updater command without executing it.")
     args = p.parse_args()
 
     with open(args.manifest, newline="", encoding="utf-8") as f:
@@ -117,6 +119,10 @@ def main() -> None:
             cmd.extend([f"--{key.replace('_', '-')}", row[key]])
     if truthy(row.get("enable_wandb")):
         cmd.append("--enable-wandb")
+
+    if args.dry_run:
+        print(shlex.join(cmd), flush=True)
+        return
 
     subprocess.run(cmd, check=True)
 

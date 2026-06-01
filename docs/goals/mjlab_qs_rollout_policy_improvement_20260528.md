@@ -1305,6 +1305,11 @@ Use these locations as the durable record before launching new work:
   - behavior: reads one or more `flow_mbpo_awr` manifests, roots, or explicit `summary.json` files and writes CSV/Markdown rows with completion status, CQL OOD source settings, last AWR loss, critic loss, CQL gap, random-action Q mean/max, best-real fields, W&B run metadata, and notes
   - validation: `py_compile`; current CQL OOD-source manifest exports two `missing` rows; two existing completed CQL summaries export critic metrics; `--require-complete` fails on the unrun manifest with `Only 0/2 AWR summaries are complete`
   - interpretation: this is reporting infrastructure for W&B-disabled critic diagnostics and future AWR runs. It does not add policy evidence.
+- Added AWR row-runner dry-run support.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - behavior: `--dry-run` prints the exact `run_flow_mbpo_v0_awr_update.py` command for a manifest row without executing it
+  - validation: dry-run on both CQL OOD-source smoke rows printed commands with `--critic-ood-action-source data_noise` and `--critic-ood-action-source mixed`, preserved `--critic-action-noise-std 0.15`, and did not create output summaries
+  - interpretation: this is a safety/debugging aid for W&B-disabled smoke manifests; it does not run experiments or add policy evidence.
 
 ## Next Action
 
