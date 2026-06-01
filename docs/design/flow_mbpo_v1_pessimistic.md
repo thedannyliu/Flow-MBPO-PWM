@@ -475,6 +475,9 @@ extracts final critic loss, CQL gap, random-action Q mean/max, best-real fields,
 W&B metadata, and notes from completed `summary.json` files.
 Use `run_flow_mbpo_awr_row.py --dry-run` to inspect the exact updater command
 for a manifest row before launching a W&B-disabled smoke or Slurm array.
+Use `submit_array.sh --dry-run` to inspect the composed `sbatch` command without
+submitting a job; the QOS guard and optional formal metadata preflight still
+run first.
 
 That real-eval plumbing check ran in job `9357292` with W&B disabled. The code
 path works: final, best-real-eval, best-training, real-eval snapshot, and critic

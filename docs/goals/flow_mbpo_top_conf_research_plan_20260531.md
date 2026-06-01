@@ -669,3 +669,9 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     rows confirmed the `data_noise` and `mixed` CQL OOD args are forwarded and
     no summaries are created. This helps inspect W&B-disabled smoke commands
     before Slurm submission, but it is not experiment evidence.
+96. Done for Slurm submitter dry-run support.
+    `submit_array.sh --dry-run` now prints the composed `sbatch` command without
+    submitting it. Validation on the CQL OOD-source AWR smoke manifest confirmed
+    `--qos=embers`, array `0-1%1`, and no queued job; formal metadata preflight
+    and the `inferno` QOS guard still run before dry-run output. This is
+    submission safety infrastructure only, not policy evidence.

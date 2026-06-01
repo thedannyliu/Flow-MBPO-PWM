@@ -15,6 +15,7 @@ PYTHON_BIN="python"
 CONDA_ENV="${CONDA_ENV_NAME:-}"
 DEPENDENCY=""
 REQUIRE_FORMAL_METADATA=0
+DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -32,6 +33,7 @@ while [[ $# -gt 0 ]]; do
     --conda-env) CONDA_ENV="$2"; shift 2 ;;
     --dependency) DEPENDENCY="$2"; shift 2 ;;
     --require-formal-metadata) REQUIRE_FORMAL_METADATA=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     *) echo "unknown arg $1"; exit 1 ;;
   esac
 done
@@ -216,6 +218,13 @@ SBATCH_ARGS=(
 )
 if [[ -n "${DEPENDENCY}" ]]; then
   SBATCH_ARGS+=(--dependency="${DEPENDENCY}")
+fi
+
+if [[ "${DRY_RUN}" == "1" ]]; then
+  printf 'sbatch'
+  printf ' %q' "${SBATCH_ARGS[@]}"
+  printf '\n'
+  exit 0
 fi
 
 sbatch "${SBATCH_ARGS[@]}"

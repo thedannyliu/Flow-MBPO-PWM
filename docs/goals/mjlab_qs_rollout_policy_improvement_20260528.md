@@ -1310,6 +1310,11 @@ Use these locations as the durable record before launching new work:
   - behavior: `--dry-run` prints the exact `run_flow_mbpo_v0_awr_update.py` command for a manifest row without executing it
   - validation: dry-run on both CQL OOD-source smoke rows printed commands with `--critic-ood-action-source data_noise` and `--critic-ood-action-source mixed`, preserved `--critic-action-noise-std 0.15`, and did not create output summaries
   - interpretation: this is a safety/debugging aid for W&B-disabled smoke manifests; it does not run experiments or add policy evidence.
+- Added Slurm submitter dry-run support.
+  - script update: `scripts/experiments/mjlab_qs/submit_array.sh`
+  - behavior: `--dry-run` prints the exact `sbatch` command after composing array/log/wrap arguments, without calling `sbatch`
+  - validation: CQL OOD-source `flow_mbpo_awr` dry-run printed an `sbatch` command with `--qos=embers`, `--array=0-1%1`, and no job submission; `--require-formal-metadata` still rejected the W&B-disabled smoke manifest before printing; `--qos inferno --dry-run` still failed without explicit approval
+  - interpretation: this is submission safety infrastructure. It does not submit jobs or add policy evidence.
 
 ## Next Action
 
