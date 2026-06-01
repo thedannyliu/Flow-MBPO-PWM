@@ -596,10 +596,126 @@ command_core: python train_dflex.py env=dflex_hopper alg=pwm general.run_wandb=T
 result: mean episode loss = -109.38, mean discounted loss = -15.04, mean episode length = 1000.00
 ```
 
+## Phase 1 Real-Env Reward Diagnostic
+
+Because original `PWM.eval()` accumulates learned world-model reward in the DFlex path, a separate W&B-disabled real-environment evaluator was run before making further claims. The evaluator loads the same actor/world-model checkpoint, encodes the real DFlex observation, applies `tanh(actor(z))`, steps `dflex.envs.HopperEnv`, and accumulates the real `env.step()` reward.
+
+Evaluator update:
+
+```text
+file: scripts/eval/eval_online_single_task.py
+change: find `.hydra/config.yaml` by walking checkpoint parents and accept `--config-path` for checkpoints outside Hydra run dirs.
+reason: original PWM stores policies below `outputs/.../logs/<logdir>/`, while pretrained assets live outside any Hydra output directory.
+validation: python -m py_compile scripts/eval/eval_online_single_task.py
+```
+
+First real-env eval smoke failed before policy evaluation because the evaluator assumed the checkpoint parent was the Hydra run directory:
+
+```text
+slurm_job_id: 9382749
+job_name: pwm_p1_hopper_realenv_eval_smoke
+partition: gpu-rtx6000
+qos: embers
+status: FAILED
+exit_code: 1:0
+failure: missing Hydra config at checkpoint/logdir parent
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_realenv_eval_smoke_9382749.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_realenv_eval_smoke_9382749.err
+```
+
+Corrected W&B-disabled real-env eval smoke for final and true-best actors:
+
+```text
+slurm_job_id: 9382750
+job_name: pwm_p1_hopper_realenv_eval_smoke2
+main_repo_sha_at_submission: uncommitted evaluator diagnostic change on top of 2adeff0d11a8b8bb9c5cfd370bc453cb8caef496
+baseline_pwm_sha: cb7b1689afbfd4b5662e43cdbae2c360e52d56a1
+partition: gpu-rtx6000
+qos: embers
+account: gts-agarg35
+gres: gpu:rtx_6000:1
+wandb: disabled
+env: dflex_hopper
+config: baselines/PWM/scripts/outputs/2026-06-01/15-35-34/.hydra/config.yaml
+num_games: 12
+num_envs: 64
+device: cuda:0
+slurm_state: COMPLETED
+exit_code: 0:0
+elapsed: 00:00:25
+start: 2026-06-01T18:32:35
+end: 2026-06-01T18:33:00
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_realenv_eval_smoke2_9382750.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_realenv_eval_smoke2_9382750.err
+```
+
+Final actor real-env result:
+
+```text
+checkpoint: baselines/PWM/scripts/outputs/2026-06-01/15-35-34/logs/phase1_hopper_formal_seed0_20260601/final_policy.pt
+output_dir: eval_results/pwm_phase1_hopper_realenv_final_smoke_20260601
+return_mean: 1284.2498168945312
+return_iqm: 1289.2972208658855
+return_std: 36.90841641217852
+return_min: 1213.7418212890625
+return_max: 1342.860595703125
+episode_length_mean: 1000.0
+discounted_return_mean: 128.41964721679688
+```
+
+True-best actor real-env result:
+
+```text
+checkpoint: baselines/PWM/scripts/outputs/2026-06-01/15-35-34/logs/phase1_hopper_formal_seed0_20260601/best_policy.pt
+output_dir: eval_results/pwm_phase1_hopper_realenv_best_smoke_20260601
+return_mean: 1285.949198404948
+return_iqm: 1282.025390625
+return_std: 30.219568089728327
+return_min: 1237.192138671875
+return_max: 1338.37646484375
+episode_length_mean: 1000.0
+discounted_return_mean: 128.58977381388345
+```
+
+W&B-disabled real-env eval smoke for the raw local pretrained asset:
+
+```text
+slurm_job_id: 9382755
+job_name: pwm_p1_hopper_asset_realenv_eval
+partition: gpu-rtx6000
+qos: embers
+account: gts-agarg35
+gres: gpu:rtx_6000:1
+wandb: disabled
+env: dflex_hopper
+config: baselines/PWM/scripts/outputs/2026-06-01/15-35-34/.hydra/config.yaml
+checkpoint: scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
+num_games: 12
+num_envs: 64
+device: cuda:0
+slurm_state: COMPLETED
+exit_code: 0:0
+elapsed: 00:00:15
+start: 2026-06-01T18:34:09
+end: 2026-06-01T18:34:23
+slurm_stdout: logs/slurm/pwm_phase1/pwm_p1_hopper_asset_realenv_eval_9382755.out
+slurm_stderr: logs/slurm/pwm_phase1/pwm_p1_hopper_asset_realenv_eval_9382755.err
+output_dir: eval_results/pwm_phase1_hopper_realenv_asset_smoke_20260601
+return_mean: 1220.9376831054688
+return_iqm: 1226.5210367838542
+return_std: 31.731999849854333
+return_min: 1159.667236328125
+return_max: 1259.6063232421875
+episode_length_mean: 1000.0
+discounted_return_mean: 122.0885378519694
+```
+
+Interpretation: the true real-env reward for the completed formal run matches the low training-loop plateau (`~1270`) rather than the local reference CSV scale (`~5650`). The raw `PWM_HopperEnv.pt` actor is also low in real-env reward, so this asset behaves like a bootstrap checkpoint for world-model/policy training rather than a paper-level final Hopper policy.
+
 ## Phase 1 Gate Decision
 
-Original PWM parity is not established. The completed Hopper run is far below the local original Hopper reference scale recorded above (`final mean 5649.179`, `best mean 5712.018`) and also shows a large mismatch between training-loop reward around `1270` and eval-only checkpoint returns around `66` to `109` under the original DFlex eval path.
+Original PWM parity is not established. The completed Hopper run is far below the local original Hopper reference scale recorded above (`final mean 5649.179`, `best mean 5712.018`). The real-env reward diagnostic confirms final and best actors are both around `1285` return, so the Phase 1 failure is not only an artifact of original `PWM.eval()` accumulating learned world-model reward.
 
 Stop rule applied: do not port to MJLab and do not test Flow replacements yet.
 
-Next Phase 1/2 debug target: reconcile the original DFlex reward/eval pathways before any MJLab claim. The highest-priority checks are real-env reward versus learned-WM reward in `PWM.eval()`, checkpoint provenance (`PWM_HopperEnv.pt` as full policy checkpoint versus WM-only checkpoint), reward scaling/sign conventions, and whether the local `baselines/PWM/results/data` reference CSV was produced by the same entrypoint/config/checkpoint path.
+Next Phase 1/2 debug target: determine why the original Hopper setup plateaus near `1285` when the local reference curve reaches `~5650`. The highest-priority checks are checkpoint provenance (`PWM_HopperEnv.pt` as bootstrap asset versus paper final policy), reward scaling/sign conventions, optimizer/resume behavior when loading `general.checkpoint`, and whether the local `baselines/PWM/results/data` reference CSV was produced by the same entrypoint/config/checkpoint path.

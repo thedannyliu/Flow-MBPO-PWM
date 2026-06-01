@@ -447,9 +447,25 @@ def write_csv(path: Path, rows: List[Dict[str, float]], fieldnames: List[str]) -
         writer.writerows(rows)
 
 
+def find_hydra_run_dir(checkpoint: Path) -> tuple[Path, Path]:
+    for parent in checkpoint.parents:
+        config_path = parent / ".hydra" / "config.yaml"
+        if config_path.exists():
+            return parent, config_path
+    raise FileNotFoundError(
+        f"Missing Hydra config in parents of checkpoint path {checkpoint}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate single-task online checkpoint.")
     parser.add_argument("--checkpoint", required=True, type=Path)
+    parser.add_argument(
+        "--config-path",
+        type=Path,
+        default=None,
+        help="Hydra config to use when the checkpoint is not inside a Hydra run directory.",
+    )
     parser.add_argument("--num-games", type=int, default=40)
     parser.add_argument("--num-envs", type=int, default=64)
     parser.add_argument("--device", default="cuda:0")
@@ -513,8 +529,11 @@ def main() -> None:
     args = parser.parse_args()
 
     checkpoint = args.checkpoint.resolve()
-    run_dir = checkpoint.parent.parent if checkpoint.parent.name == "logs" else checkpoint.parent
-    config_path = run_dir / ".hydra" / "config.yaml"
+    if args.config_path:
+        config_path = args.config_path.resolve()
+        run_dir = config_path.parent.parent if config_path.parent.name == ".hydra" else config_path.parent
+    else:
+        run_dir, config_path = find_hydra_run_dir(checkpoint)
     if not config_path.exists():
         raise FileNotFoundError(f"Missing Hydra config at {config_path}")
 
