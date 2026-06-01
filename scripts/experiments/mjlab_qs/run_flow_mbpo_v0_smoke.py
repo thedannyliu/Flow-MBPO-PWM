@@ -80,6 +80,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wandb-group", default="")
     p.add_argument("--wandb-name", default="")
     p.add_argument("--enable-wandb", action="store_true")
+    p.add_argument("--notes", default="")
     return p.parse_args()
 
 
@@ -104,6 +105,10 @@ def summarize_tensor(x: torch.Tensor) -> dict[str, float]:
         "p90": float(torch.quantile(finite, 0.90).item()),
         "max": float(finite.max().item()),
     }
+
+
+def tensor_shapes(buffer: dict[str, torch.Tensor]) -> dict[str, list[int]]:
+    return {key: list(value.shape) for key, value in buffer.items() if isinstance(value, torch.Tensor)}
 
 
 def model_from_checkpoint(path: Path, state_dim: int, action_dim: int, command_dim: int, device: torch.device) -> tuple[str, nn.Module, dict[str, Any]]:
@@ -399,16 +404,20 @@ def main() -> None:
     ids = select_start_indices(data, metadata, args)
     support_state = build_support_state(data, metadata, args.normalization, args, device)
     buffer = generate_synthetic_buffer(data, nrm, actor, models, ids, args.horizon, device, support_state, args)
-    torch.save(buffer, output_dir / "synthetic_buffer.pt")
+    buffer_path = output_dir / "synthetic_buffer.pt"
+    torch.save(buffer, buffer_path)
     summary = {
         "git_sha": git_sha(),
         "git_branch": git_branch(),
         "command": command_line(),
+        "notes": args.notes,
         "dataset": args.dataset,
         "metadata": args.metadata,
         "normalization": args.normalization,
         "policy_checkpoint": args.policy_checkpoint,
         "wm_checkpoints": args.wm_checkpoint,
+        "synthetic_buffer_path": str(buffer_path),
+        "synthetic_buffer_metadata_path": str(output_dir / "synthetic_buffer_metadata.json"),
         "wm_method": methods[0],
         "wm_model_count": len(models),
         "uncertainty_defined": len(models) > 1,
@@ -443,6 +452,34 @@ def main() -> None:
         "predicted_done_fraction": float(buffer["done"].float().mean().item()),
         "wall_clock_seconds": time.time() - t0,
     }
+    buffer_metadata = {
+        "artifact": "synthetic_buffer.pt",
+        "artifact_path": str(buffer_path),
+        "git_sha": summary["git_sha"],
+        "git_branch": summary["git_branch"],
+        "command": summary["command"],
+        "notes": args.notes,
+        "dataset": args.dataset,
+        "metadata": args.metadata,
+        "normalization": args.normalization,
+        "policy_checkpoint": args.policy_checkpoint,
+        "wm_checkpoints": args.wm_checkpoint,
+        "wm_method": methods[0],
+        "wm_model_count": len(models),
+        "seed": int(args.seed),
+        "split": args.split,
+        "quality_filter": args.quality_filter,
+        "num_starts": int(ids.numel()),
+        "horizon": int(args.horizon),
+        "transitions": int(buffer["reward"].numel()),
+        "support_risk_termination": bool(args.support_risk_termination),
+        "support_threshold": summary["support_threshold"],
+        "tensor_shapes": tensor_shapes(buffer),
+    }
+    (output_dir / "synthetic_buffer_metadata.json").write_text(
+        json.dumps(buffer_metadata, indent=2),
+        encoding="utf-8",
+    )
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     if args.enable_wandb:
         import wandb

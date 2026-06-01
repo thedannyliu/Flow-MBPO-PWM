@@ -1227,6 +1227,13 @@ Use these locations as the durable record before launching new work:
   - behavior: AWR summary/W&B config already include `vars(args)`, so notes now appear in `summary.json` when supplied. The update also writes `notes` into checkpoint `args`, so final, best, best-training, real-eval snapshot, and critic checkpoints carry the training-run notes into downstream eval/render provenance.
   - validation: `py_compile`, CLI help check for `--notes`, and a `/tmp` fake dataset/replay/checkpoint CPU smoke with `update_iters=1` verified notes in `summary.json`, `final_policy_extraction.pt`, and `best_policy_extraction.pt`. An attempted CPU smoke on the full QS dataset was killed by the local shell environment before completion, so the final validation used the smaller fake fixture.
   - interpretation: this is training provenance hardening only. It does not add policy evidence, but it closes the formal-run notes gap on the Flow-MBPO AWR training side.
+- Added notes provenance to synthetic replay generation and preparation.
+  - script updates: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py` and `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new arg: `--notes` on both scripts
+  - behavior: smoke summaries now record `notes`, the `synthetic_buffer.pt` path, and a `synthetic_buffer_metadata.json` sidecar path. The sidecar records git SHA/branch, command, notes, dataset/metadata/normalization, policy checkpoint, WM checkpoints, seed, split, quality filter, horizon, support-risk settings, and tensor shapes without changing the tensor-only buffer schema.
+  - replay behavior: replay preparation summaries now record `notes`, the input buffer metadata sidecar when present, and a `synthetic_replay_metadata.json` sidecar path. The replay sidecar records the preparation command, notes, input buffer notes, pessimism/termination settings, support-risk settings, transitions, done fraction, and tensor shapes without inserting non-tensor provenance into `synthetic_replay.pt`.
+  - validation: `py_compile`, CLI help checks for `--notes`, and a `/tmp` fake dataset/checkpoint CPU fixture verified smoke notes in `summary.json` and `synthetic_buffer_metadata.json`, replay notes in `summary.json` and `synthetic_replay_metadata.json`, propagation of input buffer notes into replay metadata, and preservation of the existing tensor replay keys including `reward_conservative`.
+  - interpretation: this is synthetic-data provenance hardening only. It does not add policy evidence, but it closes the remaining notes gap between WM rollout generation, replay preparation, AWR training, eval, and rollout rendering.
 
 ## Next Action
 

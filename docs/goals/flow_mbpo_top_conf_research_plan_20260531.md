@@ -541,3 +541,18 @@ Implement the smallest Flow-MBPO v1 pessimistic slice. Current status:
     verified notes in `summary.json`, `final_policy_extraction.pt`, and
     `best_policy_extraction.pt`. This is provenance infrastructure only, not
     policy evidence.
+75. Done for synthetic replay notes provenance.
+    `run_flow_mbpo_v0_smoke.py` and
+    `prepare_flow_mbpo_v0_synthetic_replay.py` now accept `--notes`.
+    Synthetic-buffer generation writes notes into `summary.json` and a
+    `synthetic_buffer_metadata.json` sidecar with git SHA/branch, command,
+    dataset, normalization, policy checkpoint, WM checkpoints, support-risk
+    settings, and tensor shapes. Replay preparation writes notes into
+    `summary.json` and a `synthetic_replay_metadata.json` sidecar, including
+    input-buffer notes when the buffer sidecar is present.
+76. Validation passed via `py_compile`, CLI help checks for `--notes`, and a
+    `/tmp` fake dataset/checkpoint CPU fixture. The fixture verified notes in
+    smoke and replay summaries, notes in both sidecars, propagation of input
+    buffer notes into replay metadata, and preservation of the existing tensor
+    replay schema with `reward_conservative`. This is provenance infrastructure
+    only, not policy evidence.

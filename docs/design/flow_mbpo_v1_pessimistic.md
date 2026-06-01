@@ -581,3 +581,12 @@ update script accepts `--notes`, records notes in its summary/W&B config, and
 writes them into checkpoint `args`. Downstream eval/render therefore can recover
 the training-run notes from final, best, best-training, real-eval snapshot, or
 critic checkpoints.
+
+Synthetic replay notes are now part of replay provenance too. The synthetic
+rollout smoke generator accepts `--notes`, records them in `summary.json`, and
+writes a `synthetic_buffer_metadata.json` sidecar with git/command/data/model
+paths, support-risk settings, and tensor shapes. The replay-preparation script
+also accepts `--notes`, writes them to `summary.json`, and emits
+`synthetic_replay_metadata.json` with the preparation settings plus any input
+buffer notes. The `.pt` artifacts remain tensor-schema compatible for existing
+AWR/support consumers; provenance is kept in JSON sidecars.

@@ -67,6 +67,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--max-transitions", type=int, default=0)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--notes", default="")
     return p.parse_args()
 
 
@@ -82,6 +83,10 @@ def summarize_tensor(x: torch.Tensor) -> dict[str, float]:
         "p90": float(torch.quantile(finite, 0.90).item()),
         "max": float(finite.max().item()),
     }
+
+
+def tensor_shapes(replay: dict[str, torch.Tensor]) -> dict[str, list[int]]:
+    return {key: list(value.shape) for key, value in replay.items() if isinstance(value, torch.Tensor)}
 
 
 def require_keys(buffer: dict[str, torch.Tensor]) -> None:
@@ -316,14 +321,21 @@ def main() -> None:
     replay_path = output_dir / "synthetic_replay.pt"
     support_risk_summary = replay.pop("_support_risk_summary")
     torch.save(replay, replay_path)
+    input_metadata_path = Path(args.synthetic_buffer).with_name("synthetic_buffer_metadata.json")
+    input_metadata: dict[str, Any] | None = None
+    if input_metadata_path.exists():
+        input_metadata = json.loads(input_metadata_path.read_text(encoding="utf-8"))
     done = replay["done"].float()
     summary: dict[str, Any] = {
         "git_sha": git_sha(),
         "git_branch": git_branch(),
         "command": command_line(),
+        "notes": args.notes,
         "synthetic_buffer": args.synthetic_buffer,
+        "synthetic_buffer_metadata": str(input_metadata_path) if input_metadata_path.exists() else "",
         "output_dir": str(output_dir),
         "replay_path": str(replay_path),
+        "replay_metadata_path": str(output_dir / "synthetic_replay_metadata.json"),
         "lambda_uncertainty": float(args.lambda_uncertainty),
         "lambda_fall": float(args.lambda_fall),
         "uncertainty_quantile_termination": float(args.uncertainty_quantile_termination),
@@ -348,6 +360,34 @@ def main() -> None:
         "done_fraction": float(done.mean().item()),
         "wall_clock_seconds": time.time() - t0,
     }
+    replay_metadata = {
+        "artifact": "synthetic_replay.pt",
+        "artifact_path": str(replay_path),
+        "git_sha": summary["git_sha"],
+        "git_branch": summary["git_branch"],
+        "command": summary["command"],
+        "notes": args.notes,
+        "synthetic_buffer": args.synthetic_buffer,
+        "synthetic_buffer_metadata": str(input_metadata_path) if input_metadata_path.exists() else "",
+        "synthetic_buffer_notes": input_metadata.get("notes", "") if input_metadata is not None else "",
+        "lambda_uncertainty": float(args.lambda_uncertainty),
+        "lambda_fall": float(args.lambda_fall),
+        "uncertainty_quantile_termination": float(args.uncertainty_quantile_termination),
+        "done_threshold": float(args.done_threshold),
+        "fall_threshold": float(args.fall_threshold),
+        "support_risk_termination": bool(support_risk_summary.get("support_risk_termination", False)),
+        "support_risk_penalty_weight": float(args.support_risk_penalty_weight),
+        "truncate_rollouts_after_done": bool(args.truncate_rollouts_after_done),
+        "max_transitions": int(args.max_transitions),
+        "seed": int(args.seed),
+        "transitions": int(replay["reward"].shape[0]),
+        "done_fraction": float(done.mean().item()),
+        "tensor_shapes": tensor_shapes(replay),
+    }
+    (output_dir / "synthetic_replay_metadata.json").write_text(
+        json.dumps(replay_metadata, indent=2),
+        encoding="utf-8",
+    )
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, sort_keys=True), flush=True)
 
