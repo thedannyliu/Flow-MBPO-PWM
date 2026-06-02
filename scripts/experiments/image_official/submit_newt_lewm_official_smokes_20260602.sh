@@ -41,6 +41,7 @@ newt_setup_job="$(
     --wrap="cd ${NEWT_ROOT} && \
 source ~/.bashrc && \
 if [[ -d ${NEWT_ENV} && ! -x ${NEWT_ENV}/bin/python ]]; then rm -rf ${NEWT_ENV}; fi && \
+if [[ -x ${NEWT_ENV}/bin/python ]] && ! PYTHONNOUSERSITE=1 ${NEWT_ENV}/bin/python -c 'import encodings' >/dev/null 2>&1; then rm -rf ${NEWT_ENV}; fi && \
 if [[ ! -x ${NEWT_ENV}/bin/python ]]; then conda env create -p ${NEWT_ENV} -f docker/environment.yaml; fi && \
 ${NEWT_ENV}/bin/python -m pip install --no-cache-dir 'ale_py==0.10' && \
 PYTHONNOUSERSITE=1 ${NEWT_ENV}/bin/python - <<'PY'
@@ -70,6 +71,7 @@ lewm_setup_job="$(
 mkdir -p ${UV_PREFIX} && \
 if [[ ! -x ${UV_PREFIX}/bin/uv ]]; then python -m pip install --prefix ${UV_PREFIX} uv; fi && \
 if [[ -d ${LEWM_ENV} && ! -x ${LEWM_ENV}/bin/python ]]; then rm -rf ${LEWM_ENV}; fi && \
+if [[ -x ${LEWM_ENV}/bin/python ]] && ! PYTHONNOUSERSITE=1 ${LEWM_ENV}/bin/python -c 'import encodings' >/dev/null 2>&1; then rm -rf ${LEWM_ENV}; fi && \
 if [[ ! -x ${LEWM_ENV}/bin/python ]]; then ${UV_PREFIX}/bin/uv venv --python=3.10 ${LEWM_ENV}; fi && \
 ${UV_PREFIX}/bin/uv pip install --python ${LEWM_ENV}/bin/python 'stable-worldmodel[train,env]' && \
 PYTHONNOUSERSITE=1 PYTHONPATH=${LEWM_ROOT} STABLEWM_HOME=${DATA_ROOT}/lewm_stablewm ${LEWM_ENV}/bin/python - <<'PY'

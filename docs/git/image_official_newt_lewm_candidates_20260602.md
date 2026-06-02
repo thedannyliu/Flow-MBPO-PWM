@@ -43,12 +43,12 @@ External data root: /storage/project/r-agarg35-0/eliu354/external_data
 
 | Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `newt_official_env_setup_20260602` | setup | Create the official NEWT conda environment from `docker/environment.yaml` and install `ale_py==0.10` as specified by the README. | Yes: official repo and environment file exist. | Off. | Slurm logs under `logs/slurm/image_official/`; env under `/storage/project/r-agarg35-0/eliu354/envs/newt_official_20260602`. | CPU / no GPU QOS. | No. | Submit. |
-| `lewm_official_env_setup_20260602` | setup | Create the official LeWM uv virtualenv and install `stable-worldmodel[train,env]`. | Yes: official repo exists. `uv` is not globally installed, so the wrapper installs the `uv` tool into a project-local prefix before running the official venv command. | Off. | Slurm logs under `logs/slurm/image_official/`; env under `/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602`. | CPU / no GPU QOS. | No. | Submit. |
-| `newt_official_import_config_smoke_20260602` | smoke | Import official NEWT modules, parse `walker-walk` config, and list task/model metadata. | Depends on NEWT env setup. Official repo and `tasks.json` exist. | Off. | Slurm logs with task count, model sizes, action dim, parsed config. | CPU / no GPU QOS. | `afterok:newt_official_env_setup_20260602`. | Submit. |
+| `newt_official_env_setup_20260602` | setup | Create the official NEWT conda environment from `docker/environment.yaml` and install `ale_py==0.10` as specified by the README. | Yes: official repo and environment file exist. | Off. | Slurm logs under `logs/slurm/image_official/`; env under `/storage/project/r-agarg35-0/eliu354/envs/newt_official_20260602`. | CPU / `embers`. | No. | Submit. |
+| `lewm_official_env_setup_20260602` | setup | Create the official LeWM uv virtualenv and install `stable-worldmodel[train,env]`. | Yes: official repo exists. `uv` is not globally installed, so the wrapper installs the `uv` tool into a project-local prefix before running the official venv command. | Off. | Slurm logs under `logs/slurm/image_official/`; env under `/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602`. | CPU / `embers`. | No. | Submit. |
+| `newt_official_import_config_smoke_20260602` | smoke | Import official NEWT modules, parse `walker-walk` config, and list task/model metadata. | Depends on NEWT env setup. Official repo and `tasks.json` exist. | Off. | Slurm logs with task count, model sizes, action dim, parsed config. | CPU / `embers`. | `afterok:newt_official_env_setup_20260602`. | Submit. |
 | `newt_official_walker_smoke_a100_20260602` | smoke / exploratory | Run the smallest official NEWT single-task train smoke on DMControl `walker-walk`, W&B disabled, no demos, no video, no checkpoint save. This is an official runner smoke, not a performance row. | Depends on NEWT env setup. Uses DMControl task to avoid ManiSkill asset dependency in the first smoke. | Off (`enable_wandb=false`, `WANDB_MODE=disabled`). | Slurm logs and NEWT local `logs/walker-walk/0/official_walker_smoke_20260602` if the smoke reaches logger setup. | A100 / `embers`. | `afterok:newt_official_env_setup_20260602`. | Submit. |
-| `lewm_official_import_config_smoke_20260602` | smoke | Import official LeWM modules, compose the training config, and verify SIGReg/model classes without requiring datasets. | Depends on LeWM env setup. Official repo/configs exist. | Off. | Slurm logs with torch/stable-worldmodel/stable-pretraining imports, train data name, max epochs, SIGReg weight, and class names. | CPU / no GPU QOS. | `afterok:lewm_official_env_setup_20260602`. | Submit. |
-| `lewm_official_data_checkpoint_download_20260602` | setup / diagnostic | Identify and download the smallest official LeWM dataset/checkpoint needed for an official train/eval smoke. | Missing locally: no `.h5`/`.lance` LeWM datasets were found under `/storage/project/r-agarg35-0/eliu354`. | Off. | HF repo/file inventory, downloaded dataset/checkpoint paths, or failure reason. | CPU first; GPU not needed. | Depends on LeWM env only if using its HF tooling. | Prepare after env setup; do not submit a train/eval job until inputs are known. |
+| `lewm_official_import_config_smoke_20260602` | smoke | Import official LeWM modules, compose the training config, and verify SIGReg/model classes without requiring datasets. | Depends on LeWM env setup. Official repo/configs exist. | Off. | Slurm logs with torch/stable-worldmodel/stable-pretraining imports, train data name, max epochs, SIGReg weight, and class names. | CPU / `embers`. | `afterok:lewm_official_env_setup_20260602`. | Submit. |
+| `lewm_official_data_checkpoint_download_20260602` | setup / diagnostic | Identify and download the smallest official LeWM dataset/checkpoint needed for an official train/eval smoke. | Missing locally: no `.h5`/`.lance` LeWM datasets were found under `/storage/project/r-agarg35-0/eliu354`. | Off. | HF repo/file inventory, downloaded dataset/checkpoint paths, or failure reason. | CPU / `embers`. | Depends on LeWM env only if using its HF tooling. | Prepare after env setup; do not submit a train/eval job until inputs are known. |
 
 Submission wrapper:
 
@@ -100,4 +100,28 @@ root_cause: CPU jobs inherited the account default QOS `inferno` because the fir
 fix: add CPU_QOS=embers and `--qos=${CPU_QOS}` to all CPU submissions, keep GPU_QOS=embers for GPU submissions, and remove incomplete env directories before recreating them.
 validation: `sbatch --test-only --partition=cpu-small --qos=embers ...` succeeded.
 replacement_decision: resubmit the same official-env/setup smoke batch after committing the QOS repair.
+```
+
+Replacement submitted after commit
+`9e2e0a3c9942844823b20b99db1862b3f7c7d564`:
+
+```text
+9398555 newt_official_env_setup_20260602, QOS embers, FAILED 1:0
+9398556 lewm_official_env_setup_20260602, QOS embers, RUNNING at first check
+9398557 newt_official_import_config_smoke_20260602, dependency=afterok:9398555, canceled after setup failure
+9398558 newt_official_walker_smoke_a100_20260602, dependency=afterok:9398555, canceled after setup failure
+9398559 lewm_official_import_config_smoke_20260602, dependency=afterok:9398556, pending at first check
+root_cause_newt: the canceled first submission left a partial conda env with `bin/python` present but no working standard-library `encodings` module.
+fix_newt: before reusing an env, run `python -c 'import encodings'`; remove and recreate the env if the sanity check fails.
+replacement_decision_newt: resubmit only the NEWT setup/import/walker smoke with the official conda YAML after committing the env sanity repair.
+```
+
+LeWM replacement result:
+
+```text
+9398556 lewm_official_env_setup_20260602 COMPLETED 0:0, QOS embers, elapsed 00:01:49
+env evidence: lewm_env_python_ok; torch 2.12.0+cu130; hydra 1.3.2; stable_worldmodel and stable_pretraining import from /storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602
+9398559 lewm_official_import_config_smoke_20260602 COMPLETED 0:0, QOS embers, elapsed 00:00:11
+config evidence: lewm_import_config_ok; data=pusht_expert_train.lance; trainer.max_epochs=1; loss.sigreg.weight=0.09; JEPA/ARPredictor/Embedder/MLP/SIGReg classes import successfully.
+next_lewm: official env/config smoke is healthy; prepare a data/checkpoint inventory/download job before any LeWM train/eval submission because no local `.h5`/`.lance` data was found earlier.
 ```

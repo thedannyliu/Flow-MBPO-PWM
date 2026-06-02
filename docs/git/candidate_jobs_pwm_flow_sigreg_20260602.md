@@ -155,3 +155,26 @@ All five jobs were canceled with scancel before setup completed.
 Wrapper fix: all CPU jobs now pass CPU_QOS=embers explicitly; incomplete env directories are removed before recreation.
 Replacement batch should use the same official env/setup smoke candidates with CPU_QOS=embers and GPU_QOS=embers.
 ```
+
+Replacement submitted after QOS repair commit
+`9e2e0a3c9942844823b20b99db1862b3f7c7d564`:
+
+```text
+9398555 newt_official_env_setup_20260602, QOS embers, FAILED 1:0
+9398556 lewm_official_env_setup_20260602, QOS embers, RUNNING at first check
+9398557 newt_official_import_config_smoke_20260602, dependency=afterok:9398555, canceled after setup failure
+9398558 newt_official_walker_smoke_a100_20260602, dependency=afterok:9398555, canceled after setup failure
+9398559 lewm_official_import_config_smoke_20260602, dependency=afterok:9398556, pending at first check
+root_cause_newt: the canceled first submission left a partial conda env with `bin/python` present but no working standard-library `encodings` module.
+fix_newt: before reusing an env, run `python -c 'import encodings'`; remove and recreate the env if the sanity check fails.
+next_newt: resubmit only the NEWT setup/import/walker smoke with CPU_QOS=embers and GPU_QOS=embers after committing the sanity repair.
+```
+
+LeWM replacement result:
+
+```text
+9398556 lewm_official_env_setup_20260602 COMPLETED 0:0, QOS embers
+9398559 lewm_official_import_config_smoke_20260602 COMPLETED 0:0, QOS embers
+evidence: official LeWM uv env imports torch 2.12.0+cu130, hydra 1.3.2, stable_worldmodel, stable_pretraining; config smoke composes data=pusht_expert_train.lance, trainer.max_epochs=1, loss.sigreg.weight=0.09, and imports JEPA/ARPredictor/Embedder/MLP/SIGReg.
+next_lewm: prepare official data/checkpoint inventory/download before train/eval because local LeWM `.h5`/`.lance` inputs were absent.
+```
