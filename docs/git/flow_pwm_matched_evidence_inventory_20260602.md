@@ -91,9 +91,13 @@ best BC: still a hard comparator, especially matched seed0 video fall 0.400
 expert and expert-noisy collectors: far above all learned policy-improvement rows
 ```
 
-Next action: replace the failed infrastructure jobs. The faithful original PWM
-fall-aware eval/video package remains incomplete until the `fix1` eval and
-rollout replacements produce `summary.json`, `eval_episodes.csv`, and
-`rollout.mp4`. The Ant and Hopper DFlex supplemental diagnostics remain
-incomplete until `fix3` runs with the locked original environment plus explicit
-GCC 11 `CPATH`.
+Next action: replace the remaining failed infrastructure jobs. The faithful
+original PWM fall-aware eval/video package remains incomplete because `fix1`
+cleared the upstream PWM import-path error but then failed with
+`KeyError: 'args'`: the adapter checkpoints are upstream PWM save dictionaries,
+not generic extracted-policy checkpoints. The `fix2` eval and rollout
+manifests add explicit adapter schema, dataset, metadata, normalization, task,
+command, and obs-mode fields. The Ant DFlex supplemental diagnostic is now
+complete under the locked original environment plus explicit GCC 11 `CPATH`;
+the Hopper DFlex probe remains incomplete until its fix3 job writes the probe
+JSON files.

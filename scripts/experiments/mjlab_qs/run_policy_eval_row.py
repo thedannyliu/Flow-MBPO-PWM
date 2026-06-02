@@ -156,6 +156,19 @@ def main() -> None:
                 )
             if notes:
                 cmd.extend(["--notes", notes])
+            for option, key in (
+                ("--checkpoint-format", "checkpoint_format"),
+                ("--dataset", "dataset"),
+                ("--metadata", "metadata"),
+                ("--normalization", "normalization"),
+                ("--task-id", "task_id"),
+                ("--seed", "seed"),
+                ("--command-dim", "command_dim"),
+                ("--command-position", "command_position"),
+                ("--obs-mode", "obs_mode"),
+            ):
+                if row.get(key):
+                    cmd.extend([option, row[key]])
             subprocess.run(cmd, check=True)
 
 

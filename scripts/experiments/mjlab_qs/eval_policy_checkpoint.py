@@ -34,9 +34,15 @@ from scripts.experiments.mjlab_qs.render_policy_rollout import (  # noqa: E402
     git_branch,
     git_sha,
 )
+from scripts.experiments.mjlab_qs.run_original_pwm_adapter import (  # noqa: E402
+    build_eval_env as build_original_eval_env,
+    build_pwm_agent,
+    load_data as load_original_data,
+    pack_obs,
+)
 from scripts.experiments.mjlab_qs.run_offline_pwm_policy_extraction import (  # noqa: E402
     build_eval_env,
-    load_data,
+    load_data as load_policy_data,
     norm,
 )
 
@@ -59,6 +65,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baseline-length", type=float, default=None)
     p.add_argument("--baseline-fall", type=float, default=None)
     p.add_argument("--notes", default="")
+    p.add_argument("--checkpoint-format", choices=("auto", "generic", "original_pwm_adapter"), default="auto")
+    p.add_argument("--dataset", default="")
+    p.add_argument("--metadata", default="")
+    p.add_argument("--normalization", default="")
+    p.add_argument("--task-id", default="Mjlab-Velocity-Flat-Unitree-G1")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--command-dim", type=int, default=3)
+    p.add_argument("--command-position", choices=("tail", "head"), default="tail")
+    p.add_argument("--obs-mode", choices=("normalized", "raw"), default="normalized")
     return p.parse_args()
 
 
@@ -118,6 +133,129 @@ def resolve_device(requested: str) -> torch.device:
             "Check the Slurm GPU allocation and Python/conda environment."
         )
     return device
+
+
+def adapter_args_from_cli(args: argparse.Namespace, output_dir: Path) -> argparse.Namespace:
+    missing = [key for key in ("dataset", "metadata", "normalization") if not getattr(args, key)]
+    if missing:
+        raise SystemExit(
+            "original_pwm_adapter checkpoints require manifest/CLI fields: " + ", ".join(missing)
+        )
+    return argparse.Namespace(
+        dataset=args.dataset,
+        metadata=args.metadata,
+        normalization=args.normalization,
+        seed=args.seed,
+        device=args.device,
+        output_dir=str(output_dir),
+        task_id=args.task_id,
+        eval_episodes=args.eval_episodes,
+        eval_num_envs=args.eval_num_envs,
+        episode_length=args.max_steps,
+        command_dim=args.command_dim,
+        command_position=args.command_position,
+        obs_mode=args.obs_mode,
+        reward_mode="normalized",
+        pretrain_iters=0,
+        policy_iters=0,
+        wm_batch_size=256,
+        policy_batch_size=64,
+        horizon=16,
+        gamma=0.99,
+        lam=0.95,
+        actor_lr=5e-4,
+        critic_lr=5e-4,
+        model_lr=3e-4,
+        critic_iterations=8,
+        critic_batches=4,
+        num_critics=3,
+        latent_dim=512,
+        rew_rms=False,
+        ret_rms=True,
+    )
+
+
+def load_original_adapter_agent(
+    ckpt: dict[str, Any],
+    adapter_args: argparse.Namespace,
+    data: dict[str, Any],
+    device: torch.device,
+):
+    agent = build_pwm_agent(
+        adapter_args,
+        obs_dim=int(data["phys_obs"].shape[-1]) + int(data["command"].shape[-1]),
+        action_dim=int(data["policy_action"].shape[-1]),
+    )
+    agent.actor.load_state_dict(ckpt["actor"])
+    agent.wm.load_state_dict(ckpt["world_model"])
+    agent.actor.to(device).eval()
+    agent.wm.to(device).eval()
+    return agent
+
+
+@torch.no_grad()
+def collect_original_adapter_eval(
+    agent,
+    adapter_args: argparse.Namespace,
+    nrm: dict[str, torch.Tensor],
+    args: argparse.Namespace,
+):
+    device = torch.device(args.device)
+    env, obs_td, obs_groups = build_original_eval_env(adapter_args)
+    returns = torch.zeros(args.eval_num_envs, device=device)
+    lengths = torch.zeros(args.eval_num_envs, device=device)
+    episode_rows: list[dict[str, Any]] = []
+    try:
+        while len(episode_rows) < args.eval_episodes:
+            actor_obs = tensor_from_actor_obs(obs_td, obs_groups)
+            phys, cmd = split_obs(actor_obs, adapter_args.command_dim, adapter_args.command_position)
+            packed = pack_obs(phys.to(device), cmd.to(device), nrm, adapter_args.obs_mode)
+            z = agent.wm.encode(packed, task=None)
+            raw_action = torch.tanh(agent.actor(z, deterministic=True)).clamp(-1.0, 1.0)
+            action, ramp_factor = apply_action_ramp(raw_action, lengths, int(args.action_ramp_steps))
+            next_obs_td, reward, done, extras = env.step(action)
+            reward = reward.to(device).float().reshape(-1)
+            done = done.to(device).bool().reshape(-1)
+            time_out = extras.get("time_outs", torch.zeros_like(done)).to(device).bool().reshape(-1)
+            terminated = done & (~time_out)
+            returns = returns + reward
+            lengths = lengths + 1.0
+            for idx in done.nonzero(as_tuple=False).reshape(-1).tolist():
+                episode_rows.append(
+                    {
+                        "episode": len(episode_rows),
+                        "env_slot": idx,
+                        "return": float(returns[idx].item()),
+                        "length": float(lengths[idx].item()),
+                        "terminated": int(terminated[idx].item()),
+                        "truncated": int(time_out[idx].item()),
+                        "start_command_0": math.nan,
+                        "start_command_1": math.nan,
+                        "start_command_2": math.nan,
+                        "start_obs_norm": math.nan,
+                        "start_action_l2": math.nan,
+                        "raw_start_action_l2": math.nan,
+                        "start_action_ramp_factor": float(ramp_factor[idx].item()),
+                        **terminal_obs_summary(
+                            phys.to(device),
+                            cmd.to(device),
+                            z,
+                            action,
+                            raw_action,
+                            reward,
+                            idx,
+                            adapter_args.command_dim,
+                        ),
+                    }
+                )
+                returns[idx] = 0.0
+                lengths[idx] = 0.0
+                if len(episode_rows) >= args.eval_episodes:
+                    break
+            obs_td = next_obs_td
+    finally:
+        env.close()
+    return episode_rows[: args.eval_episodes]
 
 
 @torch.no_grad()
@@ -247,15 +385,24 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     ckpt = torch.load(args.policy_checkpoint, map_location="cpu", weights_only=False)
-    ckpt_args = ckpt["args"]
-    data, _metadata, nrm, _train_idx = load_data(argparse.Namespace(**ckpt_args), device)
-    actor = build_actor(
-        ckpt,
-        state_dim=int(data["phys_obs"].shape[-1]),
-        command_dim=int(data["command"].shape[-1]),
-        action_dim=int(data["policy_action"].shape[-1]),
-        device=device,
-    )
+    checkpoint_format = args.checkpoint_format
+    if checkpoint_format == "auto":
+        checkpoint_format = "generic" if "args" in ckpt else "original_pwm_adapter"
+    if checkpoint_format == "original_pwm_adapter":
+        adapter_args = adapter_args_from_cli(args, output_dir)
+        data, _metadata, nrm, _train_idx, _val_idx, _test_idx = load_original_data(adapter_args, device)
+        actor = load_original_adapter_agent(ckpt, adapter_args, data, device)
+        ckpt_args = vars(adapter_args)
+    else:
+        ckpt_args = ckpt["args"]
+        data, _metadata, nrm, _train_idx = load_policy_data(argparse.Namespace(**ckpt_args), device)
+        actor = build_actor(
+            ckpt,
+            state_dim=int(data["phys_obs"].shape[-1]),
+            command_dim=int(data["command"].shape[-1]),
+            action_dim=int(data["policy_action"].shape[-1]),
+            device=device,
+        )
     run = None
     if args.wandb_project and not args.disable_wandb:
         import wandb
@@ -269,6 +416,7 @@ def main() -> None:
                 **ckpt_args,
                 "policy_checkpoint": args.policy_checkpoint,
                 "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
+                "checkpoint_format": checkpoint_format,
                 "eval_episodes": args.eval_episodes,
                 "eval_num_envs": args.eval_num_envs,
                 "max_steps": args.max_steps,
@@ -283,7 +431,10 @@ def main() -> None:
             },
         )
     t0 = time.time()
-    rows = collect_eval(actor, ckpt_args, nrm, args)
+    if checkpoint_format == "original_pwm_adapter":
+        rows = collect_original_adapter_eval(actor, adapter_args, nrm, args)
+    else:
+        rows = collect_eval(actor, ckpt_args, nrm, args)
     write_csv(
         output_dir / "eval_episodes.csv",
         rows,
@@ -317,6 +468,7 @@ def main() -> None:
     summary = {
         "policy_checkpoint": args.policy_checkpoint,
         "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
+        "checkpoint_format": checkpoint_format,
         "eval_episodes": args.eval_episodes,
         "eval_num_envs": args.eval_num_envs,
         "max_steps": args.max_steps,

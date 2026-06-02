@@ -47,6 +47,8 @@ MJLab adapter eval/video environment:
 | `original_pwm_adapter_phase3_rollout10_final_best_fix1_20260602` | eval / video | Re-run faithful original PWM adapter final/best 10-episode, 1000-step rollout videos after jobs `9388553_[0-1]` failed before rendering with `ModuleNotFoundError: No module named 'pwm'`. | Yes: same checkpoints as above; fixed wrapper includes upstream PWM import path. | Enabled; project `flow-mbpo-mjlab-original-pwm-adapter-rollout1000`. | `summary.json`, `rollout.mp4`, W&B video media under `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix1_20260602/...`. | H200; `embers`. | No. | Submit after committing wrapper/manifests. |
 | `pwm_ant_locked_realenv_eval_h200_fix3` | diagnostic / eval | Re-run Ant locked final/best true DFlex eval after jobs `9387942` and `9388605` failed during infrastructure setup. Fix2 got past missing `cc1plus` but failed because system header `CPATH` was not restored. | Yes: final and best Ant actors from job `9384344` exist; config `baselines/PWM/scripts/outputs/2026-06-01/23-06-24/.hydra/config.yaml` exists. | Enabled; project `flow-mbpo-pwm-fidelity`. | Eval summaries under `eval_results/pwm_phase1_ant_locked_h200_realenv_{final,best}_20260602_fix3/`. | H200; `embers`. | No. | Submit after committing wrapper. |
 | `pwm_hopper_locked_wmprobe_h100_fix3` | diagnostic | Re-run Hopper final/best WM-vs-real probe after jobs `9387949` and `9388606` failed during DFlex kernel rebuild. Fix3 restores the explicit GCC 11 system include `CPATH`. | Yes: final and best Hopper actors from job `9383814` exist. | Disabled. | Probe JSON files `final_actor_wm_vs_real_fix3.json` and `best_actor_wm_vs_real_fix3.json`. | H100; `embers`. | No. | Submit after committing wrapper. |
+| `original_pwm_adapter_phase3_eval40_final_best_fix2_20260602` | eval | Re-run faithful original PWM adapter final/best 40-episode MJLab eval after fix1 jobs `9394870_[0-1]` failed with `KeyError: 'args'` before evaluation. | Yes: final and best upstream PWM adapter checkpoints from job `9387895` exist; metadata reports `phys_obs_dim=96`, `command_dim=3`, `act_dim=29`; checkpoint world model input is 99 and CPU state-dict load succeeds after rebuilding the upstream PWM agent. | Enabled; project `flow-mbpo-mjlab-original-pwm-adapter-eval40`. | `summary.json`, `eval_episodes.csv`, W&B runs under `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_fix2_20260602/...`. | H200; `embers`. | No. | Submit after committing schema repair/manifests. |
+| `original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602` | eval / video | Re-run faithful original PWM adapter final/best 10-episode, 1000-step rollout videos after fix1 rollout row `9394871_0` failed with `KeyError: 'args'` and sibling row `9394871_1` was canceled. | Yes: same checkpoints and schema validation as eval fix2; row runners now forward explicit dataset, metadata, normalization, task, command, and obs-mode fields. | Enabled; project `flow-mbpo-mjlab-original-pwm-adapter-rollout1000`. | `summary.json`, `rollout.mp4`, W&B video media under `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/...`. | H200; `embers`. | No. | Submit after committing schema repair/manifests. |
 
 Submitted replacement job IDs:
 
@@ -55,4 +57,12 @@ Submitted replacement job IDs:
 9394871 original_pwm_adapter_phase3_rollout10_final_best_fix1_20260602
 9394869 pwm_ant_locked_realenv_eval_h200_fix3
 9394872 pwm_hopper_locked_wmprobe_h100_fix3
+```
+
+Fix1 follow-up:
+
+```text
+9394870_[0-1] failed with KeyError: 'args' before evaluation artifacts.
+9394871_0 failed with KeyError: 'args' before rollout artifacts.
+9394871_1 was canceled after the same schema root cause was confirmed.
 ```

@@ -1812,3 +1812,56 @@ Interpretation: Ant now provides a second successful original-Dflex-task sanity
 point under the locked original PWM stack. This confirms that the fix3
 environment call is correct for DFlex parity jobs. It does not answer the MJLab
 transfer question, because MJLab adapter jobs require the project MJLab runtime.
+
+MJLab original PWM adapter fix1 monitor:
+
+```text
+jobs: 9394870 policy_eval, 9394871 policy_rollout
+status:
+  9394870_[0-1]: FAILED before evaluation artifacts.
+  9394871_0: FAILED before rollout artifacts.
+  9394871_1: canceled after the same root cause was observed on sibling rows.
+root_cause:
+  The wrapper import path repair worked, but generic eval/render still assumed
+  extracted policy checkpoints contain ckpt["args"]. The original PWM adapter
+  checkpoints are upstream PWM save dictionaries with keys actor, critic,
+  world_model, obs_rms, rew_rms, ret_rms, actor_opt, critic_opt, and
+  world_model_opt; they do not contain args.
+result_use:
+  No algorithm evidence. These rows failed before real MJLab policy evaluation
+  or video rollout.
+```
+
+Fix2 repair prepared before replacement submission:
+
+```text
+code:
+  eval_policy_checkpoint.py and render_policy_rollout.py now support
+  --checkpoint-format original_pwm_adapter. The adapter path rebuilds the
+  upstream PWM agent from explicit dataset metadata/normalization fields,
+  loads actor/world_model state dicts, and uses the original adapter observation
+  packing path during MJLab eval/render.
+  run_policy_eval_row.py and run_policy_rollout_row.py now forward
+  checkpoint_format, dataset, metadata, normalization, task_id, seed,
+  command_dim, command_position, and obs_mode from manifests.
+
+new manifests:
+  scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_eval40_final_best_fix2_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602.csv
+
+validation:
+  python -m py_compile scripts/experiments/mjlab_qs/eval_policy_checkpoint.py scripts/experiments/mjlab_qs/render_policy_rollout.py scripts/experiments/mjlab_qs/run_policy_eval_row.py scripts/experiments/mjlab_qs/run_policy_rollout_row.py
+  bash -n scripts/experiments/mjlab_qs/submit_array.sh
+  csv.DictReader parsed both fix2 manifests: 2 rows each.
+  Project pwm env help output exposes --checkpoint-format and dataset metadata
+  adapter fields for eval and render.
+  Metadata/checkpoint shape check: phys_obs_dim=96, command_dim=3, act_dim=29,
+  world_model _encoder.0.weight shape=(256, 99).
+  Upstream PWM agent rebuilt with obs_dim=99/action_dim=29 and successfully
+  loaded final actor/world_model state dicts on CPU.
+
+note:
+  A full dataset load smoke on the login node was killed with exit 137 because
+  the QS window file has 351051 windows. Full real-env validation is therefore
+  delegated to the Slurm replacement jobs.
+```

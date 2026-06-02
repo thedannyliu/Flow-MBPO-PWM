@@ -33,9 +33,14 @@ from scripts.experiments.mjlab_qs.collect_mjlab_qs_native_episodes import (
 from scripts.experiments.mjlab_qs.run_offline_pwm_policy_extraction import (
     Actor,
     FlowActor,
-    load_data,
+    load_data as load_policy_data,
     norm,
     parse_units,
+)
+from scripts.experiments.mjlab_qs.run_original_pwm_adapter import (
+    build_pwm_agent,
+    load_data as load_original_data,
+    pack_obs,
 )
 
 
@@ -63,6 +68,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Save per-step normalized state, command, action, and done flags for support/OOD calibration.",
     )
+    p.add_argument("--checkpoint-format", choices=("auto", "generic", "original_pwm_adapter"), default="auto")
+    p.add_argument("--dataset", default="")
+    p.add_argument("--metadata", default="")
+    p.add_argument("--normalization", default="")
+    p.add_argument("--task-id", default="Mjlab-Velocity-Flat-Unitree-G1")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--command-dim", type=int, default=3)
+    p.add_argument("--command-position", choices=("tail", "head"), default="tail")
+    p.add_argument("--obs-mode", choices=("normalized", "raw"), default="normalized")
     return p.parse_args()
 
 
@@ -135,6 +149,63 @@ def build_actor(ckpt: dict[str, Any], state_dim: int, command_dim: int, action_d
     actor.to(device)
     actor.eval()
     return actor
+
+
+def adapter_args_from_cli(args: argparse.Namespace, output_dir: Path) -> argparse.Namespace:
+    missing = [key for key in ("dataset", "metadata", "normalization") if not getattr(args, key)]
+    if missing:
+        raise SystemExit(
+            "original_pwm_adapter checkpoints require manifest/CLI fields: " + ", ".join(missing)
+        )
+    return argparse.Namespace(
+        dataset=args.dataset,
+        metadata=args.metadata,
+        normalization=args.normalization,
+        seed=args.seed,
+        device=args.device,
+        output_dir=str(output_dir),
+        task_id=args.task_id,
+        eval_num_envs=1,
+        episode_length=args.max_steps,
+        command_dim=args.command_dim,
+        command_position=args.command_position,
+        obs_mode=args.obs_mode,
+        reward_mode="normalized",
+        pretrain_iters=0,
+        policy_iters=0,
+        wm_batch_size=256,
+        policy_batch_size=64,
+        horizon=16,
+        gamma=0.99,
+        lam=0.95,
+        actor_lr=5e-4,
+        critic_lr=5e-4,
+        model_lr=3e-4,
+        critic_iterations=8,
+        critic_batches=4,
+        num_critics=3,
+        latent_dim=512,
+        rew_rms=False,
+        ret_rms=True,
+    )
+
+
+def load_original_adapter_agent(
+    ckpt: dict[str, Any],
+    adapter_args: argparse.Namespace,
+    data: dict[str, Any],
+    device: torch.device,
+):
+    agent = build_pwm_agent(
+        adapter_args,
+        obs_dim=int(data["phys_obs"].shape[-1]) + int(data["command"].shape[-1]),
+        action_dim=int(data["policy_action"].shape[-1]),
+    )
+    agent.actor.load_state_dict(ckpt["actor"])
+    agent.wm.load_state_dict(ckpt["world_model"])
+    agent.actor.to(device).eval()
+    agent.wm.to(device).eval()
+    return agent
 
 
 def build_render_env(ckpt_args: dict[str, Any], device: str):
@@ -225,6 +296,94 @@ def append_support_feature(
 
 def stack_support_features(storage: dict[str, list[torch.Tensor]]) -> dict[str, torch.Tensor]:
     return {key: torch.cat(values, dim=0) for key, values in storage.items() if values}
+
+
+@torch.no_grad()
+def collect_original_adapter_rollout(agent, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor], args: argparse.Namespace):
+    device = torch.device(args.device)
+    env, base_env, obs_td, obs_groups = build_render_env(ckpt_args, args.device)
+    frames = []
+    step_rows: list[dict[str, Any]] = []
+    episode_rows: list[dict[str, Any]] = []
+    support_features: dict[str, list[torch.Tensor]] = {
+        "state": [],
+        "command": [],
+        "action": [],
+        "raw_action": [],
+        "episode_slot": [],
+        "step": [],
+        "reward": [],
+        "done": [],
+        "terminated": [],
+        "truncated": [],
+    }
+    returns = torch.zeros(1, device=device)
+    ep_len = torch.zeros(1, device=device)
+    episodes_done = 0
+    command_dim = int(ckpt_args.get("command_dim", 3))
+    command_position = ckpt_args.get("command_position", "tail")
+    try:
+        while episodes_done < args.rollout_episodes:
+            frame = frame_from_render(env, base_env)
+            if frame is not None:
+                frames.append(frame)
+            actor_obs = tensor_from_actor_obs(obs_td, obs_groups)
+            phys, cmd = split_obs(actor_obs, command_dim, command_position)
+            packed = pack_obs(phys.to(device), cmd.to(device), nrm, ckpt_args.get("obs_mode", "normalized"))
+            z = agent.wm.encode(packed, task=None)
+            raw_action = torch.tanh(agent.actor(z, deterministic=True)).clamp(-1.0, 1.0)
+            action, ramp_factor = apply_action_ramp(raw_action, ep_len, int(args.action_ramp_steps))
+            next_obs_td, reward, done, extras = env.step(action)
+            reward = reward.to(device).float().reshape(-1)
+            done = done.to(device).bool().reshape(-1)
+            time_out = extras.get("time_outs", torch.zeros_like(done)).to(device).bool().reshape(-1)
+            terminated = done & (~time_out)
+            returns = returns + reward
+            ep_len = ep_len + 1
+            if args.save_support_features:
+                append_support_feature(
+                    support_features,
+                    z,
+                    cmd.float().to(device),
+                    action,
+                    raw_action,
+                    episodes_done,
+                    int(ep_len[0].item()),
+                    reward,
+                    done,
+                    terminated,
+                    time_out,
+                )
+            step_rows.append(
+                {
+                    "episode_slot": episodes_done,
+                    "step": int(ep_len[0].item()),
+                    "reward": float(reward[0].item()),
+                    "action_l2": float(action[0].float().pow(2).mean().sqrt().item()),
+                    "raw_action_l2": float(raw_action[0].float().pow(2).mean().sqrt().item()),
+                    "action_ramp_factor": float(ramp_factor[0].item()),
+                    "done": int(done[0].item()),
+                    "terminated": int(terminated[0].item()),
+                    "truncated": int(time_out[0].item()),
+                }
+            )
+            if bool(done[0].item()) or int(ep_len[0].item()) >= args.max_steps:
+                episode_rows.append(
+                    {
+                        "episode": episodes_done,
+                        "return": float(returns[0].item()),
+                        "length": float(ep_len[0].item()),
+                        "terminated": int(terminated[0].item()),
+                        "truncated": int(time_out[0].item()),
+                    }
+                )
+                episodes_done += 1
+                returns.zero_()
+                ep_len.zero_()
+            obs_td = next_obs_td
+    finally:
+        env.close()
+    return frames, step_rows, episode_rows, support_features
 
 
 @torch.no_grad()
@@ -342,15 +501,24 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     ckpt = torch.load(args.policy_checkpoint, map_location=device, weights_only=False)
-    ckpt_args = ckpt["args"]
-    data, _metadata, nrm, _train_idx = load_data(argparse.Namespace(**ckpt_args), device)
-    actor = build_actor(
-        ckpt,
-        state_dim=int(data["phys_obs"].shape[-1]),
-        command_dim=int(data["command"].shape[-1]),
-        action_dim=int(data["policy_action"].shape[-1]),
-        device=device,
-    )
+    checkpoint_format = args.checkpoint_format
+    if checkpoint_format == "auto":
+        checkpoint_format = "generic" if "args" in ckpt else "original_pwm_adapter"
+    if checkpoint_format == "original_pwm_adapter":
+        adapter_args = adapter_args_from_cli(args, output_dir)
+        data, _metadata, nrm, _train_idx, _val_idx, _test_idx = load_original_data(adapter_args, device)
+        actor = load_original_adapter_agent(ckpt, adapter_args, data, device)
+        ckpt_args = vars(adapter_args)
+    else:
+        ckpt_args = ckpt["args"]
+        data, _metadata, nrm, _train_idx = load_policy_data(argparse.Namespace(**ckpt_args), device)
+        actor = build_actor(
+            ckpt,
+            state_dim=int(data["phys_obs"].shape[-1]),
+            command_dim=int(data["command"].shape[-1]),
+            action_dim=int(data["policy_action"].shape[-1]),
+            device=device,
+        )
     t0 = time.time()
     run = None
     if args.wandb_project and not args.disable_wandb:
@@ -365,6 +533,7 @@ def main() -> None:
                 **ckpt_args,
                 "policy_checkpoint": args.policy_checkpoint,
                 "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
+                "checkpoint_format": checkpoint_format,
                 "rollout_episodes": args.rollout_episodes,
                 "max_steps": args.max_steps,
                 "video_fps": args.video_fps,
@@ -378,7 +547,10 @@ def main() -> None:
                 "command": command_line(),
             },
         )
-    frames, step_rows, episode_rows, support_features = collect_rollout(actor, ckpt_args, nrm, args)
+    if checkpoint_format == "original_pwm_adapter":
+        frames, step_rows, episode_rows, support_features = collect_original_adapter_rollout(actor, ckpt_args, nrm, args)
+    else:
+        frames, step_rows, episode_rows, support_features = collect_rollout(actor, ckpt_args, nrm, args)
     video_path = output_dir / "rollout.mp4"
     write_video(frames, video_path, args.video_fps, args.require_mp4)
     write_csv(
@@ -397,6 +569,7 @@ def main() -> None:
     summary = {
         "policy_checkpoint": args.policy_checkpoint,
         "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
+        "checkpoint_format": checkpoint_format,
         "video": str(video_path),
         "num_frames": len(frames),
         "num_episodes": len(episode_rows),
