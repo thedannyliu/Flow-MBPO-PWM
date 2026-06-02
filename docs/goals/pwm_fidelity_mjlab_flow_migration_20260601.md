@@ -485,6 +485,81 @@ Jobs:
   9383817 l40s gpu-l40s: stdout logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_l40s_s0_9383817.out, stderr logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_l40s_s0_9383817.err
 ```
 
+User-requested concurrency reduction:
+
+```text
+Time: 2026-06-01 evening EDT
+Action: canceled 9383815, 9383816, and 9383817; kept only H200 job 9383814 running.
+Reason: user requested only the highest-priority GPU run remain active after confirming that simultaneous
+H200/H100/L40S sandbox rebuilds all worked and A100 was still pending.
+Observed after cancellation:
+  9383814 h200 RUNNING on atl1-1-03-020-18-0
+  9383815 h100 CANCELLED by user
+  9383816 a100 CANCELLED by user
+  9383817 l40s CANCELLED by user
+```
+
+Prevent-repeat notes from the locked-env debug:
+
+- Do not delete only `kernels.so`, `.o`, or `build.ninja` in a shared DFlex install. DFlex may still trust `adjoint.gen`, print `Using cached kernels`, skip rebuild, and then fail importing the missing compiled module.
+- For formal GPU jobs, prefer a job-local DFlex sandbox copied from the locked env into `${TMPDIR}`. Delete the sandbox's whole `dflex/kernels` directory before import, put the sandbox first in `PYTHONPATH`, and rebuild there.
+- Keep the locked compiler/runtime exports together: `PYTHONNOUSERSITE=1`, locked env `PATH`, `CUDA_HOME`, `CUDACXX`, `/usr/bin/gcc`, `/usr/bin/g++`, `CUDAHOSTCXX`, clean `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`, `LIBRARY_PATH`, and `GCC_EXEC_PREFIX`, plus the explicit GCC 11 include `CPATH`.
+- H200/H100/L40S sandbox rebuilds succeeded independently. The earlier H200 failure was a DFlex cache invalidation error, not evidence that the locked torch/cu118 stack or H200 DFlex build was unusable.
+- Continue Phase 1 with only job 9383814. Do not claim original PWM parity until the H200 run finishes, final and true-best checkpoints are present, and both actors pass a separate real-environment eval.
+
+Follow-up queued jobs after the 2026-06-01 handoff:
+
+```text
+Current rule:
+  Jobs may be queued in parallel, but interpretation remains Phase 1 -> Phase 2 -> Phase 3.
+  All original PWM/DFlex jobs below use the locked env /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+  and a job-local DFlex sandbox.
+
+Phase 1, second original-task sanity:
+  9384321 Ant smoke, H100/embers, W&B disabled, env=dflex_ant, checkpoint=PWM_AntEnv.pt,
+          checkpoint_mode=wm_only, alg.max_epochs=80, eval_runs=4.
+  9384344 Ant formal, H100/embers, W&B enabled, dependency=afterok:9384321,
+          env=dflex_ant, checkpoint=PWM_AntEnv.pt, checkpoint_mode=wm_only, eval_runs=12.
+
+Phase 1, Hopper final/best true DFlex eval and reload/cache isolation:
+  9384354 final_policy true eval, H100/embers, dependency=afterok:9383814,
+          checkpoint=baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/final_policy.pt,
+          output=eval_results/pwm_phase1_hopper_locked_h200/final_true_eval_20260601.
+  9384355 best_policy true eval, H100/embers, dependency=afterok:9383814,
+          checkpoint=baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/best_policy.pt,
+          output=eval_results/pwm_phase1_hopper_locked_h200/best_true_eval_20260601.
+
+Phase 2, minimal WM-vs-real probe:
+  9384374 final_policy WM-vs-real reward probe, H100/embers, dependency=afterok:9384354:9384355,
+          output=logs/diagnostics/pwm_dflex_checkpoint_probe/hopper_h200_final_actor_256_20260601.json.
+  9384375 best_policy WM-vs-real reward probe, H100/embers, dependency=afterok:9384354:9384355,
+          output=logs/diagnostics/pwm_dflex_checkpoint_probe/hopper_h200_best_actor_256_20260601.json.
+
+Phase 3, faithful MJLab adapter smoke queued but gated behind Phase 2:
+  9384400 original_pwm_adapter smoke, H100/embers, dependency=afterok:9384374:9384375,
+          manifest=scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_smoke_20260601.csv,
+          dataset=scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt,
+          W&B disabled, skip_real_eval=true, pretrain_iters=2, policy_iters=2.
+
+Phase 3, faithful MJLab adapter formal queued but gated behind the smoke:
+  9384485 original_pwm_adapter formal, H200/embers, dependency=afterok:9384400,
+          manifest=scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_formal_h200_seed0_20260601.csv,
+          dataset=scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt,
+          W&B enabled, skip_real_eval=false, pretrain_iters=50000, policy_iters=15000,
+          eval_episodes=40, eval_num_envs=16.
+
+Rejected submission attempts before 9384485:
+  H200 with cpus=12 failed because PACE enforces max CPU:GPU ratio 8:1 for the H200 node class.
+  H200 with time=12:00:00 failed under embers with QOSMaxWallDurationPerJobLimit.
+  Accepted settings: cpus=8, time=04:00:00, mem=192G.
+
+Do not use 9384400 as a claim about MJLab performance. It is only a runtime smoke
+for the original PWM algorithm adapter using existing MJLab QS IO.
+Do not use 9384485 alone as a full MJLab claim either: the current adapter formal
+does 40-episode real eval and saves best/final extraction policies, but separate
+1000-step MP4/W&B video jobs are still required before final MJLab claims.
+```
+
 The formal run must record:
 
 - repo SHA and PWM SHA;
@@ -1063,3 +1138,148 @@ torch import result:
 ```
 
 This reconstruction attempt confirms that the upstream `environment.yaml` pins are too loose for the current conda channel state. Even when the requested `pytorch` package is the intended `2.3.1` CUDA 11.8 build, the solve can still pull incompatible Intel/MKL/OpenMP and CUDA compiler-side packages. The next parity attempt needs an explicit lock file or additional pins for `mkl`, OpenMP/Intel runtime, `cuda-version`, `cuda-nvcc`, and related CUDA libraries before installing TorchRL/TensorDict/DFlex.
+
+## Phase 1 Locked-Env Rerun Result
+
+This section supersedes the earlier non-locked Phase 1 gate decision above. The low `~1285` true real-env returns were reproduced only under the drifted `pwm` environment. After reconstructing a locked original PWM runtime and forcing a clean DFlex sandbox rebuild, Hopper parity passes.
+
+Locked runtime:
+
+```text
+env: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+python: 3.10.14
+torch: 2.3.1 py3.10_cuda11.8_cudnn8.7.0_0
+torchvision: 0.18.1 py310_cu118
+pytorch-cuda: 11.8
+cuda-toolkit: 11.8.0
+cuda-version: 11.8
+cuda-nvcc: 11.8.89
+tensordict: 0.4.0
+torchrl: 0.4.0
+mkl: 2023.1.0
+intel-openmp: 2023.1.0
+dflex: imgeorgiev/DiffRL commit bb59db5cf65e63740787bf22f91bae3103b30d19
+DFlex rebuild: passed in per-job sandbox with /usr/bin/gcc and /usr/bin/g++ 11.5
+```
+
+Locked W&B-disabled smoke:
+
+```text
+slurm_job_id: 9383756
+partition: gpu-rtx6000
+qos: embers
+status: COMPLETED
+exit_code: 0:0
+command_core: python train_dflex.py env=dflex_hopper alg=pwm general.run_wandb=False general.seed=0 general.checkpoint_mode=wm_only general.checkpoint=scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt alg.max_epochs=70 alg.save_interval=70 general.eval_runs=1 general.logdir=logs/phase1_hopper_smoke_locked_20260601
+result: passed runtime/import/checkpoint/load/train/save gate
+```
+
+Locked formal Hopper seed:
+
+```text
+slurm_job_id: 9383814
+main_repo_sha_at_submission: 95527e779a66978e614b688f8a5b48847052ae81
+baseline_pwm_sha: c7ed70a01916eee9a5b1ebaa356365b852c19418
+partition: gpu-h200
+qos: embers
+wandb_project: flow-mbpo-pwm-fidelity
+wandb_group: phase1_original_hopper_locked_20260601
+wandb_run_id: mx94exb3
+wandb_url: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/mx94exb3
+slurm_state: PREEMPTED
+batch_exit_code: 0:0
+elapsed: 01:38:33
+node: atl1-1-03-020-18-0
+command_core: python train_dflex.py env=dflex_hopper alg=pwm general.seed=0 general.run_wandb=True general.checkpoint_mode=wm_only general.checkpoint=scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt general.eval_runs=12 general.logdir=logs/phase1_hopper_formal_locked_h200_s0_20260601 wandb.project=flow-mbpo-pwm-fidelity wandb.group=phase1_original_hopper_locked_20260601
+slurm_stdout: logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_h200_s0_9383814.out
+slurm_stderr: logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_h200_s0_9383814.err
+```
+
+Training result:
+
+```text
+last_logged_epoch: 14997 / 15000
+last_logged_training_R: 5636.69
+best_logged_training_R: 5662.93 at epoch 14841
+best_policy_loss_wandb_summary: -5662.93066
+checkpoint_dir: baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601
+final_actor: baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/final_policy.pt
+true_best_actor: baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/best_policy.pt
+```
+
+The Slurm state is `PREEMPTED`, but the batch step exited `0:0`, saved both final and best checkpoints, synced W&B successfully, and ran the original entrypoint final eval. The original `PWM.eval()` output remained misleading for this DFlex path (`mean episode loss = 36.33`, `mean episode length = 55.47`), so the separate real-env evaluator below is the parity metric used for the gate.
+
+Locked real-env evaluator:
+
+```text
+slurm_job_id: 9385255
+job_name: pwm_hopper_locked_realenv_eval_rtx6000_fix2
+partition: gpu-rtx6000
+qos: embers
+status: COMPLETED
+exit_code: 0:0
+elapsed: 00:02:03
+node: atl1-1-02-005-31-0
+main_repo_sha_at_eval: 846cad45a0ad97c8cc674b5ee46bab223a9cc033
+baseline_pwm_sha: c7ed70a01916eee9a5b1ebaa356365b852c19418
+config: baselines/PWM/scripts/outputs/2026-06-01/20-27-50/.hydra/config.yaml
+num_games: 40
+num_envs: 64
+device: cuda:0
+dflex_eval_sandbox: /tmp/dflex_eval_sandbox_9385255/dflex
+slurm_stdout: logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_realenv_eval_rtx6000_fix2_9385255.out
+slurm_stderr: logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_realenv_eval_rtx6000_fix2_9385255.err
+```
+
+Real-env final actor result:
+
+```text
+checkpoint: baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/final_policy.pt
+output_dir: eval_results/pwm_phase1_hopper_locked_rtx6000_realenv_final_20260601
+wandb_run_id: pjkf9bi3
+wandb_url: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/pjkf9bi3
+return_mean: 5665.566882324219
+return_iqm: 5665.514379882812
+return_std: 9.985102211515205
+return_min: 5638.166015625
+return_max: 5687.3232421875
+episode_length_mean: 1000.0
+discounted_return_mean: 407.0071846008301
+```
+
+Real-env true-best actor result:
+
+```text
+checkpoint: baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/best_policy.pt
+output_dir: eval_results/pwm_phase1_hopper_locked_rtx6000_realenv_best_20260601
+wandb_run_id: dvhvr1gb
+wandb_url: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/dvhvr1gb
+return_mean: 5670.390954589844
+return_iqm: 5669.7645263671875
+return_std: 8.165196214570399
+return_min: 5651.94580078125
+return_max: 5690.13134765625
+episode_length_mean: 1000.0
+discounted_return_mean: 407.8704292297363
+```
+
+Wrapper/debug notes:
+
+```text
+formal job 9383776 failed before training because the wrapper deleted DFlex shared objects but left adjoint.gen; DFlex then reported "Using cached kernels" and failed importing kernels.
+formal multi-GPU jobs 9383815/9383817 were canceled after partial training; 9383816 was canceled while pending once the H200 path was sufficient.
+real-env eval jobs 9385192 and 9385235 exposed wrapper bugs: source ~/.bashrc under set -u, then missing export SANDBOX. Fixed in job 9385255.
+```
+
+## Updated Phase 1 Gate Decision
+
+Original PWM parity is established for Hopper under the locked original stack. The resolved config and algorithm settings were not the root cause of the earlier parity failure; the main failure was runtime fidelity:
+
+```text
+primary cause: drifted active pwm environment, especially torch 2.10/cu128 + torchrl/tensordict 0.11 + mixed CUDA toolchain instead of torch 2.3.1/cu118 + torchrl/tensordict 0.4
+secondary operational cause: DFlex kernel cache/sandbox invalidation mistakes during the first locked formal attempts
+not supported by current evidence: true PWM implementation failure on original Hopper
+not yet tested: MJLab transfer mismatch under faithful original PWM
+```
+
+Next gate: proceed to Phase 3 faithful PWM-on-MJLab with adapters only. Do not start Flow replacement rows until the faithful MJLab PWM smoke/formal/eval/video run is documented.
