@@ -73,3 +73,35 @@ Submitted fix2 replacement job IDs:
 9395746 original_pwm_adapter_phase3_eval40_final_best_fix2_20260602
 9395745 original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602
 ```
+
+## Replacement Candidates After Faithful Gate Results
+
+Preflight before this replacement batch:
+
+```text
+branch: mjlab-qs-rollout-policy-improvement
+head_sha_before_edits: ef6ab1f9ae3cd90591cf041086a0eedcdb28f61e
+dirty_before_edits: docs/goals/pwm_flow_sigreg_image_research_plan_20260602.md
+active_related_squeue: none
+checked_recent_jobs: 9394872 failed, 9396164 failed, 9396165 failed, 9395746 completed, 9396189 completed
+```
+
+Candidate list before submission:
+
+| Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `pwm_hopper_locked_wmprobe_h100_fix4` | diagnostic | Re-run Hopper final/best WM-vs-real probe after job `9394872` reached DFlex kernel/eval setup but failed because `PWM.load(..., with_buffer=False)` is incompatible with locked original PWM, whose API is `PWM.load(path, buffer=False)`. | Yes: final and best Hopper actors from locked formal job `9383814` exist under `baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/`. | Disabled. | `eval_results/pwm_phase2_hopper_locked_probe_20260602/final_actor_wm_vs_real_fix4.json` and `best_actor_wm_vs_real_fix4.json`, plus Slurm logs under `logs/pwm_original_parity/locked_env_20260601/`. | H100; `embers`. | No. | Submit after committing probe compatibility and wrapper. |
+| `original_pwm_adapter_hybrid_locked_nowandb_eval4_final_best_20260602` | smoke / diagnostic | Re-run short final/best hybrid locked MJLab eval after jobs `9396164_[0-1]` failed before evaluation because the mixed runtime W&B backend could not import `wandb.sdk.internal.internal`. This isolates runtime/eval behavior from W&B packaging. | Yes: final and best faithful adapter checkpoints from job `9387895` exist; dataset, metadata, and normalization files exist. | Disabled by manifest field `disable_wandb=true`. | Final/best `summary.json` and `eval_episodes.csv` under `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_hybrid_locked_nowandb_eval4_20260602/...`. | H200; `embers`. | No. | Submit after committing manifests and wrapper user-site isolation. |
+| `original_pwm_adapter_hybrid_locked_nowandb_rollout1_final_best_20260602` | smoke / diagnostic video | Re-run short final/best hybrid locked MJLab render after jobs `9396165_[0-1]` failed before rollout because of the same W&B backend import problem. This checks whether hybrid locked runtime can render MJLab without W&B. | Yes: same checkpoints and MJLab QS files as eval smoke. | Disabled by manifest field `disable_wandb=true`. | Final/best `summary.json`, `rollout.mp4`, and rollout CSVs under `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_hybrid_locked_nowandb_rollout1_20260602/...`. | H200; `embers`. | No. | Submit after committing manifests and wrapper user-site isolation. |
+
+Validation before submission:
+
+```text
+python -m py_compile scripts/diagnostics/pwm_dflex_checkpoint_probe.py scripts/experiments/mjlab_qs/locked_mjlab_python.py
+bash -n scripts/experiments/mjlab_qs/submit_hopper_wmprobe_fix4_20260602.sh
+locked env helper smoke: load_full_checkpoint calls PWM.load(path, buffer=False) for the locked API and PWM.load(path, with_buffer=False) for newer local APIs
+csv.DictReader parsed both W&B-disabled hybrid locked manifests: 2 rows each, final and best, disable_wandb=true
+dry-run submit_array.sh produced H200/embers arrays for eval and rollout without --require-formal-metadata
+locked_mjlab_python.py user-site isolation check: user_site_paths []
+locked_mjlab_python.py stack check: torch 2.3.1/cu118, tensordict 0.4.0, torchrl 0.4.0
+```

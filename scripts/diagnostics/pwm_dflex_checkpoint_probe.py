@@ -72,6 +72,15 @@ def summarize(name: str, value: torch.Tensor) -> dict[str, float]:
     }
 
 
+def load_full_checkpoint(agent, checkpoint: str) -> None:
+    try:
+        agent.load(checkpoint, with_buffer=False)
+    except TypeError as exc:
+        if "with_buffer" not in str(exc):
+            raise
+        agent.load(checkpoint, buffer=False)
+
+
 def main() -> None:
     args = parse_args()
     repo_root = pathlib.Path.cwd()
@@ -117,7 +126,7 @@ def main() -> None:
 
         checkpoint = str(args.checkpoint.resolve())
         if args.checkpoint_mode == "full":
-            agent.load(checkpoint, with_buffer=False)
+            load_full_checkpoint(agent, checkpoint)
         else:
             agent.load_wm_from_policy_checkpoint(checkpoint)
         agent.wm_bootstrapped = True

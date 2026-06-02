@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import runpy
+import site
 import sys
 from pathlib import Path
 
@@ -24,6 +25,12 @@ PROJECT_ENV_SITE = Path(
         "/storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/lib/python3.10/site-packages",
     )
 )
+
+os.environ.setdefault("PYTHONNOUSERSITE", "1")
+USER_SITE_ROOT = str(Path.home() / ".local" / "lib")
+for path in list(sys.path):
+    if path == site.getusersitepackages() or path.startswith(USER_SITE_ROOT):
+        sys.path.remove(path)
 
 for path in (str(PROJECT_SRC), str(PWM_SRC)):
     if path not in sys.path:
