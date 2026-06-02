@@ -216,3 +216,32 @@ next action
 ```
 
 Keep smoke tests W&B-disabled. Use `embers` for formal GPU jobs unless `inferno` is explicitly approved. Multiple GPU jobs may be submitted at once, prioritizing H200, H100, A100, L40S, then lower-tier GPUs.
+
+## Scheduling Policy
+
+Submit aggressively when the plan has several useful independent experiments. Do not block broad experiment submission behind Slurm dependencies unless there is a hard data artifact requirement that makes the downstream job impossible to start. If a submitted job later proves invalid because of a config, environment, dataset, checkpoint, or wrapper mistake, cancel it and record the failure reason, affected job IDs, and replacement job IDs.
+
+Agent execution rules:
+
+1. Before submitting, list the candidate jobs and classify each as smoke, diagnostic, eval, formal, or exploratory.
+2. Submit every candidate that already has all required input files. Do not wait for earlier phases only for sequencing aesthetics.
+3. Do not use `--dependency` / `afterok` unless the command needs an artifact that does not exist yet.
+4. Prefer GPU queues in this order: H200, H100, A100, L40S, then lower-tier GPUs.
+5. Use `embers` for GPU jobs. Do not use `inferno` unless explicitly approved.
+6. Keep new-code-path smoke tests W&B-disabled.
+7. Use W&B for formal jobs and include notes with git SHA, command, config, env/dataset/version, seed, checkpoint paths, and expected evidence.
+8. If a submitted job is wrong, cancel it with `scancel <job_id>` as soon as the mistake is known.
+9. For every failed/canceled/replacement job, update the goal doc in English with job ID, status, root cause, fix, replacement job ID, and whether the result is usable.
+10. Commit meaningful doc/config/script updates in English after each scheduling or result milestone.
+
+Default behavior summary:
+
+```text
+submit many useful GPU jobs in parallel
+avoid dependency chains by default
+submit first, inspect/cancel/fix/resubmit if wrong
+record all results and failures in English
+commit meaningful docs/config/scripts with English git messages
+```
+
+This policy is intentionally throughput-oriented. Incorrect jobs may be canceled after inspection; the durable requirement is that every failure and resubmission is recorded in English with clear git commits and doc updates.
