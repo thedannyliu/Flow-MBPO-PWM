@@ -194,3 +194,11 @@ Replacement submissions after commit
 9399797 newt_official_import_config_swig_fix1_20260602, CPU / embers, PENDING Priority at first check
 9399799 newt_official_walker_swig_fix1_a100_20260602, A100 / embers, PENDING Priority at first check
 ```
+
+NEWT import/config fix1 result:
+
+```text
+9399797 newt_official_import_config_swig_fix1_20260602 COMPLETED 0:0 after 00:00:09, QOS embers.
+evidence: `newt_import_config_ok`; task_count 234; model_sizes ['B', 'L', 'S', 'XL']; walker_action_dim 6; Config(task='walker-walk', obs='state', model_size='B', num_envs=10); walker_in_task_set True.
+next_newt: wait for A100 walker smoke `9399799`.
+```
