@@ -1542,3 +1542,43 @@ DFlex sandbox, set `CC=/usr/bin/gcc`, `CXX=/usr/bin/g++`,
 `LIBRARY_PATH`, `GCC_EXEC_PREFIX`, and `COMPILER_PATH`. This matches the
 successful locked DFlex rebuild path and avoids the conda compiler wrapper that
 could not execute `cc1plus` in jobs `9387942` and `9387949`.
+
+## 2026-06-02 Matched Existing Evidence Inventory
+
+Durable matched-evidence inventory:
+
+```text
+docs/git/flow_pwm_matched_evidence_inventory_20260602.md
+```
+
+Scheduler status at this inventory check:
+
+```text
+9388552_[0-1] MJLab faithful original PWM final/best eval40: PENDING Priority
+9388553_[0-1] MJLab faithful original PWM final/best rollout10 video: PENDING Priority
+9388605 Ant locked DFlex final/best true eval repair: PENDING Priority
+9388606 Hopper locked DFlex WM-vs-real probe repair: PENDING Priority
+logs_for_these_jobs: none found yet
+```
+
+Current conservative table from existing artifacts:
+
+| Row | Evidence | Return | Length | Fall | Interpretation |
+| --- | --- | ---: | ---: | ---: | --- |
+| Faithful original PWM adapter | Formal seed0 summary only; final/best fall/video jobs pending. | `-0.8010` | `44.45` | missing | Collapse-like, but incomplete gate. |
+| Prior PWM-style runner, MLP WM + MLP policy | Old 2x2 rollout aggregate, seeds 0-2. | `-4.5700` | `66.33` | `1.000` | Failed. |
+| Flow policy only | Old 2x2 rollout aggregate, seeds 0-2. | `-3.4818` | `66.78` | `1.000` | Failed. |
+| Flow WM only | Old 2x2 rollout aggregate, seeds 0-2. | `-4.7720` | `60.33` | `1.000` | Failed. |
+| Flow WM + Flow policy | Old 2x2 rollout aggregate, seeds 0-2. | `-3.5414` | `85.33` | `0.889` | Failed despite slightly longer episodes. |
+| Flow-MBPO trajectory/chunk H3 | Seed0 eval40 final. | `48.7296` | `637.22` | `0.575` | Promising diagnostic only. |
+| Flow-MBPO trajectory/chunk H3 | Seed0 rollout10 final. | `54.4904` | `694.00` | `0.400` | Matches BC fall but does not improve it. |
+| Matched seed0 BC video | Seed0 rollout10 final. | `54.1283` | `688.40` | `0.400` | Current video/fall comparator. |
+| Best aggregate BC | 40-episode eval aggregate. | about `45.8491` | about `594.97` | about `0.625` | Formal BC reference. |
+| Expert collector | Collector rollout. | `82.6090` | `1000.00` | `0.000` | Target reference. |
+
+Interpretation: existing Flow-MBPO rows are promising but still unverified as
+policy improvement because strict matched video/fall evidence is not cleared and
+the faithful original PWM comparator is missing final/best fall/video artifacts.
+The old 2x2 PWM/Flow replacement rows are already failed diagnostics, not a
+basis for expanding a one-variable R0-R4 matrix before the pending faithful PWM
+evidence package lands.
