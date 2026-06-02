@@ -29,6 +29,73 @@ Source note: LeWM is a pixel-based JEPA-style world model using a next-embedding
 4. Imagined return, WM loss, or short smoke output is diagnostic only.
 5. Flow replacement rows must change one variable at a time unless explicitly labeled exploratory.
 
+MJLab reference points to keep in every result table:
+
+```text
+expert collector: return 82.6090, length 1000, fall 0
+best aggregate BC: return about 45.8491, length about 594.97, fall about 0.625
+```
+
+## Execution Layers
+
+Use three concurrent layers, not a strict serial pipeline:
+
+1. Immediate gates: finish and document the currently submitted PWM/Flow/MJLab jobs.
+2. Evidence-based branching: as soon as results show a reasonable signal, launch the next useful diagnostic or comparison without waiting for perfect closure.
+3. Long-horizon research tracks: start SIGReg, pessimistic Flow-MBPO, NEWT, and LeWorldModel preparation when there is enough signal to justify the test, even if other jobs are still running.
+
+Reasonable signal means at least one of:
+
+```text
+faithful PWM or Flow-PWM smoke runs without runtime issues;
+Flow-PWM has higher real eval than a PWM baseline on the same dataset/protocol;
+Flow-PWM improves imagined return while diagnostics show possible exploitation;
+faithful PWM collapses in MJLab despite original DFlex parity;
+fall/support/OOD diagnostics identify a specific failure boundary;
+an image-based setup can be reproduced cheaply enough to prepare the next comparison.
+```
+
+Early signals are enough to submit more jobs, build infrastructure, and run smokes. They are not enough for performance claims; claims still require final/best eval, videos, and baseline comparisons.
+
+## Immediate Work: Current Gate Jobs
+
+Record and interpret the active no-dependency jobs first. If any job ID is replaced, record the replacement in the active fidelity doc.
+
+```text
+9387942  Ant final/best true DFlex eval
+9387949  Hopper final/best WM-vs-real probe
+9387896  MJLab faithful original PWM adapter smoke
+9387895  MJLab faithful original PWM adapter formal
+```
+
+Judgment:
+
+```text
+Ant true eval pass:
+  strengthens original PWM parity and reduces the chance that Hopper was a lucky task.
+
+Hopper WM-vs-real probe pass:
+  learned-WM reward, action behavior, and termination diagnostics do not show an obvious mismatch.
+
+MJLab smoke pass:
+  adapter/runtime is usable enough to submit broader MJLab diagnostics and Flow comparisons.
+
+MJLab formal pass or fail:
+  triggers final/best eval and videos; it does not by itself prove success or collapse.
+```
+
+After any Phase 3 MJLab formal run writes checkpoints, immediately submit:
+
+```text
+final_policy_extraction.pt -> 40-episode real MJLab eval
+best_policy_extraction.pt  -> 40-episode real MJLab eval
+final/best                 -> 10-episode, 1000-step MP4/W&B videos
+metrics                    -> return, episode length, fall rate
+comparisons                -> expert, expert-noisy, medium, random/reference, best BC
+```
+
+Without these eval/video artifacts, do not make a MJLab performance claim.
+
 ## Phase A: Consolidate Current Flow-PWM Evidence
 
 Goal: verify whether current Flow WM + Flow policy architecture is actually better than faithful PWM under the same MJLab real-eval protocol.
@@ -62,6 +129,50 @@ Deliverable:
   - Flow-PWM exploits model;
   - faithful PWM still strongest.
 
+## Phase A2: Branch On Faithful PWM Results
+
+If faithful PWM on MJLab is poor while original DFlex parity holds, prioritize transfer and fall-protocol diagnostics while still allowing Flow, SIGReg, NEWT, and LeWorldModel preparation to proceed in parallel.
+
+Likely causes to test:
+
+```text
+MJLab QS / G1 / fall-gated offline protocol mismatch
+fall boundary missing from the learned model
+dataset support gaps
+policy exploiting fake-safe learned-model states
+reward, termination, timeout, or fall-signal mismatch
+```
+
+Diagnostics worth running:
+
+```text
+action saturation and action drift
+support/OOD distance
+fall-risk windows
+done, timeout, termination, and bootstrap masks
+real rollout fall reason
+BC action distribution vs PWM/Flow action distribution
+expert action replay through WM vs logged segments
+short actor-update exploitation test at 10, 50, and 100 updates
+```
+
+Key interpretation:
+
+```text
+imagined return increases while real return/length/fall worsens
+  -> model exploitation, not proof that a stronger Flow model alone solves the task
+```
+
+If faithful PWM clearly beats the previous PWM-style runner, treat the previous implementation as having a fidelity gap or bug. Promote the faithful adapter to a formal MJLab baseline and compare:
+
+```text
+Row 0: faithful original PWM WM + original policy/update
+Row 1: current PWM-style runner
+Row 2: faithful PWM with only MJLab IO changes
+```
+
+This answers whether the problem is PWM transfer to MJLab or a nonfaithful previous implementation.
+
 ## Phase B: Controlled State-Based A/B Rows
 
 Run a clean matrix with fixed MJLab QS data, fixed horizon, fixed actor/critic update budget, fixed eval protocol, and fixed seed first.
@@ -76,10 +187,27 @@ R3: Flow WM + Flow policy architecture
 R4: best current Flow-PWM config, exact reproduction
 ```
 
+Keep fixed unless a row explicitly studies the variable:
+
+```text
+horizon
+actor and critic sizes
+3 critics
+TD(lambda)
+policy batch size
+WM batch size
+reward formulation
+real eval episode count
+video protocol
+dataset/window version
+seed set
+```
+
 Log for each row:
 
 ```text
 WM loss
+one-step and H-step prediction
 reward calibration
 done/fall calibration
 gradient smoothness
@@ -102,6 +230,55 @@ Conclusion rules:
 - R1 improves but R2 does not: Flow WM is the important variable.
 - R2 improves but R1 does not: policy architecture/update is the important variable.
 - R4 beats matrix rows only because it changes multiple variables: treat as exploratory, not causal.
+
+## Phase B2: Control-Relevant World-Model Study
+
+Do not rank world models by MSE alone. PWM's key lesson is that smooth, regularized learned dynamics can be more useful for first-order policy learning than a lower-error but poorly shaped predictor.
+
+Worth testing as controlled variants:
+
+```text
+MLP / ReLU WM
+Mish WM
+SimNorm latent PWM WM
+Flow endpoint WM
+Flow residual WM
+Flow trajectory/chunk WM
+Flow trajectory/chunk + SIGReg
+Flow trajectory/chunk + uncertainty/fall/support heads
+```
+
+Rank candidates by control-relevant evidence:
+
+```text
+one-step prediction
+H-step prediction
+reward calibration
+done/fall calibration
+expert-in-model behavior
+gradient smoothness
+imagined return
+action drift
+action saturation
+support/OOD distance
+real MJLab return
+episode length
+fall rate
+video quality
+```
+
+Useful finding patterns:
+
+```text
+lower MSE but worse real policy:
+  model is not control-relevant enough.
+
+smooth gradients plus stable real eval:
+  model may provide useful policy-improvement signal.
+
+high imagined return plus action drift/OOD/fall:
+  model is being exploited.
+```
 
 ## Phase C: Add SIGReg-Style Latent Regularization
 
@@ -162,39 +339,248 @@ M9: M8 + SIGReg-style WM regularization
 
 Keep synthetic horizon short first: `H=1,3,5`. Start rollouts from real dataset states. Require real eval/video evidence before any claim.
 
-## Phase E: Image-Based Tasks, NEWT, and LeWorldModel
+Minimum implementation details:
 
-Only start image-based work after the state-based story is clean enough to know what we are testing.
+1. Use BC-warmstarted policies before adding high-variance RL updates.
+2. Keep the synthetic:real ratio small-to-medium first.
+3. Store generated transitions with source tags:
+   - real;
+   - Flow endpoint;
+   - Flow residual;
+   - Flow chunk;
+   - uncertainty-gated;
+   - support-gated;
+   - fall-risk-gated.
+4. Log why each synthetic rollout stops:
+   - horizon reached;
+   - done/termination predicted;
+   - uncertainty over threshold;
+   - support/OOD over threshold;
+   - fall-risk over threshold.
+5. Compare AWR/AWAC first, then conservative Q. If AWR/AWAC cannot preserve BC, conservative Q is a later safety intervention, not a substitute for debugging the data/model path.
 
-Entry conditions:
+Interpretation:
 
 ```text
-state-based Flow-PWM beats faithful PWM or BC under real eval;
-or pessimistic Flow-MBPO preserves/improves BC and reduces fall;
-or state-based failures are cleanly diagnosed as representation/observation limitations.
+M4 > M3:
+  residual/chunk trajectory modeling is useful.
+
+M5/M6/M7 reduce fall while M4 does not:
+  the useful contribution is pessimistic model use, not Flow alone.
+
+M8 improves return but worsens fall:
+  conservative Q is miscalibrated or exploiting synthetic transitions.
 ```
 
-NEWT track:
+## Phase D2: Fall, Support, and OOD Boundary Track
 
-1. Clone/reference NEWT externally, not inside core code unless vendor policy is approved.
-2. Reproduce one official image-based task smoke.
-3. Define a small image-based benchmark matrix:
-   - NEWT baseline;
-   - our Flow WM;
-   - our Flow WM + SIGReg;
-   - pessimistic Flow-MBPO variant if applicable.
-4. Use the same discipline:
-   - real eval;
-   - videos;
-   - final/best checkpoints;
-   - W&B logs;
-   - fixed seeds and configs.
+This track is high priority because MJLab humanoid failure is likely dominated by unsupported fall-boundary states rather than scalar reward alone.
 
-LeWorldModel comparison:
+Tasks:
 
-1. Run LeWM official code on one supported task if feasible.
-2. Compare against our image-based Flow/SIGReg model on matched task/eval where possible.
-3. Do not claim superiority over LeWM unless we run their baseline under comparable data, compute, and evaluation.
+1. Identify or collect fall-positive real rollouts.
+2. Identify near-fall and recovery windows around low torso height, high tilt, unstable contact, or abnormal COM velocity.
+3. Label or derive:
+   - body height;
+   - torso pitch/roll;
+   - foot contacts;
+   - COM velocity;
+   - commanded velocity;
+   - fall/termination/timeout;
+   - `P(fall within K steps)` targets for several K values.
+4. Train/calibrate a fall-risk head and support/OOD score.
+5. Validate risk/support scores against real rollout failures and BC trajectories.
+6. Use risk/support to:
+   - terminate synthetic rollouts early;
+   - penalize synthetic rewards;
+   - downweight or reject generated transitions;
+   - add conservative Q penalties near unsupported states.
+
+Do not assume done-class balancing fixes the problem when QS shards contain few or no positive fall/done labels. If labels are missing, record that as a dataset limitation and use fall-positive collection or support proxies.
+
+## Phase E: Image-Based Tasks, NEWT, and LeWorldModel
+
+Image-based work can start once prior experiments show a reasonable signal or the official setup can be reproduced cheaply in parallel. The goal is not to replace the state-based MJLab work; it is to prepare a second modality track that tests whether Flow/SIGReg and pessimistic rollout ideas transfer beyond state observations.
+
+Useful start signals:
+
+```text
+Flow-PWM beats a PWM baseline under matched real eval;
+Flow-PWM shows higher imagined return plus clear exploitation diagnostics;
+faithful PWM collapses on MJLab while original DFlex parity holds;
+fall/support/OOD diagnostics show missing observation or representation signals;
+official NEWT or LeWM setup can be reproduced without blocking state-based jobs.
+```
+
+Early image work may include repo setup, environment reproduction, import/config smokes, official baseline reproduction, and eval/render smokes. Image-based performance claims still require matched official baselines, final/best checkpoints, real eval, videos, and documented data/compute budgets.
+
+### Phase E1: NEWT Reproduction And Image Benchmark Setup
+
+Goal: build a concrete image-based benchmark path for testing Flow/SIGReg beyond state observations.
+
+Setup tasks:
+
+1. Clone NEWT into an external or vendor path, not mixed into core source until integration policy is explicit.
+2. Record:
+   - repo URL;
+   - commit SHA;
+   - environment creation commands;
+   - task list;
+   - dataset/source requirements;
+   - official training commands;
+   - official eval/render commands;
+   - expected metrics from paper/docs.
+3. Run import and config-list smokes.
+4. Run the smallest official NEWT train/eval smoke with W&B disabled.
+5. Run an official eval/render smoke and save at least one video artifact if supported.
+6. Record all failures before modifying code.
+
+Official reproduction rows:
+
+```text
+N0: official NEWT shortest-task smoke, W&B disabled
+N1: official NEWT baseline one formal seed, W&B enabled
+N2: eval-only reload for final and best checkpoints
+N3: official render/video job
+```
+
+Our adapter rows:
+
+```text
+N4: image encoder + current state-based Flow endpoint WM
+N5: image encoder + Flow residual/chunk WM
+N6: N5 + SIGReg-style latent regularization
+N7: N6 + short-horizon pessimistic MBPO
+N8: non-Flow latent WM ablation
+```
+
+Keep fixed for comparisons:
+
+```text
+task
+image resolution
+frame stack
+action repeat
+encoder backbone
+latent dimension
+dataset or environment budget
+synthetic horizon
+policy update budget
+eval episode count
+video protocol
+seed set
+```
+
+Required logs:
+
+```text
+pixel reconstruction or embedding prediction loss
+latent variance/isotropy proxy
+one-step and H-step latent prediction
+reward calibration
+done/success/fall calibration when available
+imagined return
+real return
+episode length
+success or fall rate
+final and best checkpoint paths
+MP4/W&B video links
+```
+
+Claim rule: compare NEWT rows only when the official NEWT baseline and our row use the same task, data budget, eval protocol, and video protocol. If the setup differs, frame the result as feasibility or diagnostic evidence.
+
+### Phase E2: LeWorldModel / LeWM Reproduction And SIGReg Transfer
+
+Goal: make LeWM a real comparison target and a source for SIGReg implementation details, not just a citation.
+
+Setup tasks:
+
+1. Clone LeWM into an external or vendor path.
+2. Record:
+   - repo URL;
+   - commit SHA;
+   - environment creation commands;
+   - supported tasks;
+   - pretrained assets or datasets;
+   - official train commands;
+   - official eval/render commands;
+   - expected metrics from paper/docs.
+3. Run import and config smokes.
+4. Run the smallest official LeWM smoke with W&B disabled.
+5. Run one official formal seed with W&B when the smoke is stable.
+6. Run eval-only reload for final and best checkpoints.
+7. Run video/render jobs where supported.
+
+SIGReg extraction and local transfer:
+
+```text
+L0: read and document the exact LeWM SIGReg objective and tensor shapes
+L1: implement minimal SIGReg-style loss for state latents
+L2: test finite loss and gradients
+L3: test zero-weight no-op behavior
+L4: test constant-latent anti-collapse behavior
+L5: log SIGReg loss, latent variance, and isotropy proxy
+L6: port SIGReg to image latents
+```
+
+Comparison rows:
+
+```text
+L7: official LeWM baseline
+L8: our image Flow WM
+L9: our image Flow WM + SIGReg
+L10: L9 + pessimistic short-horizon rollout
+L11: no-SIGReg ablation
+L12: no-Flow ablation
+```
+
+Comparison requirements:
+
+```text
+same task or documented task mismatch
+same observation modality
+same data budget where possible
+same eval episodes
+same video protocol
+seed count once beyond smoke
+W&B links
+final/best checkpoint paths
+failure notes
+```
+
+Do not present superiority over LeWM unless the official baseline is run under comparable data, compute, and evaluation. If exact parity is not feasible, document the mismatch and treat the result as a methodological comparison.
+
+### Phase E3: Image-Based Decision Rules
+
+```text
+NEWT/LeWM official smoke fails:
+  document the blocker and keep state-based work moving.
+
+Official baseline runs but our image adapter fails:
+  debug modality/encoder/integration before changing the policy algorithm.
+
+Our Flow/SIGReg image row improves latent diagnostics but not real eval:
+  treat SIGReg as representation help, not policy-improvement evidence.
+
+Pessimistic image Flow-MBPO improves real eval/video:
+  move to multi-seed and ablate Flow, SIGReg, support gate, fall/risk gate, and conservative Q.
+```
+
+## Deprioritized Directions
+
+Avoid spending major resources on these until a specific diagnostic asks for them:
+
+```text
+large BC sweeps when the BC reference is already valid
+large unstructured Flow architecture sweeps
+ranking world models by MSE alone
+unrestricted long-horizon Flow differentiable policy optimization
+changing WM, policy, update, horizon, and eval protocol at the same time
+MJLab claims without final/best real eval and MP4/W&B videos
+image-based performance claims without official NEWT/LeWM reproduction and matched eval
+```
+
+These items can still be used as small exploratory jobs when inputs are ready, but write them as exploratory in W&B notes and docs.
 
 ## Documentation and Commit Rules
 
