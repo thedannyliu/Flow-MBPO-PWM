@@ -115,6 +115,16 @@ Submitted replacement job IDs after commit
 9398354 original_pwm_adapter_hybrid_locked_nowandb_rollout1_final_best_20260602
 ```
 
+Completed MJLab W&B-disabled hybrid locked results:
+
+```text
+9398353_0 eval final COMPLETED 0:0: return_mean -0.671470582485199, episode_length_mean 47.75, fall_rate_mean 1.0, baseline_gate_pass false
+9398353_1 eval best COMPLETED 0:0: return_mean -0.6604552865028381, episode_length_mean 48.0, fall_rate_mean 1.0, baseline_gate_pass false
+9398354_0 rollout final COMPLETED 0:0: return_mean -0.10419569909572601, episode_length_mean 48.0, fall_rate_mean 1.0, num_frames 48, baseline_gate_pass false
+9398354_1 rollout best COMPLETED 0:0: return_mean -0.11118776351213455, episode_length_mean 48.0, fall_rate_mean 1.0, num_frames 48, baseline_gate_pass false
+interpretation: disabling W&B fixed the previous runtime packaging failure, but the faithful original-PWM MJLab adapter still collapses immediately; W&B was not the cause of poor MJLab policy behavior.
+```
+
 ## Phase E Official Image Track Candidates
 
 The user explicitly requested running official NEWT and LeWM environments in
