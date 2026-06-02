@@ -1482,3 +1482,27 @@ Original DFlex supplemental gate failures:
 usable_as_algorithm_evidence: no
 next_action: repair compiler/kernel-cache path and resubmit Ant true eval plus Hopper WM-vs-real probe.
 ```
+
+Submitted required final/best evidence jobs:
+
+```text
+eval40_job_id: 9388552
+eval40_kind: policy_eval
+eval40_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_eval40_final_best_20260602.csv
+eval40_rows: final_policy_extraction.pt, best_policy_extraction.pt
+eval40_partition: gpu-h200
+eval40_qos: embers
+eval40_dependency: none
+eval40_wandb_project: flow-mbpo-mjlab-original-pwm-adapter-eval40
+eval40_output_root: scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_20260602/velocity_flat_unitree_g1/normobs_normrew/seed_0
+
+rollout10_job_id: 9388553
+rollout10_kind: policy_rollout
+rollout10_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_20260602.csv
+rollout10_rows: final_policy_extraction.pt, best_policy_extraction.pt
+rollout10_partition: gpu-h200
+rollout10_qos: embers
+rollout10_dependency: none
+rollout10_wandb_project: flow-mbpo-mjlab-original-pwm-adapter-rollout1000
+rollout10_output_root: scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_20260602/velocity_flat_unitree_g1/normobs_normrew/seed_0
+```
