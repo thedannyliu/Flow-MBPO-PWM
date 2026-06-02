@@ -1283,3 +1283,86 @@ not yet tested: MJLab transfer mismatch under faithful original PWM
 ```
 
 Next gate: proceed to Phase 3 faithful PWM-on-MJLab with adapters only. Do not start Flow replacement rows until the faithful MJLab PWM smoke/formal/eval/video run is documented.
+
+## 2026-06-02 Experiment Progress Check
+
+Phase 1 supplemental Ant sanity completed on the locked original PWM stack:
+
+```text
+smoke_job_id: 9384321
+smoke_status: COMPLETED
+smoke_exit_code: 0:0
+smoke_partition: gpu-h100
+smoke_qos: embers
+smoke_command_core: python train_dflex.py env=dflex_ant alg=pwm general.run_wandb=False general.seed=0 general.checkpoint_mode=wm_only general.checkpoint=scripts/assets/pwm_hf/dflex/pretrained/PWM_AntEnv.pt alg.max_epochs=80 general.eval_runs=4
+smoke_stdout: logs/pwm_original_parity/locked_env_20260601/pwm_ant_smoke_locked_h100_s0_9384321.out
+smoke_stderr: logs/pwm_original_parity/locked_env_20260601/pwm_ant_smoke_locked_h100_s0_9384321.err
+
+formal_job_id: 9384344
+formal_status: COMPLETED
+formal_exit_code: 0:0
+formal_partition: gpu-h100
+formal_qos: embers
+formal_elapsed: 01:54:11
+formal_command_core: python train_dflex.py env=dflex_ant alg=pwm general.run_wandb=True general.seed=0 general.checkpoint_mode=wm_only general.checkpoint=scripts/assets/pwm_hf/dflex/pretrained/PWM_AntEnv.pt general.eval_runs=12
+formal_stdout: logs/pwm_original_parity/locked_env_20260601/pwm_ant_formal_locked_h100_s0_9384344.out
+formal_stderr: logs/pwm_original_parity/locked_env_20260601/pwm_ant_formal_locked_h100_s0_9384344.err
+formal_wandb_run_id: 2epbv7y0
+formal_wandb_url: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/2epbv7y0
+formal_wandb_summary_rewards: 7439.96777
+formal_wandb_summary_best_policy_loss: -7465.2085
+formal_final_actor: baselines/PWM/scripts/outputs/2026-06-01/23-06-24/logs/phase1_ant_formal_locked_h100_s0_20260601/final_policy.pt
+formal_true_best_actor: baselines/PWM/scripts/outputs/2026-06-01/23-06-24/logs/phase1_ant_formal_locked_h100_s0_20260601/best_policy.pt
+formal_original_eval_tail: mean episode loss = 57.30, mean discounted loss = 46.57, mean episode length = 59.50
+```
+
+Interpretation: Ant provides a second original-task training sanity check and shows the locked stack can run another supported DFlex task to completion with high imagined/training reward. As with Hopper, the original `PWM.eval()` tail is not used as the decisive parity metric because it reports short learned-model loss/length. A true DFlex eval for Ant final/best has been queued before treating Ant as a strict real-env parity point.
+
+Stale dependency diagnosis:
+
+```text
+stale_jobs_canceled: 9384354, 9384355, 9384374, 9384375, 9384400, 9384485
+root_cause: jobs 9384354/9384355 used dependency=afterok:9383814, but Slurm recorded 9383814 top-level state as PREEMPTED even though its batch step completed 0:0 and wrote/evaluated checkpoints.
+effect: 9384354/9384355 became DependencyNeverSatisfied; Phase 2 probes and Phase 3 MJLab adapter jobs remained pending behind that failed dependency chain.
+prevention: do not use top-level afterok dependencies on a PREEMPTED-but-successful training job. Gate subsequent jobs on a completed eval job or on recorded artifacts plus a fresh explicit submission.
+```
+
+Resubmitted queue after manual Hopper parity gate:
+
+```text
+ant_true_dflex_eval_job_id: 9387422
+ant_true_dflex_eval_job_name: pwm_ant_locked_realenv_eval_h200
+ant_true_dflex_eval_partition: gpu-h200
+ant_true_dflex_eval_qos: embers
+ant_true_dflex_eval_status_at_submission: PENDING Priority
+ant_true_dflex_eval_checkpoints: final_policy.pt and best_policy.pt from job 9384344
+ant_true_dflex_eval_outputs:
+  eval_results/pwm_phase1_ant_locked_h200_realenv_final_20260602
+  eval_results/pwm_phase1_ant_locked_h200_realenv_best_20260602
+
+phase2_probe_job_id: 9387423
+phase2_probe_job_name: pwm_hopper_locked_wmprobe_h100
+phase2_probe_partition: gpu-h100
+phase2_probe_qos: embers
+phase2_probe_status_at_submission: PENDING Priority
+phase2_probe_inputs: Hopper final_policy.pt and best_policy.pt from job 9383814
+phase2_probe_outputs:
+  eval_results/pwm_phase2_hopper_locked_probe_20260602/final_actor_wm_vs_real.json
+  eval_results/pwm_phase2_hopper_locked_probe_20260602/best_actor_wm_vs_real.json
+
+phase3_smoke_job_id: 9387424
+phase3_smoke_dependency: afterok:9387423
+phase3_smoke_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_smoke_20260601.csv
+phase3_smoke_partition: gpu-h100
+phase3_smoke_qos: embers
+phase3_smoke_wandb: disabled
+
+phase3_formal_job_id: 9387425
+phase3_formal_dependency: afterok:9387424
+phase3_formal_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_formal_h200_seed0_20260601.csv
+phase3_formal_partition: gpu-h200
+phase3_formal_qos: embers
+phase3_formal_wandb: enabled
+```
+
+Environment note: Phase 1/2 original DFlex jobs continue to use the locked original stack at `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4` plus fresh per-job DFlex sandboxes. Phase 3 MJLab adapter jobs use the project MJLab runtime (`conda activate pwm`) because the locked DFlex-only parity environment is not the MJLab runtime; this is an IO-adapter phase, not a byte-identical upstream DFlex run.
