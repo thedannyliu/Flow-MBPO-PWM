@@ -1426,3 +1426,59 @@ phase2_probe_fix_qos: embers
 phase2_probe_fix_dependency: none
 phase2_probe_fix_status_at_check: PENDING Priority
 ```
+
+## 2026-06-02 Preflight Inventory And Gate Results
+
+Durable preflight inventory:
+
+```text
+docs/git/preflight_inventory_pwm_flow_sigreg_20260602.md
+```
+
+Current Slurm gate status after preflight:
+
+```text
+9387896_0 MJLab original PWM adapter smoke: COMPLETED, exit 0:0, elapsed 00:00:18
+9387895_0 MJLab original PWM adapter formal: COMPLETED, exit 0:0, elapsed 00:49:21
+9387942 Ant true DFlex eval replacement: FAILED, exit 1:0, elapsed 00:00:26
+9387949 Hopper WM-vs-real probe replacement: FAILED, exit 1:0, elapsed 00:00:26
+seff: unavailable on this shell
+```
+
+MJLab formal faithful adapter result:
+
+```text
+job_id: 9387895_0
+git_sha_from_wandb: 88a4ca5b30a224f0df72ca4994b2ae19a480bf2a
+wandb_run: https://wandb.ai/danny010324/flow-mbpo-mjlab-original-pwm-adapter/runs/17tlyzo2
+dataset: scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt
+metadata: scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json
+normalization: scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json
+final_checkpoint: scripts/outputs/mjlab_qs/original_pwm_adapter/original_pwm_adapter_phase3_formal_20260601/velocity_flat_unitree_g1/normobs_normrew/seed_0/final_policy_extraction.pt
+best_checkpoint: scripts/outputs/mjlab_qs/original_pwm_adapter/original_pwm_adapter_phase3_formal_20260601/velocity_flat_unitree_g1/normobs_normrew/seed_0/best_policy_extraction.pt
+summary: scripts/outputs/mjlab_qs/original_pwm_adapter/original_pwm_adapter_phase3_formal_20260601/velocity_flat_unitree_g1/normobs_normrew/seed_0/summary.json
+eval_summary: scripts/outputs/mjlab_qs/original_pwm_adapter/original_pwm_adapter_phase3_formal_20260601/velocity_flat_unitree_g1/normobs_normrew/seed_0/eval_summary.json
+eval_episodes: 40
+return_mean: -0.8009850382804871
+episode_length_mean: 44.45000076293945
+fall_rate: not logged by this adapter eval
+best_imagined_return_proxy: 12.491907119750977
+best_iter: 14984
+```
+
+Interpretation: the faithful MJLab adapter now has a completed formal seed and
+checkpoints, but the 40-episode real return and episode length are far below the
+expert collector (`82.6090`, length `1000`, fall `0`) and the best aggregate BC
+reference (about `45.8491`, length about `594.97`, fall about `0.625`). The
+rising imagined-return proxy plus short real episodes is a collapse/exploitation
+signal, not a performance claim. Required next evidence is final/best checkpoint
+eval with fall metrics plus final/best 10-episode, 1000-step MP4/W&B videos.
+
+Original DFlex supplemental gate failures:
+
+```text
+9387942 failure: DFlex kernel rebuild failed because x86_64-conda-linux-gnu-c++ could not execute cc1plus in the locked env compiler path.
+9387949 failure: same missing cc1plus / DFlex kernel rebuild failure before HopperEnv instantiation.
+usable_as_algorithm_evidence: no
+next_action: repair compiler/kernel-cache path and resubmit Ant true eval plus Hopper WM-vs-real probe.
+```
