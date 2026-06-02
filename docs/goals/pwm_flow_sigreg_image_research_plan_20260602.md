@@ -57,6 +57,73 @@ an image-based setup can be reproduced cheaply enough to prepare the next compar
 
 Early signals are enough to submit more jobs, build infrastructure, and run smokes. They are not enough for performance claims; claims still require final/best eval, videos, and baseline comparisons.
 
+## Environment Policy
+
+Maintain two separate execution environments and record which one is used for every submitted job.
+
+```text
+project/current environment:
+  conda env `pwm`
+  purpose: current Flow-MBPO code, MJLab QS runners, policy eval/render tools,
+    manifest utilities, and new-code diagnostics.
+  audit on 2026-06-02 login node: Python 3.10.19, torch 2.10.0+cu128,
+    Hydra 1.3.2, OmegaConf 2.3.0, W&B 0.23.0; CUDA unavailable on login node.
+
+locked original-PWM reproduction environment:
+  /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+  purpose: original PWM/DFlex parity and faithful PWM reproduction evidence.
+    This is the more credible environment for PWM reproduction claims.
+  audit on 2026-06-02 login node: Python 3.10.14, torch 2.3.1/cu118,
+    Hydra 1.2.0, OmegaConf 2.2.3, W&B 0.12.21; CUDA unavailable on login node.
+  caveat: direct login-node DFlex import tries to rebuild kernels in read-only
+    site-packages and fails. Use the repaired Slurm wrappers with a job-local
+    DFlex sandbox and locked compiler/CUDA exports for DFlex jobs.
+
+hybrid locked MJLab bridge:
+  scripts/experiments/mjlab_qs/locked_mjlab_python.py
+  purpose: load locked torch/tensordict/torchrl/PWM first, then expose project
+    MJLab packages for short faithful-adapter MJLab checks without modifying
+    either conda environment.
+```
+
+## Agent Preflight And History Inventory
+
+Run this section before any new GPU submission. The purpose is to prevent duplicate, stale, or non-reproducible jobs. Do not submit new jobs until the preflight inventory has been written and committed.
+
+1. Inspect repository state:
+   - current branch;
+   - current git SHA;
+   - `git status --short`;
+   - recent commits relevant to PWM, Flow, MJLab, SIGReg, Slurm, W&B, configs, and docs.
+2. Inspect prior GPU submission records:
+   - use `squeue -u $USER`, `sacct`, and `seff` when available;
+   - check the known gate job IDs: `9387942`, `9387949`, `9387896`, and `9387895`;
+   - search `docs/git`, `docs/goals`, scripts, configs, Slurm outputs, W&B/offline directories, checkpoint directories, and video/eval artifacts for job IDs, sbatch commands, W&B links, config paths, checkpoint paths, and result summaries.
+3. Write an English inventory table before launching new jobs. Each row should include:
+
+```text
+job ID
+purpose
+status
+command or sbatch script
+git SHA
+config
+env/dataset/version
+seed
+GPU/QOS
+W&B link or offline directory
+checkpoint paths
+eval/video paths
+return, episode length, fall rate when available
+failure reason when failed
+whether the result is usable
+next action
+```
+
+4. Commit the inventory update with an English message.
+
+Only after this preflight commit should the agent list candidate jobs and begin broad no-dependency submission.
+
 ## Immediate Work: Current Gate Jobs
 
 Record and interpret the active no-dependency jobs first. If any job ID is replaced, record the replacement in the active fidelity doc.
@@ -605,7 +672,7 @@ Keep smoke tests W&B-disabled. Use `embers` for formal GPU jobs unless `inferno`
 
 ## Scheduling Policy
 
-Submit aggressively when the plan has several useful independent experiments. Do not block broad experiment submission behind Slurm dependencies unless there is a hard data artifact requirement that makes the downstream job impossible to start. If a submitted job later proves invalid because of a config, environment, dataset, checkpoint, or wrapper mistake, cancel it and record the failure reason, affected job IDs, and replacement job IDs.
+Run the Agent Preflight And History Inventory first. After the preflight inventory is committed, submit aggressively when the plan has several useful independent experiments. Do not block broad experiment submission behind Slurm dependencies unless there is a hard data artifact requirement that makes the downstream job impossible to start. If a submitted job later proves invalid because of a config, environment, dataset, checkpoint, or wrapper mistake, cancel it and record the failure reason, affected job IDs, and replacement job IDs.
 
 Agent execution rules:
 
@@ -631,3 +698,11 @@ commit meaningful docs/config/scripts with English git messages
 ```
 
 This policy is intentionally throughput-oriented. Incorrect jobs may be canceled after inspection; the durable requirement is that every failure and resubmission is recorded in English with clear git commits and doc updates.
+
+## Compact Codex Goal Prompt
+
+Use this compact prompt when the Codex `/goal` input needs to stay below 4000 characters.
+
+```text
+/goal Follow docs/goals/pwm_flow_sigreg_image_research_plan_20260602.md and keep docs/git/W&B notes in English. Preflight first: before new sbatch submissions, inspect git branch/SHA/status/recent commits and search docs/git, docs/goals, scripts, configs, slurm logs, W&B/offline dirs, checkpoints/videos for prior GPU submissions. Query Slurm with squeue/sacct/seff when available, especially jobs 9387942, 9387949, 9387896, 9387895. Write and commit an English inventory table with job id, purpose, status, command/script, git SHA, config, env/dataset/version, seed, GPU/QOS, W&B link/dir, checkpoint/eval/video paths, return/length/fall, failure reason, usability, next action. Then record gate results and, for any MJLab formal checkpoint, submit final/best 40-episode real eval plus final/best 10-episode 1000-step MP4/W&B videos. Before new submissions, list candidate jobs as smoke/diagnostic/eval/formal/exploratory with inputs, W&B mode, artifacts, GPU/QOS, and whether dependency is required. Submit useful jobs with existing inputs; avoid dependencies unless artifacts are missing; prefer H200,H100,A100,L40S; use embers; W&B off for new-code smokes, W&B on for formal runs. If wrong, scancel, record root cause, affected/replacement IDs, and commit docs. Build matched evidence table: faithful PWM, prior runner, Flow WM only, Flow policy only, Flow WM+policy, best reproduction, BC, expert. Treat imagined-only gains as unverified. Run controlled R0-R4 one-variable A/B with fixed protocol; log WM/prediction/calibration/grad/action/OOD/real eval/video metrics. Add LeWM-inspired SIGReg only after documenting objective/shapes and tests: finite grad, zero-weight no-op, constant-latent anti-collapse, latent variance/isotropy. If exploitation/fall/OOD appears, submit pessimistic short-horizon Flow-MBPO H=1/3/5 AWR/AWAC plus support/fall/OOD diagnostics. Start NEWT/LeWM only after reasonable signal or cheap official smoke. Commit every meaningful scheduling/result/failure/config/script/doc update.
+```
