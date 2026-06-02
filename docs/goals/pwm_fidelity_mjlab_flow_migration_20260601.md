@@ -196,7 +196,7 @@ Other paths:
 
 ## Environment Status
 
-Conda env:
+Previous parity attempts used this env:
 
 ```text
 pwm: /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm
@@ -212,22 +212,194 @@ cuda_device_count 0
 
 Implication: Phase 1 smoke/formal parity should run under Slurm GPU allocation or inside the `pwm` conda env on a GPU node. Do not treat a CPU-only login-shell failure as PWM parity evidence.
 
+### Locked Original PWM CUDA 11.8 Env
+
+Created on 2026-06-01 after the first Hopper parity run failed far below the local reference result. The purpose is to remove runtime drift before diagnosing PWM algorithm fidelity.
+
+Path:
+
+```text
+/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+```
+
+Tracked spec:
+
+```text
+docs/envs/pwm_original_locked_cu118_20260601.yaml
+```
+
+Exact conda create command used:
+
+```bash
+conda create -y -p /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4 \
+  python=3.10.14 \
+  'pytorch::pytorch=2.3.1=py3.10_cuda11.8_cudnn8.7.0_0' \
+  'pytorch::torchvision=0.18.1=py310_cu118' \
+  pytorch-cuda=11.8 \
+  cuda-toolkit=11.8 cuda-version=11.8 cuda-nvcc=11.8.89 \
+  mkl=2023.1.0 intel-openmp=2023.1.0 blas=1.0=mkl numpy=1.26 \
+  pandas=2.2 matplotlib=3.8 seaborn=0.13 glew=2.1.0 pip \
+  -c pytorch -c nvidia/label/cuda-11.8.0 -c defaults
+```
+
+Required runtime exports for all checks and Slurm jobs:
+
+```bash
+export ENV=/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+export PYTHONNOUSERSITE=1
+export PATH=$ENV/bin:$PATH
+export CUDA_HOME=$ENV
+export LD_LIBRARY_PATH=$ENV/lib:${LD_LIBRARY_PATH:-}
+export MAX_JOBS=8
+```
+
+Reason: the first pip install saw packages from `~/.local`. All verification and training must use `PYTHONNOUSERSITE=1` so W&B, Hydra, TorchRL, and DFlex come from the locked env only.
+
+Key installed versions after repair:
+
+```text
+python 3.10.14
+pytorch 2.3.1 py3.10_cuda11.8_cudnn8.7.0_0
+torchvision 0.18.1 py310_cu118
+pytorch-cuda 11.8
+cuda-toolkit 11.8.0
+cuda-version 11.8
+cuda-nvcc 11.8.89
+mkl 2023.1.0
+intel-openmp 2023.1.0
+gcc_linux-64 11.2.0
+gxx_linux-64 11.2.0
+numpy 1.26.4
+tensordict 0.4.0
+torchrl 0.4.0
+hydra-core 1.2.0
+omegaconf 2.2.3
+wandb 0.12.21
+gym 0.23.1
+ninja 1.11.1.4
+ipython 8.24.0
+setuptools 70.3.0
+dflex 0.0.1 from DiffRL commit bb59db5cf65e63740787bf22f91bae3103b30d19
+```
+
+Login-node import status with user site disabled:
+
+```text
+torch 2.3.1, torch.version.cuda 11.8, cuda_available False on login node
+tensordict 0.4.0
+torchrl 0.4.0
+hydra 1.2.0
+omegaconf 2.2.3
+wandb 0.12.21
+gym 0.23.1
+```
+
+Repairs needed before DFlex import:
+
+- `setuptools==82.0.1` did not satisfy W&B 0.12's `pkg_resources` import path; pinned `setuptools==70.3.0`.
+- `hydra-core` and `omegaconf` initially resolved to 1.4/2.4 dev builds; pinned to 1.2.0/2.2.3 to match `version_base="1.2"`.
+- `gym` was absent from the original environment YAML but required by PWM and DFlex; installed `gym==0.23.1`.
+- `ninja` must be on `PATH`; installing the Python package alone is insufficient when calling the env Python directly without `PATH=$ENV/bin:$PATH`.
+
+DFlex CPU-side extension rebuild check:
+
+```bash
+PYTHONNOUSERSITE=1 \
+PATH=/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/bin:$PATH \
+CUDA_HOME=/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4 \
+LD_LIBRARY_PATH=/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/lib:${LD_LIBRARY_PATH:-} \
+MAX_JOBS=4 \
+/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/bin/python - <<'PY'
+import shutil, torch
+print("ninja", shutil.which("ninja"))
+print("torch", torch.__version__, torch.version.cuda, torch.cuda.is_available())
+import dflex
+print("dflex import ok", getattr(dflex, "__file__", None))
+PY
+```
+
+Result: passed on login node as CPU-only rebuild. DFlex compiled `kernels.so` with the env toolchain after `PATH` was fixed.
+
+DFlex CUDA rebuild probe:
+
+```text
+High-tier attempts, in requested priority order:
+  9383647 H200 embers: pending due Priority; canceled before runtime
+  9383692 H100 embers: pending due Priority; canceled before runtime
+  9383693 A100 embers: pending due Resources; canceled before runtime
+  9383697 L40S embers: pending due Priority; canceled before runtime
+
+Compiler/runtime debug attempts:
+  9383700 RTX6000 embers: failed; CUDA 11.8 nvcc picked GCC 12 from cluster environment
+  9383705 RTX6000 embers: canceled; stale DFlex extension lock
+  9383712 RTX6000 embers: failed; conda compiler wrapper could not execute cc1plus
+  9383715 RTX6000 embers: failed; inherited cluster CPATH/LIBRARY_PATH broke C++ headers
+  9383721 RTX6000 embers: failed; system GCC path still lacked explicit C++ include path
+
+Passing CUDA rebuild:
+  Slurm job: 9383730
+  GPU/QOS: Quadro RTX 6000, embers
+  Output: logs/pwm_original_parity/locked_env_20260601/dflex_cuda_probe_9383730.out
+  Error: logs/pwm_original_parity/locked_env_20260601/dflex_cuda_probe_9383730.err
+  Result: imported torch 2.3.1+cu118 with CUDA available, rebuilt DFlex kernels, imported dflex, and instantiated HopperEnv(num_envs=2, device="cuda:0")
+```
+
+The passing probe used `/usr/bin/gcc` and `/usr/bin/g++` 11.5 as CUDA host compilers with explicit C++ include paths. The conda `gcc_linux-64`/`gxx_linux-64` 11.2 packages remain documented in the env spec, but they were not the final successful CUDA host compiler path on Slurm.
+
+Required Slurm compiler exports for DFlex CUDA rebuilds:
+
+```bash
+unset C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH GCC_EXEC_PREFIX
+export ENV=/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+export PYTHONNOUSERSITE=1
+export PYTHONUNBUFFERED=1
+export PATH=$ENV/bin:$PATH
+export CUDA_HOME=$ENV
+export CUDACXX=$ENV/bin/nvcc
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+export CUDAHOSTCXX=$CXX
+export CPATH=/usr/include/c++/11:/usr/include/c++/11/x86_64-redhat-linux:/usr/lib/gcc/x86_64-redhat-linux/11/include:/usr/include
+export LD_LIBRARY_PATH=$ENV/lib:${LD_LIBRARY_PATH:-}
+export MAX_JOBS=4
+```
+
+Formal H100/H200 parity jobs should delete generated DFlex kernel artifacts before starting so the extension rebuilds for the actual allocated GPU architecture rather than reusing the RTX6000 probe artifact.
+
 ## Phase 1 Candidate Commands
 
 W&B-disabled Hopper smoke with pretrained WM:
 
 ```bash
-cd baselines/PWM/scripts
-conda activate pwm
+cd /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/scripts
 python train_dflex.py \
-  env=dflex_hopper \
-  alg=pwm \
-  general.run_wandb=False \
+  env=dflex_hopper alg=pwm \
+  general.run_wandb=False general.seed=0 \
+  general.checkpoint_mode=wm_only \
   general.checkpoint=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt \
-  alg.max_epochs=10 \
-  alg.save_interval=10 \
-  general.eval_runs=1 \
-  general.logdir=logs/phase1_hopper_smoke_20260601
+  alg.max_epochs=70 alg.save_interval=70 general.eval_runs=1 \
+  general.logdir=logs/phase1_hopper_smoke_locked_20260601
+```
+
+Smoke attempts:
+
+```text
+9383739: failed before training because IPython was missing; fixed by installing ipython==8.24.0
+9383751: ran training but alg.max_epochs=2 ended before a 1000-step Hopper episode completed, so final buffer save saw an uninitialized replay buffer
+9383756: passed on RTX6000/embers with W&B disabled
+
+Passing smoke logs:
+  stdout: logs/pwm_original_parity/locked_env_20260601/hopper_smoke_9383756.out
+  stderr: logs/pwm_original_parity/locked_env_20260601/hopper_smoke_9383756.err
+
+Passing smoke result:
+  checkpoint_mode: wm_only
+  env: dflex_hopper
+  seed: 0
+  epochs: 70
+  final eval loss: -14.26
+  final eval length: 34
+  interpretation: runtime gate only; not a paper parity result
 ```
 
 Formal single-seed Hopper parity, W&B enabled, `embers` QOS:
@@ -236,7 +408,7 @@ Formal single-seed Hopper parity, W&B enabled, `embers` QOS:
 sbatch \
   --job-name=pwm_phase1_hopper_seed0 \
   --account=gts-agarg35 \
-  --partition=ice-gpu \
+  --partition=gpu-h100 \
   --qos=embers \
   --gres=gpu:h100:1 \
   --nodes=1 \
