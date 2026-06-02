@@ -1565,7 +1565,7 @@ Current conservative table from existing artifacts:
 
 | Row | Evidence | Return | Length | Fall | Interpretation |
 | --- | --- | ---: | ---: | ---: | --- |
-| Faithful original PWM adapter | Formal seed0 summary only; final/best fall/video jobs pending. | `-0.8010` | `44.45` | missing | Collapse-like, but incomplete gate. |
+| Faithful original PWM adapter | Fix2 final/best eval40 plus rollout10 videos. | eval final `-0.8010`; eval best `-0.7778`; video final `-0.5265`; video best `-0.5218` | eval `44.45`; video final `46.80`; video best `46.40` | eval/video `1.000` | Complete negative gate: faithful PWM collapses on MJLab. |
 | Prior PWM-style runner, MLP WM + MLP policy | Old 2x2 rollout aggregate, seeds 0-2. | `-4.5700` | `66.33` | `1.000` | Failed. |
 | Flow policy only | Old 2x2 rollout aggregate, seeds 0-2. | `-3.4818` | `66.78` | `1.000` | Failed. |
 | Flow WM only | Old 2x2 rollout aggregate, seeds 0-2. | `-4.7720` | `60.33` | `1.000` | Failed. |
@@ -1577,11 +1577,11 @@ Current conservative table from existing artifacts:
 | Expert collector | Collector rollout. | `82.6090` | `1000.00` | `0.000` | Target reference. |
 
 Interpretation: existing Flow-MBPO rows are promising but still unverified as
-policy improvement because strict matched video/fall evidence is not cleared and
-the faithful original PWM comparator is missing final/best fall/video artifacts.
-The old 2x2 PWM/Flow replacement rows are already failed diagnostics, not a
-basis for expanding a one-variable R0-R4 matrix before the pending faithful PWM
-evidence package lands.
+policy improvement because strict matched video/fall evidence is not cleared.
+The faithful original PWM comparator is now a complete negative MJLab gate. The
+old 2x2 PWM/Flow replacement rows are already failed diagnostics, not sufficient
+basis by themselves for expanding a one-variable R0-R4 matrix without controlled
+follow-up.
 
 ## 2026-06-02 SIGReg Objective And CPU Test Prerequisite
 
@@ -1922,4 +1922,26 @@ hybrid_locked_rollout1_rows: final and best checkpoints, 1 episode, 300 max step
 project_env_fix2_rollout_replacement_job_id: 9396189
 project_env_fix2_rollout_replacement_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602.csv
 project_env_fix2_rollout_replacement_env: conda env pwm with repaired render_policy_rollout.py from commit ca31ce1
+project_env_fix2_rollout_replacement_status: COMPLETED, exit 0:0
+project_env_fix2_rollout_replacement_result:
+  final return_mean -0.5264854431152344, episode_length_mean 46.79999923706055, fall_rate_mean 1.0
+  best return_mean -0.5217914581298828, episode_length_mean 46.400001525878906, fall_rate_mean 1.0
+  final_video scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/velocity_flat_unitree_g1/normobs_normrew/seed_0/final/rollout.mp4
+  best_video scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/velocity_flat_unitree_g1/normobs_normrew/seed_0/best/rollout.mp4
+
+hybrid_locked_eval4_status: FAILED, exit 1:0
+hybrid_locked_rollout1_status: FAILED, exit 1:0
+hybrid_locked_root_cause:
+  The wrapper reached locked torch/PWM and project MJLab imports, but W&B
+  initialization failed before environment evaluation. The spawned W&B backend
+  process could not import wandb.sdk.internal.internal under the mixed runtime
+  path. No eval summary or rollout video was produced. Retrying this smoke
+  should first disable W&B to isolate runtime/eval behavior from W&B packaging.
+
+hopper_wmprobe_fix3_status: FAILED, exit 1:0
+hopper_wmprobe_fix3_root_cause:
+  DFlex kernel compilation and environment setup succeeded, but
+  scripts/diagnostics/pwm_dflex_checkpoint_probe.py called
+  PWM.load(checkpoint, with_buffer=False). The locked original PWM API does not
+  accept with_buffer, so the probe failed before writing fix3 JSON results.
 ```

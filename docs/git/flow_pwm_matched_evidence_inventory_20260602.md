@@ -3,9 +3,10 @@
 Date: 2026-06-02
 
 Purpose: collect the existing matched evidence rows requested by
-`docs/goals/pwm_flow_sigreg_image_research_plan_20260602.md` while the required
-faithful original-PWM final/best eval and rollout jobs are still pending. This
-inventory is evidence-only. It does not make a policy-improvement claim.
+`docs/goals/pwm_flow_sigreg_image_research_plan_20260602.md`. The faithful
+original-PWM final/best eval and rollout jobs have now produced a complete
+negative MJLab evidence package. This inventory is evidence-only. It does not
+make a policy-improvement claim.
 
 ## Scheduler Status During This Inventory
 
@@ -43,7 +44,7 @@ scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_wm_sigreg_aggregate_latest.csv
 
 | Row | Source stage | WM | Policy | Seed scope | Checkpoint/evidence | Return | Length | Fall | Status |
 | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |
-| Faithful original PWM adapter | `original_pwm_adapter_phase3_formal_20260601` plus pending jobs `9388552` and `9388553` | Original PWM adapter | Original PWM extraction | seed 0 | Formal checkpoints exist: `final_policy_extraction.pt`, `best_policy_extraction.pt`; eval/video with fall metrics pending. Formal adapter summary: `scripts/outputs/mjlab_qs/original_pwm_adapter/original_pwm_adapter_phase3_formal_20260601/velocity_flat_unitree_g1/normobs_normrew/seed_0/summary.json`. | `-0.8010` | `44.45` | missing | Incomplete evidence gate. Current formal summary is collapse-like but not the required final/best fall/video package. |
+| Faithful original PWM adapter | `original_pwm_adapter_phase3_formal_20260601` plus fix2 eval/video jobs `9395746` and `9396189` | Original PWM adapter | Original PWM extraction | seed 0 final/best | Formal checkpoints plus fall-aware eval/video package. Eval summaries: `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_fix2_20260602/.../{final,best}/summary.json`; rollout videos and summaries: `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/.../{final,best}/`. | eval final `-0.8010`; eval best `-0.7778`; video final `-0.5265`; video best `-0.5218` | eval `44.45`; video final `46.80`; video best `46.40` | eval `1.000`; video `1.000` | Complete negative evidence gate. Faithful original PWM adapter collapses badly on MJLab and fails the BC baseline gate. |
 | Prior PWM-style runner | `rerun_g1_pwm_flow_policy2x2_20260527` | `mlp_ref` | `mlp` | seeds 0-2 | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../mlp_ref/mlp/offline/policy50k/` | `-4.5700` | `66.33` | `1.000` | Real rollout diagnostic only. Fails badly. |
 | Flow policy only | `rerun_g1_pwm_flow_policy2x2_20260527` | `mlp_ref` | `flow` | seeds 0-2, aggregate from 3 final rollouts; status CSV says 2 of 3 completed in policy-eval aggregate | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../mlp_ref/flow/offline/policy50k/` | `-3.4818` | `66.78` | `1.000` | Slightly less bad than MLP policy in this diagnostic, still failed. |
 | Flow WM only | `rerun_g1_pwm_flow_policy2x2_20260527` | `flow_endpoint` | `mlp` | seeds 0-2 | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../flow_endpoint/mlp/offline/policy50k/` | `-4.7720` | `60.33` | `1.000` | Failed. No evidence that Flow WM alone fixed policy extraction. |
@@ -81,7 +82,7 @@ document the objective, tensor shapes, and tests before adding new SIGReg work.
 The existing evidence supports this conservative diagnosis:
 
 ```text
-faithful original PWM on MJLab: incomplete gate; formal summary is collapse-like but required fall/video jobs are pending
+faithful original PWM on MJLab: complete fix2 eval/video gate; final and best both collapse with fall 1.000
 previous PWM-style runner: failed
 Flow WM only: failed in the old 2x2 policy extraction matrix
 Flow policy only: failed in the old 2x2 policy extraction matrix
@@ -91,13 +92,12 @@ best BC: still a hard comparator, especially matched seed0 video fall 0.400
 expert and expert-noisy collectors: far above all learned policy-improvement rows
 ```
 
-Next action: replace the remaining failed infrastructure jobs. The faithful
-original PWM fall-aware eval/video package remains incomplete because `fix1`
-cleared the upstream PWM import-path error but then failed with
-`KeyError: 'args'`: the adapter checkpoints are upstream PWM save dictionaries,
-not generic extracted-policy checkpoints. The `fix2` eval and rollout
-manifests add explicit adapter schema, dataset, metadata, normalization, task,
-command, and obs-mode fields. The Ant DFlex supplemental diagnostic is now
-complete under the locked original environment plus explicit GCC 11 `CPATH`;
-the Hopper DFlex probe remains incomplete until its fix3 job writes the probe
-JSON files.
+Next action: do not treat faithful PWM imagined gains as verified. The fix2
+MJLab package now has fall-aware eval and video evidence and is a clear negative
+baseline. Hybrid locked MJLab smoke `9396164`/`9396165` failed before evaluation
+because the locked W&B backend process could not import
+`wandb.sdk.internal.internal` after the runtime path mix; if retried, run W&B
+disabled first. The Ant DFlex supplemental diagnostic is complete under the
+locked original environment plus explicit GCC 11 `CPATH`; Hopper fix3 reached
+the DFlex kernel/eval path but failed in the probe script because locked PWM
+does not accept `PWM.load(..., with_buffer=False)`.
