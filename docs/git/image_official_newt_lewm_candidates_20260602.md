@@ -49,11 +49,13 @@ External data root: /storage/project/r-agarg35-0/eliu354/external_data
 | `newt_official_walker_smoke_a100_20260602` | smoke / exploratory | Run the smallest official NEWT single-task train smoke on DMControl `walker-walk`, W&B disabled, no demos, no video, no checkpoint save. This is an official runner smoke, not a performance row. | Depends on NEWT env setup. Uses DMControl task to avoid ManiSkill asset dependency in the first smoke. | Off (`enable_wandb=false`, `WANDB_MODE=disabled`). | Slurm logs and NEWT local `logs/walker-walk/0/official_walker_smoke_20260602` if the smoke reaches logger setup. | A100 / `embers`. | `afterok:newt_official_env_setup_20260602`. | Submit. |
 | `lewm_official_import_config_smoke_20260602` | smoke | Import official LeWM modules, compose the training config, and verify SIGReg/model classes without requiring datasets. | Depends on LeWM env setup. Official repo/configs exist. | Off. | Slurm logs with torch/stable-worldmodel/stable-pretraining imports, train data name, max epochs, SIGReg weight, and class names. | CPU / `embers`. | `afterok:lewm_official_env_setup_20260602`. | Submit. |
 | `lewm_official_data_checkpoint_download_20260602` | setup / diagnostic | Identify and download the smallest official LeWM dataset/checkpoint needed for an official train/eval smoke. | Missing locally: no `.h5`/`.lance` LeWM datasets were found under `/storage/project/r-agarg35-0/eliu354`. | Off. | HF repo/file inventory, downloaded dataset/checkpoint paths, or failure reason. | CPU / `embers`. | Depends on LeWM env only if using its HF tooling. | Prepare after env setup; do not submit a train/eval job until inputs are known. |
+| `lewm_official_pusht_assets_20260602` | setup / diagnostic | Use the healthy official LeWM env to inventory `quentinll/lewm-pusht`, download PushT dataset/model assets, decompress `pusht_expert_train.h5.zst`, convert `weights.pt + config.json` into `pusht/lewm_object.ckpt`, and smoke-load `AutoCostModel('pusht/lewm')`. | Yes: LeWM env `9398556` completed; HF model repo lists `config.json` and `weights.pt`; HF dataset repo lists `pusht_expert_train.h5.zst`. | Off. | Files under `$STABLEWM_HOME=/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm`, Slurm logs under `logs/slurm/image_official/`, converted checkpoint or failure reason. | CPU / `embers`. | No Slurm dependency needed because the env already exists and passed smoke. | Submit after committing script. |
 
 Submission wrapper:
 
 ```text
 scripts/experiments/image_official/submit_newt_lewm_official_smokes_20260602.sh
+scripts/experiments/image_official/submit_lewm_official_pusht_assets_20260602.sh
 ```
 
 Validation before submission:
@@ -116,6 +118,18 @@ fix_newt: before reusing an env, run `python -c 'import encodings'`; remove and 
 replacement_decision_newt: resubmit only the NEWT setup/import/walker smoke with the official conda YAML after committing the env sanity repair.
 ```
 
+NEWT repair resubmission after commit
+`0c75280e05d529bff0d3dd380a2da8c36fdd6e4c`:
+
+```text
+9398617 newt_official_env_setup_repair_20260602, QOS embers, FAILED 1:0
+9398618 newt_official_import_config_repair_20260602, dependency=afterok:9398617, canceled after setup failure
+9398619 newt_official_walker_repair_a100_20260602, dependency=afterok:9398617, canceled after setup failure
+root_cause_newt_repair: official `conda env create -f docker/environment.yaml` reached pip dependency installation but `box2d-py` failed to build because the `swig` executable was not on PATH.
+fix_newt_repair: keep the official YAML unchanged, but load the cluster `swig/4.1.1` module before `conda env create`; export `PYTHONNOUSERSITE=1`; add a setup completion marker so failed partial envs are removed before reuse.
+replacement_decision_newt_repair: resubmit only the NEWT setup/import/walker smoke after committing the SWIG/module and marker fix.
+```
+
 LeWM replacement result:
 
 ```text
@@ -124,4 +138,14 @@ env evidence: lewm_env_python_ok; torch 2.12.0+cu130; hydra 1.3.2; stable_worldm
 9398559 lewm_official_import_config_smoke_20260602 COMPLETED 0:0, QOS embers, elapsed 00:00:11
 config evidence: lewm_import_config_ok; data=pusht_expert_train.lance; trainer.max_epochs=1; loss.sigreg.weight=0.09; JEPA/ARPredictor/Embedder/MLP/SIGReg classes import successfully.
 next_lewm: official env/config smoke is healthy; prepare a data/checkpoint inventory/download job before any LeWM train/eval submission because no local `.h5`/`.lance` data was found earlier.
+```
+
+LeWM PushT assets candidate validation before submission:
+
+```text
+official README data path: download data from HuggingFace collection, decompress, place extracted files under $STABLEWM_HOME.
+official README checkpoint path: `hf download quentinll/lewm-pusht --local-dir $STABLEWM_HOME/hf_pusht`, then convert `weights.pt + config.json` into `$STABLEWM_HOME/pusht/lewm_object.ckpt`.
+HF model inventory via official env: `quentinll/lewm-pusht` model repo has `.gitattributes`, `README.md`, `config.json`, `weights.pt`.
+HF dataset inventory via official env: `quentinll/lewm-pusht` dataset repo has `.gitattributes`, `README.md`, `pusht_expert_train.h5.zst`.
+script: `scripts/experiments/image_official/submit_lewm_official_pusht_assets_20260602.sh`
 ```

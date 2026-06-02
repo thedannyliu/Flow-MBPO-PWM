@@ -170,6 +170,18 @@ fix_newt: before reusing an env, run `python -c 'import encodings'`; remove and 
 next_newt: resubmit only the NEWT setup/import/walker smoke with CPU_QOS=embers and GPU_QOS=embers after committing the sanity repair.
 ```
 
+NEWT repair resubmission after commit
+`0c75280e05d529bff0d3dd380a2da8c36fdd6e4c`:
+
+```text
+9398617 newt_official_env_setup_repair_20260602, QOS embers, FAILED 1:0
+9398618 newt_official_import_config_repair_20260602, dependency=afterok:9398617, canceled after setup failure
+9398619 newt_official_walker_repair_a100_20260602, dependency=afterok:9398617, canceled after setup failure
+root_cause_newt_repair: official `conda env create -f docker/environment.yaml` reached pip dependency installation but `box2d-py` failed to build because the `swig` executable was not on PATH.
+fix_newt_repair: keep the official YAML unchanged, but load the cluster `swig/4.1.1` module before `conda env create`; export `PYTHONNOUSERSITE=1`; add a setup completion marker so failed partial envs are removed before reuse.
+next_newt_repair: resubmit only the NEWT setup/import/walker smoke with CPU_QOS=embers and GPU_QOS=embers after committing the SWIG/module and marker fix.
+```
+
 LeWM replacement result:
 
 ```text
@@ -177,4 +189,15 @@ LeWM replacement result:
 9398559 lewm_official_import_config_smoke_20260602 COMPLETED 0:0, QOS embers
 evidence: official LeWM uv env imports torch 2.12.0+cu130, hydra 1.3.2, stable_worldmodel, stable_pretraining; config smoke composes data=pusht_expert_train.lance, trainer.max_epochs=1, loss.sigreg.weight=0.09, and imports JEPA/ARPredictor/Embedder/MLP/SIGReg.
 next_lewm: prepare official data/checkpoint inventory/download before train/eval because local LeWM `.h5`/`.lance` inputs were absent.
+```
+
+Next LeWM official assets candidate:
+
+```text
+lewm_official_pusht_assets_20260602
+purpose: use the healthy official LeWM uv env to inventory `quentinll/lewm-pusht`, download `config.json`, `weights.pt`, and `pusht_expert_train.h5.zst`, decompress the dataset, convert the HF checkpoint into `$STABLEWM_HOME/pusht/lewm_object.ckpt`, and smoke-load `AutoCostModel('pusht/lewm')`.
+validation: HF model repo lists `config.json` and `weights.pt`; HF dataset repo lists `pusht_expert_train.h5.zst`; official README describes the same HF mirror and conversion path.
+resources: CPU / `embers`, W&B disabled, no train/eval yet.
+script: `scripts/experiments/image_official/submit_lewm_official_pusht_assets_20260602.sh`
+submit_decision: submit after committing the script and candidate record.
 ```

@@ -14,6 +14,7 @@ NEWT_ROOT="${NEWT_ROOT:-/storage/project/r-agarg35-0/eliu354/external_repos/newt
 LEWM_ROOT="${LEWM_ROOT:-/storage/project/r-agarg35-0/eliu354/external_repos/le-wm}"
 NEWT_ENV="${NEWT_ENV:-/storage/project/r-agarg35-0/eliu354/envs/newt_official_20260602}"
 LEWM_ENV="${LEWM_ENV:-/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602}"
+NEWT_MARKER="${NEWT_MARKER:-${NEWT_ENV}/.newt_official_setup_ok_20260602}"
 UV_PREFIX="${UV_PREFIX:-/storage/project/r-agarg35-0/eliu354/tools/uv_official_20260602}"
 DATA_ROOT="${DATA_ROOT:-/storage/project/r-agarg35-0/eliu354/external_data}"
 
@@ -40,11 +41,14 @@ newt_setup_job="$(
     --error="${LOG_DIR}/newt_official_env_setup_%j.err" \
     --wrap="cd ${NEWT_ROOT} && \
 source ~/.bashrc && \
+export PYTHONNOUSERSITE=1 && \
+module load swig/4.1.1 && \
+if [[ -d ${NEWT_ENV} && ! -f ${NEWT_MARKER} ]]; then rm -rf ${NEWT_ENV}; fi && \
 if [[ -d ${NEWT_ENV} && ! -x ${NEWT_ENV}/bin/python ]]; then rm -rf ${NEWT_ENV}; fi && \
-if [[ -x ${NEWT_ENV}/bin/python ]] && ! PYTHONNOUSERSITE=1 ${NEWT_ENV}/bin/python -c 'import encodings' >/dev/null 2>&1; then rm -rf ${NEWT_ENV}; fi && \
+if [[ -x ${NEWT_ENV}/bin/python ]] && ! ${NEWT_ENV}/bin/python -c 'import encodings' >/dev/null 2>&1; then rm -rf ${NEWT_ENV}; fi && \
 if [[ ! -x ${NEWT_ENV}/bin/python ]]; then conda env create -p ${NEWT_ENV} -f docker/environment.yaml; fi && \
 ${NEWT_ENV}/bin/python -m pip install --no-cache-dir 'ale_py==0.10' && \
-PYTHONNOUSERSITE=1 ${NEWT_ENV}/bin/python - <<'PY'
+${NEWT_ENV}/bin/python - <<'PY' && touch ${NEWT_MARKER}
 import torch, torchvision, hydra, gymnasium
 print('newt_env_python_ok')
 print('torch', torch.__version__, 'cuda', torch.version.cuda)
