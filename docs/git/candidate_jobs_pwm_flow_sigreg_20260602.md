@@ -300,3 +300,12 @@ W&B: disabled; these are diagnostic smokes rather than formal claim rows.
 validation: `run_flow_mbpo_awr_row.py --check-inputs --dry-run` succeeded for row 0; `submit_array.sh --dry-run` produced `--array=0-13%8 --partition=gpu-h200 --qos=embers --gres=gpu:h200:1`.
 submit_decision: submit after committing manifest and candidate record.
 ```
+
+Broad embers submissions after commit `3a3e161`:
+
+```text
+9400408 lewm_official_pusht_assets_fix2_20260602, CPU / embers, PENDING Priority at first check.
+9400410_[0-13%8] mjqs_flow_mbpo_awr_H200, H200 / embers, PENDING Resources at first check.
+array_payload: 14 Flow-MBPO AWR diagnostics from scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_20260602.csv, max concurrent 8.
+scheduler_validation: `squeue` and `sacct` both showed QOS `embers` for 9400408 and 9400410.
+```

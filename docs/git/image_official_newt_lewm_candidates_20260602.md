@@ -227,3 +227,14 @@ candidate_lewm_train: `lewm_official_pusht_train_smoke_h100_20260602`, 2 array e
 inputs: NEWT marker exists; LeWM env exists; LeWM PushT object checkpoint and 44GB dataset exist after local strict conversion validation.
 submit_decision: submit after committing the broad wrapper and candidate record.
 ```
+
+Broad official image submissions after commit `3a3e161`:
+
+```text
+9400408 lewm_official_pusht_assets_fix2_20260602, CPU / embers, PENDING Priority at first check.
+9400409_[0-15%8] newt_official_broad_smoke_a100_20260602, A100 / embers, PENDING Priority at first check.
+9400411_[0-5%6] lewm_official_pusht_eval_h100_20260602, H100 / embers, PENDING Priority at first check.
+9400412_[0-1%2] lewm_official_pusht_train_smoke_h100_20260602, H100 / embers, PENDING Priority at first check.
+array_payload: 16 NEWT official train smokes, 6 LeWM official eval rows, 2 LeWM official train smokes.
+scheduler_validation: `squeue` and `sacct` both showed QOS `embers` for all submitted official-image jobs.
+```
