@@ -330,3 +330,25 @@ h200_fix_wrapper: added `scripts/experiments/image_official/submit_newt_h200_rem
 h200_submit_blocker: `sbatch --test-only` on gpu-h200 / embers returned `QOSMaxSubmitJobPerUserLimit`, so the H200 wrapper was validated but not submitted in this poll.
 next_action: when the submit quota reopens, run `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh`; monitor `9400715` first because it is the direct replacement for the failed LeWM H200 eval root cause.
 ```
+
+NEWT/LeWM poll before H200 replacement submission:
+
+```text
+poll_time: 2026-06-02 19:10-19:13 America/New_York.
+newt_l40s_completed: `9400714_0-6` completed 0:0 on gpu-l40s / embers. Row metrics: walker-walk seed0 eval/train `42.247/51.202`; walker-run `42.179/23.809`; cheetah-run `5.871/6.516`; hopper-hop `0.0/0.0`; reacher-easy `34.000/0.0`; pendulum-swingup `0.0/0.0`; cartpole-swingup `183.107/8.803`.
+lewm_l40s_pending: `9400715_[0-5]` and `9400716_[0-1]` remain pending Priority, so the repaired LeWM env has not yet been tested under GPU Slurm.
+h200_submit_probe: gpu-h200 / embers `sbatch --test-only` succeeded after the inventory check.
+candidate: submit `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` after this record is committed. It is non-duplicative: remaining NEWT H200 rows 7-15 were never accepted before, and LeWM H200 rows use unique `_h200_fix` result names after the pyarrow/datasets repair.
+```
+
+NEWT H200 remaining single-row extension:
+
+```text
+accepted_before: 9400778_[7] cup-catch seed0 was already accepted on H200 / embers.
+accepted_after_a0a0751: 9400797_[8] walker-walk seed1; 9400798_[9] walker-run seed1; 9400799_[10] cheetah-run seed1; 9400800_[11] hopper-hop seed1.
+blocked_after_a0a0751: row 12 failed with `QOSMaxSubmitJobPerUserLimit`; rows 12-15 remain useful unsent H200 backup candidates.
+status_at_first_check: accepted rows 7-11 are pending Resources.
+l40s_overlap_progress: L40S NEWT rows 7, 8, and 9 completed 0:0 with eval/train rewards `0.0/0.0`, `18.338/37.122`, and `18.157/28.181`.
+interpretation: NEWT official environment continues to be healthy on L40S. H200 rows are queued as backup coverage, not duplicates to interpret independently until logs complete.
+next_action: retry rows 12-15 and LeWM H200 train-smoke singles only when submit slots free; monitor LeWM eval fix rows first.
+```

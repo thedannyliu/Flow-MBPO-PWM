@@ -103,3 +103,43 @@ next_action: monitor 9400771..9400776 as the repaired LeWM Slurm proof; retry NE
 | `9399798` | Hopper locked WM-vs-real probe fix4 | `PENDING`, reason `Priority` | Repaired locked DFlex Slurm wrapper for Hopper final/best WM-vs-real probe | `c7c33b` / later records | Hopper locked original PWM probe with DFlex sandbox and compiler include repair | Locked env `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4`; Hopper final/best actors from locked parity run | seed 0 actor | H100 / `embers` | W&B disabled | Inputs from locked Hopper formal run; expected `eval_results/pwm_phase2_hopper_locked_probe_20260602/*fix4*.json` | No output yet | Not available | None yet | Pending only | Wait; if it fails, record root cause and resubmit only after compiler/path diagnosis |
 
 Current continuation interpretation: the queue is saturated with useful embers GPU work across A100, H100, H200, and L40S. The only completed new broad wave so far is H200 Flow-MBPO AWR, which is a valid negative result: all runs fall at rate `1.0` and do not beat BC. No current pending image/MJLab backup job has produced logs yet, so there is no runtime failure to cancel or repair at this poll.
+
+## Continuation Inventory: NEWT/LeWM and Hopper Probe Update
+
+Preflight time: 2026-06-02 19:10-19:13 America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD | `ce439b026cc06760db6e90912768b606bd3628b9` |
+| Dirty status before this continuation inventory | clean |
+| Recent relevant commits | `ce439b0 Record LeWM repair and L40S official submissions`; `86df949 Record embers submit quota probe`; `a81bc59 Update broad embers preflight inventory`; `515b243 Record H200 Flow MBPO AWR results`; `bd2773a Record official image backup submissions`; `d473642 Record embers shard backfill`; `0a679b3 Document Flow SIGReg preflight policy`; `6f82e7d Record continuation Slurm poll` |
+| Slurm commands | `squeue -u $USER`; `sacct -X -j 9387942,9387949,9387896,9387895,9399798,9400409,9400435,9400442,9400528,9400714,9400715,9400716 --format=...`; `seff` unavailable on PATH |
+| Artifact searches | Searched `docs/git`, `docs/goals`, `scripts`, `logs/slurm`, `logs/pwm_original_parity`, `scripts/outputs`, `eval_results`, `outputs`, and W&B/offline directories for current job IDs, checkpoints, summaries, videos, and W&B/offline dirs. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9399798` | Hopper locked WM-vs-real probe fix4 | `COMPLETED`, exit `0:0`, elapsed `00:01:19` | `scripts/experiments/mjlab_qs/submit_hopper_wmprobe_fix4_20260602.sh` running `scripts/diagnostics/pwm_dflex_checkpoint_probe.py` for final and best locked Hopper actors | wrapper repaired before `c7c33b`; result recorded after `ce439b0` | Original locked Hopper DFlex probe, 64 envs, 128 steps, policy actor, W&B disabled | Locked env `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4`; job-local DFlex sandbox `/tmp/dflex_hopper_probe_sandbox_9399798_fix4`; Hopper actors from locked parity run | actor seed 0; probe seed 0 | H100 / `embers` | W&B disabled | `baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/{final_policy.pt,best_policy.pt}` | `eval_results/pwm_phase2_hopper_locked_probe_20260602/{final_actor_wm_vs_real_fix4.json,best_actor_wm_vs_real_fix4.json}`; Slurm logs `logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_wmprobe_h100_fix4_9399798.{out,err}` | Final actor: real_reward_mean `3.9009`, normalized WM-real corr `0.999928`, normalized MAE `0.004424`, termination/truncation `0.0`; best actor: real_reward_mean `3.9188`, normalized WM-real corr `0.999961`, normalized MAE `0.003968`, termination/truncation `0.0` | None | Yes as locked Hopper WM-vs-real diagnostic evidence | Record in the active fidelity doc; keep Ant true-env repair separate |
+| `9400714_0-6` | NEWT official broad L40S rows 0-6 | Rows 0-6 `COMPLETED`, exit `0:0`; rows 7-15 pending/running by queue state | `scripts/experiments/image_official/submit_newt_lewm_l40s_backups_20260602.sh` NEWT array payload | `ce439b0` | Official `newt/tdmpc2/train.py`, `model_size=B`, `steps=500`, W&B/video/checkpoint disabled | Official NEWT repo/env; marker `/storage/project/r-agarg35-0/eliu354/envs/newt_official_20260602/.newt_official_setup_ok_20260602`; data dir `/storage/project/r-agarg35-0/eliu354/external_data/newt_demos` | seed 0 rows for walker-walk, walker-run, cheetah-run, hopper-hop, reacher-easy, pendulum-swingup, cartpole-swingup | L40S / `embers` | W&B disabled | No checkpoint expected (`save_agent=false`) | Logs under `logs/slurm/image_official/newt_official_broad_l40s_9400714_*.out` | Eval/train rewards by row: 0 `42.247/51.202`; 1 `42.179/23.809`; 2 `5.871/6.516`; 3 `0.0/0.0`; 4 `34.000/0.0`; 5 `0.0/0.0`; 6 `183.107/8.803` | None | Yes as official NEWT smoke coverage, not performance evidence | Continue monitoring remaining L40S rows; keep H200 rows 7-15 as a useful backup candidate |
+| `9400715_[0-5]` | LeWM official PushT eval L40S with repaired env/shim | `PENDING`, reason `Priority` | `scripts/experiments/image_official/submit_newt_lewm_l40s_backups_20260602.sh` LeWM eval payload | `ce439b0` | Official `eval.py --config-name=pusht`; policies `pusht/lewm` and `random`; horizons 2/5; `eval.num_eval=4`, `eval.eval_budget=30`; W&B disabled | Official LeWM env `/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602`; `datasets 3.6.0`, `pyarrow 24.0.0`; compatibility shim `scripts/experiments/image_official/compat/sitecustomize.py`; PushT checkpoint and h5 dataset under `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm` | seeds 0, 1, 2 by row | L40S / `embers` | W&B disabled | Uses `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/pusht/lewm_object.ckpt` | Logs expected under `logs/slurm/image_official/lewm_official_pusht_eval_l40s_9400715_*.{out,err}` | Not available | None yet | Pending only | Inspect immediately when the first row starts because it exercises the LeWM pyarrow repair under Slurm |
+| `9400716_[0-1]` | LeWM official PushT train smoke L40S with repaired env/shim | `PENDING`, reason `Priority` | `scripts/experiments/image_official/submit_newt_lewm_l40s_backups_20260602.sh` LeWM train payload | `ce439b0` | Official `train.py data=pusht`, `trainer.max_epochs=1`, 2 train batches, 1 val batch, W&B disabled | Same repaired official LeWM env/assets as `9400715` | seeds 0 and 1 | L40S / `embers` | W&B disabled | Expected official train smoke output under LeWM output dirs | Logs expected under `logs/slurm/image_official/lewm_official_pusht_train_l40s_9400716_*.{out,err}` | Not available | None yet | Pending only | Inspect after eval rows start or finish; replace only if the repaired env still fails |
+
+Submit probe after this inventory:
+
+```text
+command: sbatch --test-only --job-name=h200_submit_quota_probe_20260602_cont --account=gts-agarg35 --partition=gpu-h200 --qos=embers --gres=gpu:h200:1 --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=4G --time=00:05:00 --wrap=true
+result: accepted by scheduler test; example predicted start `2026-06-05T16:06:06` on gpu-h200.
+candidate_to_submit_after_commit: `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh`, covering remaining NEWT H200 rows 7-15 plus repaired LeWM H200 eval/train rows.
+```
+
+Additional post-commit submission inventory:
+
+```text
+commit_before_submission: a0a0751.
+accepted_h200_newt_rows: 9400797_[8], 9400798_[9], 9400799_[10], and 9400800_[11], all gpu-h200 / embers, pending Resources at first check.
+blocked_h200_newt_rows: row 12 failed with `QOSMaxSubmitJobPerUserLimit`; rows 12-15 remain unsent.
+already_pending_h200_repair_rows: 9400771_[0]..9400776_[5] repaired LeWM eval rows and 9400778_[7] NEWT row 7 remain pending Resources.
+new_l40s_results: 9400714_7, 9400714_8, and 9400714_9 completed 0:0 with valid official NEWT output; eval/train rewards were `0.0/0.0`, `18.338/37.122`, and `18.157/28.181`.
+lewm_gpu_repair_status: no repaired LeWM GPU row has started yet; 9400715/9400716 remain pending Priority and 9400771..9400776 remain pending Resources.
+next_action: monitor LeWM repaired rows immediately after they start; retry NEWT H200 rows 12-15 and LeWM H200 train singles only after submit quota frees again.
+```

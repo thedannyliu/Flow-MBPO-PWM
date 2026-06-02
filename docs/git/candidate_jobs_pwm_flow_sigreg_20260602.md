@@ -502,3 +502,29 @@ submitted: `9400714` NEWT L40S broad official array, `9400715` LeWM PushT eval L
 prepared_not_submitted: `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` covers NEWT H200 rows 7-15 plus shimmed LeWM H200 eval/train replacements; `sbatch --test-only` is currently blocked by `QOSMaxSubmitJobPerUserLimit`.
 priority_next: watch `9400715` logs for the pyarrow root-cause replacement; submit the H200 fix wrapper as soon as embers submit quota reopens.
 ```
+
+Continuation candidate refresh after preflight commit `ce439b0`:
+
+```text
+poll_time: 2026-06-02 19:10-19:13 America/New_York.
+hopper_probe_result: `9399798` completed 0:0 on H100 / embers and wrote `eval_results/pwm_phase2_hopper_locked_probe_20260602/final_actor_wm_vs_real_fix4.json` plus `best_actor_wm_vs_real_fix4.json`. Final actor normalized WM-real reward correlation was 0.999928 with MAE 0.004424; best actor correlation was 0.999961 with MAE 0.003968; both had termination/truncation fraction 0.0.
+newt_l40s_progress: `9400714_0-6` completed 0:0 with valid official NEWT train/eval output; row rewards match the already completed H200 seed0 rows for the overlapping tasks.
+lewm_l40s_status: `9400715_[0-5]` and `9400716_[0-1]` remain pending Priority; no repaired LeWM GPU row has started yet.
+h200_submit_probe: gpu-h200 / embers `sbatch --test-only` succeeded after the inventory check.
+candidate_to_submit: `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh`.
+candidate_payload: NEWT H200 rows 7-15; repaired LeWM H200 eval rows 0-5; repaired LeWM H200 train-smoke rows 0-1.
+dependency_required: no; NEWT env marker, LeWM env, converted PushT checkpoint, and PushT h5 dataset already exist.
+wandb_mode: disabled for these official-image smoke/eval replacement rows.
+submit_decision: submit after committing this inventory/candidate refresh if the embers submit quota still accepts it.
+```
+
+Additional H200 single-row submission after commit `a0a0751`:
+
+```text
+submit_probe: gpu-h200 / embers single-row `sbatch --test-only` still succeeded after `a0a0751`.
+accepted_newt_h200_rows: 9400797_[8] walker-walk seed1, 9400798_[9] walker-run seed1, 9400799_[10] cheetah-run seed1, 9400800_[11] hopper-hop seed1; all pending Resources at first check.
+blocked_newt_h200_rows: row 12 submission failed with `QOSMaxSubmitJobPerUserLimit`; rows 12-15 remain unsent on H200.
+newt_l40s_progress: 9400714_7 cup-catch seed0 completed 0:0 with eval/train `0.0/0.0`; 9400714_8 walker-walk seed1 completed 0:0 with eval/train `18.338/37.122`; 9400714_9 walker-run seed1 completed 0:0 with eval/train `18.157/28.181`.
+lewm_status: repaired LeWM H200 eval rows 9400771..9400776 are still pending Resources; LeWM L40S eval/train arrays 9400715/9400716 are still pending Priority.
+next_action: continue single-row H200 submissions for NEWT rows 12-15 and LeWM H200 train rows when submit quota reopens; do not duplicate already accepted rows 7-11.
+```

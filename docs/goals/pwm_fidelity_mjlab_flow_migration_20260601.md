@@ -1945,3 +1945,31 @@ hopper_wmprobe_fix3_root_cause:
   PWM.load(checkpoint, with_buffer=False). The locked original PWM API does not
   accept with_buffer, so the probe failed before writing fix3 JSON results.
 ```
+
+Hopper locked WM-vs-real probe fix4 result:
+
+```text
+job_id: 9399798
+status: COMPLETED 0:0 after 00:01:19 on gpu-h100 / embers.
+script: scripts/experiments/mjlab_qs/submit_hopper_wmprobe_fix4_20260602.sh
+env: locked original PWM reproduction env `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4` with job-local DFlex sandbox.
+artifacts:
+  final: eval_results/pwm_phase2_hopper_locked_probe_20260602/final_actor_wm_vs_real_fix4.json
+  best: eval_results/pwm_phase2_hopper_locked_probe_20260602/best_actor_wm_vs_real_fix4.json
+final_actor_metrics:
+  real_reward_mean: 3.900890827178955
+  wm_reward_mean: -0.0975031927227974
+  wm_vs_real_reward_corr_normalized: 0.9999279975891113
+  wm_vs_real_reward_mae_normalized: 0.004423932172358036
+  termination_frac: 0.0
+  truncation_frac: 0.0
+best_actor_metrics:
+  real_reward_mean: 3.918797492980957
+  wm_reward_mean: -0.08476608246564865
+  wm_vs_real_reward_corr_normalized: 0.9999613165855408
+  wm_vs_real_reward_mae_normalized: 0.003967907279729843
+  termination_frac: 0.0
+  truncation_frac: 0.0
+interpretation: usable locked-environment Hopper diagnostic evidence. The learned WM reward is highly aligned with DFlex real reward over this short probe and does not show an obvious reward-model mismatch. This does not by itself prove MJLab transfer, but it supports preserving the locked original-PWM reproduction environment as the credible PWM baseline.
+next_action: keep Ant true-env eval repair separate; continue MJLab final/best eval/video evidence gates before making MJLab performance claims.
+```
