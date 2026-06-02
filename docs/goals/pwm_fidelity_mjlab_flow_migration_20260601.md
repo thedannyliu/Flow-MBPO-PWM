@@ -1887,3 +1887,39 @@ mjlab_eval40_fix2_qos: embers
 mjlab_eval40_fix2_dependency: none
 mjlab_eval40_fix2_env: conda env pwm with PYTHONPATH=${ROOT}/src:${ROOT}/baselines/PWM/src
 ```
+
+Project-env fix2 result and hybrid locked smoke submission:
+
+```text
+project_env_fix2_eval_job_id: 9395746
+project_env_fix2_eval_status: COMPLETED, exit 0:0
+project_env_fix2_eval_result:
+  final return_mean -0.8009907603263855, episode_length_mean 44.45000076293945
+  best return_mean -0.7777858376502991, episode_length_mean 44.45000076293945
+project_env_fix2_rollout_job_id: 9395745
+project_env_fix2_rollout_status: FAILED after writing rollout.mp4 and CSV files
+project_env_fix2_rollout_root_cause:
+  render_policy_rollout.py returned list-valued support_features for the
+  original_pwm_adapter path, but summary writing expected a tensor shape.
+repair:
+  commit ca31ce1 adds locked_mjlab_python.py, fixes the original adapter
+  rollout support_features return type, and adds short hybrid locked smoke
+  manifests.
+
+hybrid_locked_eval4_job_id: 9396164
+hybrid_locked_eval4_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_hybrid_locked_eval4_final_best_20260602.csv
+hybrid_locked_eval4_python: scripts/experiments/mjlab_qs/locked_mjlab_python.py
+hybrid_locked_eval4_env_order:
+  locked /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4 torch 2.3.1/cu118
+  locked tensordict/torchrl 0.4 loaded before project site-packages
+  project env site-packages then supplies mjlab/mujoco 3.5.0
+hybrid_locked_eval4_rows: final and best checkpoints, 4 episodes, 4 envs, 500 max steps
+hybrid_locked_rollout1_job_id: 9396165
+hybrid_locked_rollout1_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_hybrid_locked_rollout1_final_best_20260602.csv
+hybrid_locked_rollout1_python: scripts/experiments/mjlab_qs/locked_mjlab_python.py
+hybrid_locked_rollout1_rows: final and best checkpoints, 1 episode, 300 max steps
+
+project_env_fix2_rollout_replacement_job_id: 9396189
+project_env_fix2_rollout_replacement_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602.csv
+project_env_fix2_rollout_replacement_env: conda env pwm with repaired render_policy_rollout.py from commit ca31ce1
+```
