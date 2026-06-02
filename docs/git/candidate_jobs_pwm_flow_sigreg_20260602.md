@@ -342,3 +342,25 @@ l40s_single_retry: failed with `QOSMaxSubmitJobPerUserLimit`; no further L40S/A1
 active_broad_gpu_payload_after_retry: 9400410 has 14 H200 AWR rows, 9400436 has 4 H200 shard rows, 9400435 has 4 H100 shard rows, 9400442 has 1 A100 shard row.
 scheduler_validation: `squeue` and `sacct` showed QOS `embers` for 9400435, 9400436, and 9400442.
 ```
+
+Continuation poll after commit `12fd08e`:
+
+```text
+branch: mjlab-qs-rollout-policy-improvement
+head_sha: 12fd08e
+git_status: only pre-existing uncommitted `docs/goals/pwm_flow_sigreg_image_research_plan_20260602.md` remained dirty; left unstaged.
+seff: unavailable on PATH (`seff: command not found`), so status used `squeue` and `sacct`.
+known_gate_jobs: 9387895_0 COMPLETED 0:0; 9387896_0 COMPLETED 0:0; 9387942 FAILED 1:0 with locked DFlex `cc1plus` rebuild failure; 9387949 FAILED 1:0 with the same locked DFlex `cc1plus` rebuild failure.
+active_related_queue:
+  9399798 pwm_hopper_locked_wmprobe_h100_fix4 PENDING Priority, H100 / embers
+  9399799 newt_official_walker_swig_fix1_a100_20260602 PENDING Priority, A100 / embers
+  9400409_[0-15%8] newt_official_broad_smoke_a100_20260602 PENDING Priority, A100 / embers
+  9400410_[0-13%8] mjqs_flow_mbpo_awr_H200 PENDING Resources, H200 / embers
+  9400411_[0-5%6] lewm_official_pusht_eval_h100_20260602 PENDING Priority, H100 / embers
+  9400412_[0-1%2] lewm_official_pusht_train_smoke_h100_20260602 PENDING Priority, H100 / embers
+  9400435_[0-3%4] mjqs_flow_mbpo_awr_H100 PENDING Priority, H100 / embers
+  9400436_[0-3%4] mjqs_flow_mbpo_awr_H200 PENDING Resources, H200 / embers
+  9400442 mjqs_flow_mbpo_awr_A100_single PENDING Priority, A100 / embers
+no_new_submission_reason: the previous L40S retry and A100 array attempt hit `QOSMaxSubmitJobPerUserLimit`; all useful validated broad rows are already queued or blocked by submit quota.
+next_action: wait for any pending GPU job to start/finish, then inspect logs, cancel/fix/resubmit bad rows, and reattempt L40S/A100 shard coverage only after embers submit slots free.
+```

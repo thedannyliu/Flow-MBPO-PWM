@@ -245,3 +245,15 @@ LeWM fix2 completion:
 9400408 lewm_official_pusht_assets_fix2_20260602 COMPLETED 0:0 after 00:00:41, QOS embers.
 evidence: HF inventory succeeded; `config.json`, `weights.pt`, and `pusht_expert_train.h5.zst` were reused/downloaded; `dataset_h5` size was 46300921856 bytes; converted checkpoint `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/pusht/lewm_object.ckpt` size was 72334197 bytes; `autocost_load_ok JEPA`; `lewm_official_pusht_assets_ok`.
 ```
+
+Continuation poll after commit `12fd08e`:
+
+```text
+seff: unavailable on PATH; status used `squeue` and `sacct`.
+9400409_[0-15%8] newt_official_broad_smoke_a100_20260602 remained PENDING Priority, A100 / embers.
+9399799 newt_official_walker_swig_fix1_a100_20260602 remained PENDING Priority, A100 / embers.
+9400411_[0-5%6] lewm_official_pusht_eval_h100_20260602 remained PENDING Priority, H100 / embers.
+9400412_[0-1%2] lewm_official_pusht_train_smoke_h100_20260602 remained PENDING Priority, H100 / embers.
+no_new_official_image_submission_reason: useful official NEWT/LeWM GPU smokes are already queued, and extra submissions are blocked by embers submit quota until pending jobs start or finish.
+next_action: inspect official-image logs as soon as array elements leave pending; record failures and replacement IDs before any repair submission.
+```
