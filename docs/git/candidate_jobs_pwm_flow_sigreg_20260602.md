@@ -13,3 +13,37 @@ Preflight inventory commit: `c44c53c Record PWM Flow preflight inventory`.
 | `R0-R4 controlled matrix` | formal | Matched one-variable A/B rows for faithful PWM, Flow WM only, Flow policy only, Flow WM+policy, and best current Flow reproduction. | Not fully prepared in this turn; faithful-PWM collapse package still needs eval/video and Flow rows need matched manifests. | W&B enabled for formal rows, disabled for any new-code smoke. | WM/prediction/calibration/grad/action/OOD/real eval/video metrics. | H200/H100/A100/L40S; `embers`. | Only if row artifacts are missing. | Defer until final/best evidence from the faithful adapter is recorded. |
 | `pessimistic_short_horizon_flow_mbpo` | exploratory / diagnostic | If collapse/OOD is confirmed, run H=1/3/5 AWR/AWAC plus support/fall/OOD diagnostics. | Existing prior Flow-MBPO infrastructure and some artifacts exist, but this branch should wait for the faithful adapter final/best package and candidate ranking refresh. | W&B disabled for new smokes, enabled for formal candidates. | Replay diagnostics, support/fall/OOD metrics, eval/video artifacts. | H200/H100/A100/L40S; `embers`. | No for smokes with existing inputs; yes only for missing replay/checkpoint artifacts. | Defer for this submission batch. |
 | `SIGReg_state_latent_tests` | diagnostic / code | Add LeWM-inspired SIGReg only after documenting objective, tensor shapes, and tests. | Implemented and tested in `src/flow_mbpo_pwm/utils/sigreg.py` with documentation in `docs/git/sigreg_objective_shapes_tests_20260602.md`. | W&B off for tests/smokes. | Unit tests cover finite loss, finite gradients, zero-weight no-op, constant-latent anti-collapse penalty, and latent variance/isotropy stats. | No GPU required unless later smoke needs it. | No Slurm dependency. | Done for CPU prerequisite; do not submit SIGReg GPU rows until the pending faithful-PWM evidence package is recorded and a fresh candidate list selects a specific row. |
+
+## Replacement Candidates After Failed Infrastructure Jobs
+
+Preflight before this replacement batch:
+
+```text
+branch: mjlab-qs-rollout-policy-improvement
+head_sha: 4d823b32967b2c56803399b07de1f5522e87541a
+dirty_before_edits: docs/goals/pwm_flow_sigreg_image_research_plan_20260602.md
+active_related_squeue: none
+```
+
+Correct environments:
+
+```text
+original DFlex/PWM parity environment:
+  /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+  called directly as ${ENV_DIR}/bin/python after exporting locked CUDA/compiler
+  variables and copying env site-packages/dflex into a job-local sandbox.
+
+MJLab adapter eval/video environment:
+  conda environment pwm
+  called through scripts/experiments/mjlab_qs/submit_array.sh after exporting
+  PYTHONPATH=${PROJECT_ROOT}/src:${PROJECT_ROOT}/baselines/PWM/src:$PYTHONPATH.
+  The upstream PWM path is required because the faithful adapter checkpoints
+  pickle/import objects from the upstream `pwm` package.
+```
+
+| Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `original_pwm_adapter_phase3_eval40_final_best_fix1_20260602` | eval | Re-run faithful original PWM adapter final/best 40-episode MJLab eval after jobs `9388552_[0-1]` failed before evaluation with `ModuleNotFoundError: No module named 'pwm'`. | Yes: final and best checkpoints from job `9387895` exist and CPU `torch.load(..., weights_only=False)` succeeds with `PYTHONPATH=src:baselines/PWM/src`. | Enabled; project `flow-mbpo-mjlab-original-pwm-adapter-eval40`. | `summary.json`, `eval_episodes.csv`, W&B runs under `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_fix1_20260602/...`. | H200; `embers`. | No. | Submit after committing wrapper/manifests. |
+| `original_pwm_adapter_phase3_rollout10_final_best_fix1_20260602` | eval / video | Re-run faithful original PWM adapter final/best 10-episode, 1000-step rollout videos after jobs `9388553_[0-1]` failed before rendering with `ModuleNotFoundError: No module named 'pwm'`. | Yes: same checkpoints as above; fixed wrapper includes upstream PWM import path. | Enabled; project `flow-mbpo-mjlab-original-pwm-adapter-rollout1000`. | `summary.json`, `rollout.mp4`, W&B video media under `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix1_20260602/...`. | H200; `embers`. | No. | Submit after committing wrapper/manifests. |
+| `pwm_ant_locked_realenv_eval_h200_fix3` | diagnostic / eval | Re-run Ant locked final/best true DFlex eval after jobs `9387942` and `9388605` failed during infrastructure setup. Fix2 got past missing `cc1plus` but failed because system header `CPATH` was not restored. | Yes: final and best Ant actors from job `9384344` exist; config `baselines/PWM/scripts/outputs/2026-06-01/23-06-24/.hydra/config.yaml` exists. | Enabled; project `flow-mbpo-pwm-fidelity`. | Eval summaries under `eval_results/pwm_phase1_ant_locked_h200_realenv_{final,best}_20260602_fix3/`. | H200; `embers`. | No. | Submit after committing wrapper. |
+| `pwm_hopper_locked_wmprobe_h100_fix3` | diagnostic | Re-run Hopper final/best WM-vs-real probe after jobs `9387949` and `9388606` failed during DFlex kernel rebuild. Fix3 restores the explicit GCC 11 system include `CPATH`. | Yes: final and best Hopper actors from job `9383814` exist. | Disabled. | Probe JSON files `final_actor_wm_vs_real_fix3.json` and `best_actor_wm_vs_real_fix3.json`. | H100; `embers`. | No. | Submit after committing wrapper. |

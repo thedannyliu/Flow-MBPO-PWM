@@ -10,10 +10,10 @@ inventory is evidence-only. It does not make a policy-improvement claim.
 ## Scheduler Status During This Inventory
 
 ```text
-9388552_[0-1] MJLab faithful original PWM final/best eval40: PENDING Priority
-9388553_[0-1] MJLab faithful original PWM final/best rollout10 video: PENDING Priority
-9388605 Ant locked DFlex final/best true eval repair: PENDING Priority
-9388606 Hopper locked DFlex WM-vs-real probe repair: PENDING Priority
+9388552_[0-1] MJLab faithful original PWM final/best eval40: FAILED, exit 1:0; infrastructure only, `pwm` import path missing.
+9388553_[0-1] MJLab faithful original PWM final/best rollout10 video: FAILED, exit 1:0; infrastructure only, `pwm` import path missing.
+9388605 Ant locked DFlex final/best true eval repair: FAILED, exit 1:0; infrastructure only, DFlex rebuild lost system header CPATH.
+9388606 Hopper locked DFlex WM-vs-real probe repair: FAILED, exit 1:0; infrastructure only, DFlex rebuild lost system header CPATH.
 ```
 
 No Slurm logs existed for those jobs at the inventory check.
@@ -91,6 +91,9 @@ best BC: still a hard comparator, especially matched seed0 video fall 0.400
 expert and expert-noisy collectors: far above all learned policy-improvement rows
 ```
 
-Next action: wait for jobs `9388552` and `9388553` to provide faithful original
-PWM final/best eval and videos, then update the matched table with fall-aware
-faithful PWM rows before any performance claim or controlled R0-R4 expansion.
+Next action: replace the failed infrastructure jobs. The faithful original PWM
+fall-aware eval/video package remains incomplete until the `fix1` eval and
+rollout replacements produce `summary.json`, `eval_episodes.csv`, and
+`rollout.mp4`. The Ant and Hopper DFlex supplemental diagnostics remain
+incomplete until `fix3` runs with the locked original environment plus explicit
+GCC 11 `CPATH`.

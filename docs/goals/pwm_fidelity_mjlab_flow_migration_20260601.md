@@ -1616,3 +1616,108 @@ Scope boundary: this completes the CPU prerequisite for SIGReg objective,
 shapes, and tests. It does not authorize a new SIGReg GPU submission by itself.
 Any SIGReg smoke/formal row still needs a fresh candidate list after the pending
 faithful original PWM eval/video jobs are recorded.
+
+## 2026-06-02 Failed Infrastructure Jobs And Correct Environment Calls
+
+Current Slurm check:
+
+```text
+9388552_[0-1] MJLab faithful original PWM final/best eval40: FAILED, exit 1:0.
+9388553_[0-1] MJLab faithful original PWM final/best rollout10 video: FAILED, exit 1:0.
+9388605 Ant locked DFlex final/best true eval repair: FAILED, exit 1:0.
+9388606 Hopper locked DFlex WM-vs-real probe repair: FAILED, exit 1:0.
+active_related_squeue: none.
+```
+
+Failure reasons:
+
+```text
+9388552_[0-1] and 9388553_[0-1]:
+  infrastructure failure only.
+  error: ModuleNotFoundError: No module named 'pwm' while torch.load(..., weights_only=False)
+  root cause: the faithful original PWM adapter checkpoints import upstream PWM
+  objects, but submit_array.sh only exported the project src path.
+  usability: no algorithm evidence, no eval/video artifacts.
+
+9388605 and 9388606:
+  infrastructure failure only.
+  error: RuntimeError("Error building extension 'kernels'") with missing
+  stddef.h / limits.h in the CUDA/C++ compile path.
+  root cause: fix2 removed the conda compiler-wrapper problem but did not
+  restore the explicit system-header CPATH used by the successful locked
+  DFlex rebuild path.
+  usability: no algorithm evidence, no eval/probe artifacts.
+```
+
+Correct environment calls:
+
+```text
+Original DFlex/PWM parity jobs:
+  env_name: pwm_orig_locked4
+  env_path: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+  invocation: ${ENV_DIR}/bin/python <script>
+  required exports:
+    PYTHONNOUSERSITE=1
+    PATH=${ENV_DIR}/bin:$PATH
+    CUDA_HOME=${ENV_DIR}
+    CUDACXX=${ENV_DIR}/bin/nvcc
+    LD_LIBRARY_PATH=${ENV_DIR}/lib:${LD_LIBRARY_PATH:-}
+    CC=/usr/bin/gcc
+    CXX=/usr/bin/g++
+    CUDAHOSTCXX=/usr/bin/g++
+    CPATH=/usr/include/c++/11:/usr/include/c++/11/x86_64-redhat-linux:/usr/lib/gcc/x86_64-redhat-linux/11/include:/usr/include
+    unset C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH GCC_EXEC_PREFIX COMPILER_PATH
+    PYTHONPATH=<job-local-dflex-sandbox>:${ROOT}/baselines/PWM/src:${ROOT}/src:${PYTHONPATH:-}
+
+MJLab adapter eval/video jobs:
+  env_name: pwm
+  invocation: source ~/.bashrc && conda activate pwm && python <runner>
+  required export:
+    PYTHONPATH=${ROOT}/src:${ROOT}/baselines/PWM/src:${PYTHONPATH:-}
+  reason: the MJLab runtime is needed for the G1 env wrappers, while
+  baselines/PWM/src is needed to unpickle/load original PWM adapter checkpoints.
+```
+
+Environment smoke check:
+
+```text
+/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/bin/python:
+  torch OK 2.3.1
+  pwm OK
+  mjlab FAIL ModuleNotFoundError: No module named 'mjlab'
+
+/storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python with
+PYTHONPATH=$PWD/src:$PWD/baselines/PWM/src:
+  torch OK 2.10.0+cu128
+  pwm OK
+  mjlab OK
+```
+
+Implication: the locked DFlex parity environment cannot directly run the MJLab
+adapter/eval/video commands because it does not install MJLab. Testing whether
+a locked PyTorch/PWM stack improves MJLab transfer would require building a
+separate hybrid MJLab-capable locked environment; it is a new environment task,
+not a direct resubmission of the current failed jobs.
+
+Code/config repair prepared before replacement submission:
+
+```text
+submit_array.sh:
+  added ${PROJECT_ROOT}/baselines/PWM/src to PYTHONPATH.
+
+CPU validation:
+  PYTHONPATH=$PWD/src:$PWD/baselines/PWM/src \
+    /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python - <<'PY'
+  import torch
+  torch.load(".../final_policy_extraction.pt", map_location="cpu", weights_only=False)
+  torch.load(".../best_policy_extraction.pt", map_location="cpu", weights_only=False)
+  PY
+  result: both checkpoints loaded as dict objects.
+
+new manifests:
+  scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_eval40_final_best_fix1_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_fix1_20260602.csv
+
+new DFlex wrapper:
+  scripts/experiments/mjlab_qs/submit_original_dflex_gate_fix3_20260602.sh
+```

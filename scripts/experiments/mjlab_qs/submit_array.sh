@@ -194,7 +194,7 @@ WRAP="cd ${PROJECT_ROOT}"
 if [[ -n "${CONDA_ENV}" ]]; then
   WRAP+=" && source ~/.bashrc && conda activate ${CONDA_ENV}"
 fi
-WRAP+=" && export PYTHONPATH=${PROJECT_ROOT}/src:\$PYTHONPATH"
+WRAP+=" && export PYTHONPATH=${PROJECT_ROOT}/src:${PROJECT_ROOT}/baselines/PWM/src:\$PYTHONPATH"
 WRAP+=" && export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl EGL_PLATFORM=surfaceless"
 WRAP+=" && export WANDB_DIR=${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
 WRAP+=" && mkdir -p ${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
