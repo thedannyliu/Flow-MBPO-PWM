@@ -309,3 +309,23 @@ Broad embers submissions after commit `3a3e161`:
 array_payload: 14 Flow-MBPO AWR diagnostics from scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_20260602.csv, max concurrent 8.
 scheduler_validation: `squeue` and `sacct` both showed QOS `embers` for 9400408 and 9400410.
 ```
+
+LeWM fix2 completion:
+
+```text
+9400408 lewm_official_pusht_assets_fix2_20260602 COMPLETED 0:0 after 00:00:41, QOS embers.
+evidence: HF inventory succeeded; `config.json`, `weights.pt`, and `pusht_expert_train.h5.zst` were reused/downloaded; `dataset_h5` size was 46300921856 bytes; converted checkpoint `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/pusht/lewm_object.ckpt` size was 72334197 bytes; `autocost_load_ok JEPA`; `lewm_official_pusht_assets_ok`.
+```
+
+Additional shard GPU candidates after the user asked to submit as much embers GPU work as possible:
+
+```text
+reason: the first broad H200 array covers all 14 rows but only uses the H200 partition; additional shard manifests use independent output roots under `flow_mbpo_broad_embers_awr_shards_20260602/{gpu}/` to avoid overwriting the full-array outputs.
+manifests:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_h200_20260602.csv, 4 rows, H200 / embers, array 0-3%4.
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_h100_20260602.csv, 4 rows, H100 / embers, array 0-3%4.
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_a100_20260602.csv, 3 rows, A100 / embers, array 0-2%3.
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_l40s_20260602.csv, 3 rows, L40S / embers, array 0-2%3.
+validation: all four shard manifests passed input-path validation; H100 dry-run produced `--array=0-3%4 --partition=gpu-h100 --qos=embers --gres=gpu:h100:1`.
+submit_decision: submit all four shard arrays after committing the manifests and this record.
+```
