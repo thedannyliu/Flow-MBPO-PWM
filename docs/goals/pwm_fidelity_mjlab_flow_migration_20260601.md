@@ -1721,3 +1721,54 @@ new manifests:
 new DFlex wrapper:
   scripts/experiments/mjlab_qs/submit_original_dflex_gate_fix3_20260602.sh
 ```
+
+Replacement submissions after commit `df4847bebea2d172894f62e05c2e58c3a0cff051`:
+
+```text
+mjlab_eval40_fix1_job_id: 9394870
+mjlab_eval40_fix1_kind: policy_eval
+mjlab_eval40_fix1_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_eval40_final_best_fix1_20260602.csv
+mjlab_eval40_fix1_rows: final_policy_extraction.pt and best_policy_extraction.pt from formal job 9387895
+mjlab_eval40_fix1_partition: gpu-h200
+mjlab_eval40_fix1_qos: embers
+mjlab_eval40_fix1_dependency: none
+mjlab_eval40_fix1_env: conda env pwm with PYTHONPATH=${ROOT}/src:${ROOT}/baselines/PWM/src
+
+mjlab_rollout10_fix1_job_id: 9394871
+mjlab_rollout10_fix1_kind: policy_rollout
+mjlab_rollout10_fix1_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_fix1_20260602.csv
+mjlab_rollout10_fix1_rows: final_policy_extraction.pt and best_policy_extraction.pt from formal job 9387895
+mjlab_rollout10_fix1_partition: gpu-h200
+mjlab_rollout10_fix1_qos: embers
+mjlab_rollout10_fix1_dependency: none
+mjlab_rollout10_fix1_env: conda env pwm with PYTHONPATH=${ROOT}/src:${ROOT}/baselines/PWM/src
+
+ant_true_dflex_eval_fix3_job_id: 9394869
+ant_true_dflex_eval_fix3_job_name: pwm_ant_locked_realenv_eval_h200_fix3
+ant_true_dflex_eval_fix3_partition: gpu-h200
+ant_true_dflex_eval_fix3_qos: embers
+ant_true_dflex_eval_fix3_dependency: none
+ant_true_dflex_eval_fix3_env: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4 plus job-local DFlex sandbox and explicit GCC 11 CPATH
+ant_true_dflex_eval_fix3_outputs:
+  eval_results/pwm_phase1_ant_locked_h200_realenv_final_20260602_fix3
+  eval_results/pwm_phase1_ant_locked_h200_realenv_best_20260602_fix3
+
+hopper_wmprobe_fix3_job_id: 9394872
+hopper_wmprobe_fix3_job_name: pwm_hopper_locked_wmprobe_h100_fix3
+hopper_wmprobe_fix3_partition: gpu-h100
+hopper_wmprobe_fix3_qos: embers
+hopper_wmprobe_fix3_dependency: none
+hopper_wmprobe_fix3_env: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4 plus job-local DFlex sandbox and explicit GCC 11 CPATH
+hopper_wmprobe_fix3_outputs:
+  eval_results/pwm_phase2_hopper_locked_probe_20260602/final_actor_wm_vs_real_fix3.json
+  eval_results/pwm_phase2_hopper_locked_probe_20260602/best_actor_wm_vs_real_fix3.json
+```
+
+Initial monitor:
+
+```text
+9394869: RUNNING on gpu-h200; DFlex kernel build started in /tmp/dflex_ant_eval_sandbox_9394869_fix3 with no immediate missing-header error.
+9394870_[0-1]: PENDING Priority.
+9394871_[0-1]: PENDING Priority.
+9394872: PENDING Priority.
+```
