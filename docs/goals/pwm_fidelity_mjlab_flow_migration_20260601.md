@@ -1772,3 +1772,43 @@ Initial monitor:
 9394871_[0-1]: PENDING Priority.
 9394872: PENDING Priority.
 ```
+
+Ant fix3 result:
+
+```text
+job_id: 9394869
+status: COMPLETED
+exit_code: 0:0
+elapsed: 00:02:05
+slurm_stdout: logs/pwm_original_parity/locked_env_20260601/pwm_ant_locked_realenv_eval_h200_fix3_9394869.out
+slurm_stderr: logs/pwm_original_parity/locked_env_20260601/pwm_ant_locked_realenv_eval_h200_fix3_9394869.err
+dflex_sandbox: /tmp/dflex_ant_eval_sandbox_9394869_fix3
+wandb_final_run: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/wfyrsutm
+
+final_actor_eval:
+  checkpoint: baselines/PWM/scripts/outputs/2026-06-01/23-06-24/logs/phase1_ant_formal_locked_h100_s0_20260601/final_policy.pt
+  output_dir: eval_results/pwm_phase1_ant_locked_h200_realenv_final_20260602_fix3
+  num_episodes: 40
+  num_envs_eval: 64
+  return_mean: 7570.482873535157
+  return_iqm: 7576.275073242187
+  return_std: 36.3890600534418
+  episode_length_mean: 1000.0
+  discounted_return_mean: 474.98681411743166
+
+best_actor_eval:
+  checkpoint: baselines/PWM/scripts/outputs/2026-06-01/23-06-24/logs/phase1_ant_formal_locked_h100_s0_20260601/best_policy.pt
+  output_dir: eval_results/pwm_phase1_ant_locked_h200_realenv_best_20260602_fix3
+  num_episodes: 40
+  num_envs_eval: 64
+  return_mean: 7591.170239257813
+  return_iqm: 7596.18759765625
+  return_std: 45.40075145471212
+  episode_length_mean: 1000.0
+  discounted_return_mean: 480.8629035949707
+```
+
+Interpretation: Ant now provides a second successful original-Dflex-task sanity
+point under the locked original PWM stack. This confirms that the fix3
+environment call is correct for DFlex parity jobs. It does not answer the MJLab
+transfer question, because MJLab adapter jobs require the project MJLab runtime.
