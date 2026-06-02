@@ -1506,3 +1506,39 @@ rollout10_dependency: none
 rollout10_wandb_project: flow-mbpo-mjlab-original-pwm-adapter-rollout1000
 rollout10_output_root: scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_20260602/velocity_flat_unitree_g1/normobs_normrew/seed_0
 ```
+
+Repaired original-DFlex gate replacement submissions:
+
+```text
+ant_true_dflex_eval_fix2_job_id: 9388605
+ant_true_dflex_eval_fix2_job_name: pwm_ant_locked_realenv_eval_h200_fix2
+ant_true_dflex_eval_fix2_partition: gpu-h200
+ant_true_dflex_eval_fix2_qos: embers
+ant_true_dflex_eval_fix2_dependency: none
+ant_true_dflex_eval_fix2_inputs:
+  baselines/PWM/scripts/outputs/2026-06-01/23-06-24/logs/phase1_ant_formal_locked_h100_s0_20260601/final_policy.pt
+  baselines/PWM/scripts/outputs/2026-06-01/23-06-24/logs/phase1_ant_formal_locked_h100_s0_20260601/best_policy.pt
+ant_true_dflex_eval_fix2_outputs:
+  eval_results/pwm_phase1_ant_locked_h200_realenv_final_20260602
+  eval_results/pwm_phase1_ant_locked_h200_realenv_best_20260602
+ant_true_dflex_eval_fix2_wandb_project: flow-mbpo-pwm-fidelity
+
+hopper_wmprobe_fix2_job_id: 9388606
+hopper_wmprobe_fix2_job_name: pwm_hopper_locked_wmprobe_h100_fix2
+hopper_wmprobe_fix2_partition: gpu-h100
+hopper_wmprobe_fix2_qos: embers
+hopper_wmprobe_fix2_dependency: none
+hopper_wmprobe_fix2_inputs:
+  baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/final_policy.pt
+  baselines/PWM/scripts/outputs/2026-06-01/20-27-50/logs/phase1_hopper_formal_locked_h200_s0_20260601/best_policy.pt
+hopper_wmprobe_fix2_outputs:
+  eval_results/pwm_phase2_hopper_locked_probe_20260602/final_actor_wm_vs_real.json
+  eval_results/pwm_phase2_hopper_locked_probe_20260602/best_actor_wm_vs_real.json
+```
+
+Wrapper repair applied to both jobs: use the locked env and a fresh job-local
+DFlex sandbox, set `CC=/usr/bin/gcc`, `CXX=/usr/bin/g++`,
+`CUDAHOSTCXX=/usr/bin/g++`, and unset `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`,
+`LIBRARY_PATH`, `GCC_EXEC_PREFIX`, and `COMPILER_PATH`. This matches the
+successful locked DFlex rebuild path and avoids the conda compiler wrapper that
+could not execute `cc1plus` in jobs `9387942` and `9387949`.
