@@ -159,3 +159,28 @@ Submitted after commit
 9398713 newt_official_import_config_swig_20260602, dependency=afterok:9398711, QOS embers, PENDING at first check
 9398714 newt_official_walker_swig_a100_20260602, dependency=afterok:9398711, QOS embers, PENDING at first check
 ```
+
+LeWM assets failure and replacement candidate:
+
+```text
+9398712 lewm_official_pusht_assets_20260602 FAILED 1:0 after 00:04:09, QOS embers.
+completed_before_failure: HF inventory succeeded; model `config.json` and `weights.pt` downloaded to `$STABLEWM_HOME/hf_pusht`; dataset archive `pusht_expert_train.h5.zst` downloaded to `$STABLEWM_HOME/downloads`; dataset decompressed to `$STABLEWM_HOME/pusht_expert_train.h5` with size 46300921856 bytes.
+failure: checkpoint conversion failed when `stable_pretraining.backbone` imported old `datasets` code against installed `pyarrow`, first missing `PyExtensionType`, then missing `datasets.config` during direct compatibility probing.
+replacement_candidate: `lewm_official_pusht_assets_fix1_20260602`; use the same official env and already-downloaded assets, but load the official installed `stable_pretraining/backbone/utils.py` file directly for `vit_hf` so conversion avoids unrelated `stable_pretraining.data.datasets` imports.
+resources: CPU / `embers`; W&B disabled; no Slurm dependency because assets and env already exist.
+expected_artifacts: `$STABLEWM_HOME/pusht/lewm_object.ckpt`, `AutoCostModel('pusht/lewm')` smoke-load evidence, Slurm logs.
+submit_decision: submit after committing the script and record.
+```
+
+NEWT SWIG setup result and import replacement candidate:
+
+```text
+9398711 newt_official_env_setup_swig_20260602 COMPLETED 0:0 after 00:08:03, QOS embers.
+env evidence: official conda env completed after loading cluster `swig/4.1.1`; `box2d-py` built successfully; `ale_py==0.10.0` installed; import smoke printed torch 2.8.0+cu128, torchvision 0.23.0+cu128, hydra 1.3.2, gymnasium 0.29.1; marker `.newt_official_setup_ok_20260602` exists.
+9398713 newt_official_import_config_swig_20260602 FAILED 1:0 after 00:00:04, QOS embers.
+9398714 newt_official_walker_swig_a100_20260602 was canceled before start because it depended only on setup and would likely reuse the same bad smoke assumptions.
+failure: import/config smoke called `parse_cfg` outside Hydra runtime, causing `ValueError: get_original_cwd() must only be used after HydraConfig is initialized`.
+replacement_candidate: `newt_official_import_config_swig_fix1_20260602` plus `newt_official_walker_swig_fix1_a100_20260602`; the import smoke should verify official modules/tasks/config dataclass without calling `parse_cfg`, while the walker smoke should continue to use the official `train.py` Hydra entrypoint.
+resources: import CPU / `embers`; walker A100 / `embers`; no dependency needed because the official env setup succeeded.
+submit_decision: submit after committing the wrapper repair and record.
+```

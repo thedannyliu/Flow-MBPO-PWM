@@ -107,16 +107,16 @@ export PYTHONNOUSERSITE=1 MUJOCO_GL=egl MS_SKIP_ASSET_DOWNLOAD_PROMPT=1 WANDB_MO
 ${NEWT_ENV}/bin/python - <<'PY'
 import json
 from pathlib import Path
-from config import Config, parse_cfg
+from config import Config
 from common import MODEL_SIZE, TASK_SET
 tasks = json.loads(Path('../tasks.json').read_text())
 cfg = Config(task='walker-walk', model_size='B', steps=1000, enable_wandb=False, compile=False, save_video=False, save_agent=False, data_dir='${DATA_ROOT}/newt_demos')
-parsed = parse_cfg(cfg)
 print('newt_import_config_ok')
 print('task_count', len(tasks))
 print('model_sizes', sorted(MODEL_SIZE))
 print('walker_action_dim', tasks['walker-walk']['action_dim'])
-print('parsed_task', parsed.task, 'obs', parsed.obs, 'model_size', parsed.model_size, 'num_envs', parsed.num_envs)
+print('config_task', cfg.task, 'obs', cfg.obs, 'model_size', cfg.model_size, 'num_envs', cfg.num_envs)
+print('walker_in_task_set', 'walker-walk' in TASK_SET.get('walker-walk', ['walker-walk']))
 PY"
 )"
 

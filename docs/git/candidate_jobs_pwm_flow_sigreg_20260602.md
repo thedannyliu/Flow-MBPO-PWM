@@ -221,3 +221,39 @@ Submitted after commit
 9398713 newt_official_import_config_swig_20260602, dependency=afterok:9398711, QOS embers, PENDING at first check
 9398714 newt_official_walker_swig_a100_20260602, dependency=afterok:9398711, QOS embers, PENDING at first check
 ```
+
+Hopper WM probe failure and replacement candidate:
+
+```text
+9398352 pwm_hopper_locked_wmprobe_h100_fix4 FAILED 1:0 after 00:00:54, QOS embers.
+failure: DFlex kernels built, but `pwm_dflex_checkpoint_probe.py` resolved the relative checkpoint path after entering `baselines/PWM/scripts`, producing a duplicated path `.../baselines/PWM/scripts/baselines/PWM/scripts/outputs/.../final_policy.pt`.
+replacement_candidate: `pwm_hopper_locked_wmprobe_h100_fix4` resubmission after script repair; pass absolute final/best checkpoint paths from `${ROOT}/baselines/PWM/scripts/outputs/...`.
+resources: H100 / `embers`; W&B disabled; no dependency because checkpoints already exist.
+expected_artifacts: `eval_results/pwm_phase2_hopper_locked_probe_20260602/final_actor_wm_vs_real_fix4.json` and `best_actor_wm_vs_real_fix4.json`.
+submit_decision: submit after committing the absolute-path fix.
+```
+
+LeWM assets failure and replacement candidate:
+
+```text
+9398712 lewm_official_pusht_assets_20260602 FAILED 1:0 after 00:04:09, QOS embers.
+completed_before_failure: HF model and dataset inventory succeeded; `config.json`, `weights.pt`, `pusht_expert_train.h5.zst`, and decompressed `pusht_expert_train.h5` now exist under `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm`.
+failure: checkpoint conversion triggered `stable_pretraining.backbone`, which imported old `datasets` code incompatible with the installed `pyarrow`/datasets API.
+replacement_candidate: `lewm_official_pusht_assets_fix1_20260602`; load the official installed `stable_pretraining/backbone/utils.py` file directly for `vit_hf` and reuse downloaded files.
+resources: CPU / `embers`; W&B disabled; no dependency because env/assets already exist.
+expected_artifacts: `$STABLEWM_HOME/pusht/lewm_object.ckpt` and `AutoCostModel('pusht/lewm')` smoke-load evidence.
+submit_decision: submit after committing the conversion import fix.
+```
+
+NEWT SWIG setup result and replacement candidate:
+
+```text
+9398711 newt_official_env_setup_swig_20260602 COMPLETED 0:0 after 00:08:03, QOS embers.
+env evidence: official conda env completed after loading cluster `swig/4.1.1`; `box2d-py` built successfully; `ale_py==0.10.0` installed; torch 2.8.0+cu128, torchvision 0.23.0+cu128, hydra 1.3.2, gymnasium 0.29.1; marker `.newt_official_setup_ok_20260602` exists.
+9398713 newt_official_import_config_swig_20260602 FAILED 1:0 after 00:00:04, QOS embers.
+9398714 newt_official_walker_swig_a100_20260602 canceled before start.
+failure: import/config smoke called `parse_cfg` outside Hydra runtime, causing `ValueError: get_original_cwd() must only be used after HydraConfig is initialized`.
+replacement_candidate: `newt_official_import_config_swig_fix1_20260602` and `newt_official_walker_swig_fix1_a100_20260602`; import smoke should avoid `parse_cfg`, walker smoke should continue to use official `train.py`.
+resources: CPU/A100 / `embers`; W&B disabled; no dependency because env setup succeeded.
+submit_decision: submit after committing the wrapper repair and record.
+```

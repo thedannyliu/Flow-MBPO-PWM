@@ -19,7 +19,7 @@ fi
 mkdir -p "${LOG_DIR}" "${STABLEWM_HOME}"
 
 sbatch --parsable \
-  --job-name="lewm_official_pusht_assets_20260602" \
+  --job-name="lewm_official_pusht_assets_fix1_20260602" \
   --account="${ACCOUNT}" \
   --partition="${CPU_PARTITION}" \
   --qos="${CPU_QOS}" \
@@ -28,13 +28,14 @@ sbatch --parsable \
   --cpus-per-task=8 \
   --mem="64G" \
   --time="04:00:00" \
-  --output="${LOG_DIR}/lewm_official_pusht_assets_%j.out" \
-  --error="${LOG_DIR}/lewm_official_pusht_assets_%j.err" \
+  --output="${LOG_DIR}/lewm_official_pusht_assets_fix1_%j.out" \
+  --error="${LOG_DIR}/lewm_official_pusht_assets_fix1_%j.err" \
   --wrap="cd ${LEWM_ROOT} && \
 export PYTHONNOUSERSITE=1 PYTHONPATH=${LEWM_ROOT} STABLEWM_HOME=${STABLEWM_HOME} WANDB_MODE=disabled && \
 ${LEWM_ENV}/bin/python - <<'PY'
 import json
 import os
+import importlib.util
 from pathlib import Path
 
 import stable_pretraining as spt
@@ -80,7 +81,12 @@ if not h5_path.exists() or h5_path.stat().st_size == 0:
 print('dataset_h5', h5_path, h5_path.stat().st_size)
 
 cfg = json.loads((hf_model_dir / 'config.json').read_text())
-encoder = spt.backbone.utils.vit_hf(
+spt_utils_path = Path(spt.__file__).parent / 'backbone' / 'utils.py'
+spt_utils_spec = importlib.util.spec_from_file_location('spt_backbone_utils_direct', spt_utils_path)
+spt_utils = importlib.util.module_from_spec(spt_utils_spec)
+spt_utils_spec.loader.exec_module(spt_utils)
+
+encoder = spt_utils.vit_hf(
     cfg['encoder']['size'],
     patch_size=cfg['encoder']['patch_size'],
     image_size=cfg['encoder']['image_size'],
