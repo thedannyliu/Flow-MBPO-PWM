@@ -417,3 +417,16 @@ newt_h200_chunk1_array_attempt: 4-row array 4-7%4 failed with `QOSMaxSubmitJobPe
 newt_h200_row7_attempt: failed with `QOSMaxSubmitJobPerUserLimit`.
 status_after_backfill: Slurm queue showed all newly accepted jobs with QOS `embers`; remaining unsent backup candidates are NEWT H200 rows 7-15 and the L40S NEWT/LeWM backup arrays.
 ```
+
+H200 Flow-MBPO AWR aggregate result:
+
+```text
+9400410 H200 full AWR array: all 14 elements completed 0:0.
+9400436 H200 shard AWR array: all 4 elements completed 0:0.
+aggregate_interpretation: these were valid runs with real MJLab eval output, not Slurm/runtime failures, but none beat the BC baseline.
+baseline: return 45.8491, length 594.97, fall 0.625.
+best_selection_score_row: 9400410_8 at iter 10, return_mean 25.969, length 360.0, fall 1.0, selection_score -70.430.
+best_return_row: same as best selection score, 9400410_8.
+common_failure_mode: fall_rate_mean remained 1.0 across all sampled best and final evals, so the conservative AWR sweep did not fix MJLab collapse.
+next_action: do not expand this exact AWR setting blindly; wait for A100/L40S/H100 shard confirmation and image official jobs, then pivot Flow-MBPO toward stronger pessimism/OOD gating or shorter-horizon model rollouts if all shards show the same fall pattern.
+```
