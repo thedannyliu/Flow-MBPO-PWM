@@ -329,3 +329,16 @@ manifests:
 validation: all four shard manifests passed input-path validation; H100 dry-run produced `--array=0-3%4 --partition=gpu-h100 --qos=embers --gres=gpu:h100:1`.
 submit_decision: submit all four shard arrays after committing the manifests and this record.
 ```
+
+Shard submission result after commit `a2a7aac`:
+
+```text
+9400436_[0-3%4] mjqs_flow_mbpo_awr_H200, H200 / embers, PENDING Resources at first check.
+9400435_[0-3%4] mjqs_flow_mbpo_awr_H100, H100 / embers, PENDING Priority at first check.
+first_a100_array_attempt: failed with `QOSMaxSubmitJobPerUserLimit`.
+first_l40s_array_attempt: failed with `Maximum CPU:GPU ratio of 4:1 for gpu-l40s,gpu-l40s node class`; the retry reduced CPUs from 8 to 4.
+9400442 mjqs_flow_mbpo_awr_A100_single, A100 / embers, PENDING Priority at first check.
+l40s_single_retry: failed with `QOSMaxSubmitJobPerUserLimit`; no further L40S/A100 array submission possible until queued embers jobs start or finish.
+active_broad_gpu_payload_after_retry: 9400410 has 14 H200 AWR rows, 9400436 has 4 H200 shard rows, 9400435 has 4 H100 shard rows, 9400442 has 1 A100 shard row.
+scheduler_validation: `squeue` and `sacct` showed QOS `embers` for 9400435, 9400436, and 9400442.
+```

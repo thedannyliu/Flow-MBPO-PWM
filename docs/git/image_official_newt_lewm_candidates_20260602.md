@@ -238,3 +238,10 @@ Broad official image submissions after commit `3a3e161`:
 array_payload: 16 NEWT official train smokes, 6 LeWM official eval rows, 2 LeWM official train smokes.
 scheduler_validation: `squeue` and `sacct` both showed QOS `embers` for all submitted official-image jobs.
 ```
+
+LeWM fix2 completion:
+
+```text
+9400408 lewm_official_pusht_assets_fix2_20260602 COMPLETED 0:0 after 00:00:41, QOS embers.
+evidence: HF inventory succeeded; `config.json`, `weights.pt`, and `pusht_expert_train.h5.zst` were reused/downloaded; `dataset_h5` size was 46300921856 bytes; converted checkpoint `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/pusht/lewm_object.ckpt` size was 72334197 bytes; `autocost_load_ok JEPA`; `lewm_official_pusht_assets_ok`.
+```
