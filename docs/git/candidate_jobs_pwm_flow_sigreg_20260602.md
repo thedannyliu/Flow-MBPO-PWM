@@ -276,3 +276,27 @@ NEWT import/config fix1 result:
 evidence: `newt_import_config_ok`; task_count 234; model_sizes ['B', 'L', 'S', 'XL']; walker_action_dim 6; Config(task='walker-walk', obs='state', model_size='B', num_envs=10); walker_in_task_set True.
 next_newt: wait for A100 walker smoke `9399799`.
 ```
+
+LeWM assets fix1 failure and fix2 candidate:
+
+```text
+9399731 lewm_official_pusht_assets_fix1_20260602 FAILED 1:0 after 00:00:43, QOS embers.
+progress: direct official `vit_hf` load worked and created ViT-tiny with patch_size 14 from `config.json`; downloads and decompressed dataset were reused.
+failure: model construction failed at `ARPredictor(**cfg['predictor'])` because the Hugging Face `config.json` stores Hydra `_target_` keys that the plain class constructors do not accept.
+replacement_candidate: `lewm_official_pusht_assets_fix2_20260602`; strip Hydra-only `_target_` and `_partial_` keys before passing config dictionaries to plain constructors; reuse already-downloaded assets.
+resources: CPU / `embers`; W&B disabled; no dependency.
+submit_decision: submit after committing the conversion helper fix.
+```
+
+Broad embers GPU candidate batch requested 2026-06-02:
+
+```text
+request: submit GPU tasks more aggressively; use embers broadly because it is not charged.
+manifest: scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_20260602.csv
+candidate: `mjqs_flow_mbpo_awr_H200`, 14 array elements, H200 / embers, array 0-13%8.
+purpose: broaden the next Flow-MBPO exploration after MJLab adapter collapse by probing endpoint H=1/3/5, trajectory-chunk support-risk/fall-penalized, and residual-flow synthetic replays with conservative critic, action/support penalties, and real MJLab eval every 10/10 update steps.
+inputs: all rows passed path validation for dataset, metadata, normalization, BC policy checkpoint, synthetic replay, and support-risk feature path where used.
+W&B: disabled; these are diagnostic smokes rather than formal claim rows.
+validation: `run_flow_mbpo_awr_row.py --check-inputs --dry-run` succeeded for row 0; `submit_array.sh --dry-run` produced `--array=0-13%8 --partition=gpu-h200 --qos=embers --gres=gpu:h200:1`.
+submit_decision: submit after committing manifest and candidate record.
+```

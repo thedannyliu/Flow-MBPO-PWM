@@ -19,7 +19,7 @@ fi
 mkdir -p "${LOG_DIR}" "${STABLEWM_HOME}"
 
 sbatch --parsable \
-  --job-name="lewm_official_pusht_assets_fix1_20260602" \
+  --job-name="lewm_official_pusht_assets_fix2_20260602" \
   --account="${ACCOUNT}" \
   --partition="${CPU_PARTITION}" \
   --qos="${CPU_QOS}" \
@@ -28,8 +28,8 @@ sbatch --parsable \
   --cpus-per-task=8 \
   --mem="64G" \
   --time="04:00:00" \
-  --output="${LOG_DIR}/lewm_official_pusht_assets_fix1_%j.out" \
-  --error="${LOG_DIR}/lewm_official_pusht_assets_fix1_%j.err" \
+  --output="${LOG_DIR}/lewm_official_pusht_assets_fix2_%j.out" \
+  --error="${LOG_DIR}/lewm_official_pusht_assets_fix2_%j.err" \
   --wrap="cd ${LEWM_ROOT} && \
 export PYTHONNOUSERSITE=1 PYTHONPATH=${LEWM_ROOT} STABLEWM_HOME=${STABLEWM_HOME} WANDB_MODE=disabled && \
 ${LEWM_ENV}/bin/python - <<'PY'
@@ -46,6 +46,32 @@ from huggingface_hub import hf_hub_download, list_repo_files
 
 from jepa import JEPA
 from module import ARPredictor, Embedder, MLP
+
+def clean_hydra_kwargs(value):
+    if isinstance(value, dict):
+        return {
+            key: clean_hydra_kwargs(item)
+            for key, item in value.items()
+            if key not in {'_target_', '_partial_'}
+        }
+    return value
+
+def normalize_legacy_vit_keys(state_dict):
+    replacements = {
+        '.attention.attention.query.': '.attention.q_proj.',
+        '.attention.attention.key.': '.attention.k_proj.',
+        '.attention.attention.value.': '.attention.v_proj.',
+        '.attention.output.dense.': '.attention.o_proj.',
+        '.intermediate.dense.': '.mlp.fc1.',
+        '.output.dense.': '.mlp.fc2.',
+    }
+    normalized = {}
+    for key, value in state_dict.items():
+        new_key = key.replace('encoder.encoder.layer.', 'encoder.layers.')
+        for old, new in replacements.items():
+            new_key = new_key.replace(old, new)
+        normalized[new_key] = value
+    return normalized
 
 cache = Path(os.environ['STABLEWM_HOME'])
 hf_model_dir = cache / 'hf_pusht'
@@ -101,12 +127,14 @@ mlp = lambda k: MLP(
 )
 model = JEPA(
     encoder=encoder,
-    predictor=ARPredictor(**cfg['predictor']),
-    action_encoder=Embedder(**cfg['action_encoder']),
+    predictor=ARPredictor(**clean_hydra_kwargs(cfg['predictor'])),
+    action_encoder=Embedder(**clean_hydra_kwargs(cfg['action_encoder'])),
     projector=mlp('projector'),
     pred_proj=mlp('pred_proj'),
 )
-state_dict = torch.load(hf_model_dir / 'weights.pt', map_location='cpu', weights_only=False)
+state_dict = normalize_legacy_vit_keys(
+    torch.load(hf_model_dir / 'weights.pt', map_location='cpu', weights_only=False)
+)
 model.load_state_dict(state_dict, strict=True)
 out = cache / 'pusht' / 'lewm_object.ckpt'
 out.parent.mkdir(parents=True, exist_ok=True)

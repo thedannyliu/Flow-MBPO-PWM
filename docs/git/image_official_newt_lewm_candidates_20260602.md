@@ -202,3 +202,28 @@ NEWT import/config fix1 result:
 evidence: `newt_import_config_ok`; task_count 234; model_sizes ['B', 'L', 'S', 'XL']; walker_action_dim 6; Config(task='walker-walk', obs='state', model_size='B', num_envs=10); walker_in_task_set True.
 next_newt: wait for A100 walker smoke `9399799`.
 ```
+
+LeWM assets fix1 failure and fix2 candidate:
+
+```text
+9399731 lewm_official_pusht_assets_fix1_20260602 FAILED 1:0 after 00:00:43, QOS embers.
+progress: direct official `vit_hf` load worked and created ViT-tiny with patch_size 14 from `config.json`; downloads and decompressed dataset were reused.
+failure: model construction failed at `ARPredictor(**cfg['predictor'])` because the Hugging Face `config.json` stores Hydra `_target_` keys that the plain class constructors do not accept.
+replacement_candidate: `lewm_official_pusht_assets_fix2_20260602`; strip Hydra-only `_target_` and `_partial_` keys before passing config dictionaries to plain constructors; reuse already-downloaded assets.
+local_fix2_validation: strict object conversion succeeded under `/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602/bin/python`; the local conversion also normalized legacy HuggingFace ViT state-dict keys such as `encoder.encoder.layer.*.attention.attention.query.*` to the installed Transformers key schema `encoder.layers.*.attention.q_proj.*`, then loaded with `strict=True`.
+resources: CPU / `embers`; W&B disabled; no dependency.
+submit_decision: submit after committing the conversion helper fix.
+```
+
+Broad GPU submission candidates requested 2026-06-02:
+
+```text
+request: increase GPU submission count; submit embers GPU tasks aggressively because embers is not charged.
+preflight: current running/pending user jobs were only 9399798 Hopper H100 probe and 9399799 NEWT walker A100 smoke.
+script: scripts/experiments/image_official/submit_newt_lewm_broad_gpu_20260602.sh
+candidate_newt_broad: `newt_official_broad_smoke_a100_20260602`, 16 array elements, A100 / embers, array 0-15%8, tasks walker-walk/walker-run/cheetah-run/hopper-hop/reacher-easy/pendulum-swingup/cartpole-swingup/cup-catch x seeds 0/1, official NEWT env, W&B/video/checkpoint off, 500 steps per task.
+candidate_lewm_eval: `lewm_official_pusht_eval_h100_20260602`, 6 array elements, H100 / embers, array 0-5%6, official LeWM env, uses converted `pusht/lewm_object.ckpt` and `pusht_expert_train.h5`, CEM eval rows plus random baseline rows.
+candidate_lewm_train: `lewm_official_pusht_train_smoke_h100_20260602`, 2 array elements, H100 / embers, array 0-1%2, official `python train.py data=pusht` entrypoint, short run smoke with `max_epochs=1`, `limit_train_batches=2`, `limit_val_batches=1`, W&B off.
+inputs: NEWT marker exists; LeWM env exists; LeWM PushT object checkpoint and 44GB dataset exist after local strict conversion validation.
+submit_decision: submit after committing the broad wrapper and candidate record.
+```
