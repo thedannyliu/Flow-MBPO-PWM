@@ -65,3 +65,25 @@ official LeWM remote HEAD: 8edfeb336732b5f3ce7b8b210d0ba370a09e2cac
 local search found no existing NEWT/LeWM clone before cloning
 local search found no existing LeWM `.h5` or `.lance` datasets under /storage/project/r-agarg35-0/eliu354
 ```
+
+## Submitted Jobs
+
+Submitted after commit `a428513610a636cde59f9cb8ce5621b204115760`:
+
+```text
+9398480 newt_official_env_setup_20260602
+9398481 lewm_official_env_setup_20260602
+9398482 newt_official_import_config_smoke_20260602, dependency=afterok:9398480
+9398483 newt_official_walker_smoke_a100_20260602, dependency=afterok:9398480
+9398484 lewm_official_import_config_smoke_20260602, dependency=afterok:9398481
+```
+
+Initial scheduler status:
+
+```text
+9398480 RUNNING on cpu-small
+9398481 RUNNING on cpu-small
+9398482 PENDING Dependency
+9398483 PENDING Dependency on gpu-a100 / embers
+9398484 PENDING Dependency
+```

@@ -134,3 +134,14 @@ Summary before submission:
 | `newt_official_walker_smoke_a100_20260602` | smoke / exploratory | Smallest official NEWT DMControl `walker-walk` train smoke. | Off. | A100 / `embers`. | After NEWT env. | Submit. |
 | `lewm_official_import_config_smoke_20260602` | smoke | Official LeWM import/config/SIGReg-class smoke without dataset. | Off. | CPU. | After LeWM env. | Submit. |
 | `lewm_official_data_checkpoint_download_20260602` | setup / diagnostic | Identify and download the smallest official LeWM data/checkpoint for train/eval. | Off. | CPU. | After LeWM env preferred. | Prepare next. |
+
+Submitted Phase E official image job IDs after commit
+`a428513610a636cde59f9cb8ce5621b204115760`:
+
+```text
+9398480 newt_official_env_setup_20260602
+9398481 lewm_official_env_setup_20260602
+9398482 newt_official_import_config_smoke_20260602, dependency=afterok:9398480
+9398483 newt_official_walker_smoke_a100_20260602, dependency=afterok:9398480
+9398484 lewm_official_import_config_smoke_20260602, dependency=afterok:9398481
+```
