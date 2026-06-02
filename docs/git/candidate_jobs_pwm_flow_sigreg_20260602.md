@@ -105,3 +105,32 @@ dry-run submit_array.sh produced H200/embers arrays for eval and rollout without
 locked_mjlab_python.py user-site isolation check: user_site_paths []
 locked_mjlab_python.py stack check: torch 2.3.1/cu118, tensordict 0.4.0, torchrl 0.4.0
 ```
+
+Submitted replacement job IDs after commit
+`28401ce79addfdd3881c68acd22e6ae5aba4d244`:
+
+```text
+9398352 pwm_hopper_locked_wmprobe_h100_fix4
+9398353 original_pwm_adapter_hybrid_locked_nowandb_eval4_final_best_20260602
+9398354 original_pwm_adapter_hybrid_locked_nowandb_rollout1_final_best_20260602
+```
+
+## Phase E Official Image Track Candidates
+
+The user explicitly requested running official NEWT and LeWM environments in
+parallel. Candidate details are recorded in:
+
+```text
+docs/git/image_official_newt_lewm_candidates_20260602.md
+```
+
+Summary before submission:
+
+| Candidate | Type | Purpose | W&B mode | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- |
+| `newt_official_env_setup_20260602` | setup | Official NEWT conda env from `docker/environment.yaml` plus `ale_py==0.10`. | Off. | CPU. | No. | Submit. |
+| `lewm_official_env_setup_20260602` | setup | Official LeWM uv venv with `stable-worldmodel[train,env]`. | Off. | CPU. | No. | Submit. |
+| `newt_official_import_config_smoke_20260602` | smoke | Official NEWT import/config smoke. | Off. | CPU. | After NEWT env. | Submit. |
+| `newt_official_walker_smoke_a100_20260602` | smoke / exploratory | Smallest official NEWT DMControl `walker-walk` train smoke. | Off. | A100 / `embers`. | After NEWT env. | Submit. |
+| `lewm_official_import_config_smoke_20260602` | smoke | Official LeWM import/config/SIGReg-class smoke without dataset. | Off. | CPU. | After LeWM env. | Submit. |
+| `lewm_official_data_checkpoint_download_20260602` | setup / diagnostic | Identify and download the smallest official LeWM data/checkpoint for train/eval. | Off. | CPU. | After LeWM env preferred. | Prepare next. |
