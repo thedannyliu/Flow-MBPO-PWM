@@ -383,7 +383,7 @@ def collect_original_adapter_rollout(agent, ckpt_args: dict[str, Any], nrm: dict
             obs_td = next_obs_td
     finally:
         env.close()
-    return frames, step_rows, episode_rows, support_features
+    return frames, step_rows, episode_rows, stack_support_features(support_features)
 
 
 @torch.no_grad()
