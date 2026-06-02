@@ -425,7 +425,7 @@ Locked formal submission:
 
 ```text
 Slurm job: 9383776
-Status at submission: pending due Priority
+Final status: failed before training
 GPU/QOS: H200, embers
 Main repo SHA at submit: 6fbbaf6d44946fe26e71e2162663bd5f7ddadeee
 PWM repo SHA at submit: c7ed70a01916eee9a5b1ebaa356365b852c19418
@@ -437,6 +437,9 @@ stdout: logs/pwm_original_parity/locked_env_20260601/hopper_formal_locked_s0_938
 stderr: logs/pwm_original_parity/locked_env_20260601/hopper_formal_locked_s0_9383776.err
 W&B project: flow-mbpo-pwm-fidelity
 W&B group: phase1_original_hopper_locked_20260601
+W&B run: https://wandb.ai/danny010324/flow-mbpo-pwm-fidelity/runs/0djv5v2d
+Failure: DFlex printed `Using cached kernels`, then failed with `ImportError("No module named 'kernels'")`.
+Cause: the wrapper deleted `.so/.o/build.ninja` artifacts but left `adjoint.gen`; DFlex cache validation only compares generated C++ source against `adjoint.gen`, so it skipped rebuild while the compiled module was absent.
 ```
 
 Train command inside the Slurm wrapper:
@@ -453,6 +456,33 @@ Train command inside the Slurm wrapper:
   wandb.project=flow-mbpo-pwm-fidelity \
   wandb.group=phase1_original_hopper_locked_20260601 \
   +wandb.notes=phase1_original_pwm_hopper_locked_seed0_main_6fbbaf6d44946fe26e71e2162663bd5f7ddadeee_pwm_c7ed70a01916eee9a5b1ebaa356365b852c19418_env_pwm_orig_locked4_torch231_cu118_torchrl040_tensordict040_checkpoint_pwm_hopper_wm_only_qos_embers_partition_gpu_h200_rebuild_dflex
+```
+
+Corrected multi-GPU formal submissions:
+
+```text
+Strategy:
+  Each job copies the locked env's `dflex/` package into `${TMPDIR}/dflex_sandbox_${SLURM_JOB_ID}`,
+  removes that sandbox's `dflex/kernels` directory, prepends the sandbox to PYTHONPATH, and rebuilds
+  DFlex kernels inside the job-local copy. This allows H200/H100/A100/L40S jobs to run concurrently
+  without sharing or deleting one global env kernel cache.
+
+Common settings:
+  Main repo SHA at submit: 95527e7b1f8b9f5c852f6695e33ee6e9280d6b11
+  PWM repo SHA at submit: c7ed70a01916eee9a5b1ebaa356365b852c19418
+  Env path: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+  Checkpoint: /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
+  Checkpoint mode: wm_only
+  Seed: 0
+  QOS: embers
+  W&B project: flow-mbpo-pwm-fidelity
+  W&B group: phase1_original_hopper_locked_20260601
+
+Jobs:
+  9383814 h200 gpu-h200: stdout logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_h200_s0_9383814.out, stderr logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_h200_s0_9383814.err
+  9383815 h100 gpu-h100: stdout logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_h100_s0_9383815.out, stderr logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_h100_s0_9383815.err
+  9383816 a100 gpu-a100: stdout logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_a100_s0_9383816.out, stderr logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_a100_s0_9383816.err
+  9383817 l40s gpu-l40s: stdout logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_l40s_s0_9383817.out, stderr logs/pwm_original_parity/locked_env_20260601/pwm_hopper_locked_l40s_s0_9383817.err
 ```
 
 The formal run must record:
