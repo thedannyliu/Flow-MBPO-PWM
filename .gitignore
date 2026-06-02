@@ -59,6 +59,7 @@ reports/monitor/
 data/
 datasets/
 checkpoints/
+scripts/experiments/image_official/compat/vendor/
 
 # OS
 .DS_Store

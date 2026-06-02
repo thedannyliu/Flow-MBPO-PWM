@@ -352,3 +352,25 @@ l40s_overlap_progress: L40S NEWT rows 7, 8, and 9 completed 0:0 with eval/train 
 interpretation: NEWT official environment continues to be healthy on L40S. H200 rows are queued as backup coverage, not duplicates to interpret independently until logs complete.
 next_action: retry rows 12-15 and LeWM H200 train-smoke singles only when submit slots free; monitor LeWM eval fix rows first.
 ```
+
+NEWT H200 remaining rows 12-15 accepted:
+
+```text
+accepted_after_903642d: 9400814_[12] reacher-easy seed1; 9400815_[13] pendulum-swingup seed1; 9400816_[14] cartpole-swingup seed1; 9400817_[15] cup-catch seed1.
+status_at_first_check: all four were pending Resources on gpu-h200 / embers.
+coverage_status: NEWT H200 backup rows 7-15 are now fully queued; avoid duplicate H200 submissions for these rows.
+lewm_eval_h200_status: repaired LeWM row 9400771_0 started on H200 / embers and initially showed only Slurm prolog output, with no immediate repeat of the pyarrow import failure.
+next_action: prioritize monitoring 9400771_0; submit LeWM H200 train-smoke singles only if submit slots reopen and repaired eval does not expose a new root cause.
+```
+
+LeWM HDF5 plugin repair:
+
+```text
+failed_job: 9400771_0 `lewm_official_pusht_eval_h200_fix_row0_20260602` FAILED 1:0 after 00:01:29.
+failure_interpretation: this is a new official environment/data-format issue, not the previous pyarrow issue. The job reached Hydra and dataset construction, then failed because `stable_worldmodel.data.HDF5Dataset` was not exported.
+underlying_cause: `stable_worldmodel.data.formats.hdf5` requires `hdf5plugin`; the official env is read-only and did not have `hdf5plugin` installed. The PushT `pixels` dataset uses an unknown HDF5 plugin filter and cannot be read without plugin registration.
+canceled_to_prevent_repeat: 9400772_[1]..9400776_[5], 9400715, and 9400716.
+repair: repo-local vendor install under `scripts/experiments/image_official/compat/vendor/` using `scripts/experiments/image_official/install_lewm_compat_vendor_20260602.sh`; vendor is intentionally git-ignored.
+validation: batch-visible `sitecustomize.py` adds the vendor path, exposes `HDF5Dataset`, and allowed reading `pusht_expert_train.h5` `pixels[0]`.
+next_action: resubmit LeWM eval replacement rows after committing the repair and checking quota; use unique result/log names to distinguish from 9400771..9400776.
+```

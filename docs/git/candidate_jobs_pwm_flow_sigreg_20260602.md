@@ -528,3 +528,28 @@ newt_l40s_progress: 9400714_7 cup-catch seed0 completed 0:0 with eval/train `0.0
 lewm_status: repaired LeWM H200 eval rows 9400771..9400776 are still pending Resources; LeWM L40S eval/train arrays 9400715/9400716 are still pending Priority.
 next_action: continue single-row H200 submissions for NEWT rows 12-15 and LeWM H200 train rows when submit quota reopens; do not duplicate already accepted rows 7-11.
 ```
+
+NEWT H200 remaining completion of submission set:
+
+```text
+accepted_after_903642d: 9400814_[12] reacher-easy seed1; 9400815_[13] pendulum-swingup seed1; 9400816_[14] cartpole-swingup seed1; 9400817_[15] cup-catch seed1.
+status_at_first_check: all four H200 / embers rows were pending Resources.
+newt_h200_remaining_status: rows 7-15 are now all accepted on H200 / embers; no further NEWT H200 remaining rows should be submitted.
+lewm_eval_status: 9400771_0 started on H200 / embers at 2026-06-02 19:16; stdout initially contained the Slurm prolog only, with no immediate pyarrow crash.
+remaining_h200_candidate: LeWM H200 train-smoke singles for seeds 0 and 1 are still useful if submit quota opens and no repaired LeWM eval row fails first.
+```
+
+LeWM H200 eval fix row0 failure and hdf5plugin repair:
+
+```text
+failed_job: 9400771_0 `lewm_official_pusht_eval_h200_fix_row0_20260602`, gpu-h200 / embers, FAILED 1:0 after 00:01:29.
+progress_before_failure: pyarrow/datasets import progressed past the earlier `PyExtensionType` failure; this proves the first LeWM compatibility repair worked.
+new_root_cause: official LeWM `eval.py` called `stable_worldmodel.data.HDF5Dataset`, but the installed `stable_worldmodel.data` did not export it because optional import of `stable_worldmodel.data.formats.hdf5` failed without `hdf5plugin`.
+affected_jobs_canceled: 9400772_[1]..9400776_[5] repaired LeWM H200 eval rows, plus L40S LeWM eval/train arrays 9400715 and 9400716, were canceled to avoid repeating the same environment failure.
+dataset_validation: direct HDF5 read showed `pixels` uses an unknown plugin compression filter; without `hdf5plugin`, reading `pixels[0]` fails with `can't open directory (/usr/local/lib/plugin)`.
+repair: installed `hdf5plugin==6.0.0` into repo-local `scripts/experiments/image_official/compat/vendor/` because the official LeWM env site-packages is read-only; `.gitignore` excludes that binary vendor directory.
+tracked_rebuild_script: `scripts/experiments/image_official/install_lewm_compat_vendor_20260602.sh`.
+tracked_shim_update: `scripts/experiments/image_official/compat/sitecustomize.py` prepends the vendor directory to `sys.path` and re-exports `HDF5Dataset` / `HDF5Writer` onto `stable_worldmodel.data` when missing.
+local_validation: with `PYTHONPATH=scripts/experiments/image_official/compat:${LEWM_ROOT}`, `hdf5plugin` imported from the vendor directory, `stable_worldmodel.data.HDF5Dataset` was visible, and `pixels[0]` from `pusht_expert_train.h5` read successfully with shape `(224, 224, 3)`.
+next_action: commit this repair record, then resubmit LeWM eval/train replacement rows only after confirming submit quota; do not resubmit NEWT H200 rows because 7-15 are already queued.
+```

@@ -143,3 +143,26 @@ new_l40s_results: 9400714_7, 9400714_8, and 9400714_9 completed 0:0 with valid o
 lewm_gpu_repair_status: no repaired LeWM GPU row has started yet; 9400715/9400716 remain pending Priority and 9400771..9400776 remain pending Resources.
 next_action: monitor LeWM repaired rows immediately after they start; retry NEWT H200 rows 12-15 and LeWM H200 train singles only after submit quota frees again.
 ```
+
+Post-903642d submission inventory:
+
+```text
+accepted_h200_newt_rows: 9400814_[12], 9400815_[13], 9400816_[14], and 9400817_[15], all gpu-h200 / embers, pending Resources at first check.
+newt_h200_remaining_status: rows 7-15 are now all accepted; do not submit duplicate NEWT H200 remaining rows.
+lewm_eval_h200_status: 9400771_0 started running on gpu-h200 / embers; initial stdout had only the Slurm prolog and no immediate pyarrow failure signature.
+still_missing_h200: LeWM train-smoke singles for seeds 0 and 1.
+next_action: monitor 9400771_0 for the repaired LeWM eval proof; if no new root cause appears and submit quota permits, submit only the LeWM H200 train-smoke singles.
+```
+
+LeWM HDF5 plugin repair inventory:
+
+```text
+failed_job: 9400771_0, H200 / embers, FAILED 1:0 after 00:01:29.
+failure_reason: `stable_worldmodel.data.HDF5Dataset` missing because optional `hdf5plugin` was absent from the read-only official LeWM env.
+affected_jobs_canceled: 9400772_[1]..9400776_[5], 9400715, 9400716.
+artifact_check: `pusht_expert_train.h5` can read scalar/state/action columns without plugins, but `pixels[0]` fails without HDF5 plugin filters and succeeds after importing repo-local `hdf5plugin`.
+repair_files: `.gitignore`; `scripts/experiments/image_official/compat/sitecustomize.py`; `scripts/experiments/image_official/install_lewm_compat_vendor_20260602.sh`.
+local_vendor: `scripts/experiments/image_official/compat/vendor/`, intentionally untracked because it is a large binary dependency cache.
+validation: `HDF5Dataset` visible on `stable_worldmodel.data`; `pixels[0]` shape `(224, 224, 3)` read successfully under the LeWM env with `PYTHONPATH` pointing at the compat root.
+next_action: commit the repair, then resubmit LeWM eval/train replacement rows if embers submit quota permits.
+```
