@@ -182,5 +182,6 @@ env evidence: official conda env completed after loading cluster `swig/4.1.1`; `
 failure: import/config smoke called `parse_cfg` outside Hydra runtime, causing `ValueError: get_original_cwd() must only be used after HydraConfig is initialized`.
 replacement_candidate: `newt_official_import_config_swig_fix1_20260602` plus `newt_official_walker_swig_fix1_a100_20260602`; the import smoke should verify official modules/tasks/config dataclass without calling `parse_cfg`, while the walker smoke should continue to use the official `train.py` Hydra entrypoint.
 resources: import CPU / `embers`; walker A100 / `embers`; no dependency needed because the official env setup succeeded.
+script: `scripts/experiments/image_official/submit_newt_official_swig_followups_20260602.sh`.
 submit_decision: submit after committing the wrapper repair and record.
 ```
