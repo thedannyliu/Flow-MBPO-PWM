@@ -430,3 +430,13 @@ best_return_row: same as best selection score, 9400410_8.
 common_failure_mode: fall_rate_mean remained 1.0 across all sampled best and final evals, so the conservative AWR sweep did not fix MJLab collapse.
 next_action: do not expand this exact AWR setting blindly; wait for A100/L40S/H100 shard confirmation and image official jobs, then pivot Flow-MBPO toward stronger pessimism/OOD gating or shorter-horizon model rollouts if all shards show the same fall pattern.
 ```
+
+Post-inventory submit probe:
+
+```text
+preflight_inventory_commit: a81bc59.
+probe: `sbatch --test-only` on gpu-l40s / embers / 1 GPU / 4 CPUs after the continuation inventory commit.
+result: failed with `QOSMaxSubmitJobPerUserLimit`.
+current_related_queue_count: 15 user jobs from `squeue -u $USER -h | wc -l`.
+new_submission_decision: do not submit more jobs at this poll; remaining useful candidates are still NEWT H200 rows 7-15 and the L40S NEWT/LeWM backup arrays, but they must wait for submit slots to free.
+```
