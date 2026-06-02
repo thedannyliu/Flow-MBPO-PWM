@@ -257,3 +257,57 @@ seff: unavailable on PATH; status used `squeue` and `sacct`.
 no_new_official_image_submission_reason: useful official NEWT/LeWM GPU smokes are already queued, and extra submissions are blocked by embers submit quota until pending jobs start or finish.
 next_action: inspect official-image logs as soon as array elements leave pending; record failures and replacement IDs before any repair submission.
 ```
+
+L40S official backup preparation:
+
+```text
+script: scripts/experiments/image_official/submit_newt_lewm_l40s_backups_20260602.sh
+purpose: keep NEWT and LeWM moving on the L40S tier once embers submit quota reopens, without overwriting the existing A100/H100/H200 official-image jobs.
+candidate_newt_l40s: 16 official NEWT train-smoke rows, tasks walker-walk/walker-run/cheetah-run/hopper-hop/reacher-easy/pendulum-swingup/cartpole-swingup/cup-catch x seeds 0/1, W&B/video/checkpoint disabled, unique `official_broad_l40s_*` experiment names, L40S / embers, 4 CPUs per GPU.
+candidate_lewm_eval_l40s: 6 official LeWM PushT eval rows, same CEM/random payload as the H100/H200 eval jobs, unique `_l40s_results.txt` output filenames, L40S / embers, 4 CPUs per GPU.
+candidate_lewm_train_l40s: 2 official LeWM PushT train-smoke rows, seeds 0/1, `max_epochs=1`, `limit_train_batches=2`, `limit_val_batches=1`, W&B disabled, unique `official_train_smoke_l40s_*` subdirs, L40S / embers, 4 CPUs per GPU.
+validation: `bash -n` passed; input check passed for NEWT marker, LeWM env python, converted `pusht/lewm_object.ckpt`, and `pusht_expert_train.h5`.
+submit_probe: `sbatch --test-only` on both gpu-l40s and gpu-h200 returned `QOSMaxSubmitJobPerUserLimit`, so no new official image jobs were submitted in this poll.
+next_action: run the script after any queued embers job starts or finishes and `sbatch --test-only` succeeds; record accepted job IDs before interpreting results.
+```
+
+LeWM official eval environment repair:
+
+```text
+9400532_0..5 `lewm_official_pusht_eval_h200_20260602` FAILED 1:0 on H200 / embers before evaluation.
+failure_signature: `stable_pretraining.data.datasets` imported HuggingFace `datasets`, which failed under the official env with `AttributeError: module 'pyarrow' has no attribute 'PyExtensionType'`.
+prevented_repeat_failures: 9400411 `lewm_official_pusht_eval_h100_20260602` and 9400412 `lewm_official_pusht_train_smoke_h100_20260602` were canceled before start.
+repair: enabled pip in `/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602`; kept `pyarrow==24.0.0`; added `scripts/experiments/image_official/compat/sitecustomize.py` as a batch-visible compatibility shim; upgraded `datasets` to 3.6.0.
+validation: local official-env import smoke passed for `pyarrow`, `datasets`, `stable_pretraining`, `stable_worldmodel`, and `stable_worldmodel.policy.AutoCostModel`; `eval.py --config-name=pusht --cfg job` composes the intended PushT config.
+script_updates: LeWM GPU wrappers now prepend `${COMPAT_ROOT}` to `PYTHONPATH`.
+replacement_script: scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh
+replacement_payload: remaining NEWT H200 rows 7-15, LeWM H200 eval fix rows 0-5, and LeWM H200 train-smoke fix rows 0-1 with unique output names.
+validation_command: `bash -n scripts/experiments/image_official/submit_newt_lewm_broad_gpu_20260602.sh scripts/experiments/image_official/submit_newt_lewm_l40s_backups_20260602.sh scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh`
+next_action: submit the H200 replacement script after this record is committed, if embers submit quota accepts it.
+```
+
+L40S official backup submission:
+
+```text
+accepted_jobs: 9400714 `newt_official_broad_l40s_20260602` array 0-15%4; 9400715 `lewm_official_pusht_eval_l40s_20260602` array 0-5%3; 9400716 `lewm_official_pusht_train_l40s_20260602` array 0-1%2.
+qos_gpu: gpu-l40s / embers for all three arrays.
+early_result: 9400714_0 walker-walk seed0 COMPLETED 0:0 in 00:01:01 with eval R 42.247 and train R 51.202.
+early_result: 9400714_1 walker-run seed0 COMPLETED 0:0 in 00:00:32 with eval R 42.179 and train R 23.809.
+pending_at_record: 9400714_2..15, 9400715_0..5, and 9400716_0..1 were pending Priority behind the running L40S array work.
+next_action: inspect NEWT L40S row logs as they complete; inspect LeWM L40S logs immediately when they start because they exercise the repaired LeWM env under Slurm.
+```
+
+NEWT/LeWM continuation on 2026-06-02:
+
+```text
+completed_h200_newt_rows: `9400537_0-3`, `9400543_4`, `9400544_5`, and `9400545_6` completed 0:0 on gpu-h200 / embers using the official NEWT runner. Observed smoke metrics: walker-walk seed0 eval R 42.247 train R 51.202; walker-run seed0 eval R 42.179 train R 23.809; cheetah-run seed0 eval R 5.871 train R 6.516; hopper-hop seed0 eval/train 0.0; reacher-easy seed0 eval R 34.000 train R 0.0; pendulum-swingup seed0 eval/train 0.0; cartpole-swingup seed0 eval R 183.107 train R 8.803.
+failed_h200_lewm_eval: `9400532_0-5` failed 1:0 on gpu-h200 / embers before evaluation because `datasets` imported against a `pyarrow` build without `PyExtensionType`.
+canceled_prior_lewm_gpu: `9400411_[0-5]` and `9400412_[0-1]` were canceled before start, so they produced no LeWM eval/train evidence.
+compat_fix: added `scripts/experiments/image_official/compat/sitecustomize.py` and patched LeWM eval/train submit payloads to prepend that directory to `PYTHONPATH`; the shim aliases `pyarrow.PyExtensionType` to `pyarrow.ExtensionType` only when the old name is absent.
+compat_validation: lightweight LeWM env check loaded the repo `sitecustomize.py` and printed `pyarrow 24.0.0`, `has_PyExtensionType True`, `has_ExtensionType True`. A full `stable_pretraining` import on the login node was killed after heavy PyTorch/JAX import probing, so final validation is delegated to GPU Slurm rows.
+l40s_submission: submitted `9400714` NEWT official broad L40S array, `9400715` LeWM official PushT eval L40S array, and `9400716` LeWM official PushT train-smoke L40S array, all QOS embers.
+l40s_early_result: `9400714_0-3` completed 0:0; row0 walker-walk seed0 eval R 42.247 train R 51.202; row1 walker-run seed0 eval R 42.179 train R 23.809; row2 cheetah-run seed0 eval R 5.871 train R 6.516; row3 hopper-hop seed0 eval/train 0.0. Remaining NEWT L40S rows plus LeWM L40S eval/train are pending.
+h200_fix_wrapper: added `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` for NEWT H200 rows 7-15 only, plus shimmed LeWM H200 eval/train replacement rows.
+h200_submit_blocker: `sbatch --test-only` on gpu-h200 / embers returned `QOSMaxSubmitJobPerUserLimit`, so the H200 wrapper was validated but not submitted in this poll.
+next_action: when the submit quota reopens, run `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh`; monitor `9400715` first because it is the direct replacement for the failed LeWM H200 eval root cause.
+```

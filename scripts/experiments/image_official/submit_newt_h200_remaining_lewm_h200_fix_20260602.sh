@@ -39,21 +39,21 @@ fi
 
 mkdir -p "${LOG_DIR}" "${DATA_ROOT}/newt_demos"
 
-newt_job="$(
+newt_h200_remaining_job="$(
   sbatch --parsable \
-    --job-name="newt_official_broad_smoke_a100_20260602" \
+    --job-name="newt_official_h200_remaining_20260602" \
     --account="${ACCOUNT}" \
-    --partition="${NEWT_GPU_PARTITION:-gpu-a100}" \
+    --partition="gpu-h200" \
     --qos="${GPU_QOS}" \
-    --gres="${NEWT_GPU_GRES:-gpu:a100:1}" \
+    --gres="gpu:h200:1" \
     --nodes=1 \
     --ntasks=1 \
-    --cpus-per-task=8 \
-    --mem="96G" \
+    --cpus-per-task=4 \
+    --mem="64G" \
     --time="02:30:00" \
-    --array="0-15%8" \
-    --output="${LOG_DIR}/newt_official_broad_smoke_%A_%a.out" \
-    --error="${LOG_DIR}/newt_official_broad_smoke_%A_%a.err" \
+    --array="7-15%4" \
+    --output="${LOG_DIR}/newt_official_h200_remaining_%A_%a.out" \
+    --error="${LOG_DIR}/newt_official_h200_remaining_%A_%a.err" \
     --export=ALL,NEWT_ROOT="${NEWT_ROOT}",NEWT_ENV="${NEWT_ENV}",DATA_ROOT="${DATA_ROOT}" \
     <<'SBATCH'
 #!/usr/bin/env bash
@@ -81,37 +81,37 @@ export HYDRA_FULL_ERROR=1
   batch_size=16 \
   buffer_size=10000 \
   eval_episodes=1 \
-  "exp_name=official_broad_${task}_seed${seed}_20260602" \
+  "exp_name=official_h200_remaining_${task}_seed${seed}_20260602" \
   "data_dir=${DATA_ROOT}/newt_demos"
 SBATCH
 )"
 
-lewm_eval_job="$(
+lewm_eval_h200_fix_job="$(
   sbatch --parsable \
-    --job-name="lewm_official_pusht_eval_h100_20260602" \
+    --job-name="lewm_official_pusht_eval_h200_fix_20260602" \
     --account="${ACCOUNT}" \
-    --partition="${LEWM_EVAL_GPU_PARTITION:-gpu-h100}" \
+    --partition="gpu-h200" \
     --qos="${GPU_QOS}" \
-    --gres="${LEWM_EVAL_GPU_GRES:-gpu:h100:1}" \
+    --gres="gpu:h200:1" \
     --nodes=1 \
     --ntasks=1 \
-    --cpus-per-task=8 \
-    --mem="96G" \
+    --cpus-per-task=4 \
+    --mem="64G" \
     --time="01:00:00" \
-    --array="0-5%6" \
-    --output="${LOG_DIR}/lewm_official_pusht_eval_%A_%a.out" \
-    --error="${LOG_DIR}/lewm_official_pusht_eval_%A_%a.err" \
+    --array="0-5%3" \
+    --output="${LOG_DIR}/lewm_official_pusht_eval_h200_fix_%A_%a.out" \
+    --error="${LOG_DIR}/lewm_official_pusht_eval_h200_fix_%A_%a.err" \
     --export=ALL,LEWM_ROOT="${LEWM_ROOT}",LEWM_ENV="${LEWM_ENV}",STABLEWM_HOME="${STABLEWM_HOME}",COMPAT_ROOT="${COMPAT_ROOT}" \
     <<'SBATCH'
 #!/usr/bin/env bash
 set -euo pipefail
 case "${SLURM_ARRAY_TASK_ID}" in
-  0) policy="pusht/lewm"; seed=0; horizon=2; name="lewm_seed0_cem_e30_h2" ;;
-  1) policy="pusht/lewm"; seed=1; horizon=2; name="lewm_seed1_cem_e30_h2" ;;
-  2) policy="pusht/lewm"; seed=2; horizon=2; name="lewm_seed2_cem_e30_h2" ;;
-  3) policy="pusht/lewm"; seed=0; horizon=5; name="lewm_seed0_cem_e30_h5" ;;
-  4) policy="random"; seed=0; horizon=2; name="random_seed0_e30_h2" ;;
-  5) policy="random"; seed=1; horizon=2; name="random_seed1_e30_h2" ;;
+  0) policy="pusht/lewm"; seed=0; horizon=2; name="lewm_seed0_cem_e30_h2_h200_fix" ;;
+  1) policy="pusht/lewm"; seed=1; horizon=2; name="lewm_seed1_cem_e30_h2_h200_fix" ;;
+  2) policy="pusht/lewm"; seed=2; horizon=2; name="lewm_seed2_cem_e30_h2_h200_fix" ;;
+  3) policy="pusht/lewm"; seed=0; horizon=5; name="lewm_seed0_cem_e30_h5_h200_fix" ;;
+  4) policy="random"; seed=0; horizon=2; name="random_seed0_e30_h2_h200_fix" ;;
+  5) policy="random"; seed=1; horizon=2; name="random_seed1_e30_h2_h200_fix" ;;
   *) echo "Unsupported array index ${SLURM_ARRAY_TASK_ID}" >&2; exit 1 ;;
 esac
 cd "${LEWM_ROOT}"
@@ -136,21 +136,21 @@ export HYDRA_FULL_ERROR=1
 SBATCH
 )"
 
-lewm_train_job="$(
+lewm_train_h200_fix_job="$(
   sbatch --parsable \
-    --job-name="lewm_official_pusht_train_smoke_h100_20260602" \
+    --job-name="lewm_official_pusht_train_h200_fix_20260602" \
     --account="${ACCOUNT}" \
-    --partition="${LEWM_TRAIN_GPU_PARTITION:-gpu-h100}" \
+    --partition="gpu-h200" \
     --qos="${GPU_QOS}" \
-    --gres="${LEWM_TRAIN_GPU_GRES:-gpu:h100:1}" \
+    --gres="gpu:h200:1" \
     --nodes=1 \
     --ntasks=1 \
-    --cpus-per-task=8 \
-    --mem="128G" \
+    --cpus-per-task=4 \
+    --mem="96G" \
     --time="02:00:00" \
     --array="0-1%2" \
-    --output="${LOG_DIR}/lewm_official_pusht_train_smoke_%A_%a.out" \
-    --error="${LOG_DIR}/lewm_official_pusht_train_smoke_%A_%a.err" \
+    --output="${LOG_DIR}/lewm_official_pusht_train_h200_fix_%A_%a.out" \
+    --error="${LOG_DIR}/lewm_official_pusht_train_h200_fix_%A_%a.err" \
     --export=ALL,LEWM_ROOT="${LEWM_ROOT}",LEWM_ENV="${LEWM_ENV}",STABLEWM_HOME="${STABLEWM_HOME}",COMPAT_ROOT="${COMPAT_ROOT}" \
     <<'SBATCH'
 #!/usr/bin/env bash
@@ -167,8 +167,8 @@ export HYDRA_FULL_ERROR=1
   data=pusht \
   data.dataset.name=pusht_expert_train \
   "seed=${seed}" \
-  "subdir=official_train_smoke_seed${seed}_20260602" \
-  "output_model_name=lewm_train_smoke_seed${seed}" \
+  "subdir=official_train_smoke_h200_fix_seed${seed}_20260602" \
+  "output_model_name=lewm_train_smoke_h200_fix_seed${seed}" \
   trainer.max_epochs=1 \
   trainer.devices=1 \
   trainer.accelerator=gpu \
@@ -185,7 +185,7 @@ SBATCH
 )"
 
 cat <<EOF
-newt_broad_job=${newt_job}
-lewm_eval_job=${lewm_eval_job}
-lewm_train_job=${lewm_train_job}
+newt_h200_remaining_job=${newt_h200_remaining_job}
+lewm_eval_h200_fix_job=${lewm_eval_h200_fix_job}
+lewm_train_h200_fix_job=${lewm_train_h200_fix_job}
 EOF
