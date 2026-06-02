@@ -201,3 +201,13 @@ resources: CPU / `embers`, W&B disabled, no train/eval yet.
 script: `scripts/experiments/image_official/submit_lewm_official_pusht_assets_20260602.sh`
 submit_decision: submit after committing the script and candidate record.
 ```
+
+Submitted after commit
+`dd41bea5f3a34537043dbe5170d02b2e4107ada2`:
+
+```text
+9398711 newt_official_env_setup_swig_20260602, QOS embers, RUNNING at first check
+9398712 lewm_official_pusht_assets_20260602, QOS embers, RUNNING at first check
+9398713 newt_official_import_config_swig_20260602, dependency=afterok:9398711, QOS embers, PENDING at first check
+9398714 newt_official_walker_swig_a100_20260602, dependency=afterok:9398711, QOS embers, PENDING at first check
+```
