@@ -405,20 +405,54 @@ Passing smoke result:
 Formal single-seed Hopper parity, W&B enabled, `embers` QOS:
 
 ```bash
-sbatch \
-  --job-name=pwm_phase1_hopper_seed0 \
+sbatch --parsable \
+  --job-name=pwm_hopper_formal_locked_s0 \
   --account=gts-agarg35 \
-  --partition=gpu-h100 \
-  --qos=embers \
-  --gres=gpu:h100:1 \
+  --partition=gpu-h200 \
+  --gres=gpu:h200:1 \
   --nodes=1 \
   --ntasks=1 \
   --cpus-per-task=8 \
   --mem=128G \
   --time=04:00:00 \
-  --output=logs/slurm/pwm_phase1/pwm_phase1_hopper_seed0_%j.out \
-  --error=logs/slurm/pwm_phase1/pwm_phase1_hopper_seed0_%j.err \
-  --wrap='cd /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/baselines/PWM/scripts && source ~/.bashrc && conda activate pwm && python train_dflex.py env=dflex_hopper alg=pwm general.seed=0 general.run_wandb=True wandb.project=flow-mbpo-pwm-fidelity wandb.group=phase1_original_hopper_20260601 wandb.notes="Phase 1 original PWM parity. repo_sha=d372003b7293e94823d20661cc8e282aaecc52a9 pwm_sha=9816252019ad8ca9a4393bceacf8a4dde711a749 env=dflex_hopper checkpoint=scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt qos=embers" general.checkpoint=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt general.eval_runs=12 general.logdir=logs/phase1_hopper_seed0_20260601'
+  --qos=embers \
+  --output=logs/pwm_original_parity/locked_env_20260601/hopper_formal_locked_s0_%j.out \
+  --error=logs/pwm_original_parity/locked_env_20260601/hopper_formal_locked_s0_%j.err \
+  --wrap='export locked-env variables above; delete DFlex kernel artifacts; print metadata; run train_dflex.py'
+```
+
+Locked formal submission:
+
+```text
+Slurm job: 9383776
+Status at submission: pending due Priority
+GPU/QOS: H200, embers
+Main repo SHA at submit: 6fbbaf6cb477f269f4e9565f7fe7e8e7660f568a
+PWM repo SHA at submit: c7ed70a01916eee9a5b1ebaa356365b852c19418
+Env path: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+Checkpoint: /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
+Checkpoint mode: wm_only
+Seed: 0
+stdout: logs/pwm_original_parity/locked_env_20260601/hopper_formal_locked_s0_9383776.out
+stderr: logs/pwm_original_parity/locked_env_20260601/hopper_formal_locked_s0_9383776.err
+W&B project: flow-mbpo-pwm-fidelity
+W&B group: phase1_original_hopper_locked_20260601
+```
+
+Train command inside the Slurm wrapper:
+
+```bash
+/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/bin/python train_dflex.py \
+  env=dflex_hopper alg=pwm \
+  general.seed=0 \
+  general.run_wandb=True \
+  general.checkpoint_mode=wm_only \
+  general.checkpoint=/storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt \
+  general.eval_runs=12 \
+  general.logdir=logs/phase1_hopper_formal_locked_s0_20260601 \
+  wandb.project=flow-mbpo-pwm-fidelity \
+  wandb.group=phase1_original_hopper_locked_20260601 \
+  +wandb.notes=phase1_original_pwm_hopper_locked_seed0_main_6fbbaf6cb477f269f4e9565f7fe7e8e7660f568a_pwm_c7ed70a01916eee9a5b1ebaa356365b852c19418_env_pwm_orig_locked4_torch231_cu118_torchrl040_tensordict040_checkpoint_pwm_hopper_wm_only_qos_embers_partition_gpu_h200_rebuild_dflex
 ```
 
 The formal run must record:
