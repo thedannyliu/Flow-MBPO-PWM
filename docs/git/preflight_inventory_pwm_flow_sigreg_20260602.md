@@ -87,6 +87,19 @@ LeWM repair: official env now uses `datasets 3.6.0`, `pyarrow 24.0.0`, and a bat
 replacement_candidate: `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` for remaining NEWT H200 rows and repaired LeWM H200 eval/train rows.
 next_action: commit this repair/submission record, then submit repaired H200 jobs if the embers submit quota accepts them.
 ```
+
+Post-commit H200 repair submission inventory:
+
+```text
+commit_before_submission: ce439b0.
+large_array_result: committed H200 repair wrapper failed with `QOSMaxSubmitJobPerUserLimit`; no rows were accepted by that array attempt.
+single_row_submit_probe: one-row H200 and L40S `sbatch --test-only` probes succeeded, so replacement jobs were submitted as single-row arrays.
+9400771_[0] through 9400776_[5]: repaired LeWM official PushT H200 eval rows accepted on embers; pending Resources at first check; unique logs under `logs/slurm/image_official/lewm_official_pusht_eval_h200_fix_single_%A_%a.*`.
+9400778_[7]: remaining NEWT H200 row 7 accepted on embers; pending Resources at first check; unique logs under `logs/slurm/image_official/newt_official_h200_remaining_single_%A_%a.*`.
+blocked_by_quota: NEWT H200 row 8 failed with `QOSMaxSubmitJobPerUserLimit`; rows 8-15 and LeWM H200 train-smoke singles were not submitted in this pass.
+concurrent_status: 9400714_0..6 completed 0:0 on L40S with valid NEWT official output; 9400715 and 9400716 remained pending Priority; 9400435_0 H100 Flow-MBPO AWR was running.
+next_action: monitor 9400771..9400776 as the repaired LeWM Slurm proof; retry NEWT rows 8-15 and LeWM train singles when submit slots free.
+```
 | `9399798` | Hopper locked WM-vs-real probe fix4 | `PENDING`, reason `Priority` | Repaired locked DFlex Slurm wrapper for Hopper final/best WM-vs-real probe | `c7c33b` / later records | Hopper locked original PWM probe with DFlex sandbox and compiler include repair | Locked env `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4`; Hopper final/best actors from locked parity run | seed 0 actor | H100 / `embers` | W&B disabled | Inputs from locked Hopper formal run; expected `eval_results/pwm_phase2_hopper_locked_probe_20260602/*fix4*.json` | No output yet | Not available | None yet | Pending only | Wait; if it fails, record root cause and resubmit only after compiler/path diagnosis |
 
 Current continuation interpretation: the queue is saturated with useful embers GPU work across A100, H100, H200, and L40S. The only completed new broad wave so far is H200 Flow-MBPO AWR, which is a valid negative result: all runs fall at rate `1.0` and do not beat BC. No current pending image/MJLab backup job has produced logs yet, so there is no runtime failure to cancel or repair at this poll.

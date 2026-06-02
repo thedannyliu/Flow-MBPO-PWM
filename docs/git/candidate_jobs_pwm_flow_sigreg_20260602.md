@@ -478,6 +478,20 @@ early_newt_l40s_evidence: 9400714_0 completed walker-walk seed0 in 00:01:01 with
 next_action: continue monitoring 9400714/9400715/9400716; record LeWM L40S results or failures, and submit H200 replacement jobs if the embers quota allows.
 ```
 
+H200 single-row repair submissions:
+
+```text
+pre_submit_head: ce439b0.
+array_attempt: `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` failed immediately with `QOSMaxSubmitJobPerUserLimit`.
+single_row_probe: H200 and L40S `sbatch --test-only` single-row probes succeeded, so the large H200 array was split into single-row submissions.
+accepted_lewm_h200_eval_fix: 9400771_[0], 9400772_[1], 9400773_[2], 9400774_[3], 9400775_[4], 9400776_[5], all gpu-h200 / embers, pending Resources at first check.
+accepted_newt_h200_remaining: 9400778_[7] `newt_official_h200_row7_fix_20260602`, gpu-h200 / embers, pending Resources at first check.
+blocked_newt_h200_remaining: row 8 submission failed with `QOSMaxSubmitJobPerUserLimit`; rows 8-15 remain unsent on H200.
+lewm_train_h200_status: not submitted in this pass because quota was exhausted after the LeWM eval fix rows and one NEWT row.
+newt_l40s_progress: 9400714_0..6 completed 0:0 with valid official NEWT train/eval smoke output; row 6 cartpole-swingup seed0 reached eval R 183.107 and train R 8.803.
+next_action: monitor 9400771..9400776 immediately when H200 starts to verify the LeWM repair under Slurm; keep submitting rows 8-15 and LeWM H200 train singles as embers submit slots free.
+```
+
 NEWT/LeWM official-image continuation on 2026-06-02:
 
 ```text

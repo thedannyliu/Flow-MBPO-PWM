@@ -297,6 +297,25 @@ pending_at_record: 9400714_2..15, 9400715_0..5, and 9400716_0..1 were pending Pr
 next_action: inspect NEWT L40S row logs as they complete; inspect LeWM L40S logs immediately when they start because they exercise the repaired LeWM env under Slurm.
 ```
 
+H200 repair submission after commit `ce439b0`:
+
+```text
+large_array_attempt: the committed H200 repair wrapper failed at its first array with `QOSMaxSubmitJobPerUserLimit`.
+single_row_strategy: single-row `sbatch --test-only` probes passed on H200 and L40S, so H200 repair work was split into one-row array submissions.
+submitted_lewm_eval_fix_rows:
+  9400771_[0] lewm seed0 horizon2
+  9400772_[1] lewm seed1 horizon2
+  9400773_[2] lewm seed2 horizon2
+  9400774_[3] lewm seed0 horizon5
+  9400775_[4] random seed0 horizon2
+  9400776_[5] random seed1 horizon2
+status_at_first_check: all six H200 / embers rows were pending Resources.
+submitted_newt_h200_remaining: 9400778_[7] cup-catch seed0, H200 / embers, pending Resources.
+blocked_submission: NEWT H200 row 8 failed with `QOSMaxSubmitJobPerUserLimit`; NEWT H200 rows 8-15 and LeWM H200 train-smoke singles remain candidates for the next free submit slots.
+concurrent_l40s_progress: 9400714_0..6 completed 0:0; rows map to walker-walk, walker-run, cheetah-run, hopper-hop, reacher-easy, pendulum-swingup, and cartpole-swingup seed0; all produced official NEWT training output.
+next_action: do not cancel pending H200 repair rows; inspect their logs as soon as they start, then resubmit only failed rows with recorded root causes.
+```
+
 NEWT/LeWM continuation on 2026-06-02:
 
 ```text
