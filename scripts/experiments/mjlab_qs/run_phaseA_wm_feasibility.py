@@ -21,6 +21,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 
+from flow_mbpo_pwm.utils.sigreg import sigreg_loss as lewm_sigreg_loss
+
 
 def command_line() -> str:
     return " ".join(sys.argv)
@@ -384,20 +386,14 @@ def sigreg_loss(
     num_knots: int = 8,
     bandwidth: float = 1.0,
 ) -> torch.Tensor:
-    flat = embeddings.reshape(-1, embeddings.shape[-1])
-    if flat.shape[0] < 2 or num_projections <= 0 or num_knots <= 0:
-        return flat.new_zeros(())
-    directions = torch.randn(flat.shape[-1], num_projections, device=flat.device, dtype=flat.dtype)
-    directions = F.normalize(directions, dim=0)
-    projected = flat @ directions
-    knots = torch.linspace(0.2, 4.0, num_knots, device=flat.device, dtype=flat.dtype)
-    phase = projected[:, :, None] * knots[None, None, :]
-    emp_real = torch.cos(phase).mean(dim=0)
-    emp_imag = torch.sin(phase).mean(dim=0)
-    target_real = torch.exp(-0.5 * knots.pow(2))[None, :]
-    weights = torch.exp(-knots.pow(2) / (2.0 * max(float(bandwidth), 1e-6) ** 2))[None, :]
-    stat = weights * ((emp_real - target_real).pow(2) + emp_imag.pow(2))
-    return stat.mean()
+    if num_projections <= 0 or num_knots < 2:
+        return embeddings.new_zeros(())
+    return lewm_sigreg_loss(
+        embeddings,
+        num_knots=num_knots,
+        num_projections=num_projections,
+        bandwidth=bandwidth,
+    )
 
 
 def train_loss(

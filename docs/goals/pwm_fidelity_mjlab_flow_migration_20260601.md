@@ -1582,3 +1582,37 @@ the faithful original PWM comparator is missing final/best fall/video artifacts.
 The old 2x2 PWM/Flow replacement rows are already failed diagnostics, not a
 basis for expanding a one-variable R0-R4 matrix before the pending faithful PWM
 evidence package lands.
+
+## 2026-06-02 SIGReg Objective And CPU Test Prerequisite
+
+Durable SIGReg prerequisite note:
+
+```text
+docs/git/sigreg_objective_shapes_tests_20260602.md
+```
+
+Implementation and validation:
+
+```text
+utility: src/flow_mbpo_pwm/utils/sigreg.py
+tests: tests/test_sigreg.py
+test_import_path_helper: tests/conftest.py
+runner_update: scripts/experiments/mjlab_qs/run_phaseA_wm_feasibility.py now calls the tested utility for SIGReg.
+
+validation:
+  python -m pytest tests/test_sigreg.py -q
+  result: 5 passed in 7.36s
+
+runner_import_check:
+  PYTHONPATH=src /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python scripts/experiments/mjlab_qs/run_phaseA_wm_feasibility.py --help
+  result: passed; SIGReg CLI flags are present.
+
+project_env_pytest_check:
+  PYTHONPATH=src /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python -m pytest tests/test_sigreg.py -q
+  result: failed because that env does not install pytest.
+```
+
+Scope boundary: this completes the CPU prerequisite for SIGReg objective,
+shapes, and tests. It does not authorize a new SIGReg GPU submission by itself.
+Any SIGReg smoke/formal row still needs a fresh candidate list after the pending
+faithful original PWM eval/video jobs are recorded.
