@@ -427,7 +427,7 @@ Locked formal submission:
 Slurm job: 9383776
 Status at submission: pending due Priority
 GPU/QOS: H200, embers
-Main repo SHA at submit: 6fbbaf6cb477f269f4e9565f7fe7e8e7660f568a
+Main repo SHA at submit: 6fbbaf6d44946fe26e71e2162663bd5f7ddadeee
 PWM repo SHA at submit: c7ed70a01916eee9a5b1ebaa356365b852c19418
 Env path: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
 Checkpoint: /storage/project/r-agarg35-0/eliu354/projects/Flow-MBPO-PWM/scripts/assets/pwm_hf/dflex/pretrained/PWM_HopperEnv.pt
@@ -452,7 +452,7 @@ Train command inside the Slurm wrapper:
   general.logdir=logs/phase1_hopper_formal_locked_s0_20260601 \
   wandb.project=flow-mbpo-pwm-fidelity \
   wandb.group=phase1_original_hopper_locked_20260601 \
-  +wandb.notes=phase1_original_pwm_hopper_locked_seed0_main_6fbbaf6cb477f269f4e9565f7fe7e8e7660f568a_pwm_c7ed70a01916eee9a5b1ebaa356365b852c19418_env_pwm_orig_locked4_torch231_cu118_torchrl040_tensordict040_checkpoint_pwm_hopper_wm_only_qos_embers_partition_gpu_h200_rebuild_dflex
+  +wandb.notes=phase1_original_pwm_hopper_locked_seed0_main_6fbbaf6d44946fe26e71e2162663bd5f7ddadeee_pwm_c7ed70a01916eee9a5b1ebaa356365b852c19418_env_pwm_orig_locked4_torch231_cu118_torchrl040_tensordict040_checkpoint_pwm_hopper_wm_only_qos_embers_partition_gpu_h200_rebuild_dflex
 ```
 
 The formal run must record:
