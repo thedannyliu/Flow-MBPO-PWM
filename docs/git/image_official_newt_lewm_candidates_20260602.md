@@ -185,3 +185,12 @@ resources: import CPU / `embers`; walker A100 / `embers`; no dependency needed b
 script: `scripts/experiments/image_official/submit_newt_official_swig_followups_20260602.sh`.
 submit_decision: submit after committing the wrapper repair and record.
 ```
+
+Replacement submissions after commit
+`c7c33b54d256d07355a88f95bc7c4cf506fd85b8`:
+
+```text
+9399731 lewm_official_pusht_assets_fix1_20260602, CPU / embers, PENDING Priority at first check
+9399797 newt_official_import_config_swig_fix1_20260602, CPU / embers, PENDING Priority at first check
+9399799 newt_official_walker_swig_fix1_a100_20260602, A100 / embers, PENDING Priority at first check
+```
