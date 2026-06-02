@@ -1366,3 +1366,63 @@ phase3_formal_wandb: enabled
 ```
 
 Environment note: Phase 1/2 original DFlex jobs continue to use the locked original stack at `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4` plus fresh per-job DFlex sandboxes. Phase 3 MJLab adapter jobs use the project MJLab runtime (`conda activate pwm`) because the locked DFlex-only parity environment is not the MJLab runtime; this is an IO-adapter phase, not a byte-identical upstream DFlex run.
+
+## 2026-06-02 No-Dependency Resubmission
+
+User instruction update: submit the experiments without waiting on Slurm
+dependencies. The old dependency-gated Phase 3 jobs were canceled and replaced
+with direct submissions.
+
+```text
+canceled_dependency_jobs:
+  9387424 original PWM MJLab adapter smoke, dependency=afterok:9387423
+  9387425 original PWM MJLab adapter formal, dependency=afterok:9387424
+
+direct_phase3_smoke_job_id: 9387896
+direct_phase3_smoke_job_name: mjqs_original_pwm_adapter_H100
+direct_phase3_smoke_partition: gpu-h100
+direct_phase3_smoke_qos: embers
+direct_phase3_smoke_dependency: none
+direct_phase3_smoke_status_at_check: PENDING Priority
+direct_phase3_smoke_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_smoke_20260601.csv
+
+direct_phase3_formal_job_id: 9387895
+direct_phase3_formal_job_name: mjqs_original_pwm_adapter_H200
+direct_phase3_formal_partition: gpu-h200
+direct_phase3_formal_qos: embers
+direct_phase3_formal_dependency: none
+direct_phase3_formal_status_at_check: PENDING Priority
+direct_phase3_formal_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_formal_h200_seed0_20260601.csv
+```
+
+The first no-dependency Ant eval / Hopper probe submissions failed due to a
+DFlex sandbox wrapper bug, not due to model behavior:
+
+```text
+failed_ant_eval_job_id: 9387422
+failed_hopper_probe_job_id: 9387423
+failure: cp baselines/PWM/dflex failed because this repo does not contain that path; PYTHONPATH then did not point at a valid sandboxed dflex package, so Python imported env site-packages dflex and hit stale cached kernels.
+error_signature: ImportError("No module named 'kernels'") after "Using cached kernels"
+prevention:
+  copy /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/lib/python3.10/site-packages/dflex into the per-job sandbox
+  put the sandbox parent directory on PYTHONPATH, not the sandbox/dflex package directory
+  remove sandbox dflex/kernels before import so DFlex rebuilds kernels in the fresh sandbox
+```
+
+Fixed no-dependency replacements:
+
+```text
+ant_true_dflex_eval_fix_job_id: 9387942
+ant_true_dflex_eval_fix_job_name: pwm_ant_locked_realenv_eval_h200_fix
+ant_true_dflex_eval_fix_partition: gpu-h200
+ant_true_dflex_eval_fix_qos: embers
+ant_true_dflex_eval_fix_dependency: none
+ant_true_dflex_eval_fix_status_at_check: PENDING Priority
+
+phase2_probe_fix_job_id: 9387949
+phase2_probe_fix_job_name: pwm_hopper_locked_wmprobe_h100_fix
+phase2_probe_fix_partition: gpu-h100
+phase2_probe_fix_qos: embers
+phase2_probe_fix_dependency: none
+phase2_probe_fix_status_at_check: PENDING Priority
+```
