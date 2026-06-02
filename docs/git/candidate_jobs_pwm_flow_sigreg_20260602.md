@@ -30,15 +30,32 @@ Correct environments:
 ```text
 original DFlex/PWM parity environment:
   /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4
+  2026-06-02 audit: Python 3.10.14, torch 2.3.1/cu118, Hydra 1.2.0,
+  OmegaConf 2.2.3, W&B 0.12.21; CUDA unavailable on login node.
   called directly as ${ENV_DIR}/bin/python after exporting locked CUDA/compiler
   variables and copying env site-packages/dflex into a job-local sandbox.
+  This is the preferred environment for credible original PWM reproduction
+  claims. Direct login-node DFlex import fails because the environment is
+  read-only and DFlex tries to rebuild kernels in site-packages; use the Slurm
+  sandbox wrappers for DFlex jobs.
 
-MJLab adapter eval/video environment:
+project/current Flow-MBPO and MJLab environment:
   conda environment pwm
+  2026-06-02 audit: Python 3.10.19, torch 2.10.0+cu128, Hydra 1.3.2,
+  OmegaConf 2.3.0, W&B 0.23.0; CUDA unavailable on login node.
+  used for current Flow-MBPO diagnostics, MJLab QS runners, policy eval/render
+  tools, manifest utilities, and new-code smokes.
+
+MJLab adapter eval/video bridge:
   called through scripts/experiments/mjlab_qs/submit_array.sh after exporting
   PYTHONPATH=${PROJECT_ROOT}/src:${PROJECT_ROOT}/baselines/PWM/src:$PYTHONPATH.
   The upstream PWM path is required because the faithful adapter checkpoints
   pickle/import objects from the upstream `pwm` package.
+
+Hybrid locked MJLab bridge:
+  scripts/experiments/mjlab_qs/locked_mjlab_python.py
+  loads locked torch/tensordict/torchrl/PWM first, then exposes project-env
+  MJLab packages for W&B-disabled faithful-adapter checks.
 ```
 
 | Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
@@ -363,4 +380,26 @@ active_related_queue:
   9400442 mjqs_flow_mbpo_awr_A100_single PENDING Priority, A100 / embers
 no_new_submission_reason: the previous L40S retry and A100 array attempt hit `QOSMaxSubmitJobPerUserLimit`; all useful validated broad rows are already queued or blocked by submit quota.
 next_action: wait for any pending GPU job to start/finish, then inspect logs, cancel/fix/resubmit bad rows, and reattempt L40S/A100 shard coverage only after embers submit slots free.
+```
+
+Embers quota reopened and shard backfill:
+
+```text
+poll_time: 2026-06-02 18:31-18:34 America/New_York.
+submit_probe: `sbatch --test-only` on gpu-l40s / embers / 1 GPU / 4 CPUs succeeded after earlier `QOSMaxSubmitJobPerUserLimit`.
+9400410 H200 full AWR array: all 14 elements completed 0:0; early real-eval diagnostics were valid runs, not Slurm crashes, but all sampled rows underperformed the BC baseline with fall_rate_mean 1.0. Example row 0 best observed in log was return_mean 23.0109, length 324.625, fall 1.0 versus baseline return 45.8491, length 594.97, fall 0.625.
+9400436 H200 shard AWR array: elements 1-3 completed 0:0 and element 0 was still running at first poll; sampled returns were also below the BC baseline with fall_rate_mean 1.0.
+9400525 mjqs_flow_mbpo_awr_L40S, L40S / embers, array 0-2%3, submitted after lowering CPUs to 4 for the L40S CPU:GPU policy.
+9400528 mjqs_flow_mbpo_awr_A100_remaining, A100 / embers, array 1-2%2, submitted manually against the A100 shard manifest to avoid duplicating pending single-row job 9400442 for row 0.
+```
+
+Additional official image GPU backup candidates:
+
+```text
+reason: NEWT A100 and LeWM H100 official jobs are still pending under Priority; embers submit quota reopened, so backup submissions on H200/L40S can produce signal sooner without touching official environments or code.
+NEWT H200 backup: official NEWT env `/storage/project/r-agarg35-0/eliu354/envs/newt_official_20260602`, official repo `/storage/project/r-agarg35-0/eliu354/external_repos/newt`, same 16 task/seed array as 9400409, unique `exp_name=official_broad_h200_*`, W&B disabled.
+NEWT L40S backup: same payload with L40S-compatible 4 CPUs and unique `exp_name=official_broad_l40s_*`, W&B disabled.
+LeWM H200 eval backup: official LeWM env `/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602`, official repo `/storage/project/r-agarg35-0/eliu354/external_repos/le-wm`, converted PushT assets under `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm`, same six eval rows as 9400411, unique output filenames with `_h200`.
+LeWM L40S eval backup: same eval payload with L40S-compatible 4 CPUs and unique output filenames with `_l40s`.
+submit_decision: submit these backup arrays while embers quota accepts them; stop once Slurm returns `QOSMaxSubmitJobPerUserLimit`.
 ```
