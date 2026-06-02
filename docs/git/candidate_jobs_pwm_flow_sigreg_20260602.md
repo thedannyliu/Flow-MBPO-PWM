@@ -403,3 +403,17 @@ LeWM H200 eval backup: official LeWM env `/storage/project/r-agarg35-0/eliu354/e
 LeWM L40S eval backup: same eval payload with L40S-compatible 4 CPUs and unique output filenames with `_l40s`.
 submit_decision: submit these backup arrays while embers quota accepts them; stop once Slurm returns `QOSMaxSubmitJobPerUserLimit`.
 ```
+
+Official image backup submission result after commit `d473642`:
+
+```text
+9400532_[0-5%6] lewm_official_pusht_eval_h200_20260602, H200 / embers, PENDING Resources at first check.
+newt_h200_full_array_attempt: failed with `QOSMaxSubmitJobPerUserLimit`, so NEWT backup was split into smaller chunks.
+9400537_[0-3%4] newt_official_broad_h200_chunk0_20260602, H200 / embers, PENDING Resources at first check.
+newt_h200_chunk1_array_attempt: 4-row array 4-7%4 failed with `QOSMaxSubmitJobPerUserLimit`, so remaining NEWT backup rows were attempted as single-row arrays.
+9400543_[4] newt_official_h200_row4_20260602, H200 / embers, PENDING Resources at first check.
+9400544_[5] newt_official_h200_row5_20260602, H200 / embers, PENDING Resources at first check.
+9400545_[6] newt_official_h200_row6_20260602, H200 / embers, PENDING Resources at first check.
+newt_h200_row7_attempt: failed with `QOSMaxSubmitJobPerUserLimit`.
+status_after_backfill: Slurm queue showed all newly accepted jobs with QOS `embers`; remaining unsent backup candidates are NEWT H200 rows 7-15 and the L40S NEWT/LeWM backup arrays.
+```
