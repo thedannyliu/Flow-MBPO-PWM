@@ -66,3 +66,10 @@ Fix1 follow-up:
 9394871_0 failed with KeyError: 'args' before rollout artifacts.
 9394871_1 was canceled after the same schema root cause was confirmed.
 ```
+
+Submitted fix2 replacement job IDs:
+
+```text
+9395746 original_pwm_adapter_phase3_eval40_final_best_fix2_20260602
+9395745 original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602
+```

@@ -1865,3 +1865,25 @@ note:
   the QS window file has 351051 windows. Full real-env validation is therefore
   delegated to the Slurm replacement jobs.
 ```
+
+Fix2 replacement submissions after commit `ee5ccc6d5032c0b792596b1edd3da1d2ef3b4ba9`:
+
+```text
+mjlab_rollout10_fix2_job_id: 9395745
+mjlab_rollout10_fix2_kind: policy_rollout
+mjlab_rollout10_fix2_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602.csv
+mjlab_rollout10_fix2_rows: final_policy_extraction.pt and best_policy_extraction.pt from formal job 9387895
+mjlab_rollout10_fix2_partition: gpu-h200
+mjlab_rollout10_fix2_qos: embers
+mjlab_rollout10_fix2_dependency: none
+mjlab_rollout10_fix2_env: conda env pwm with PYTHONPATH=${ROOT}/src:${ROOT}/baselines/PWM/src
+
+mjlab_eval40_fix2_job_id: 9395746
+mjlab_eval40_fix2_kind: policy_eval
+mjlab_eval40_fix2_manifest: scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_eval40_final_best_fix2_20260602.csv
+mjlab_eval40_fix2_rows: final_policy_extraction.pt and best_policy_extraction.pt from formal job 9387895
+mjlab_eval40_fix2_partition: gpu-h200
+mjlab_eval40_fix2_qos: embers
+mjlab_eval40_fix2_dependency: none
+mjlab_eval40_fix2_env: conda env pwm with PYTHONPATH=${ROOT}/src:${ROOT}/baselines/PWM/src
+```
