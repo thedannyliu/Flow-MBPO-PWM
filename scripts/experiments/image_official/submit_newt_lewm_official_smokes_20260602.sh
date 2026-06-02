@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ACCOUNT="${ACCOUNT:-gts-agarg35}"
 CPU_PARTITION="${CPU_PARTITION:-cpu-small}"
+CPU_QOS="${CPU_QOS:-embers}"
 GPU_PARTITION="${GPU_PARTITION:-gpu-a100}"
 GPU_GRES="${GPU_GRES:-gpu:a100:1}"
 GPU_QOS="${GPU_QOS:-embers}"
@@ -16,7 +17,8 @@ LEWM_ENV="${LEWM_ENV:-/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20
 UV_PREFIX="${UV_PREFIX:-/storage/project/r-agarg35-0/eliu354/tools/uv_official_20260602}"
 DATA_ROOT="${DATA_ROOT:-/storage/project/r-agarg35-0/eliu354/external_data}"
 
-if [[ "${GPU_QOS,,}" == "inferno" && "${ALLOW_INFERNO_QOS:-0}" != "1" ]]; then
+if { [[ "${CPU_QOS,,}" == "inferno" ]] || [[ "${GPU_QOS,,}" == "inferno" ]]; } \
+  && [[ "${ALLOW_INFERNO_QOS:-0}" != "1" ]]; then
   echo "Error: inferno QOS requires explicit user approval. Use embers for GPU jobs." >&2
   exit 1
 fi
@@ -28,6 +30,7 @@ newt_setup_job="$(
     --job-name="newt_official_env_setup_20260602" \
     --account="${ACCOUNT}" \
     --partition="${CPU_PARTITION}" \
+    --qos="${CPU_QOS}" \
     --nodes=1 \
     --ntasks=1 \
     --cpus-per-task=8 \
@@ -37,6 +40,7 @@ newt_setup_job="$(
     --error="${LOG_DIR}/newt_official_env_setup_%j.err" \
     --wrap="cd ${NEWT_ROOT} && \
 source ~/.bashrc && \
+if [[ -d ${NEWT_ENV} && ! -x ${NEWT_ENV}/bin/python ]]; then rm -rf ${NEWT_ENV}; fi && \
 if [[ ! -x ${NEWT_ENV}/bin/python ]]; then conda env create -p ${NEWT_ENV} -f docker/environment.yaml; fi && \
 ${NEWT_ENV}/bin/python -m pip install --no-cache-dir 'ale_py==0.10' && \
 PYTHONNOUSERSITE=1 ${NEWT_ENV}/bin/python - <<'PY'
@@ -54,6 +58,7 @@ lewm_setup_job="$(
     --job-name="lewm_official_env_setup_20260602" \
     --account="${ACCOUNT}" \
     --partition="${CPU_PARTITION}" \
+    --qos="${CPU_QOS}" \
     --nodes=1 \
     --ntasks=1 \
     --cpus-per-task=8 \
@@ -64,6 +69,7 @@ lewm_setup_job="$(
     --wrap="cd ${LEWM_ROOT} && \
 mkdir -p ${UV_PREFIX} && \
 if [[ ! -x ${UV_PREFIX}/bin/uv ]]; then python -m pip install --prefix ${UV_PREFIX} uv; fi && \
+if [[ -d ${LEWM_ENV} && ! -x ${LEWM_ENV}/bin/python ]]; then rm -rf ${LEWM_ENV}; fi && \
 if [[ ! -x ${LEWM_ENV}/bin/python ]]; then ${UV_PREFIX}/bin/uv venv --python=3.10 ${LEWM_ENV}; fi && \
 ${UV_PREFIX}/bin/uv pip install --python ${LEWM_ENV}/bin/python 'stable-worldmodel[train,env]' && \
 PYTHONNOUSERSITE=1 PYTHONPATH=${LEWM_ROOT} STABLEWM_HOME=${DATA_ROOT}/lewm_stablewm ${LEWM_ENV}/bin/python - <<'PY'
@@ -81,6 +87,7 @@ newt_import_job="$(
     --job-name="newt_official_import_config_smoke_20260602" \
     --account="${ACCOUNT}" \
     --partition="${CPU_PARTITION}" \
+    --qos="${CPU_QOS}" \
     --dependency="afterok:${newt_setup_job}" \
     --nodes=1 \
     --ntasks=1 \
@@ -132,6 +139,7 @@ lewm_import_job="$(
     --job-name="lewm_official_import_config_smoke_20260602" \
     --account="${ACCOUNT}" \
     --partition="${CPU_PARTITION}" \
+    --qos="${CPU_QOS}" \
     --dependency="afterok:${lewm_setup_job}" \
     --nodes=1 \
     --ntasks=1 \

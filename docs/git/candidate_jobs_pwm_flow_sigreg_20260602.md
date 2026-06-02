@@ -145,3 +145,13 @@ Submitted Phase E official image job IDs after commit
 9398483 newt_official_walker_smoke_a100_20260602, dependency=afterok:9398480
 9398484 lewm_official_import_config_smoke_20260602, dependency=afterok:9398481
 ```
+
+Follow-up before replacement:
+
+```text
+9398480, 9398481, 9398482, and 9398484 were submitted on CPU without an explicit QOS and inherited inferno.
+9398483 used embers but depended on the NEWT setup job.
+All five jobs were canceled with scancel before setup completed.
+Wrapper fix: all CPU jobs now pass CPU_QOS=embers explicitly; incomplete env directories are removed before recreation.
+Replacement batch should use the same official env/setup smoke candidates with CPU_QOS=embers and GPU_QOS=embers.
+```

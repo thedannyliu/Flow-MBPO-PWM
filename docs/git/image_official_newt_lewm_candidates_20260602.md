@@ -87,3 +87,17 @@ Initial scheduler status:
 9398483 PENDING Dependency on gpu-a100 / embers
 9398484 PENDING Dependency
 ```
+
+Cancellation before replacement:
+
+```text
+9398480 CANCELLED after 00:01:00?, QOS inferno
+9398481 CANCELLED after 00:01:15, QOS inferno
+9398482 CANCELLED before start, dependency child of 9398480, QOS inferno
+9398483 CANCELLED before start, dependency child of 9398480, QOS embers
+9398484 CANCELLED before start, dependency child of 9398481, QOS inferno
+root_cause: CPU jobs inherited the account default QOS `inferno` because the first wrapper did not explicitly pass a CPU QOS.
+fix: add CPU_QOS=embers and `--qos=${CPU_QOS}` to all CPU submissions, keep GPU_QOS=embers for GPU submissions, and remove incomplete env directories before recreating them.
+validation: `sbatch --test-only --partition=cpu-small --qos=embers ...` succeeded.
+replacement_decision: resubmit the same official-env/setup smoke batch after committing the QOS repair.
+```
