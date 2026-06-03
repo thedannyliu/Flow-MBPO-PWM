@@ -1431,3 +1431,29 @@ impact:
   not have the override in their wrapper, so keep them as broad diagnostics.
   Future submissions through the wrapper can be fixed-SHA records.
 ```
+
+AWAC fixed-SHA seed1 replicate candidates:
+
+```text
+reason:
+  Keep useful GPU queues filled and validate the submission-time git metadata
+  fix with a distinct seed1 replicate of the same H=1/3/5 AWAC diagnostic.
+manifests:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_h200_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_h100_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_a100_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_l40s_20260602.csv
+validation:
+  all four manifests have 3 rows, 58 fields, `seed=1`,
+  `advantage_source=critic_awac`, W&B disabled, existing replay/checkpoint
+  inputs, and distinct output roots.
+  All 12 `run_flow_mbpo_awr_row.py --check-inputs --dry-run` commands passed.
+  H200 test-only accepted, predicted start 2026-06-05T05:37:38.
+  H100 test-only accepted, predicted start 2026-06-03T10:01:43.
+  A100 test-only accepted, predicted start 2026-06-06T16:32:39.
+  L40S test-only accepted with 4 CPUs, predicted start 2026-06-07T15:47:53.
+submit_decision:
+  commit the manifests and candidate/preflight records, then submit all four
+  arrays through the fixed metadata wrapper. These rows are W&B-disabled
+  diagnostics, not formal gates.
+```

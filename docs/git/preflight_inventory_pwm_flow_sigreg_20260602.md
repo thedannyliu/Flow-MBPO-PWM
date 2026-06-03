@@ -1173,3 +1173,45 @@ makes `git_sha()` return `testsha` and `git_branch()` return `testbranch`.
 Submit impact: future Slurm jobs submitted through this wrapper can keep
 submission-time git metadata even if later docs commits happen while the job is
 pending.
+
+## Continuation Inventory: AWAC Fixed-SHA Seed1 Replicate Candidates
+
+Preflight time: 2026-06-02 after commit `8da6b02`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `8da6b02` |
+| Current AWAC queue | `9402277` H100 pending Priority; `9402279` A100 pending Priority; `9402278` L40S pending Priority |
+| Purpose | Keep GPU queues filled and validate the submission-time git metadata fix with an independent seed1 replicate. |
+
+Prepared manifests:
+
+| GPU target | Manifest | Output root | CPU request | Test-only result |
+| --- | --- | --- | ---: | --- |
+| H200 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_h200_20260602.csv` | `scripts/outputs/mjlab_qs/flow_mbpo_awac_fixedsha_seed1_h200_20260602/` | 8 | accepted, predicted start `2026-06-05T05:37:38` |
+| H100 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_h100_20260602.csv` | `scripts/outputs/mjlab_qs/flow_mbpo_awac_fixedsha_seed1_h100_20260602/` | 8 | accepted, predicted start `2026-06-03T10:01:43` |
+| A100 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_a100_20260602.csv` | `scripts/outputs/mjlab_qs/flow_mbpo_awac_fixedsha_seed1_a100_20260602/` | 8 | accepted, predicted start `2026-06-06T16:32:39` |
+| L40S | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_fixedsha_seed1_l40s_20260602.csv` | `scripts/outputs/mjlab_qs/flow_mbpo_awac_fixedsha_seed1_l40s_20260602/` | 4 | accepted, predicted start `2026-06-07T15:47:53` |
+
+Validation:
+
+```text
+Manifest sanity:
+  all four manifests have 3 rows, 58 fields, `seed=['1']`,
+  `advantage_source=['critic_awac']`, `enable_wandb=['false']`, existing
+  synthetic replay paths, existing policy checkpoint paths, and distinct
+  output dirs.
+
+Row runner:
+  all 12 `run_flow_mbpo_awr_row.py --check-inputs --dry-run` commands passed.
+
+Scheduler:
+  H200/H100/A100 accepted with 8 CPUs, 128G, 02:00:00.
+  L40S accepted with 4 CPUs, 128G, 02:00:00.
+```
+
+Submit decision: commit these manifests and records, then submit all four
+arrays through the fixed metadata wrapper. Because the wrapper records
+submission-time git SHA, later docs commits should not contaminate the summary
+git metadata for this batch.
