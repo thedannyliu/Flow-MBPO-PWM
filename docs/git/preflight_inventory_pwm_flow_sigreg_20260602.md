@@ -573,3 +573,27 @@ Hydra compose:
 Scheduler validation:
   `sbatch --test-only` accepted the H200 / embers resource request.
 ```
+
+## Continuation Inventory: Full PWM Eval Smoke Pending
+
+Preflight time: 2026-06-02 after commit `79ec3a0`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `79ec3a0` |
+| Dirty status before this inventory edit | clean |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -j 9401975,9401980 --format=... -P`; `seff` unavailable earlier and not used in this pass |
+| Artifact searches | Checked full upstream PWM real-env eval output roots, Slurm queue state, and current docs/git evidence records after updating the longdiag status. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9401975_[0-1%2]` | Full upstream PWM final/best real-env eval smoke after longdiag `9401906` | `PENDING`, reason `Resources`; no output files yet | `scripts/experiments/mjlab_qs/submit_upstream_pwm_mjlab_real_eval_smoke_20260602.sh` | `b889f7b` script commit; `6318d7e` submission record | Hydra config from `baselines/PWM/scripts/outputs/2026-06-02/21-35-04/.hydra/config.yaml`; evaluator overrides `eval_episodes=8`, `eval_num_envs=16`, `max_steps=1000`, W&B disabled | Locked original PWM env via `locked_mjlab_python.py`, upstream PWM checkpoint schema, MJLab online task `Mjlab-Velocity-Flat-Unitree-G1`; no QS-window dataset | seed `0`; array row 0 final, row 1 best | H200 / `embers` | W&B disabled | `baselines/PWM/scripts/outputs/2026-06-02/21-35-04/logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/{final_policy.pt,best_policy.pt}` | Expected under `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/{final,best}/` | Not available | None yet | Pending only | Wait for first completed row; do not submit formal eval/video until this checkpoint loader smoke succeeds |
+| `9401980_[0-1%2]` | H100 backup for the same full upstream PWM final/best real-env eval smoke | `PENDING`, reason `Priority`; no output files yet | Same script with `PARTITION=gpu-h100`, `GPU_GRES=gpu:h100:1`, `GPU_LABEL=h100`, and a distinct `OUTPUT_ROOT` | `31e9212` GPU-label parameterization commit; `8af421d` backup submission record | Same Hydra config/checkpoints and evaluator overrides as `9401975` | Same locked-PWM/MJLab bridge and online task | seed `0`; array row 0 final, row 1 best | H100 / `embers` | W&B disabled | Same final/best checkpoints from `9401906` | Expected under `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_h100_20260602/{final,best}/` | Not available | None yet | Pending only | Keep as backup because A100/L40S test-only starts were much later; first completed smoke determines whether formal gates are worth submitting |
+| `9400409_[0-15]` | Official NEWT broad A100 smoke | `PENDING`, reason `Priority` | Existing official NEWT broad submission | Earlier image-official submission commits; no new change in this pass | Official NEWT 500-step broad smoke, W&B disabled | Official NEWT env/repo | seeds `0`, `1` across tasks | A100 / `embers` | W&B disabled | No checkpoint expected | Logs expected under `logs/slurm/image_official/` | Not available | None yet | Pending only | Leave queued; do not duplicate because L40S/H200 NEWT smoke coverage already exists |
+| `9400442`, `9400528_[1-2%2]` | Remaining A100 Flow-MBPO AWR shard rows | `PENDING`, reason `Priority` | Existing A100 shard submissions | Earlier AWR shard submission commits; no new change in this pass | Conservative Flow-MBPO AWR shard manifests | Project `pwm` env, MJLab QS H16 data and replay/support inputs | seed `1` rows | A100 / `embers` | W&B disabled | Expected per-row AWR checkpoints under A100 shard output root | Expected summaries under `scripts/outputs/mjlab_qs/flow_mbpo_broad_embers_awr_shards_20260602/a100/` | Not available | None yet | Pending only | Leave queued; completed H200/H100/L40S AWR rows are already negative diagnostics |
+
+Submit decision in this poll: no new sbatch submission. The two full upstream
+PWM real-env eval smokes are already queued, no summary exists yet, and
+additional A100/L40S duplicate backup preflight was previously worse than the
+H100 backup.
