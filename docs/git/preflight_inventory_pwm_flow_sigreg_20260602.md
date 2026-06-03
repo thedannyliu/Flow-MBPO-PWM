@@ -1596,3 +1596,78 @@ sbatch: error: Maximum CPU:GPU ratio of 4:1 for gpu-l40s,gpu-l40s node class.
 ```
 
 Replacement `9404414_[0%1]` used `--cpus 4` and submitted successfully.
+
+## Continuation Inventory: Flow-vs-MLP, Replay PWM Gates, 2x2, NEWT, and LeWM
+
+Update time: 2026-06-03 after jobs `9404504`, `9404505`, `9404506`,
+`9404507`, `9404525`, `9404528`, and `9404529`, America/New_York.
+
+Flow-MBPO vs MLP comparison artifact:
+
+```text
+docs/git/flow_mbpo_vs_mlp_comparison_20260603.md
+```
+
+Key comparison result:
+
+```text
+Best scalar Flow-MBPO row: H1 endpoint final eval40.
+Flow-MBPO H1 final eval40: return 60.8721, length 759.30, fall 0.45.
+MLP BC aggregate eval40: return 45.8491, length 594.97, fall 0.625.
+Delta: +15.0230 return (+32.77%), +164.33 length (+27.62%), -0.175 fall.
+
+Matched video gate is weaker:
+MLP BC rollout10 seed0: return 54.1283, length 688.40, fall 0.40.
+Flow-MBPO H1 final rollout10: return 47.4617, length 625.60, fall 0.50.
+Flow-MBPO H1 best rollout10: return 55.5533, length 707.60, fall 0.40.
+```
+
+Dataset replay-driven PWM H200 result:
+
+| Job ID | Purpose | Status | Result | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- |
+| `9404376_0` | Replay-driven original PWM adapter on MJLab-QS H16 composite dataset | `COMPLETED`, exit `0:0`, elapsed `00:10:07` | WM pretrain completed with test WM loss `0.005466`; imagined-return proxy improved to best `4.4287` at iter `2986`; real eval collapsed: return `-1.0475`, length `43.75` over 16 episodes | Negative replay-PWM diagnostic; mechanically valid but not an improvement | Submit final/best eval40 and rollout10 gates |
+
+Replay-driven PWM final/best gates submitted:
+
+| Job ID | Purpose | Manifest | Status at submit | GPU / QOS | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `9404528_[0-1%2]` | Final/best 40-episode eval for replay-driven PWM checkpoints from `9404376_0` | `scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_eval40_final_best_20260603.csv` | `PENDING`, reason `Priority` | H200 / `embers` | W&B disabled; checkpoint format `original_pwm_adapter` |
+| `9404529_[0-1%2]` | Final/best 10-episode 1000-step rollout/video for replay-driven PWM checkpoints from `9404376_0` | `scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_rollout10_final_best_20260603.csv` | `PENDING`, reason `Priority` | H200 / `embers` | W&B disabled; checkpoint format `original_pwm_adapter` |
+
+Flow model/policy architecture 2x2 follow-up:
+
+| Job ID | Purpose | Manifest | Config | Status at submit | GPU / QOS |
+| --- | --- | --- | --- | --- | --- |
+| `9404525_[0-3%4]` | QS composite-data 2x2: `MLP/Flow WM x MLP/Flow policy` using existing `mlp_ref` and `flow_endpoint` WM checkpoints | `scripts/experiments/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg10_2x2_seed0_20260603.csv` | seed `0`, four rows, `bc_warmstart_iters=50000`, `policy_iters=2000`, `policy_bc_reg=10`, expert/expert_noisy filters, W&B disabled | `PENDING`, reason `Priority` | H200 / `embers` |
+
+NEWT and LeWM submissions:
+
+| Job ID | Purpose | Script | Status at submit | GPU / QOS | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `9404504_[7-15%4]` | NEWT official H200 remaining broad smoke rows | `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` | `PENDING`, reason `Priority` | H200 / `embers` | W&B disabled |
+| `9404505_[0-15%8]` | NEWT official A100 broad smoke backup | `scripts/experiments/image_official/submit_newt_lewm_broad_gpu_20260602.sh` | `PENDING`, reason `Priority` | A100 / `embers` | First sbatch in the broad script succeeded before later script submission hit QOS submit limit |
+| `9404506_[0-5%3]` | LeWM official PushT eval H200 fix | `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` | `PENDING`, reason `Priority` | H200 / `embers` | W&B disabled |
+| `9404507_[0-1%2]` | LeWM official PushT train smoke H200 fix | `scripts/experiments/image_official/submit_newt_h200_remaining_lewm_h200_fix_20260602.sh` | `PENDING`, reason `Priority` | H200 / `embers` | W&B disabled |
+
+QOS submit-limit handling:
+
+```text
+The A100 broad backup script later hit:
+sbatch: error: QOSMaxSubmitJobPerUserLimit
+
+The H200 2x2 submission initially hit the same limit. To free quota, canceled
+pending low-value duplicate backups after their H200/H100/L40S counterparts
+already showed collapse:
+9402279, 9402365, 9402340, 9404411, 9404414.
+
+After cancellation, the H200 2x2 submission succeeded as job 9404525.
+```
+
+Additional L40S pessimistic support AWR completion:
+
+| Job ID | Purpose | Status | Best return / length / fall | Interpretation |
+| --- | --- | --- | --- | --- |
+| `9404373_0` | L40S fall5 pessimistic support AWR | `COMPLETED`, exit `0:0` | `19.1779 / 288.375 / 1.0` | Negative diagnostic |
+| `9404373_1` | L40S support-risk reward AWR | `COMPLETED`, exit `0:0` | `19.2566 / 289.875 / 1.0` | Negative diagnostic |
+| `9404373_2` | L40S generated support-risk termination AWR | `COMPLETED`, exit `0:0` | `19.8112 / 296.125 / 1.0` | Negative diagnostic |
