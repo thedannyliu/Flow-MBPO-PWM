@@ -662,3 +662,17 @@ submit_decision: commit first, then submit W&B-disabled H200 diagnostic array
 because it changes the fall/OOD intervention beyond the already-negative broad
 AWR/support rows.
 ```
+
+Support-truncation diagnostic submission record:
+
+```text
+commit: 23cbdbd Add Flow MBPO support truncation diagnostic manifest.
+submitted_job: 9402080_[0-1%2] mjqs_flow_mbpo_awr_H200.
+resource: gpu-h200 / embers, gpu:h200:1, 8 CPUs, 128G, 02:00:00.
+initial_state: PENDING, reason None.
+array rows:
+  0 q0.90 state-support truncation, mixed CQL, real_eval_every 20.
+  1 q0.50 state-support truncation, mixed CQL, real_eval_every 20.
+wandb: disabled.
+dependencies: none.
+```

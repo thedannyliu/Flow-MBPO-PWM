@@ -1073,3 +1073,19 @@ validation:
   `sbatch --test-only` accepted H200/embers, 8 CPUs, 128G, 02:00:00.
 submit_decision: submit after committing the manifest and candidate record.
 ```
+
+Support-truncation Flow-MBPO diagnostic submission:
+
+```text
+commit: 23cbdbd Add Flow MBPO support truncation diagnostic manifest.
+submitted_job: 9402080_[0-1%2] mjqs_flow_mbpo_awr_H200.
+resource: gpu-h200 / embers, gpu:h200:1, 8 CPUs, 128G, 02:00:00.
+array mapping:
+  0 state_support_q90_trunc_cql_mixed_evalstop_s0.
+  1 state_support_q50_trunc_cql_mixed_evalstop_s0.
+initial_state: PENDING, reason None.
+wandb: disabled.
+dependency_required: no.
+next_action: inspect first summary/log after completion; if both rows still
+fall at 1.000, do not expand support truncation without a new mechanism.
+```
