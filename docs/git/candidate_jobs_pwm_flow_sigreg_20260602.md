@@ -744,3 +744,12 @@ validation:
 | Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `upstream_pwm_mjlab_full_smoke_h200_20260602` | smoke / diagnostic | Run the closest available full upstream PWM pipeline on MJLab: `baselines/PWM/scripts/train_dflex.py`, `alg=pwm`, `pwm.algorithms.pwm.PWM`, and `agent.train()` orchestration, with only the env config swapped to `flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env`. This is distinct from the previous QS-window `original_pwm_adapter`. | Yes: locked PWM env, upstream PWM source, project MJLab packages via locked bridge, and wrapper-generated MJLab env config exist. | Disabled. | Slurm logs under `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/`; upstream PWM logdir `baselines/PWM/scripts/outputs/.../logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602`; init/final/best policy files if the smoke reaches saving. | H200 / `embers`. | No. | Submit after committing wrapper and candidate/preflight docs. |
+
+Submitted full upstream PWM MJLab smoke:
+
+```text
+9401871 upstream_pwm_mjlab_full_smoke_h200_20260602 submitted after commit f79cb1d.
+initial scheduler state: PENDING, reason Priority, gpu-h200 / embers, 01:00:00.
+runtime: locked original PWM env through `locked_mjlab_python.py`, upstream
+`pwm.algorithms.pwm.PWM`, wrapper-generated MJLab Hydra env config, W&B disabled.
+```
