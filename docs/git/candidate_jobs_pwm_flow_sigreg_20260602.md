@@ -1133,3 +1133,17 @@ submit_decision: commit this failure record first, then submit an H200
 replacement using the corrected environment. Do not submit the H100 backup
 until the replacement queue state indicates a real resource delay.
 ```
+
+Support-truncation Flow-MBPO fixed-env replacement submission:
+
+```text
+commit: f6beceb Record Flow MBPO support truncation env failure.
+submitted_job: 9402128_[0-1%2] mjqs_flow_mbpo_awr_H200.
+resource: gpu-h200 / embers, gpu:h200:1, 8 CPUs, 128G, 02:00:00.
+env_fix: submitted with `--conda-env pwm`, so the Slurm wrapper activates the
+project env before running `run_flow_mbpo_awr_row.py`.
+initial_state: PENDING, reason Resources.
+wandb: disabled.
+next_action: monitor first started row. Keep the H100 backup manifest available,
+but do not submit it unless H200 remains resource-blocked.
+```

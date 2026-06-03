@@ -732,3 +732,21 @@ Replacement validation:
 activates `pwm` before running `run_flow_mbpo_awr_row.py`.
 H200 / embers `sbatch --test-only` accepted the fixed-env resource request.
 ```
+
+Fixed-env replacement submission:
+
+```text
+commit_before_submit: f6beceb Record Flow MBPO support truncation env failure.
+submitted_job: 9402128_[0-1%2] mjqs_flow_mbpo_awr_H200.
+resource: gpu-h200 / embers, gpu:h200:1, 8 CPUs, 128G, 02:00:00.
+command:
+  scripts/experiments/mjlab_qs/submit_array.sh --kind flow_mbpo_awr \
+    --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_20260602.csv \
+    --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 2 \
+    --time 02:00:00 --mem 128G --cpus 8 --conda-env pwm
+initial_squeue: PENDING, reason Resources.
+initial_sacct: PENDING, QOS embers, partition gpu-h200.
+wandb: disabled.
+next_action: inspect logs as soon as a row starts; if H200 remains
+resource-blocked, use the already-committed H100 backup manifest.
+```
