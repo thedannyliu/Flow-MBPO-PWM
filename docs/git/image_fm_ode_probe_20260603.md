@@ -116,6 +116,19 @@ The first LeWM arrays exposed a submitter bug:
 
 NEWT jobs were not affected by this LeWM submitter bug.
 
+Fix1 replacement submissions:
+
+| Job ID | Track | GPU | Label | State at first poll | Manifest |
+| --- | --- | --- | --- | --- | --- |
+| `9416042` | LeWM fm_ode predictor fix1 | H100 backup | `lewm_fm_ode_train_h100_fix1_20260603` | Pending, priority | `scripts/outputs/image_official/lewm_fm_ode_train_h100_fix1_20260603/manifest.csv` |
+| `9416043` | LeWM fm_ode predictor fix1 | A100 backup | `lewm_fm_ode_train_a100_fix1_20260603` | Pending, priority | `scripts/outputs/image_official/lewm_fm_ode_train_a100_fix1_20260603/manifest.csv` |
+| `9416044` | LeWM fm_ode predictor fix1 | H200 | `lewm_fm_ode_train_h200_fix1_20260603` | Pending, priority | `scripts/outputs/image_official/lewm_fm_ode_train_h200_fix1_20260603/manifest.csv` |
+
+NEWT early completed rows:
+
+- `9415950_0` H100 MLP seed 0 completed with final train return `58.669` and success `0.059`.
+- `9415950_1` H100 fm_ode seed 0 completed with final train return `23.504` and success `0.024`; log confirms `FlowMatchingODEDynamics(latent_dim=512, condition_dim=16, substeps=4, integrator=heun)`.
+
 ## Metrics Export
 
 Use the updated exporter after jobs finish:
