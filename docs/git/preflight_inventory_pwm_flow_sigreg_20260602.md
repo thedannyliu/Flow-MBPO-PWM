@@ -1710,3 +1710,43 @@ Follow-up status:
 | `9411595_0` | `COMPLETED`, exit `0:0`, elapsed `00:00:44` | Slurm log shows dataset load, one validation batch, two train batches, `Trainer.fit` stopped at `max_epochs=1`, and model save completed | Checkpoint artifacts written under `$STABLEWM_HOME/checkpoints/lewm_train_smoke_structfix_seed0/{config.json,weights_epoch_1.pt}` and Hydra config under `$STABLEWM_HOME/checkpoints/official_train_smoke_structfix_seed0_20260603/config.yaml` |
 | `9411595_1` | `COMPLETED`, exit `0:0`, elapsed `00:00:39` | Same repaired H200 command completed for seed 1 | Checkpoint artifacts written under `$STABLEWM_HOME/checkpoints/lewm_train_smoke_structfix_seed1/{config.json,weights_epoch_1.pt}` and Hydra config under `$STABLEWM_HOME/checkpoints/official_train_smoke_structfix_seed1_20260603/config.yaml` |
 | `9411693_[0-1]` | `CANCELLED`, exit `0:0` | H100 backup was still pending after both H200 seeds completed | Canceled to avoid redundant cross-partition work; the repair script still accepts `GPU_TYPE` and `RUN_LABEL` for future distinct backup submissions |
+
+## PWM Collapse Diagnostics and Architecture Follow-Ups
+
+Update time: 2026-06-03 after submissions `9414357`, `9414358`,
+`9414359`, `9414360`, `9414398`, and `9414399`, America/New_York.
+
+Prior completed collapse evidence:
+
+| Run | Protocol | Return / length | Interpretation |
+| --- | --- | --- | --- |
+| Full upstream PWM final | H200 eval40, real MJLab env | `-1.7261 / 39.525` | Complete real-env collapse |
+| Full upstream PWM best | H200 eval40, real MJLab env | `-1.5293 / 50.650` | Complete real-env collapse |
+| Replay-driven PWM final | H200 eval40, real MJLab env | `-0.9480 / 44.300` | Complete real-env collapse despite replay-WM pretraining |
+| Replay-driven PWM best | H200 eval40, real MJLab env | `-0.9484 / 43.125` | Same collapse; best imagined checkpoint does not transfer |
+
+Seed-0 Flow/MLP architecture 2x2 result from job `9404525`:
+
+| WM | Policy | Real eval return / length | Best imagined return | Interpretation |
+| --- | --- | --- | --- | --- |
+| `mlp_ref` | `mlp` | `2.5724 / 93.3125` | `2316.7583` | Best of this seed-0 2x2, but still far below BC baseline |
+| `mlp_ref` | `flow` | `-1.4830 / 66.7500` | `1482.8914` | Flow policy did not help with MLP WM |
+| `flow_endpoint` | `mlp` | `-3.9967 / 57.3125` | `396.2366` | Flow WM underperformed in this extraction setting |
+| `flow_endpoint` | `flow` | `-1.4542 / 65.3125` | `534.7295` | Flow policy partially rescued Flow WM but did not beat MLP/MLP |
+
+Immediate interpretation: in this BC-warm, BC-regulated full imagined-extraction
+setting, seed 0 does not show a Flow architecture gain. This does not contradict
+the earlier short-horizon Flow-MBPO positive result, because that result used
+H=1 synthetic transitions and AWR-style conservative updates instead of full
+PWM-style imagined policy extraction.
+
+New diagnostics and follow-up submissions:
+
+| Job ID | Purpose | Script / manifest | Status at submit | GPU / QOS | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `9414357_[0-2]` | Replay-PWM collapse probe for `pretrained`, `final`, and `best` checkpoints | `scripts/experiments/mjlab_qs/submit_original_pwm_collapse_probes_20260603.sh` | `PENDING`, reason `Priority` | H200 / `embers` | Measures reward correlation, multi-step latent drift, policy-vs-dataset action divergence, policy-vs-dataset imagined return gap, and critic value scale |
+| `9414398_[0-2]` | H100 backup for the same collapse probe | Same script with `GPU_TYPE=h100 RUN_LABEL=h100_backup_20260603` | `PENDING`, reason `None` | H100 / `embers` | Distinct output root `scripts/outputs/mjlab_qs/original_pwm_collapse_probe_h100_backup_20260603/` |
+| `9414359_[0-7]` | Flow/MLP WM x Flow/MLP policy 2x2, matched WM seeds 1 and 2 | `scripts/experiments/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg10_2x2_seeds1_2_20260603.csv` | `PENDING`, reason `Priority` | H200 / `embers` | Same BC-warm `50k`, policy `2k`, BC reg `10`, expert/expert_noisy filters |
+| `9414399_[0-7]` | H100 backup for the seed1/2 2x2 | `scripts/experiments/mjlab_qs/manifests/rerun_g1_bcwarm_pwm_bcreg10_2x2_seeds1_2_h100_20260603.csv` | `PENDING`, reason `None` | H100 / `embers` | Distinct stage/output root to avoid racing H200 |
+| `9414358_[0-1]` | NEWT official own-task moderate run on `walker-run`, seeds 0 and 1 | `scripts/experiments/image_official/submit_newt_lewm_moderate_own_tasks_20260603.sh` | `PENDING`, reason `Priority` | H200 / `embers` | 5k steps, model size B, W&B disabled, save agent |
+| `9414360_[0-2]` | LeWM official own-task PushT moderate CEM eval | Same script | `PENDING`, reason `Priority` | H200 / `embers` | 12 eval episodes, budget 100, horizon 2 seeds 0/1 and horizon 5 seed 0 |
