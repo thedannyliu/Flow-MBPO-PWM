@@ -176,6 +176,16 @@ LeWM H200 fix1 metrics:
 - Mean validation pred loss: MLP `0.037293`, fm_ode `0.043532`.
 - Interpretation: the LeWM flow-matching ODE predictor also trains end-to-end, but this smoke is worse than the MLP predictor on endpoint prediction loss and much worse on total loss because the uncalibrated flow-matching term is about `1.0`.
 
+H100 backup metrics:
+
+- NEWT CSV: `scripts/outputs/image_official/newt_fm_ode_dynamics_h100_backup_20260603/metrics.csv`
+- NEWT MLP final train returns: seed 0 `58.669`, seed 1 `14.516`, mean `36.593`.
+- NEWT fm_ode final train returns: seed 0 `23.504`, seed 1 `9.660`, mean `16.582`.
+- LeWM CSV: `scripts/outputs/image_official/lewm_fm_ode_train_h100_fix1_20260603/metrics.csv`
+- LeWM MLP validation pred losses: seed 0 `0.038915`, seed 1 `0.038387`, mean `0.038651`.
+- LeWM fm_ode validation pred losses: seed 0 `0.040414`, seed 1 `0.041816`, mean `0.041115`.
+- H100 interpretation: the LeWM negative endpoint-prediction trend repeats; NEWT H100 is also negative for fm_ode dynamics. Combined with H200, this argues for treating the current flow-matching ODE implementation as runnable but not yet beneficial.
+
 ## Notes
 
 This is still a smoke/diagnostic comparison, not a formal performance claim. The goal is to determine whether a real flow-matching ODE dynamics or predictor path trains and whether early metrics look better or worse than the official MLP baseline under matched small budgets.
