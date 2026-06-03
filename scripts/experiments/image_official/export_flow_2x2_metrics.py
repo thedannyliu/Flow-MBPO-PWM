@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
-FLOAT_RE = re.compile(r"[-+]?(?:\d+\.\d+|\d+)(?:[eE][-+]?\d+)?")
+FLOAT_RE = re.compile(r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+\.\d+|\d+)(?:[eE][-+]?\d+)?")
 
 
 def clean(text: str) -> str:
@@ -24,7 +24,7 @@ def read_manifest(path: Path) -> list[dict[str, str]]:
 
 def first_float(text: str) -> str:
     match = FLOAT_RE.search(text)
-    return match.group(0) if match else ""
+    return match.group(0).replace(",", "") if match else ""
 
 
 def parse_newt_log(path: Path) -> dict[str, str]:
@@ -123,4 +123,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
