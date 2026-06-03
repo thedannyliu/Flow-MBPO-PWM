@@ -642,3 +642,22 @@ initial_scheduler_check:
   sacct showed both arrays PENDING, QOS embers, exit 0:0.
 next_action: monitor the first started eval/train row immediately; cancel siblings if a new shared official LeWM root cause appears.
 ```
+
+Continuation poll after LeWM pathfix submission and AWR artifact extraction:
+
+```text
+poll_time: 2026-06-02 after commit be114a9.
+repo_state: branch mjlab-qs-rollout-policy-improvement, worktree clean.
+queue:
+  9401638_[0-5%3] LeWM HDF5 pathfix eval remains PENDING Priority on gpu-h200 / embers.
+  9401639_[0-1%2] LeWM HDF5 pathfix train remains PENDING Priority on gpu-h200 / embers.
+  A100 jobs 9399799, 9400409, 9400442, and 9400528 remain PENDING Priority; unrelated 9400333 remains PENDING Priority.
+artifact_extraction:
+  Recomputed Flow-MBPO AWR metrics from summary.json files, not just logs.
+  9400410 full H200 AWR array: 14/14 summaries present; best row by return and selection score is row 8 endpoint_h3_trunc_cql_mixed_s1, best-real iter 10, return 25.9699, length 360.000, fall 1.000, score -70.430.
+  9400436 H200 shard: 4/4 summaries present; best row is endpoint_h1_trunc_cql_data_noise_s0, return 22.9451, length 333.750, fall 1.000.
+  9400435 H100 shard: 4/4 summaries present; best row is residual_h5_trunc_cql_data_noise_s0, return 22.6907, length 330.625, fall 1.000.
+  9400525 L40S shard: 3/3 summaries present; best row is traj_h3_fall5_trunc_cql_data_noise_s1, return 16.4492, length 256.375, fall 1.000.
+interpretation: all conservative AWR rows remain below BC return 45.8491, length 594.97, fall 0.625; this confirms model-exploitation/fall failure rather than a policy-improvement signal.
+submit_decision: no new sbatch submission from this poll. LeWM replacements and A100 NEWT/Flow rows are already queued, and completed AWR rows are usable negative diagnostics rather than formal candidates.
+```
