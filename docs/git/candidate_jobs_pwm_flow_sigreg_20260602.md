@@ -1175,3 +1175,24 @@ paired_h200_replacement: 9402128_[0-1%2], PENDING, reason Resources.
 next_action: monitor both arrays; if one completes the diagnostic first,
 cancel the duplicate array if it is still pending/running.
 ```
+
+Support-truncation Flow-MBPO conda wrapper failure and repair:
+
+```text
+failed_job: 9402136_[0-1%2].
+status: both H100 backup rows FAILED, exit 2:0, before row execution and before
+any output dirs were written.
+root_cause: `submit_array.sh --conda-env pwm` sourced `~/.bashrc`; on the H100
+compute node this loaded `.codex_project_profiles.sh`, which exited with
+`codex-project: not a valid identifier` before `conda activate pwm`.
+affected_job: 9402128_[0-1%2] H200 fixed-env replacement still used the same
+bad wrapper and was canceled while pending to avoid repeating the failure.
+fix: update `submit_array.sh` to initialize conda from
+`${HOME}/miniconda3/etc/profile.d/conda.sh` or `conda shell.bash hook`, without
+sourcing `~/.bashrc`.
+validation: `bash -n submit_array.sh` passed; H100 dry-run shows the new conda
+snippet and no `source ~/.bashrc`; local snippet activates `pwm` and imports
+OmegaConf 2.3.0.
+submit_decision: commit the wrapper repair and failure record before
+resubmitting support-truncation diagnostics.
+```

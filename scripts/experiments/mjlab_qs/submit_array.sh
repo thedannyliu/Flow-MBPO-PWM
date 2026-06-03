@@ -192,7 +192,7 @@ fi
 
 WRAP="cd ${PROJECT_ROOT}"
 if [[ -n "${CONDA_ENV}" ]]; then
-  WRAP+=" && source ~/.bashrc && conda activate ${CONDA_ENV}"
+  WRAP+=" && if [[ -f \${HOME}/miniconda3/etc/profile.d/conda.sh ]]; then source \${HOME}/miniconda3/etc/profile.d/conda.sh; else eval \"\$(conda shell.bash hook)\"; fi && conda activate ${CONDA_ENV}"
 fi
 WRAP+=" && export PYTHONPATH=${PROJECT_ROOT}/src:${PROJECT_ROOT}/baselines/PWM/src:\$PYTHONPATH"
 WRAP+=" && export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl EGL_PLATFORM=surfaceless"
