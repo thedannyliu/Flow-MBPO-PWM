@@ -1671,3 +1671,34 @@ Additional L40S pessimistic support AWR completion:
 | `9404373_0` | L40S fall5 pessimistic support AWR | `COMPLETED`, exit `0:0` | `19.1779 / 288.375 / 1.0` | Negative diagnostic |
 | `9404373_1` | L40S support-risk reward AWR | `COMPLETED`, exit `0:0` | `19.2566 / 289.875 / 1.0` | Negative diagnostic |
 | `9404373_2` | L40S generated support-risk termination AWR | `COMPLETED`, exit `0:0` | `19.8112 / 296.125 / 1.0` | Negative diagnostic |
+
+## LeWM Train Smoke Failure Repair
+
+Update time: 2026-06-03 14:45 America/New_York.
+
+The recent actionable failed experiment was the LeWM PushT train smoke:
+
+| Failed job | Failure | Root cause | Repair |
+| --- | --- | --- | --- |
+| `9404507_[0-1]` | `FAILED`, exit `1:0` | Hydra struct config rejected `trainer.limit_train_batches` and `trainer.limit_val_batches` without the `+` prefix | Added `scripts/experiments/image_official/submit_lewm_train_h200_struct_fix_20260603.sh` with `+trainer.limit_train_batches=2` and `+trainer.limit_val_batches=1` |
+| `9411512_[0-1]` | `FAILED`, exit `1:0` | After the struct fix, the installed `stable_worldmodel` loader could not resolve `pusht_expert_train` because it expects the existing cached HDF5 file name under `$STABLEWM_HOME/datasets` | Updated the repair script to create the `datasets/pusht_expert_train.h5` compatibility symlink and use `data.dataset.name=pusht_expert_train.h5` |
+
+Validation before resubmission:
+
+```text
+bash -n scripts/experiments/image_official/submit_lewm_train_h200_struct_fix_20260603.sh
+
+train.py --cfg job ... data.dataset.name=pusht_expert_train.h5 \
+  +trainer.limit_train_batches=2 +trainer.limit_val_batches=1
+
+Confirmed config fields:
+trainer.limit_train_batches: 2
+trainer.limit_val_batches: 1
+data.dataset.name: pusht_expert_train.h5
+```
+
+Replacement submitted:
+
+| Job ID | Purpose | Status at submit | GPU / QOS | Notes |
+| --- | --- | --- | --- | --- |
+| `9411595_[0-1]` | LeWM official PushT train smoke with Hydra struct and HDF5 dataset fixes | `PENDING`, reason `Resources` | H200 / `embers` | W&B disabled; distinct `official_train_smoke_structfix_seed*_20260603` subdirs |
