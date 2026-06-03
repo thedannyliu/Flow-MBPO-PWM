@@ -34,11 +34,16 @@ if [[ ! -d "${COMPAT_ROOT}/vendor/hdf5plugin" ]]; then
   exit 1
 fi
 
-mkdir -p "${LOG_DIR}"
+mkdir -p "${LOG_DIR}" "${STABLEWM_HOME}/datasets"
+ln -sfn ../pusht_expert_train.h5 "${STABLEWM_HOME}/datasets/pusht_expert_train.h5"
+if [[ ! -e "${STABLEWM_HOME}/datasets/pusht_expert_train.h5" ]]; then
+  echo "Error: LeWM dataset compatibility symlink is missing: ${STABLEWM_HOME}/datasets/pusht_expert_train.h5" >&2
+  exit 1
+fi
 
 lewm_eval_h200_hdf5fix_job="$(
   sbatch --parsable \
-    --job-name="lewm_official_pusht_eval_hdf5fix_h200_20260602" \
+    --job-name="lewm_official_pusht_eval_hdf5pathfix_h200_20260602" \
     --account="${ACCOUNT}" \
     --partition="gpu-h200" \
     --qos="${GPU_QOS}" \
@@ -49,19 +54,19 @@ lewm_eval_h200_hdf5fix_job="$(
     --mem="64G" \
     --time="01:00:00" \
     --array="0-5%3" \
-    --output="${LOG_DIR}/lewm_official_pusht_eval_hdf5fix_h200_%A_%a.out" \
-    --error="${LOG_DIR}/lewm_official_pusht_eval_hdf5fix_h200_%A_%a.err" \
+    --output="${LOG_DIR}/lewm_official_pusht_eval_hdf5pathfix_h200_%A_%a.out" \
+    --error="${LOG_DIR}/lewm_official_pusht_eval_hdf5pathfix_h200_%A_%a.err" \
     --export=ALL,LEWM_ROOT="${LEWM_ROOT}",LEWM_ENV="${LEWM_ENV}",STABLEWM_HOME="${STABLEWM_HOME}",COMPAT_ROOT="${COMPAT_ROOT}" \
     <<'SBATCH'
 #!/usr/bin/env bash
 set -euo pipefail
 case "${SLURM_ARRAY_TASK_ID}" in
-  0) policy="pusht/lewm"; seed=0; horizon=2; name="lewm_seed0_cem_e30_h2_h200_hdf5fix" ;;
-  1) policy="pusht/lewm"; seed=1; horizon=2; name="lewm_seed1_cem_e30_h2_h200_hdf5fix" ;;
-  2) policy="pusht/lewm"; seed=2; horizon=2; name="lewm_seed2_cem_e30_h2_h200_hdf5fix" ;;
-  3) policy="pusht/lewm"; seed=0; horizon=5; name="lewm_seed0_cem_e30_h5_h200_hdf5fix" ;;
-  4) policy="random"; seed=0; horizon=2; name="random_seed0_e30_h2_h200_hdf5fix" ;;
-  5) policy="random"; seed=1; horizon=2; name="random_seed1_e30_h2_h200_hdf5fix" ;;
+  0) policy="pusht/lewm"; seed=0; horizon=2; name="lewm_seed0_cem_e30_h2_h200_hdf5pathfix" ;;
+  1) policy="pusht/lewm"; seed=1; horizon=2; name="lewm_seed1_cem_e30_h2_h200_hdf5pathfix" ;;
+  2) policy="pusht/lewm"; seed=2; horizon=2; name="lewm_seed2_cem_e30_h2_h200_hdf5pathfix" ;;
+  3) policy="pusht/lewm"; seed=0; horizon=5; name="lewm_seed0_cem_e30_h5_h200_hdf5pathfix" ;;
+  4) policy="random"; seed=0; horizon=2; name="random_seed0_e30_h2_h200_hdf5pathfix" ;;
+  5) policy="random"; seed=1; horizon=2; name="random_seed1_e30_h2_h200_hdf5pathfix" ;;
   *) echo "Unsupported array index ${SLURM_ARRAY_TASK_ID}" >&2; exit 1 ;;
 esac
 cd "${LEWM_ROOT}"
@@ -88,7 +93,7 @@ SBATCH
 
 lewm_train_h200_hdf5fix_job="$(
   sbatch --parsable \
-    --job-name="lewm_official_pusht_train_hdf5fix_h200_20260602" \
+    --job-name="lewm_official_pusht_train_hdf5pathfix_h200_20260602" \
     --account="${ACCOUNT}" \
     --partition="gpu-h200" \
     --qos="${GPU_QOS}" \
@@ -99,8 +104,8 @@ lewm_train_h200_hdf5fix_job="$(
     --mem="96G" \
     --time="02:00:00" \
     --array="0-1%2" \
-    --output="${LOG_DIR}/lewm_official_pusht_train_hdf5fix_h200_%A_%a.out" \
-    --error="${LOG_DIR}/lewm_official_pusht_train_hdf5fix_h200_%A_%a.err" \
+    --output="${LOG_DIR}/lewm_official_pusht_train_hdf5pathfix_h200_%A_%a.out" \
+    --error="${LOG_DIR}/lewm_official_pusht_train_hdf5pathfix_h200_%A_%a.err" \
     --export=ALL,LEWM_ROOT="${LEWM_ROOT}",LEWM_ENV="${LEWM_ENV}",STABLEWM_HOME="${STABLEWM_HOME}",COMPAT_ROOT="${COMPAT_ROOT}" \
     <<'SBATCH'
 #!/usr/bin/env bash
@@ -110,15 +115,16 @@ cd "${LEWM_ROOT}"
 export PYTHONNOUSERSITE=1
 export PYTHONPATH="${COMPAT_ROOT}:${LEWM_ROOT}"
 export STABLEWM_HOME="${STABLEWM_HOME}"
+export LOCAL_DATASET_DIR="${STABLEWM_HOME}"
 export WANDB_MODE=disabled
 export MUJOCO_GL=egl
 export HYDRA_FULL_ERROR=1
 "${LEWM_ENV}/bin/python" train.py \
   data=pusht \
-  data.dataset.name=pusht_expert_train \
+  data.dataset.name=pusht_expert_train.h5 \
   "seed=${seed}" \
-  "subdir=official_train_smoke_h200_hdf5fix_seed${seed}_20260602" \
-  "output_model_name=lewm_train_smoke_h200_hdf5fix_seed${seed}" \
+  "subdir=official_train_smoke_h200_hdf5pathfix_seed${seed}_20260602" \
+  "output_model_name=lewm_train_smoke_h200_hdf5pathfix_seed${seed}" \
   trainer.max_epochs=1 \
   trainer.devices=1 \
   trainer.accelerator=gpu \

@@ -419,3 +419,14 @@ Continuation poll after HDF5-fix submission:
   15 985.000/0.000
 interpretation: official NEWT L40S is now fully smoke-covered; do not submit duplicate NEWT L40S rows. Wait for LeWM HDF5-fix rows to start.
 ```
+
+LeWM HDF5 cache path failure and pathfix preparation:
+
+```text
+failed_row: 9401543_0 `lewm_official_pusht_eval_hdf5fix_h200_20260602`, gpu-h200 / embers, FAILED 1:0 after 00:00:24.
+canceled_to_prevent_repeat: 9401543_1, 9401543_[2-5%3], and 9401544_[0-1%2].
+interpretation: the repo-local hdf5plugin and `HDF5Dataset` re-export repair worked; the new failure was a cache layout mismatch. Official eval expected `$STABLEWM_HOME/datasets/pusht_expert_train.h5`, but the decompressed HF dataset was at `$STABLEWM_HOME/pusht_expert_train.h5`.
+repair: create `$STABLEWM_HOME/datasets/pusht_expert_train.h5 -> ../pusht_expert_train.h5`; keep eval `cache_dir=$STABLEWM_HOME`; set train `LOCAL_DATASET_DIR=$STABLEWM_HOME` because official `load_dataset` appends `datasets`; use `hdf5pathfix` suffixes for new logs/results.
+validation: `bash -n` passed; eval `HDF5Dataset` and train `load_dataset` both loaded length 2336736 with state dim 7; `sbatch --test-only` on gpu-h200 / embers with account `gts-agarg35` was accepted.
+next_action: commit the pathfix script/docs and resubmit LeWM H200 eval/train replacements.
+```

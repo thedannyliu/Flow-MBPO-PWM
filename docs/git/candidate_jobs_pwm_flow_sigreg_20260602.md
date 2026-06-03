@@ -609,3 +609,19 @@ new_results:
   9400714_[0-15] NEWT official broad L40S smoke completed 0:0. All rows produced official train/eval output; this is infrastructure evidence only.
 submit_decision: no new sbatch submission in this poll. Useful LeWM replacements are already queued, A100 Flow/NEWT jobs are already queued, and the completed H100 AWR shard confirms the same negative pattern rather than motivating a duplicate run.
 ```
+
+LeWM HDF5-fix start failure and dataset path repair:
+
+```text
+failure_time: 2026-06-02 after commit e8a52e6.
+failed_row: 9401543_0 `lewm_official_pusht_eval_hdf5fix_h200_20260602`, FAILED 1:0 after 00:00:24.
+canceled_rows: 9401543_1, 9401543_[2-5%3], and 9401544_[0-1%2] were canceled to avoid repeating the same official LeWM cache-layout issue.
+root_cause: the HDF5 plugin repair worked, and `stable_worldmodel.data.HDF5Dataset` was available, but official eval looked for `${STABLEWM_HOME}/datasets/pusht_expert_train.h5` while the decompressed dataset lived at `${STABLEWM_HOME}/pusht_expert_train.h5`.
+repair: `submit_lewm_hdf5fix_h200_20260602.sh` now creates `${STABLEWM_HOME}/datasets/pusht_expert_train.h5 -> ../pusht_expert_train.h5`, uses unique `hdf5pathfix` job/log/result names, and exports `LOCAL_DATASET_DIR=${STABLEWM_HOME}` for train because official `load_dataset` appends `datasets` itself.
+validation:
+  bash -n scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh passed.
+  eval path: `HDF5Dataset('pusht_expert_train', cache_dir=${STABLEWM_HOME})` returned length 2336736 and state dim 7.
+  train path: `load_dataset('pusht_expert_train.h5', cache_dir=${STABLEWM_HOME})` returned length 2336736 and state dim 7.
+  sbatch --test-only with account gts-agarg35, gpu-h200, QOS embers, 8 CPU, 64G, 01:00:00 accepted the request and predicted a 2026-06-05T13:18:24 start.
+submit_decision: commit the path repair and then resubmit the LeWM eval/train replacement arrays with the `hdf5pathfix` names.
+```
