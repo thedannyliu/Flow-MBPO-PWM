@@ -569,3 +569,16 @@ submission_decision: no new sbatch submission during this refresh because live S
 | `lewm_official_pusht_eval_h200_hdf5fix_20260602` | diagnostic / official eval smoke | Re-run the six official LeWM PushT eval rows after commit `f923be5` added repo-local `hdf5plugin` vendor loading and `stable_worldmodel.data.HDF5Dataset` re-export. This replaces failed/canceled rows `9400771_0` and `9400772_1` through `9400776_5`. | Yes: official LeWM env exists; converted checkpoint `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/pusht/lewm_object.ckpt` exists; `pusht_expert_train.h5` exists; local validation can read `pixels[0]` with shape `(224, 224, 3)`. | Disabled. | Per-row official eval logs/results for `pusht/lewm` and random policies at horizons 2/5 with eval budget 30; unique result filenames should include `hdf5fix` to avoid overwriting failed fix rows. | H200 preferred, then L40S/H100 if H200 quota stays blocked; `embers`. | No. | Submit only after Slurm controller/accounting is reachable and submit quota can be checked. |
 | `lewm_official_pusht_train_h200_hdf5fix_20260602` | diagnostic / official train smoke | Run the two official LeWM PushT train-smoke rows after the same HDF5 plugin repair. Prior L40S train array `9400716` was canceled before useful evidence because row `9400771_0` revealed the shared HDF5 plugin root cause. | Yes: same repaired official LeWM env/assets; training h5 pixel reads now work under the compat `PYTHONPATH`. | Disabled. | Official train logs for 1 epoch, 2 train batches, 1 val batch; no performance claim. | H200 preferred, then L40S/H100; `embers`. | No. | Submit only after Slurm is reachable and after or alongside the eval replacement, with unique output/log names. |
 | `newt_official_h200_remaining_rows` | smoke / official infrastructure | No new submission needed: rows 7-15 are already accepted and logs show valid official NEWT output for `9400778`, `9400797`, `9400798`, `9400799`, `9400800`, `9400814`, `9400815`, `9400816`, and `9400817`. | Existing rows already ran or produced logs. | Disabled. | Existing logs under `logs/slurm/image_official/newt_official_h200_remaining_single_9400*.out`. | H200 / `embers`. | No. | Do not submit duplicates. |
+
+LeWM HDF5-fix submission preparation after commit `cea9b37`:
+
+```text
+script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh
+scope: LeWM only; it intentionally does not resubmit NEWT rows 7-15, which already completed.
+validation:
+  bash -n scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh
+  direct LeWM env without compat still fails with ModuleNotFoundError: hdf5plugin, proving the compat path is required.
+  PYTHONPATH=${ROOT}/scripts/experiments/image_official/compat:${LEWM_ROOT} ${LEWM_ENV}/bin/python can import hdf5plugin, exposes stable_worldmodel.data.HDF5Dataset, and reads pusht_expert_train.h5 pixels[0] with shape (224, 224, 3).
+  sbatch --test-only on gpu-h200 / embers / 4 CPU / 64G succeeded, predicted start 2026-06-05T14:18:24.
+submit_decision: submit the LeWM HDF5-fix H200 eval and train-smoke arrays after committing this script/candidate record.
+```
