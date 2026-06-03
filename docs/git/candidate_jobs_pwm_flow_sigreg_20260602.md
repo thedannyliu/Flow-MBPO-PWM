@@ -716,3 +716,30 @@ evidence: official NEWT walker-walk smoke reached `Training completed successful
 interpretation: official NEWT infrastructure smoke passed; not performance evidence.
 submit_decision: do not submit another single walker smoke; wait for broad A100 array `9400409_[1-15]`.
 ```
+
+LeWM hfcachefix first-row completion:
+
+```text
+9401796_0 lewm_official_pusht_eval_hfcachefix_h200_20260602 COMPLETED 0:0 after 00:01:34 on gpu-h200 / embers.
+evidence: official eval loaded the HDF5 dataset and local normalized `pusht/lewm` cache successfully; reported `success_rate: 100.0` over 4 eval episodes.
+interpretation: pretrained-cache fix is validated for the first eval row; no sibling cancellation needed.
+```
+
+Full upstream PWM pipeline on MJLab candidate:
+
+```text
+time: 2026-06-02 after user request to test a complete PWM pipeline on MJLab.
+requirement: use the PWM-tested successful environment, not the normal project `pwm` env as the base runtime.
+environment_decision:
+  Direct `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/bin/python` imports torch 2.3.1 and upstream `pwm`, but does not include `mjlab` or `flow_mbpo_pwm`.
+  Use `scripts/experiments/mjlab_qs/locked_mjlab_python.py` instead. It starts from the locked original PWM env, imports locked torch/tensordict/torchrl and `baselines/PWM/src/pwm.algorithms.pwm.PWM` first, then exposes project-env site-packages only so MJLab and the local MJLab env adapter are importable.
+validation:
+  `locked_mjlab_python.py -` reported torch 2.3.1 from `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4`, `pwm` from `baselines/PWM/src`, `mjlab` from the project env site-packages, and `flow_mbpo_pwm` from this repo.
+  Hydra config compose through `baselines/PWM/scripts/train_dflex.py --cfg job env=mjlab_velocity_flat_unitree_g1 alg=pwm` shows `alg._target_: pwm.algorithms.pwm.PWM`, not `flow_mbpo_pwm.algorithms.pwm.PWM`.
+  `bash -n scripts/experiments/mjlab_qs/submit_upstream_pwm_mjlab_full_pipeline_smoke_20260602.sh` passed.
+  `sbatch --test-only` accepted H200 / embers, 8 CPU, 96G, 01:00:00.
+```
+
+| Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `upstream_pwm_mjlab_full_smoke_h200_20260602` | smoke / diagnostic | Run the closest available full upstream PWM pipeline on MJLab: `baselines/PWM/scripts/train_dflex.py`, `alg=pwm`, `pwm.algorithms.pwm.PWM`, and `agent.train()` orchestration, with only the env config swapped to `flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env`. This is distinct from the previous QS-window `original_pwm_adapter`. | Yes: locked PWM env, upstream PWM source, project MJLab packages via locked bridge, and MJLab env config exist. | Disabled. | Slurm logs under `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/`; upstream PWM logdir `baselines/PWM/scripts/outputs/.../logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602`; init/final/best policy files if the smoke reaches saving. | H200 / `embers`. | No. | Submit after committing env config, wrapper, and candidate/preflight docs. |

@@ -505,3 +505,15 @@ stderr: Gym deprecation warnings only.
 interpretation: usable official NEWT infrastructure smoke, not performance evidence.
 next_action: wait for broad A100 array `9400409_[1-15]`; no duplicate walker smoke needed.
 ```
+
+LeWM hfcachefix first-row result:
+
+```text
+job: 9401796_0 `lewm_official_pusht_eval_hfcachefix_h200_20260602`.
+status: COMPLETED 0:0 after 00:01:34 on gpu-h200 / embers.
+log: logs/slurm/image_official/lewm_official_pusht_eval_hfcachefix_h200_9401796_0.out.
+evidence: official eval loaded `${STABLEWM_HOME}/datasets/pusht_expert_train.h5`, loaded `pusht/lewm` from local `${STABLEWM_HOME}/checkpoints/models--pusht--lewm`, constructed ViT-tiny, found 1,869,611 valid evaluation starts, and ran CEM.
+metric: `success_rate` 100.0 over 4 eval episodes for row 0 seed 0 horizon 2.
+stderr: Gymnasium/lance fork warnings only.
+interpretation: the pretrained-cache repair worked for the first official LeWM eval row. Continue monitoring pending eval siblings `9401796_[1-5]` and train array `9401797`.
+```

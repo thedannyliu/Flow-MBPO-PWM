@@ -357,3 +357,55 @@ reported rewards: eval I=0 R=42.248; train I=500 R=51.202; train I=1000 R=45.629
 usable: yes, as official NEWT infrastructure smoke only.
 next_action: preserve result and wait for broad A100 rows; do not duplicate this walker smoke.
 ```
+
+LeWM hfcachefix first-row completion:
+
+```text
+job: 9401796_0 `lewm_official_pusht_eval_hfcachefix_h200_20260602`.
+status: COMPLETED 0:0, elapsed 00:01:34, gpu-h200 / embers.
+log: logs/slurm/image_official/lewm_official_pusht_eval_hfcachefix_h200_9401796_0.out.
+result: official eval loaded the PushT HDF5 dataset and loaded `pusht/lewm` from the normalized local pretrained cache instead of hitting the unauthorized HF repo. It found 1,869,611 valid starts and reported `success_rate: 100.0` over 4 eval episodes.
+usable: yes, as official LeWM smoke evidence for eval row 0.
+next_action: keep `9401796_[1-5]` and `9401797_[0-1]` pending/running; no cancellation needed for this root cause.
+```
+
+## Continuation Inventory: Full Upstream PWM Pipeline On MJLab Candidate
+
+Preflight time: 2026-06-02 after commit `6930a67`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before edits | `6930a67` |
+| Dirty status before this edit | clean before adding the new upstream-PWM-on-MJLab smoke files |
+| Slurm commands | `squeue -u $USER -o ...`; `sbatch --test-only ...`; LeWM `9401796_0` also started while this candidate was being prepared |
+| Artifact/log searches | Checked `baselines/PWM/scripts/train_dflex.py`, upstream `baselines/PWM/src/pwm/algorithms/pwm.py`, existing `src/flow_mbpo_pwm/envs/mjlab_pwm_adapter.py`, `scripts/experiments/mjlab_qs/locked_mjlab_python.py`, and prior docs for `original_pwm_adapter` limitations. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `upstream_pwm_mjlab_full_smoke_h200_20260602` | Candidate full upstream PWM orchestration smoke on MJLab | Not submitted yet at preflight record time | `scripts/experiments/mjlab_qs/submit_upstream_pwm_mjlab_full_pipeline_smoke_20260602.sh`, running `scripts/experiments/mjlab_qs/locked_mjlab_python.py train_dflex.py env=mjlab_velocity_flat_unitree_g1 alg=pwm ...` from `baselines/PWM/scripts` | To be submitted after current commit | New upstream env config `baselines/PWM/scripts/cfg/env/mjlab_velocity_flat_unitree_g1.yaml`; `alg=pwm` resolves to upstream `pwm.algorithms.pwm.PWM`; smoke overrides `alg.max_epochs=8`, `alg.horizon=8`, `critic_iterations=1`, `wm_iterations=1`, `wm_batch_size=16`, W&B disabled | Base Python/torch/PWM from locked original PWM env `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4`; MJLab and local env adapter exposed by `locked_mjlab_python.py`; MJLab task `Mjlab-Velocity-Flat-Unitree-G1`, online env interaction, no QS-window dataset | seed `0` | H200 / `embers` | W&B disabled | Expected under upstream PWM Hydra output/logdir if the smoke reaches checkpoint save | Slurm logs expected under `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/` | Not available | None yet | Pending candidate only | Commit files/docs, then submit smoke; if it starts and fails, record whether failure is env construction, terminal obs/reset semantics, or upstream PWM training |
+
+Validation details:
+
+```text
+direct locked env:
+  python: /storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4/bin/python
+  torch: 2.3.1 from locked env
+  pwm: baselines/PWM/src/pwm
+  mjlab: ModuleNotFoundError
+  flow_mbpo_pwm: ModuleNotFoundError
+
+locked bridge:
+  scripts/experiments/mjlab_qs/locked_mjlab_python.py imports locked torch/PWM first,
+  then exposes project-env site-packages for MJLab and local adapter imports.
+  Verified torch 2.3.1 from locked env; PWM class module `pwm.algorithms.pwm`;
+  MJLab import from project env; adapter factory from `flow_mbpo_pwm.envs.mjlab_pwm_adapter`.
+
+Hydra compose:
+  `locked_mjlab_python.py train_dflex.py --cfg job env=mjlab_velocity_flat_unitree_g1 alg=pwm ...`
+  shows `alg._target_: pwm.algorithms.pwm.PWM` and env target
+  `flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env`.
+
+Scheduler validation:
+  `sbatch --test-only` accepted the H200 / embers resource request.
+```

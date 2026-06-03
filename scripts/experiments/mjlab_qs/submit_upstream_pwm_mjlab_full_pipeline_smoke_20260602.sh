@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+ACCOUNT="${ACCOUNT:-gts-agarg35}"
+GPU_QOS="${GPU_QOS:-embers}"
+PARTITION="${PARTITION:-gpu-h200}"
+GPU_GRES="${GPU_GRES:-gpu:h200:1}"
+LOG_DIR="${ROOT}/logs/slurm/mjlab_qs/upstream_pwm_full_pipeline"
+LOCKED_MJLAB_PYTHON="${LOCKED_MJLAB_PYTHON:-${ROOT}/scripts/experiments/mjlab_qs/locked_mjlab_python.py}"
+
+if [[ "${GPU_QOS,,}" == "inferno" && "${ALLOW_INFERNO_QOS:-0}" != "1" ]]; then
+  echo "Error: inferno QOS requires explicit user approval. Use embers for GPU jobs." >&2
+  exit 1
+fi
+
+mkdir -p "${LOG_DIR}"
+
+sbatch --parsable \
+  --job-name="upstream_pwm_mjlab_full_smoke_h200_20260602" \
+  --account="${ACCOUNT}" \
+  --partition="${PARTITION}" \
+  --qos="${GPU_QOS}" \
+  --gres="${GPU_GRES}" \
+  --nodes=1 \
+  --ntasks=1 \
+  --cpus-per-task=8 \
+  --mem="96G" \
+  --time="01:00:00" \
+  --output="${LOG_DIR}/upstream_pwm_mjlab_full_smoke_h200_%j.out" \
+  --error="${LOG_DIR}/upstream_pwm_mjlab_full_smoke_h200_%j.err" \
+  --export=ALL,ROOT="${ROOT}",LOCKED_MJLAB_PYTHON="${LOCKED_MJLAB_PYTHON}" \
+  <<'SBATCH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "${ROOT}/baselines/PWM/scripts"
+export PYTHONNOUSERSITE=1
+export PYTHONPATH="${ROOT}/src:${ROOT}/baselines/PWM/src:${ROOT}/baselines/PWM/external/tdmpc2:${PYTHONPATH:-}"
+export WANDB_MODE=disabled
+export MUJOCO_GL=egl
+export HYDRA_FULL_ERROR=1
+
+"${LOCKED_MJLAB_PYTHON}" train_dflex.py \
+  env=mjlab_velocity_flat_unitree_g1 \
+  alg=pwm \
+  general.run_wandb=false \
+  general.seed=0 \
+  general.eval_runs=2 \
+  general.logdir=logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602 \
+  alg.max_epochs=8 \
+  alg.horizon=8 \
+  alg.save_interval=8 \
+  alg.critic_iterations=1 \
+  alg.critic_batches=1 \
+  alg.wm_iterations=1 \
+  alg.wm_batch_size=16 \
+  alg.wm_buffer_size=10000 \
+  alg.rew_rms=false \
+  alg.ret_rms=true \
+  alg.detach=true
+SBATCH
