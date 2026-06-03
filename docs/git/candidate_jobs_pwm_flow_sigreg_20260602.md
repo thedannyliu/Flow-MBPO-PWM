@@ -553,3 +553,19 @@ tracked_shim_update: `scripts/experiments/image_official/compat/sitecustomize.py
 local_validation: with `PYTHONPATH=scripts/experiments/image_official/compat:${LEWM_ROOT}`, `hdf5plugin` imported from the vendor directory, `stable_worldmodel.data.HDF5Dataset` was visible, and `pixels[0]` from `pusht_expert_train.h5` read successfully with shape `(224, 224, 3)`.
 next_action: commit this repair record, then resubmit LeWM eval/train replacement rows only after confirming submit quota; do not resubmit NEWT H200 rows because 7-15 are already queued.
 ```
+
+Current candidate refresh after preflight commit `f923be5`:
+
+```text
+preflight_time: 2026-06-02 after the LeWM HDF5 compatibility repair.
+branch: mjlab-qs-rollout-policy-improvement.
+head_sha: f923be59b563498e3e9dc65ddcb2d06a6044201a.
+slurm_status: `squeue` could not contact the Slurm controller; `sacct` could not contact SlurmDB; `seff` is unavailable on PATH.
+submission_decision: no new sbatch submission during this refresh because live Slurm status and submit quota could not be verified.
+```
+
+| Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `lewm_official_pusht_eval_h200_hdf5fix_20260602` | diagnostic / official eval smoke | Re-run the six official LeWM PushT eval rows after commit `f923be5` added repo-local `hdf5plugin` vendor loading and `stable_worldmodel.data.HDF5Dataset` re-export. This replaces failed/canceled rows `9400771_0` and `9400772_1` through `9400776_5`. | Yes: official LeWM env exists; converted checkpoint `/storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/pusht/lewm_object.ckpt` exists; `pusht_expert_train.h5` exists; local validation can read `pixels[0]` with shape `(224, 224, 3)`. | Disabled. | Per-row official eval logs/results for `pusht/lewm` and random policies at horizons 2/5 with eval budget 30; unique result filenames should include `hdf5fix` to avoid overwriting failed fix rows. | H200 preferred, then L40S/H100 if H200 quota stays blocked; `embers`. | No. | Submit only after Slurm controller/accounting is reachable and submit quota can be checked. |
+| `lewm_official_pusht_train_h200_hdf5fix_20260602` | diagnostic / official train smoke | Run the two official LeWM PushT train-smoke rows after the same HDF5 plugin repair. Prior L40S train array `9400716` was canceled before useful evidence because row `9400771_0` revealed the shared HDF5 plugin root cause. | Yes: same repaired official LeWM env/assets; training h5 pixel reads now work under the compat `PYTHONPATH`. | Disabled. | Official train logs for 1 epoch, 2 train batches, 1 val batch; no performance claim. | H200 preferred, then L40S/H100; `embers`. | No. | Submit only after Slurm is reachable and after or alongside the eval replacement, with unique output/log names. |
+| `newt_official_h200_remaining_rows` | smoke / official infrastructure | No new submission needed: rows 7-15 are already accepted and logs show valid official NEWT output for `9400778`, `9400797`, `9400798`, `9400799`, `9400800`, `9400814`, `9400815`, `9400816`, and `9400817`. | Existing rows already ran or produced logs. | Disabled. | Existing logs under `logs/slurm/image_official/newt_official_h200_remaining_single_9400*.out`. | H200 / `embers`. | No. | Do not submit duplicates. |
