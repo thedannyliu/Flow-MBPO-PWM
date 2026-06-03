@@ -625,3 +625,20 @@ validation:
   sbatch --test-only with account gts-agarg35, gpu-h200, QOS embers, 8 CPU, 64G, 01:00:00 accepted the request and predicted a 2026-06-05T13:18:24 start.
 submit_decision: commit the path repair and then resubmit the LeWM eval/train replacement arrays with the `hdf5pathfix` names.
 ```
+
+Submitted LeWM HDF5 pathfix replacements after commit `8f7dbce`:
+
+```text
+9401638_[0-5%3] lewm_official_pusht_eval_hdf5pathfix_h200_20260602, H200 / embers, PENDING Priority at first check.
+9401639_[0-1%2] lewm_official_pusht_train_hdf5pathfix_h200_20260602, H200 / embers, PENDING Priority at first check.
+script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh.
+wandb: disabled.
+dependencies: none; official env, converted checkpoint, dataset, repo-local hdf5plugin vendor, and dataset compatibility symlink are present.
+expected_logs:
+  logs/slurm/image_official/lewm_official_pusht_eval_hdf5pathfix_h200_%A_%a.{out,err}
+  logs/slurm/image_official/lewm_official_pusht_train_hdf5pathfix_h200_%A_%a.{out,err}
+initial_scheduler_check:
+  squeue showed both arrays PENDING Priority.
+  sacct showed both arrays PENDING, QOS embers, exit 0:0.
+next_action: monitor the first started eval/train row immediately; cancel siblings if a new shared official LeWM root cause appears.
+```
