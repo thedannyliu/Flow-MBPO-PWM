@@ -864,3 +864,40 @@ deprecation warnings; no adapter initialization or training metrics yet at the
 first running poll.
 9401907_[0-1] remained PENDING Resources.
 ```
+
+Continuation job results:
+
+```text
+9401906 upstream_pwm_mjlab_full_longdiag_h200_20260602 COMPLETED 0:0 after
+00:02:15 on gpu-h200 / embers.
+log: logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/upstream_pwm_mjlab_full_longdiag_h200_9401906.out
+Hydra output: baselines/PWM/scripts/outputs/2026-06-02/21-35-04
+artifacts:
+  logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/init_policy.pt
+  logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/best_policy.pt
+  logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/final_policy.pt
+  logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/PWM_iter50_rew-2.pt
+  logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/PWM_iter100_rew-2.pt
+  logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/PWM_iter150_rew-2.pt
+  logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/final_policy.buffer/
+last printed update row: `[196/200] R:-1.77 T:0.0 H:8.8 S:102400 FPS:1280
+pi_loss:0.24 pi_grad:0.07/0.07 v_loss:0.00 wm_loss:0.00 rew_loss:0.00 dyn_loss:0.00`.
+internal eval summary: mean episode loss 0.44, mean discounted loss 0.38,
+mean episode length 35.33.
+warnings: repeated MJLab adapter warnings that terminal observations were
+missing from info, so the adapter fell back to pre-step observations for done
+transitions; stderr had only known W&B/Gym/functorch deprecation warnings.
+interpretation: the full upstream PWM pipeline is mechanically stable for a
+longer MJLab diagnostic and writes checkpoints, but the internal eval is poor
+and this still is not the fixed fall-aware 40-episode MJLab gate.
+
+9401907_[0-1] lewm_official_pusht_train_hfcachefix_fix1_h200_20260602 both
+COMPLETED 0:0 on gpu-h200 / embers.
+row0 elapsed 00:00:59, row1 elapsed 00:01:26.
+artifacts:
+  /storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/checkpoints/lewm_train_smoke_h200_hfcachefix_fix1_seed0/weights_epoch_1.pt
+  /storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/checkpoints/lewm_train_smoke_h200_hfcachefix_fix1_seed1/weights_epoch_1.pt
+evidence: both rows reached Trainer.fit, ran 2 train batches and 1 val batch,
+saved epoch-1 weights, and stopped at max_epochs=1. The Hydra append override
+repair fixed the prior struct-mode failure.
+```

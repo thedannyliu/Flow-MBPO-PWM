@@ -552,3 +552,20 @@ override bug, not a dataset/cache/runtime failure.
 next_action: repair the train wrapper to use Hydra append overrides for
 non-struct keys, then resubmit a train-only hfcachefix replacement.
 ```
+
+LeWM hfcachefix train fix1 result:
+
+```text
+9401907_0 COMPLETED 0:0 after 00:00:59 on gpu-h200 / embers.
+9401907_1 COMPLETED 0:0 after 00:01:26 on gpu-h200 / embers.
+script: scripts/experiments/image_official/submit_lewm_train_hfcachefix_fix1_h200_20260602.sh
+repair: used Hydra append overrides `+trainer.limit_train_batches=2` and
+`+trainer.limit_val_batches=1`.
+evidence: both rows reached Trainer.fit, ran 2 train batches and 1 validation
+batch, saved epoch-1 weights, and stopped cleanly at max_epochs=1.
+artifacts:
+  /storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/checkpoints/lewm_train_smoke_h200_hfcachefix_fix1_seed0/weights_epoch_1.pt
+  /storage/project/r-agarg35-0/eliu354/external_data/lewm_stablewm/checkpoints/lewm_train_smoke_h200_hfcachefix_fix1_seed1/weights_epoch_1.pt
+interpretation: official LeWM train-smoke infrastructure is now validated with
+the local HDF5 dataset/cache layout; this is not a performance result.
+```

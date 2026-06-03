@@ -466,6 +466,33 @@ No result or failure is available yet.
 9401907_[0-1] remained PENDING Resources.
 ```
 
+Continuation results after the running poll:
+
+```text
+9401906 upstream_pwm_mjlab_full_longdiag_h200_20260602 COMPLETED 0:0 after
+00:02:15 on gpu-h200 / embers.
+usable: yes, as full-upstream-pipeline diagnostic evidence and checkpoint
+producer; no, as a formal MJLab performance claim.
+outputs: baselines/PWM/scripts/outputs/2026-06-02/21-35-04/logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/
+result: last printed update row `[196/200]` had R `-1.77`, mean horizon `8.8`,
+step `102400`; internal eval mean episode loss `0.44`, mean discounted loss
+`0.38`, mean episode length `35.33`.
+failure_reason: none. Caution: repeated terminal-observation fallback warnings.
+next_action: determine whether the upstream PWM checkpoint format can be
+evaluated by the existing MJLab eval/render bridge before submitting any
+fall-aware final/best eval/video gates.
+
+9401907_0 and 9401907_1 LeWM train hfcachefix fix1 both COMPLETED 0:0 on
+gpu-h200 / embers.
+usable: yes, official LeWM train-smoke infrastructure evidence.
+outputs: `${STABLEWM_HOME}/checkpoints/lewm_train_smoke_h200_hfcachefix_fix1_seed{0,1}/weights_epoch_1.pt`.
+result: both rows reached Trainer.fit, ran the intended 2 train batches and 1
+validation batch, saved epoch-1 weights, and stopped at max_epochs=1.
+failure_reason: none; the Hydra append override repair fixed the prior
+`trainer.limit_train_batches` struct error.
+next_action: no train-smoke repair needed.
+```
+
 Validation details:
 
 ```text
