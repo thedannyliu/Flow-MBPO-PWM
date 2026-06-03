@@ -965,3 +965,19 @@ output root:
   scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_h100_20260602
 initial scheduler state: PENDING, reason Priority.
 ```
+
+No-submit scheduler preflight for additional backup resources:
+
+```text
+context: H200 `9401975_[0-1%2]` and H100 `9401980_[0-1%2]` were still pending,
+with no real-env eval summaries yet.
+checked alternatives:
+  A100 / embers, 8 CPUs, 96G, 01:00:00: `sbatch --test-only` predicted
+    2026-06-07T00:27:42.
+  L40S / embers, 8 CPUs, 96G, 01:00:00: rejected by scheduler because L40S has
+    a maximum CPU:GPU ratio of 4:1.
+  L40S / embers, 4 CPUs, 64G, 01:00:00: `sbatch --test-only` predicted
+    2026-06-07T13:13:41.
+decision: do not submit another duplicate backup. Keep the existing H200 and
+H100 smoke arrays active and wait for the first completed summary.
+```

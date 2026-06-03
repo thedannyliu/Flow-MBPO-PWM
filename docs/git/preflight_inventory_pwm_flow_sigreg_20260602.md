@@ -536,6 +536,19 @@ resource: gpu-h100 / embers, gpu:h100:1, 8 CPUs, 96G, 01:00:00.
 initial_state: PENDING, reason Priority.
 ```
 
+Additional scheduler preflight for duplicate PWM eval backups:
+
+```text
+checked: A100 and L40S as lower-priority alternatives while H200/H100 PWM
+real-env eval smoke jobs were pending.
+A100_result: test-only accepted but predicted 2026-06-07T00:27:42.
+L40S_result: 8 CPU request rejected by the partition CPU:GPU ratio; 4 CPU / 64G
+test-only accepted but predicted 2026-06-07T13:13:41.
+decision: no additional backup submitted because both alternatives were much
+later than the already-submitted H100 backup and would duplicate the same
+final/best checkpoint eval.
+```
+
 Validation details:
 
 ```text
