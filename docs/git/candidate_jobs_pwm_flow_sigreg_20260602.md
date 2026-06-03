@@ -935,3 +935,18 @@ validation:
   sbatch --test-only accepted H200 / embers, 8 CPUs, 96G, 01:00:00.
 submit_decision: submit after committing script and candidate record.
 ```
+
+Full upstream PWM real-env eval smoke submission:
+
+```text
+commit: b889f7b Add upstream PWM real eval smoke.
+job: 9401975_[0-1%2] upstream_pwm_mjlab_real_eval_smoke_h200_20260602.
+array mapping: 0 final_policy.pt, 1 best_policy.pt.
+submitted: H200 / embers, 1 GPU, 8 CPUs, 96G, 01:00:00, W&B disabled.
+initial scheduler state: PENDING, reason Resources.
+expected outputs:
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/final/summary.json
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/best/summary.json
+next_action: inspect both summary files after completion before deciding on a
+formal 40-episode eval/video gate for the full upstream PWM MJLab pipeline.
+```

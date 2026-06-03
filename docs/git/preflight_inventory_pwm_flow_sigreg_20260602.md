@@ -513,6 +513,17 @@ candidate: submit W&B-disabled final/best 8-episode real-env eval smoke before
   considering any formal 40-episode eval/video gate for full upstream PWM.
 ```
 
+Submission record for full upstream PWM real-env eval smoke:
+
+```text
+commit: b889f7b Add upstream PWM real eval smoke.
+submitted_job: 9401975_[0-1%2] upstream_pwm_mjlab_real_eval_smoke_h200_20260602.
+resource: gpu-h200 / embers, gpu:h200:1, 8 CPUs, 96G, 01:00:00.
+initial_state: PENDING, reason Resources.
+inputs_verified_before_submit: Hydra config, final_policy.pt, and best_policy.pt
+from `9401906` exist and are non-empty.
+```
+
 Validation details:
 
 ```text
