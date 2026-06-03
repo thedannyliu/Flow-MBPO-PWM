@@ -40,6 +40,56 @@ Status at first checks:
 - H200 and H100 were pending due to priority.
 - A100 was submitted as an additional backup with a distinct output root.
 
+Final status:
+
+- A100 job `9416214_[0-7]` completed all rows successfully.
+- H200 job `9416205` was cancelled after the A100 backup completed.
+- H100 job `9416212_0` completed one row, `9416212_1` was cancelled while running, and remaining rows were cancelled after the A100 backup completed.
+- Exported metrics: `scripts/outputs/image_official/lewm_terminal_eval_a100_20260603/metrics.csv`
+
+Terminal eval settings:
+
+| Setting | Value |
+| --- | ---: |
+| `eval_num` | `4` |
+| `eval_budget` | `20` |
+| `goal_offset` | `20` |
+| `horizon` | `2` |
+| `receding` | `2` |
+| `action_block` | `5` |
+| `num_samples` | `24` |
+| `n_steps` | `8` |
+| `topk` | `6` |
+
+A100 row results:
+
+| Family | Variant | Seed | Success Rate | Episodes |
+| --- | --- | ---: | ---: | --- |
+| `fm_ode` | `mlp` | `0` | `25.0` | `[True, False, False, False]` |
+| `fm_ode` | `fm_ode` | `0` | `0.0` | `[False, False, False, False]` |
+| `fm_ode` | `mlp` | `1` | `0.0` | `[False, False, False, False]` |
+| `fm_ode` | `fm_ode` | `1` | `0.0` | `[False, False, False, False]` |
+| `residual_2x2` | `predmlp_actionmlp` | `0` | `0.0` | `[False, False, False, False]` |
+| `residual_2x2` | `predflow_actionflow` | `0` | `0.0` | `[False, False, False, False]` |
+| `residual_2x2` | `predmlp_actionmlp` | `1` | `0.0` | `[False, False, False, False]` |
+| `residual_2x2` | `predflow_actionflow` | `1` | `0.0` | `[False, False, False, False]` |
+
+Mean terminal success:
+
+| Family | Variant | Mean Success Rate |
+| --- | --- | ---: |
+| `fm_ode` | `mlp` | `12.5` |
+| `fm_ode` | `fm_ode` | `0.0` |
+| `residual_2x2` | `predmlp_actionmlp` | `0.0` |
+| `residual_2x2` | `predflow_actionflow` | `0.0` |
+
+Interpretation:
+
+- Under this small terminal CEM eval, LeWM `fm_ode` did not improve over the matched MLP predictor.
+- The only non-zero terminal result was `fm_ode` training batch with the MLP predictor at seed 0.
+- The prior residual-flow 2x2 checkpoints also did not produce a positive terminal result under this eval setting.
+- This is a weak-sample terminal probe, not a full image-control benchmark, but it is enough to say the current flow-matching ODE integration is not yet a positive LeWM control result.
+
 ## MJLab Endpoint-Flow 2x2 Policy Extraction
 
 Existing seed-0 endpoint-flow 2x2 had already completed:
