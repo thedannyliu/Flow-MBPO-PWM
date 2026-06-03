@@ -122,10 +122,14 @@ next_action:
 ```
 
 The completed broad conservative AWR sweep strengthens the exploitation/fall
-diagnosis: all completed broad/shard rows fall at rate `1.000` in 8-episode real
-evals and remain below the BC comparator. This supports the active plan's pivot
-toward stronger pessimism, support/OOD, fall-risk, and short-horizon model use
-instead of duplicating the same AWR settings.
+diagnosis: all completed broad/shard rows, including the final A100 shards
+`9400442`, `9400528_1`, and `9400528_2`, fall at rate `1.000` in 8-episode real
+evals and remain below the BC comparator. The repaired support-truncation
+diagnostic `9402171_[0-1]` is also negative: q0.90 reports return `23.1614`,
+length `337.375`, fall `1.000`, and q0.50 reports return `19.4189`, length
+`291.250`, fall `1.000`; both early-stop at iter 20 and fail the BC gate. This
+supports the active plan's pivot toward a genuinely different fall-risk/OOD or
+short-horizon objective instead of duplicating the same AWR/support settings.
 
 Existing v1 support/pessimism artifacts were re-exported after the full
 upstream PWM negative smoke. The high-return rows are 1-update / 2-episode
@@ -133,9 +137,10 @@ gate-logging checks from the BC checkpoint and should not be treated as
 Flow-MBPO improvements. The substantive v1 rows remain negative: the 100-iter
 CQL random-action eval8 row reports return `18.7727`, length `283.5`, fall
 `1.000`, and the 500-iter action-deviation row reports best real return
-`19.577`, length `295.0`, fall `1.000`. This narrows the next useful R3/R4 work
-to a genuinely different fall-stop/support-truncation manifest, not another
-duplicate support/AWR smoke.
+`19.577`, length `295.0`, fall `1.000`. The later support-truncation manifest
+has now been tried and is also negative, so the next useful R3/R4 work should
+change the mechanism rather than retrying support truncation plus conservative
+AWR.
 
 ## Candidate Jobs Before Next Submission
 
@@ -147,5 +152,6 @@ duplicate support/AWR smoke.
 | `pessimistic_short_horizon_flow_mbpo_next` | diagnostic / exploratory | Existing H=1/3/5 replay and support artifacts partly exist; the broad AWR result motivates stronger pessimism/fall gating rather than exact duplicate rows. | W&B off for new-code smokes. | Support/OOD/fall-stop diagnostics, real eval every 10 updates, checkpoint summaries. | H200/H100/A100/L40S / `embers`. | No for rows using existing replays; yes if fall-risk labels/head are missing. | Candidate for future submission after a concrete row list is written. |
 
 No new sbatch submission is made from this record. R4 existing candidates have
-their eval/video gates, the queue already contains pending LeWM/PWM/A100 jobs,
-and no started row has exposed a new failure to repair.
+their eval/video gates, the queue is currently empty, and the completed AWR plus
+support-truncation diagnostics close the current duplicate-support branch as
+negative.
