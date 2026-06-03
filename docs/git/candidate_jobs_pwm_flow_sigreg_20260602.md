@@ -1147,3 +1147,17 @@ wandb: disabled.
 next_action: monitor first started row. Keep the H100 backup manifest available,
 but do not submit it unless H200 remains resource-blocked.
 ```
+
+Support-truncation Flow-MBPO H100 backup final preflight:
+
+```text
+context: H200 fixed-env replacement 9402128_[0-1%2] remains pending for
+Resources after submission.
+H100_test_only: accepted with predicted start 2026-06-03T10:37:39.
+validation:
+  `submit_array.sh ... --gpu-type H100 --conda-env pwm --dry-run` shows the
+  Slurm wrapper activates `pwm` before `run_flow_mbpo_awr_row.py`.
+  H100 backup row 0 and row 1 `--check-inputs --dry-run` passed.
+submit_decision: submit H100 backup because it has a distinct output root and a
+clearer scheduler start than the H200 resource-blocked replacement.
+```

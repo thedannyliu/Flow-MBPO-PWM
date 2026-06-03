@@ -750,3 +750,16 @@ wandb: disabled.
 next_action: inspect logs as soon as a row starts; if H200 remains
 resource-blocked, use the already-committed H100 backup manifest.
 ```
+
+H100 backup preflight before submission:
+
+```text
+current_h200_replacement: 9402128_[0-1%2] PENDING, reason Resources.
+H100 / embers `sbatch --test-only`: accepted, predicted start
+2026-06-03T10:37:39.
+`submit_array.sh ... --gpu-type H100 --conda-env pwm --dry-run` confirmed the
+Slurm wrapper activates the project `pwm` env before row execution.
+H100 backup row 0 and row 1 `--check-inputs --dry-run` passed.
+decision: submit the H100 backup manifest because it uses distinct output dirs
+and is the earliest scheduler-backed replacement path.
+```
