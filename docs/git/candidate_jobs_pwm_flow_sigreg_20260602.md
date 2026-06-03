@@ -1612,3 +1612,22 @@ interpretation:
   H100/L40S fixed-SHA endpoint and replay-family rows agree with H200: every
   completed row fails the BC gate and falls at rate 1.000.
 ```
+
+SIGReg CPU prerequisite recheck after upstream PWM W&B-gate replacements:
+
+```text
+time: 2026-06-03 continuation poll after commit 6b685fc
+command: pytest -q tests/test_sigreg.py
+result: 5 passed in 16.28s
+
+interpretation:
+  The local SIGReg utility still satisfies the documented no-GPU prerequisites:
+  finite loss, finite gradients, constant-latent anti-collapse penalty,
+  zero-weight no-op, and latent variance/isotropy diagnostics.
+
+submit_decision:
+  Do not submit a SIGReg GPU row from this poll. The prerequisite is healthy,
+  but a SIGReg experiment still needs a selected controlled Flow-PWM baseline
+  and the same final/best real-eval plus rollout-video protocol as its
+  no-SIGReg comparator.
+```
