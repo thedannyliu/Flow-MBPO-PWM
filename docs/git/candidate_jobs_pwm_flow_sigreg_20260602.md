@@ -981,3 +981,31 @@ checked alternatives:
 decision: do not submit another duplicate backup. Keep the existing H200 and
 H100 smoke arrays active and wait for the first completed summary.
 ```
+
+Full upstream PWM real-env eval smoke result:
+
+```text
+9401975_0 final_policy.pt COMPLETED 0:0 on gpu-h200 / embers.
+summary: return_mean -1.7458, episode_length_mean 38.125, fall_rate_mean 1.000,
+timeout_rate_mean 0.000, baseline_gate_pass false.
+outputs:
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/final/summary.json
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/final/eval_episodes.csv
+
+9401975_1 best_policy.pt COMPLETED 0:0 on gpu-h200 / embers.
+summary: return_mean -1.6728, episode_length_mean 47.500, fall_rate_mean 1.000,
+timeout_rate_mean 0.000, baseline_gate_pass false.
+outputs:
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/best/summary.json
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/best/eval_episodes.csv
+
+interpretation: the full upstream checkpoint loader and real MJLab evaluator are
+validated, but both final and best checkpoints collapse in the 8-episode
+real-env smoke and fail the BC baseline gate. This is not a formal 40-episode
+claim, but it is strong enough to avoid spending W&B/formal video budget on
+this diagnostic checkpoint.
+follow-up action: canceled duplicate H100 backup `9401980_[0-1%2]` after the
+H200 final/best smoke completed; do not submit formal eval/video for this
+longdiag checkpoint unless the research objective changes to documenting visual
+failure examples rather than testing for success.
+```

@@ -49,8 +49,10 @@ extends the bridge evidence to a 200-epoch diagnostic. It wrote init, best,
 final, and iter50/100/150 checkpoints, but the internal upstream eval remained
 poor: mean episode loss 0.44, mean discounted loss 0.38, and mean episode
 length 35.33. W&B-disabled real-env final/best eval smoke arrays `9401975`
-on H200 and `9401980` on H100 are pending; no fixed-protocol eval/video
-claim exists yet.
+on H200 completed 0:0 and validated checkpoint loading/evaluation, but both
+checkpoints collapsed: final return -1.7458, length 38.125, fall 1.000; best
+return -1.6728, length 47.500, fall 1.000. The duplicate H100 backup `9401980`
+was canceled. No fixed-protocol eval/video claim exists yet.
 ```
 
 ## Scheduler Status During This Inventory
@@ -89,7 +91,7 @@ scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_wm_sigreg_aggregate_latest.csv
 
 | Row | Source stage | WM | Policy | Seed scope | Checkpoint/evidence | Return | Length | Fall | Status |
 | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |
-| Full upstream PWM pipeline bridge | `9401871 upstream_pwm_mjlab_full_smoke_h200_20260602`; long diagnostic `9401906 upstream_pwm_mjlab_full_longdiag_h200_20260602`; real-env eval smokes `9401975` H200 and `9401980` H100 pending | Upstream PWM SimNorm world model through `train_dflex.py` | Upstream PWM actor/update through `PWM.train()` | seed 0 smoke/diagnostic | Smoke artifacts under `baselines/PWM/scripts/outputs/2026-06-02/21-19-04/logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602/{init_policy.pt,best_policy.pt,final_policy.pt,final_policy.buffer/}`. Longdiag artifacts under `baselines/PWM/scripts/outputs/2026-06-02/21-35-04/logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/{init_policy.pt,best_policy.pt,final_policy.pt,PWM_iter50_rew-2.pt,PWM_iter100_rew-2.pt,PWM_iter150_rew-2.pt,final_policy.buffer/}`. Slurm logs under `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/`. | smoke update row R `0.10`; smoke internal eval loss `0.05`; longdiag last update R `-1.77`; longdiag internal eval loss `0.44` | smoke eval mean length `32.00`; longdiag internal eval length `35.33` | not measured by fixed fall-aware evaluator | Feasibility only. This is a true upstream orchestration bridge, unlike the QS-window adapter row, and it is mechanically stable through the longer diagnostic. It has not cleared any MJLab performance gate; final/best real-env eval smoke is queued and formal eval/video would still be required. |
+| Full upstream PWM pipeline bridge | `9401871 upstream_pwm_mjlab_full_smoke_h200_20260602`; long diagnostic `9401906 upstream_pwm_mjlab_full_longdiag_h200_20260602`; real-env eval smoke `9401975` completed; duplicate H100 backup `9401980` canceled | Upstream PWM SimNorm world model through `train_dflex.py` | Upstream PWM actor/update through `PWM.train()` | seed 0 smoke/diagnostic | Smoke artifacts under `baselines/PWM/scripts/outputs/2026-06-02/21-19-04/logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602/{init_policy.pt,best_policy.pt,final_policy.pt,final_policy.buffer/}`. Longdiag artifacts under `baselines/PWM/scripts/outputs/2026-06-02/21-35-04/logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/{init_policy.pt,best_policy.pt,final_policy.pt,PWM_iter50_rew-2.pt,PWM_iter100_rew-2.pt,PWM_iter150_rew-2.pt,final_policy.buffer/}`. Eval smoke summaries under `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/{final,best}/summary.json`. Slurm logs under `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/`. | eval smoke final `-1.7458`; eval smoke best `-1.6728`; smoke/longdiag internal losses were also poor | eval smoke final `38.125`; eval smoke best `47.500`; longdiag internal eval length `35.33` | eval smoke final/best `1.000` | Mechanically feasible full upstream pipeline, but negative real-env smoke evidence. This is not a formal 40-episode gate, but both checkpoints fail the BC baseline badly; do not spend formal eval/video budget on this diagnostic checkpoint unless the goal changes. |
 | Upstream PWM algorithm adapter | `original_pwm_adapter_phase3_formal_20260601` plus fix2 eval/video jobs `9395746` and `9396189` | Upstream PWM model/update via MJLab-QS adapter | Original PWM extraction/update via adapter orchestration | seed 0 final/best | Formal checkpoints plus fall-aware eval/video package. Eval summaries: `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_fix2_20260602/.../{final,best}/summary.json`; rollout videos and summaries: `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/.../{final,best}/`. | eval final `-0.8010`; eval best `-0.7778`; video final `-0.5265`; video best `-0.5218` | eval `44.45`; video final `46.80`; video best `46.40` | eval `1.000`; video `1.000` | Complete negative adapter-level evidence gate. The upstream PWM algorithm/model/update collapses through the MJLab-QS adapter and fails the BC baseline gate. |
 | Prior PWM-style runner | `rerun_g1_pwm_flow_policy2x2_20260527` | `mlp_ref` | `mlp` | seeds 0-2 | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../mlp_ref/mlp/offline/policy50k/` | `-4.5700` | `66.33` | `1.000` | Real rollout diagnostic only. Fails badly. |
 | Flow policy only | `rerun_g1_pwm_flow_policy2x2_20260527` | `mlp_ref` | `flow` | seeds 0-2, aggregate from 3 final rollouts; status CSV says 2 of 3 completed in policy-eval aggregate | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../mlp_ref/flow/offline/policy50k/` | `-3.4818` | `66.78` | `1.000` | Slightly less bad than MLP policy in this diagnostic, still failed. |
@@ -130,7 +132,7 @@ The existing evidence supports this conservative diagnosis:
 
 ```text
 upstream PWM algorithm adapter on MJLab: complete fix2 eval/video gate; final and best both collapse with fall 1.000
-full upstream PWM pipeline bridge: mechanically feasible on MJLab through smoke and long diagnostic, but no fixed fall-aware eval/video gate yet
+full upstream PWM pipeline bridge: mechanically feasible on MJLab through smoke, long diagnostic, and checkpoint real-env eval smoke, but final/best smoke collapses with fall 1.000
 previous PWM-style runner: failed
 Flow WM only: failed in the old 2x2 policy extraction matrix
 Flow policy only: failed in the old 2x2 policy extraction matrix
@@ -145,9 +147,9 @@ Next action: do not treat PWM adapter imagined gains as verified. The fix2
 MJLab package now has fall-aware eval and video evidence and is a clear negative
 adapter-level baseline. The new full-upstream-pipeline bridge preserves
 `train_dflex.py` and `PWM.train()` orchestration and has completed a longer
-diagnostic (`9401906`), but it still needs at least the queued final/best
-real-env eval smoke (`9401975` or `9401980`) and then formal 40-episode eval
-plus 10-episode videos before it can make any MJLab performance claim. The Ant DFlex
+diagnostic (`9401906`) plus final/best real-env eval smoke (`9401975`), but both
+checkpoints collapse with fall 1.000. Do not make a positive MJLab performance
+claim or submit formal video gates for this diagnostic checkpoint. The Ant DFlex
 supplemental diagnostic is complete under the
 locked original environment plus explicit GCC 11 `CPATH`; Hopper fix3 reached
 the DFlex kernel/eval path but failed in the probe script because locked PWM

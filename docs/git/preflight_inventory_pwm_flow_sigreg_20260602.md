@@ -597,3 +597,24 @@ Submit decision in this poll: no new sbatch submission. The two full upstream
 PWM real-env eval smokes are already queued, no summary exists yet, and
 additional A100/L40S duplicate backup preflight was previously worse than the
 H100 backup.
+
+Full upstream PWM eval smoke completion:
+
+```text
+9401975_0 final_policy.pt COMPLETED 0:0, elapsed 00:00:26, gpu-h200 / embers.
+result: return_mean -1.7458, episode_length_mean 38.125, fall_rate_mean 1.000,
+timeout_rate_mean 0.000, baseline_gate_pass false.
+
+9401975_1 best_policy.pt COMPLETED 0:0, elapsed 00:00:39, gpu-h200 / embers.
+result: return_mean -1.6728, episode_length_mean 47.500, fall_rate_mean 1.000,
+timeout_rate_mean 0.000, baseline_gate_pass false.
+
+9401980_[0-1%2] H100 backup was canceled after the H200 final/best smoke
+completed, because it would duplicate the same checkpoint/evaluator evidence.
+
+usable: yes, as proof that full upstream PWM longdiag checkpoints can be loaded
+and evaluated on real MJLab through the locked-PWM bridge. No, as a performance
+claim or formal MJLab gate.
+next_action: record this as negative full-upstream-pipeline smoke evidence; do
+not submit W&B/formal eval40/video gates for this diagnostic checkpoint.
+```
