@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export NEWT/LeWM flow 2x2 Slurm metrics to CSV."""
+"""Export NEWT/LeWM flow and flow-matching ODE Slurm metrics to CSV."""
 
 from __future__ import annotations
 
@@ -34,12 +34,14 @@ def parse_newt_log(path: Path) -> dict[str, str]:
         return metrics
     for raw in path.read_text(errors="ignore").splitlines():
         line = clean(raw)
-        if "[flow_2x2]" in line:
+        if "[flow_2x2]" in line or "[fm_ode]" in line:
             arch_match = ARCH_RE.search(line)
             if "world-model architecture" in line:
                 metrics["printed_wm_arch"] = arch_match.group(1) if arch_match else ""
             if "policy architecture" in line:
                 metrics["printed_policy_arch"] = arch_match.group(1) if arch_match else ""
+            if "dynamics architecture" in line:
+                metrics["printed_dynamics_arch"] = arch_match.group(1) if arch_match else ""
         if line.strip().startswith("eval"):
             metrics["initial_eval_return"] = first_float(line.split(" R:", 1)[-1]) if " R:" in line else ""
             metrics["initial_eval_success"] = first_float(line.split(" S:", 1)[-1]) if " S:" in line else ""
@@ -69,12 +71,15 @@ def parse_lewm_log(path: Path) -> dict[str, str]:
             "fit_loss",
             "fit_pred_loss",
             "fit_sigreg_loss",
+            "fit_flow_matching_loss",
             "validate_loss",
             "validate_loss_epoch",
             "validate_pred_loss",
             "validate_pred_loss_epoch",
             "validate_sigreg_loss",
             "validate_sigreg_loss_epoch",
+            "validate_flow_matching_loss",
+            "validate_flow_matching_loss_epoch",
         }:
             metrics[key] = first_float(value)
     return metrics
