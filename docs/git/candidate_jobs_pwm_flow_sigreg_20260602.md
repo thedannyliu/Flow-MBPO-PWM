@@ -582,3 +582,17 @@ validation:
   sbatch --test-only on gpu-h200 / embers / 4 CPU / 64G succeeded, predicted start 2026-06-05T14:18:24.
 submit_decision: submit the LeWM HDF5-fix H200 eval and train-smoke arrays after committing this script/candidate record.
 ```
+
+Submitted LeWM HDF5-fix replacements after commit `8270506`:
+
+```text
+9401543_[0-5%3] lewm_official_pusht_eval_hdf5fix_h200_20260602, H200 / embers, PENDING Priority at first check.
+9401544_[0-1%2] lewm_official_pusht_train_hdf5fix_h200_20260602, H200 / embers, PENDING Priority at first check.
+script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh.
+wandb: disabled.
+dependencies: none; official env, checkpoint, dataset, and compat vendor are present.
+expected_logs:
+  logs/slurm/image_official/lewm_official_pusht_eval_hdf5fix_h200_%A_%a.{out,err}
+  logs/slurm/image_official/lewm_official_pusht_train_hdf5fix_h200_%A_%a.{out,err}
+next_action: monitor first started row; cancel siblings and record root cause if the HDF5 repair exposes another official LeWM issue.
+```

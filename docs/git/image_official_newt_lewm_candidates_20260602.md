@@ -374,3 +374,23 @@ repair: repo-local vendor install under `scripts/experiments/image_official/comp
 validation: batch-visible `sitecustomize.py` adds the vendor path, exposes `HDF5Dataset`, and allowed reading `pusht_expert_train.h5` `pixels[0]`.
 next_action: resubmit LeWM eval replacement rows after committing the repair and checking quota; use unique result/log names to distinguish from 9400771..9400776.
 ```
+
+LeWM HDF5-fix H200 replacement submission:
+
+```text
+commit_before_submission: 8270506.
+script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh.
+submitted_jobs:
+  9401543_[0-5%3] lewm_official_pusht_eval_hdf5fix_h200_20260602, gpu-h200 / embers.
+  9401544_[0-1%2] lewm_official_pusht_train_hdf5fix_h200_20260602, gpu-h200 / embers.
+inputs: official LeWM env, converted PushT object checkpoint, PushT HDF5 dataset, and repo-local hdf5plugin vendor/compat shim all exist.
+wandb_mode: disabled.
+expected_artifacts:
+  logs/slurm/image_official/lewm_official_pusht_eval_hdf5fix_h200_%A_%a.{out,err}
+  logs/slurm/image_official/lewm_official_pusht_train_hdf5fix_h200_%A_%a.{out,err}
+  official LeWM eval result files with `_h200_hdf5fix_results.txt` suffixes.
+first_scheduler_check:
+  squeue showed both arrays PENDING Priority with QOS embers and gres/gpu:h200:1.
+  sacct showed both arrays PENDING, QOS embers, exit 0:0.
+next_action: inspect the first started eval row immediately; if it fails, cancel the sibling rows, record the new root cause, and repair before resubmitting.
+```
