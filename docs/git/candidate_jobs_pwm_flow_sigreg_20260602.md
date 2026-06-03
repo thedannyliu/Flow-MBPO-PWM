@@ -1115,3 +1115,21 @@ submit_decision: commit first, then submit as a W&B-disabled backup; cancel the
 duplicate still-pending/running array if the other partition completes first and
 answers the diagnostic question.
 ```
+
+Support-truncation Flow-MBPO replacement after env failure:
+
+```text
+failed_job: 9402080_[0-1%2].
+status: both rows FAILED before training; no summaries or output directories
+were written.
+root_cause: the submission used the default login Python
+`/storage/home/hcoda1/9/eliu354/miniconda3/bin/python` instead of the project
+`pwm` conda environment, so `run_flow_mbpo_v0_awr_update.py` failed on import
+with `ModuleNotFoundError: No module named 'omegaconf'`.
+fix: resubmit the same H200 manifest with `submit_array.sh --conda-env pwm`.
+env_validation: `conda activate pwm` gives Python 3.10.19, OmegaConf 2.3.0,
+and torch 2.10.0+cu128.
+submit_decision: commit this failure record first, then submit an H200
+replacement using the corrected environment. Do not submit the H100 backup
+until the replacement queue state indicates a real resource delay.
+```

@@ -705,3 +705,30 @@ L40S / embers with 4 CPUs / 96G: accepted but predicted 2026-06-07T12:49:41.
 decision: use H100 backup only; do not add A100/L40S duplicates for this
 two-row diagnostic.
 ```
+
+## Continuation Inventory: Support-Truncation Env Fix
+
+Preflight time: 2026-06-02 after commit `eceae57`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `eceae57` |
+| Dirty status before this inventory edit | clean |
+| Slurm commands | `sacct -j 9402080 --format=... -P`; `squeue -u $USER -o ...`; H200 `sbatch --test-only` |
+| Artifact searches | Checked `logs/slurm/mjlab_qs/flow_mbpo_awr/mjqs_flow_mbpo_awr_9402080_{0,1}.{out,err}` and the expected support-truncation output root. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9402080_0` | H200 Flow-MBPO support-truncation diagnostic, q0.90 replay | `FAILED`, exit `1:0`, elapsed `00:00:13` | Original H200 support-truncation submission without explicit conda activation | `23cbdbd` manifest; submission recorded at `aaf657d` | q0.90 state-support truncated trajectory H3 replay, mixed CQL, real eval every 20, early stop | Incorrect default login Python 3.13 was used by the Slurm wrapper; intended env was project `pwm` | seed `0` | H200 / `embers` | W&B disabled | None written | None written | Not available | `ModuleNotFoundError: No module named 'omegaconf'` before training because the job did not activate `pwm` | No; infrastructure failure only | Replace with the same manifest plus `--conda-env pwm` |
+| `9402080_1` | H200 Flow-MBPO support-truncation diagnostic, q0.50 replay | `FAILED`, exit `1:0`, elapsed `00:00:03` | Same original H200 array | `23cbdbd` / `aaf657d` | q0.50 state-support truncated trajectory H3 replay, mixed CQL, real eval every 20, early stop | Same incorrect default login Python 3.13; intended env was project `pwm` | seed `0` | H200 / `embers` | W&B disabled | None written | None written | Not available | Same missing `omegaconf` import before training | No; infrastructure failure only | Replace with the same manifest plus `--conda-env pwm` |
+| `flow_mbpo_support_trunc_awr_diag_20260602_fixenv` | H200 replacement for the same support-truncation diagnostics | Prepared; not submitted before this commit | `submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_20260602.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 2 --time 02:00:00 --mem 128G --cpus 8 --conda-env pwm` | Pending commit | Same two support-truncated replay rows; output roots were not created by the failed job, so reuse is clean | Project `pwm` env validated: Python 3.10.19, OmegaConf 2.3.0, torch 2.10.0+cu128 | seed `0` | H200 / `embers` | W&B disabled | Expected per-row AWR checkpoints under `scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/` | Expected per-row `summary.json` and real-eval snapshots | Not available yet | None yet | Candidate replacement | Commit failure record, submit H200 replacement, then monitor first row |
+
+Replacement validation:
+
+```text
+`conda activate pwm` import check passed for omegaconf and torch.
+`submit_array.sh ... --conda-env pwm --dry-run` showed the Slurm wrap now
+activates `pwm` before running `run_flow_mbpo_awr_row.py`.
+H200 / embers `sbatch --test-only` accepted the fixed-env resource request.
+```
