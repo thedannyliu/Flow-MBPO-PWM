@@ -491,3 +491,17 @@ first_scheduler_check:
   sacct showed both arrays PENDING, QOS embers, exit 0:0.
 next_action: monitor the first started eval row immediately; cancel siblings and record if a new shared official LeWM root cause appears.
 ```
+
+NEWT walker fix1 A100 smoke result:
+
+```text
+job: 9399799 `newt_official_walker_swig_fix1_a100_20260602`.
+status: COMPLETED 0:0 after 00:00:48 on gpu-a100 / embers.
+script: scripts/experiments/image_official/submit_newt_official_swig_followups_20260602.sh.
+log: logs/slurm/image_official/newt_official_walker_swig_fix1_9399799.out.
+evidence: official NEWT `tdmpc2` runner created walker-walk env, action dim 6, Newt World Model with 5,033,342 learnable parameters, W&B disabled, trained from scratch for 1,000 steps, and printed `Training completed successfully`.
+metrics: eval at I=0 return 42.248; train at I=500 return 51.202; train at I=1000 return 45.629.
+stderr: Gym deprecation warnings only.
+interpretation: usable official NEWT infrastructure smoke, not performance evidence.
+next_action: wait for broad A100 array `9400409_[1-15]`; no duplicate walker smoke needed.
+```

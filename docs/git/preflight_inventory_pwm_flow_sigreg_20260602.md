@@ -345,3 +345,15 @@ expected_logs:
   logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_h200_%A_%a.{out,err}
 next_action: inspect the first started row; keep canceled pathfix jobs as failed diagnostics and do not duplicate them.
 ```
+
+NEWT official walker A100 smoke completion:
+
+```text
+job: 9399799 `newt_official_walker_swig_fix1_a100_20260602`.
+status: COMPLETED 0:0, elapsed 00:00:48, gpu-a100 / embers.
+log: logs/slurm/image_official/newt_official_walker_swig_fix1_9399799.out.
+result: official NEWT walker-walk smoke created the environment, compiled the model, disabled W&B, trained for 1,000 steps, and printed `Training completed successfully`.
+reported rewards: eval I=0 R=42.248; train I=500 R=51.202; train I=1000 R=45.629.
+usable: yes, as official NEWT infrastructure smoke only.
+next_action: preserve result and wait for broad A100 rows; do not duplicate this walker smoke.
+```

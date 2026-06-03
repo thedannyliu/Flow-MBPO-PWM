@@ -707,3 +707,12 @@ script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh.
 wandb: disabled.
 dependencies: none.
 ```
+
+NEWT walker fix1 completion:
+
+```text
+9399799 newt_official_walker_swig_fix1_a100_20260602 COMPLETED 0:0 after 00:00:48 on gpu-a100 / embers.
+evidence: official NEWT walker-walk smoke reached `Training completed successfully`; W&B disabled; rewards eval I=0 42.248, train I=500 51.202, train I=1000 45.629.
+interpretation: official NEWT infrastructure smoke passed; not performance evidence.
+submit_decision: do not submit another single walker smoke; wait for broad A100 array `9400409_[1-15]`.
+```
