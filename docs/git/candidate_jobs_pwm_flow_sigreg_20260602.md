@@ -786,3 +786,40 @@ success only; it is not yet a performance claim.
 next_action: run a longer full-PWM MJLab formal/eval pass if this smoke should
 be promoted beyond feasibility.
 ```
+
+## Continuation Candidates After Full PWM Smoke
+
+Preflight before this candidate batch is recorded in
+`docs/git/preflight_inventory_pwm_flow_sigreg_20260602.md` after commit
+`31fa5c0`.
+
+| Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `lewm_official_pusht_train_hfcachefix_fix1_h200_20260602` | smoke / repair | Re-run only the official LeWM train smoke rows after `9401797_[0-1]` failed before training because Hydra struct mode rejected non-append `trainer.limit_train_batches` overrides. The replacement uses `+trainer.limit_train_batches=2` and `+trainer.limit_val_batches=1`. | Yes: official LeWM env exists; local HDF5 dataset exists; repo-local `hdf5plugin` compat path exists; cache/data path already validated by completed eval array `9401796`. | Disabled. | Slurm logs under `logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_fix1_h200_%A_%a.{out,err}` and official train smoke output under LeWM output/cache paths if training starts. | H200 / `embers`. | No. | Submit after committing wrapper and candidate record. |
+| `upstream_pwm_mjlab_full_longdiag_h200_20260602` | diagnostic | Run a longer complete upstream PWM pipeline on MJLab after smoke `9401871` proved feasibility. This keeps W&B disabled and remains diagnostic: `train_dflex.py`, upstream `pwm.algorithms.pwm.PWM`, wrapper-generated MJLab env config, 32 envs, episode length 64, horizon 16, max epochs 200. | Yes: locked PWM runtime bridge, upstream PWM source, MJLab adapter, and wrapper-generated env config are available; smoke `9401871` produced init/best/final policies without runtime failures. | Disabled. | Slurm logs under `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/upstream_pwm_mjlab_full_longdiag_h200_%j.{out,err}`; upstream PWM output under `baselines/PWM/scripts/outputs/.../logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/`; init/best/final policies and intermediate saves if reached. | H200 / `embers`. | No. | Submit after committing wrapper and candidate record. |
+
+Validation before submission:
+
+```text
+bash -n scripts/experiments/image_official/submit_lewm_train_hfcachefix_fix1_h200_20260602.sh
+bash -n scripts/experiments/mjlab_qs/submit_upstream_pwm_mjlab_full_pipeline_longdiag_20260602.sh
+LeWM Hydra compose check with append overrides showed:
+  trainer.max_epochs: 1
+  trainer.limit_train_batches: 2
+  trainer.limit_val_batches: 1
+  loader.batch_size: 8
+  wandb.enabled: false
+Full-PWM Hydra compose through locked bridge showed:
+  env target `flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env`
+  alg target `pwm.algorithms.pwm.PWM`
+  eval_runs: 4
+  critic_iterations: 2
+  max_epochs: 200
+  horizon: 16
+  wm_batch_size: 64
+  wm_buffer_size: 50000
+Scheduler validation:
+  `sbatch --test-only` accepted both H200 / embers requests:
+  LeWM train fix1, 4 CPUs, 96G, 02:00:00;
+  full-PWM longdiag, 8 CPUs, 128G, 02:00:00.
+```
