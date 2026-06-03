@@ -429,6 +429,16 @@ Preflight time: 2026-06-02 after commit `7a854ab`, America/New_York.
 | `9400409_[0-15]` | Official NEWT broad A100 smoke | Pending Priority | `scripts/experiments/image_official/submit_newt_lewm_broad_gpu_20260602.sh` | `3a3e161` submission; still pending | 16 official NEWT train smokes, 500 steps, W&B/video/checkpoint off | Official NEWT env; DMControl tasks | seeds `0`, `1` | A100 / `embers` | Disabled | Expected local NEWT logs only | Slurm logs expected under `logs/slurm/image_official/newt_official_broad_smoke_%A_%a.{out,err}` | Not available | None yet | Pending | Leave queued; L40S/H200 completed rows already validate the infrastructure. |
 | `9400528_[1-2%2]` and `9400442` | Flow-MBPO AWR A100 remaining shards | Pending Priority | `submit_array.sh --kind flow_mbpo_awr ... --gpu-type A100` | Earlier broad AWR shard commits; pending at preflight | Conservative AWR diagnostics from existing manifests | Project `pwm` env; MJLab QS dataset and synthetic replays | manifest rows | A100 / `embers` | Disabled | Expected per-row AWR summaries/checkpoints | Expected under `logs/slurm/mjlab_qs/flow_mbpo_awr/` and row output dirs | Not available | None yet | Pending | Leave queued; completed H200/H100/L40S AWR rows are already usable negative evidence. |
 
+Continuation submissions after candidate commit `daff684`:
+
+```text
+9401906 upstream_pwm_mjlab_full_longdiag_h200_20260602, H200 / embers,
+PENDING Resources at first check.
+
+9401907_[0-1%2] lewm_official_pusht_train_hfcachefix_fix1_h200_20260602,
+H200 / embers, PENDING Resources at first check.
+```
+
 Validation details:
 
 ```text
