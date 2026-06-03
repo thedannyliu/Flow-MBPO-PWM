@@ -200,3 +200,36 @@ Submitted arrays:
 Initial queue state: all pending. H200 showed `Resources`; H100/L40S showed
 `None`; A100 already had pending AWAC arrays, so no additional A100 upstream
 duplicate was submitted in this batch.
+
+Replacement record:
+
+The first full-upstream formal arrays were canceled before start because the
+submit wrapper still exported `WANDB_MODE=disabled`. That made the jobs useful
+as diagnostics but incomplete for the formal gate, which requires W&B-backed
+eval notes and MP4/W&B rollout videos. Affected arrays:
+
+```text
+9402743_[0-1%2] H200 eval40, canceled before start
+9402742_[0-1%2] H200 rollout10, canceled before start
+9402746_[0-1%2] H100 eval40, canceled before start
+9402747_[0-1%2] H100 rollout10, canceled before start
+9402744_[0-1%2] L40S eval40, canceled before start
+9402745_[0-1%2] L40S rollout10, canceled before start
+```
+
+Commit `0d64c84` adds W&B logging to the full-upstream eval/render runners and
+changes the submit wrapper to use W&B-on output roots. Replacement arrays:
+
+| Job ID | GPU | Mode | Rows | Output root | W&B |
+| --- | --- | --- | --- | --- | --- |
+| `9402769_[0-1%2]` | H200 | eval40 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_wandb_h200_20260603/` | project `flow-mbpo-mjlab-full-upstream-pwm`, group `upstream_pwm_mjlab_full_pipeline_20260603_eval` |
+| `9402771_[0-1%2]` | H200 | rollout10 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_wandb_h200_20260603/` | project `flow-mbpo-mjlab-full-upstream-pwm`, group `upstream_pwm_mjlab_full_pipeline_20260603_rollout` |
+| `9402774_[0-1%2]` | H100 | eval40 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_wandb_h100_20260603/` | same W&B project/group convention |
+| `9402772_[0-1%2]` | H100 | rollout10 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_wandb_h100_20260603/` | same W&B project/group convention |
+| `9402773_[0-1%2]` | L40S | eval40 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_wandb_l40s_20260603/` | same W&B project/group convention |
+| `9402770_[0-1%2]` | L40S | rollout10 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_wandb_l40s_20260603/` | same W&B project/group convention |
+
+The replacement `sbatch` calls returned Slurm socket timeout messages, but
+`squeue`/`sacct` confirmed that all six replacement arrays were accepted and are
+pending. Treat the canceled W&B-disabled arrays as superseded and unusable for
+formal claims.
