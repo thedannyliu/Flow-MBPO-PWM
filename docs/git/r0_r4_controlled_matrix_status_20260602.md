@@ -28,6 +28,13 @@ It should not be read as:
 full original PWM train_dflex/train_multitask pipeline reproduced on MJLab
 ```
 
+Since that boundary was written, a separate full upstream bridge has been
+smoke-tested: job `9401871` ran `baselines/PWM/scripts/train_dflex.py` with
+upstream `pwm.algorithms.pwm.PWM` and a wrapper-generated MJLab env config, then
+completed 0:0 and wrote init/best/final policies. This proves feasibility of a
+full upstream orchestration path on MJLab, but it is not a fixed-protocol
+performance row because it lacks 40-episode eval and 10-episode videos.
+
 ## Fixed Protocol Target
 
 The controlled matrix should use one fixed MJLab QS protocol:
@@ -50,6 +57,7 @@ completed checkpoint without matched video is diagnostic only
 | Row | Intended one-variable comparison | Current evidence | Missing for controlled claim | Next action |
 | --- | --- | --- | --- | --- |
 | R0 upstream PWM algorithm adapter + original PWM policy/update | Baseline PWM-algorithm transfer to MJLab through the documented QS-window adapter | Formal adapter checkpoints from `9387895`; fix2 eval `9395746` and rollout `9396189` completed. Matched evidence says final/best collapse with eval fall `1.000` and video fall `1.000`. | Nothing for the adapter-level negative gate; this row does not prove failure of a full upstream `train_dflex.py` pipeline on MJLab. | Use as fixed adapter-level R0 baseline. Do not resubmit unless changing runtime, dataset, or building a true upstream-pipeline MJLab bridge. |
+| R0b full upstream PWM pipeline bridge | Feasibility check for upstream `train_dflex.py` / `PWM.train()` on MJLab | Smoke job `9401871` completed 0:0, initialized MJLab G1 with obs_dim 210 and act_dim 29, ran upstream actor/critic/WM updates, and wrote init/best/final policies. Longer diagnostic `9401906` is pending. | Missing fixed-protocol final/best 40-episode eval and final/best 10-episode videos; no fall-aware gate yet. | Treat as pipeline feasibility evidence. If the longer diagnostic writes checkpoints, decide whether to run final/best eval/video gates before using it as a comparator. |
 | R1 Flow WM + original PWM policy/update | Flow WM only | Old 2x2 runner has a `flow_endpoint` WM with `mlp` policy row, but that row is not the faithful original PWM update under the fixed R0 protocol. | Need a row that swaps only the WM while preserving the faithful original PWM policy/update, dataset, seed, eval, and video protocol. | Do not claim R1 from old 2x2 rows. Build or identify a faithful-policy runner that accepts Flow WM. |
 | R2 original PWM WM + Flow policy architecture | Flow policy/update only | Old 2x2 runner has `mlp_ref` WM with `flow` policy, but it used the prior PWM-style runner rather than the faithful R0 update and does not satisfy final/best eval/video gates. | Need one row that keeps original PWM WM and changes only the policy architecture/update to Flow. | Treat old row as diagnostic only; design a fixed-protocol row before submission. |
 | R3 Flow WM + Flow policy architecture | Combined Flow replacement | Old 2x2 Flow WM + Flow policy row exists and broad Flow-MBPO AWR diagnostics exist. Both remain below BC or collapse; broad AWR best diagnostic return is `25.9699`, length `360.0`, fall `1.000`. | Need matched final/best 40-episode eval and 10-episode videos under one fixed seed/protocol if using this row for a causal matrix. | Do not expand the conservative AWR setting; use it as exploitation/fall evidence. |
