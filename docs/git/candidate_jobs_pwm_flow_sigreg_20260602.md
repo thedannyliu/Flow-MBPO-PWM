@@ -1009,3 +1009,34 @@ H200 final/best smoke completed; do not submit formal eval/video for this
 longdiag checkpoint unless the research objective changes to documenting visual
 failure examples rather than testing for success.
 ```
+
+Pessimistic/support Flow-MBPO branch preflight after full PWM negative smoke:
+
+```text
+context: both adapter-level PWM and full-upstream-pipeline PWM now have negative
+MJLab evidence, and the broad conservative AWR sweep falls at rate 1.000. The
+active plan calls for pessimistic short-horizon Flow-MBPO and support/fall/OOD
+diagnostics when exploitation/fall appears.
+existing tooling checked:
+  scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py
+  scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py
+  scripts/experiments/mjlab_qs/add_flow_mbpo_support_penalty.py
+  scripts/experiments/mjlab_qs/apply_flow_mbpo_support_truncation.py
+  scripts/experiments/mjlab_qs/analyze_flow_mbpo_awr_diagnostics.py
+existing artifacts checked:
+  scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/**/summary.json
+  scripts/outputs/mjlab_qs/flow_mbpo_v1_awr/**/summary.json
+summary_export:
+  scripts/outputs/mjlab_qs/status/flow_mbpo_v1_awr_support_summary_20260602.csv
+  scripts/outputs/mjlab_qs/status/flow_mbpo_v1_awr_support_summary_20260602.md
+result: 26 existing v1 AWR/support summaries were exported. The apparent
+high-return rows are 1-update / 2-episode gate-logging smokes starting from the
+BC checkpoint, not evidence for a new Flow-MBPO improvement. The substantive
+CQL/support update rows remain negative: the 100-iter CQL random-action eval8
+row has return 18.7727, length 283.5, fall 1.000; the 500-iter action-deviation
+row has best real return 19.577, length 295.0, fall 1.000.
+submit_decision: no new GPU submission from this poll. Before submitting a new
+pessimistic row, write a concrete manifest that changes the objective beyond
+the already-negative broad AWR/v1 support smokes, e.g. a stricter fall-stop or
+support-truncation row with real_eval_every > 0 and early stop.
+```

@@ -618,3 +618,25 @@ claim or formal MJLab gate.
 next_action: record this as negative full-upstream-pipeline smoke evidence; do
 not submit W&B/formal eval40/video gates for this diagnostic checkpoint.
 ```
+
+## Continuation Inventory: Existing V1 Flow-MBPO Support Results
+
+Preflight time: 2026-06-02 after commit `9ae1c06`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `9ae1c06` |
+| Dirty status before this inventory edit | clean |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -j 9400409,9400528,9400442,9401975,9401980 --format=... -P`; `seff` unavailable earlier and not used in this pass |
+| Artifact searches | Checked existing Flow-MBPO v1 AWR/support summaries, v1 CQL/OOD manifest, broad AWR manifests, support penalty/truncation scripts, and active A100 queue state. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| local export | Aggregate existing Flow-MBPO v1 AWR/support results | Completed locally; 26 summaries exported | `python scripts/experiments/mjlab_qs/export_flow_mbpo_awr_summary.py --root scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke --root scripts/outputs/mjlab_qs/flow_mbpo_v1_awr --output-csv scripts/outputs/mjlab_qs/status/flow_mbpo_v1_awr_support_summary_20260602.csv --output-md scripts/outputs/mjlab_qs/status/flow_mbpo_v1_awr_support_summary_20260602.md` | Mixed historic run SHAs in summaries; current export run after `9ae1c06` | Existing v1 AWR/support summaries, no new training | Project `pwm` env; MJLab QS H16 dataset and existing Flow-MBPO synthetic replay artifacts | mostly seed `0` | No GPU for export | Existing rows mostly W&B disabled; one v1 W&B row had W&B enabled in its original summary | Existing final/best/checkpoints under `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/` and `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr/` | Existing real-eval snapshots where present | High-return rows are 1-update / 2-episode gate-logging smokes from the BC checkpoint (`84.35`-`84.43`, length `1000`, fall `0`), not Flow-MBPO improvement evidence. Substantive rows are negative: CQL random-action eval8 return `18.7727`, length `283.5`, fall `1.0`; 500-iter action-deviation row best return `19.577`, length `295.0`, fall `1.0`. | None for export | Yes as branch-decision evidence; not a formal claim | Do not submit another duplicate support/AWR row. Design a stricter fall-stop/support-truncation manifest before any new GPU job. |
+| `9400409_[0-15]` | Official NEWT broad A100 smoke | `PENDING`, reason `Priority` | Existing official NEWT broad submission | Earlier image-official submission commits | Official NEWT 500-step broad smoke | Official NEWT env/repo | seeds `0`, `1` across tasks | A100 / `embers` | W&B disabled | No checkpoint expected | Logs expected under `logs/slurm/image_official/` | Not available | None yet | Pending only | Leave queued |
+| `9400442`, `9400528_[1-2%2]` | Remaining A100 Flow-MBPO AWR shard rows | `PENDING`, reason `Priority` | Existing A100 shard submissions | Earlier AWR shard submission commits | Conservative Flow-MBPO AWR shard manifests | Project `pwm` env, MJLab QS H16 data and replay/support inputs | seed `1` rows | A100 / `embers` | W&B disabled | Expected per-row AWR checkpoints under A100 shard output root | Expected summaries under `scripts/outputs/mjlab_qs/flow_mbpo_broad_embers_awr_shards_20260602/a100/` | Not available | None yet | Pending only | Leave queued; no duplicate broad AWR submission |
+
+Submit decision in this poll: no new sbatch submission. Existing v1
+support/pessimistic smoke evidence is already negative for substantive update
+rows, and active A100 jobs remain queued.

@@ -127,6 +127,16 @@ evals and remain below the BC comparator. This supports the active plan's pivot
 toward stronger pessimism, support/OOD, fall-risk, and short-horizon model use
 instead of duplicating the same AWR settings.
 
+Existing v1 support/pessimism artifacts were re-exported after the full
+upstream PWM negative smoke. The high-return rows are 1-update / 2-episode
+gate-logging checks from the BC checkpoint and should not be treated as
+Flow-MBPO improvements. The substantive v1 rows remain negative: the 100-iter
+CQL random-action eval8 row reports return `18.7727`, length `283.5`, fall
+`1.000`, and the 500-iter action-deviation row reports best real return
+`19.577`, length `295.0`, fall `1.000`. This narrows the next useful R3/R4 work
+to a genuinely different fall-stop/support-truncation manifest, not another
+duplicate support/AWR smoke.
+
 ## Candidate Jobs Before Next Submission
 
 | Candidate | Type | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
