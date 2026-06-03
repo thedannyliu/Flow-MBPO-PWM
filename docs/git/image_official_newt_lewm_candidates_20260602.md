@@ -517,3 +517,19 @@ metric: `success_rate` 100.0 over 4 eval episodes for row 0 seed 0 horizon 2.
 stderr: Gymnasium/lance fork warnings only.
 interpretation: the pretrained-cache repair worked for the first official LeWM eval row. Continue monitoring pending eval siblings `9401796_[1-5]` and train array `9401797`.
 ```
+
+LeWM hfcachefix eval sweep completion:
+
+```text
+9401796_[0-5] all COMPLETED 0:0 on gpu-h200 / embers.
+per-row success_rate:
+  9401796_0: 100.0, successes [True, True, True, True]
+  9401796_1: 100.0, successes [True, True, True, True]
+  9401796_2: 75.0, successes [False, True, True, True]
+  9401796_3: 75.0, successes [True, True, True, False]
+  9401796_4: 0.0, successes [False, False, False, False]
+  9401796_5: 0.0, successes [False, False, False, False]
+aggregate: 14/24 successful episodes, mean row success_rate 58.33.
+interpretation: the official LeWM runtime, HDF5 data path, and local pretrained cache are fixed across the sweep, but the eval rows are not uniformly successful. Treat this as mixed official LeWM eval evidence, not as a stable 100% result.
+next_action: keep monitoring train smoke array `9401797_[0-1]`, which started after eval rows completed.
+```

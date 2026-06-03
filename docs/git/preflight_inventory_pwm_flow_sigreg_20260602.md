@@ -369,6 +369,16 @@ usable: yes, as official LeWM smoke evidence for eval row 0.
 next_action: keep `9401796_[1-5]` and `9401797_[0-1]` pending/running; no cancellation needed for this root cause.
 ```
 
+LeWM hfcachefix eval sweep completion:
+
+```text
+9401796_[0-5] all COMPLETED 0:0 on gpu-h200 / embers.
+success_rate by row: 100.0, 100.0, 75.0, 75.0, 0.0, 0.0.
+aggregate: 14/24 successful episodes, mean row success_rate 58.33.
+interpretation: the local pretrained-cache and dataset fixes are validated across the full eval array, but official eval performance is mixed across row settings. This replaces the earlier first-row-only 100% note.
+next_action: monitor train smoke array `9401797_[0-1]`, running at the time of this record.
+```
+
 ## Continuation Inventory: Full Upstream PWM Pipeline On MJLab Candidate
 
 Preflight time: 2026-06-02 after commit `6930a67`, America/New_York.
