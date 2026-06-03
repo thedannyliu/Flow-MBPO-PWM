@@ -1454,3 +1454,67 @@ Slurmctld(backup) at sched-phoenix-slurmdb is DOWN
 
 No new Slurm job IDs were created. The next action is to rerun the three
 commands above when `scontrol ping` reports a live controller.
+
+## Continuation Inventory: Dataset Replay-Driven PWM Diagnostic Prepared
+
+Preparation time: 2026-06-03 after commit `ce9245a`, America/New_York.
+
+Purpose: answer whether the original PWM-style core loop can be rerun with the
+real-env collection step replaced by the existing MJLab-QS dataset. This is not
+byte-identical `train_dflex.py`, because upstream `train_dflex.py` always
+collects its buffer from an environment. It is the closest replay-driven variant
+already present in the codebase: upstream `pwm.algorithms.pwm.PWM` actor,
+critic, SimNorm world model, `compute_wm_loss`, imagined rollout actor update,
+and TD(lambda)/critic update, with dataset sampling replacing online buffer
+collection.
+
+Candidate prepared:
+
+| Candidate | Type | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `original_pwm_dataset_replay_locked_diag_h200_20260603` | diagnostic / replay-driven PWM | Yes: MJLab-QS H16 dataset, metadata, normalization, and locked PWM/MJLab wrapper | Disabled | `summary.json`, `eval_summary.json`, WM pretrain logs, `pretrained_original_pwm_adapter.pt`, `best_policy_extraction.pt`, `final_policy_extraction.pt` | H200 / `embers` | No | Submit when Slurm controller returns |
+
+Manifest:
+
+```text
+scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_h200_20260603.csv
+```
+
+Key settings:
+
+```text
+dataset: scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt
+metadata: scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json
+normalization: scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json
+runtime: scripts/experiments/mjlab_qs/locked_mjlab_python.py
+pretrain_iters: 10000
+policy_iters: 3000
+horizon: 16
+eval_episodes: 16
+eval_num_envs: 16
+W&B: disabled
+```
+
+Validation:
+
+```text
+python -m py_compile scripts/experiments/mjlab_qs/run_original_pwm_adapter_row.py
+CSV parse passed for the one-row manifest.
+`run_original_pwm_adapter_row.py --check-inputs --dry-run --python-bin scripts/experiments/mjlab_qs/locked_mjlab_python.py` passed and printed the expected locked-wrapper command.
+```
+
+Planned submit command when Slurm is live:
+
+```text
+bash scripts/experiments/mjlab_qs/submit_array.sh --kind original_pwm_adapter --manifest scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_h200_20260603.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 1 --time 02:00:00 --python-bin scripts/experiments/mjlab_qs/locked_mjlab_python.py
+```
+
+Current blocker:
+
+```text
+scontrol ping:
+Slurmctld(primary) at sched-phoenix-slurmctl is DOWN
+Slurmctld(backup) at sched-phoenix-slurmdb is DOWN
+```
+
+No Slurm job ID was created.
