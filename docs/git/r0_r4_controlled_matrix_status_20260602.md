@@ -164,3 +164,39 @@ No new sbatch submission is made from this record. R4 existing candidates have
 their eval/video gates, the queue is currently empty, and the completed AWR plus
 support-truncation diagnostics close the current duplicate-support branch as
 negative.
+
+## Full-Upstream PWM MJLab Formal Diagnostics
+
+User direction changed the R0b next action from "do not submit formal gates" to
+"run a complete PWM pipeline on MJLab and inspect the effect." Commit `6d6949a`
+adds an upstream render runner that loads full `train_dflex.py` checkpoints via
+the saved Hydra config and evaluates/renders through upstream `PWM.train()`
+artifacts, not policy-extraction proxy checkpoints.
+
+Submission time: 2026-06-03, `embers`, W&B disabled, existing long diagnostic
+checkpoint from `9401906`:
+
+```text
+hydra_run_dir:
+  baselines/PWM/scripts/outputs/2026-06-02/21-35-04
+policy_dir:
+  baselines/PWM/scripts/outputs/2026-06-02/21-35-04/logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602
+checkpoints:
+  final_policy.pt
+  best_policy.pt
+```
+
+Submitted arrays:
+
+| Job ID | GPU | Mode | Rows | Output root | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `9402743_[0-1%2]` | H200 | eval40 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_h200_20260603/` | 40-episode real MJLab eval for full upstream PWM checkpoint |
+| `9402742_[0-1%2]` | H200 | rollout10 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_h200_20260603/` | 10-episode MP4 rollout for full upstream PWM checkpoint |
+| `9402746_[0-1%2]` | H100 | eval40 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_h100_20260603/` | Backup/parallel formal eval with distinct output root |
+| `9402747_[0-1%2]` | H100 | rollout10 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_h100_20260603/` | Backup/parallel rollout with distinct output root |
+| `9402744_[0-1%2]` | L40S | eval40 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_l40s_20260603/` | Backup/parallel formal eval with distinct output root |
+| `9402745_[0-1%2]` | L40S | rollout10 | final/best | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_l40s_20260603/` | Backup/parallel rollout with distinct output root |
+
+Initial queue state: all pending. H200 showed `Resources`; H100/L40S showed
+`None`; A100 already had pending AWAC arrays, so no additional A100 upstream
+duplicate was submitted in this batch.
