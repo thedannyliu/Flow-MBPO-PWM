@@ -11,6 +11,7 @@ from pathlib import Path
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 FLOAT_RE = re.compile(r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+\.\d+|\d+)(?:[eE][-+]?\d+)?")
+ARCH_RE = re.compile(r"architecture=(\w+)")
 
 
 def clean(text: str) -> str:
@@ -34,10 +35,11 @@ def parse_newt_log(path: Path) -> dict[str, str]:
     for raw in path.read_text(errors="ignore").splitlines():
         line = clean(raw)
         if "[flow_2x2]" in line:
+            arch_match = ARCH_RE.search(line)
             if "world-model architecture" in line:
-                metrics["printed_wm_arch"] = line.rsplit("=", 1)[-1].split()[0]
+                metrics["printed_wm_arch"] = arch_match.group(1) if arch_match else ""
             if "policy architecture" in line:
-                metrics["printed_policy_arch"] = line.rsplit("=", 1)[-1].split()[0]
+                metrics["printed_policy_arch"] = arch_match.group(1) if arch_match else ""
         if line.strip().startswith("eval"):
             metrics["initial_eval_return"] = first_float(line.split(" R:", 1)[-1]) if " R:" in line else ""
             metrics["initial_eval_success"] = first_float(line.split(" S:", 1)[-1]) if " S:" in line else ""
