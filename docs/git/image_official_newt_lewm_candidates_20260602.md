@@ -533,3 +533,22 @@ aggregate: 14/24 successful episodes, mean row success_rate 58.33.
 interpretation: the official LeWM runtime, HDF5 data path, and local pretrained cache are fixed across the sweep, but the eval rows are not uniformly successful. Treat this as mixed official LeWM eval evidence, not as a stable 100% result.
 next_action: keep monitoring train smoke array `9401797_[0-1]`, which started after eval rows completed.
 ```
+
+LeWM hfcachefix train smoke failure:
+
+```text
+9401797_0 FAILED 1:0 after 00:00:52 on gpu-h200 / embers.
+9401797_1 FAILED 1:0 after 00:00:40 on gpu-h200 / embers.
+logs:
+  logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_h200_9401797_0.out
+  logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_h200_9401797_1.out
+root_cause: Hydra/OmegaConf struct mode rejected `trainer.limit_train_batches=2`
+and `trainer.limit_val_batches=1` because those keys are not present in the
+official LeWM trainer config.
+diagnostic message: "Could not override 'trainer.limit_train_batches'. To append
+to your config use +trainer.limit_train_batches=2".
+interpretation: train did not reach model/data training; this is a command-line
+override bug, not a dataset/cache/runtime failure.
+next_action: repair the train wrapper to use Hydra append overrides for
+non-struct keys, then resubmit a train-only hfcachefix replacement.
+```

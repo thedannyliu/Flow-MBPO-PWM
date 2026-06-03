@@ -379,6 +379,19 @@ interpretation: the local pretrained-cache and dataset fixes are validated acros
 next_action: monitor train smoke array `9401797_[0-1]`, running at the time of this record.
 ```
 
+LeWM hfcachefix train smoke failure:
+
+```text
+9401797_0 FAILED 1:0 after 00:00:52 on gpu-h200 / embers.
+9401797_1 FAILED 1:0 after 00:00:40 on gpu-h200 / embers.
+root_cause: Hydra/OmegaConf struct mode rejected `trainer.limit_train_batches=2`
+because the official trainer config lacks that key. Hydra reported that append
+syntax should be used: `+trainer.limit_train_batches=2`.
+interpretation: the train smoke failed before training; this does not invalidate
+the completed eval cache/data fix.
+next_action: repair the train command overrides and resubmit train-only rows.
+```
+
 ## Continuation Inventory: Full Upstream PWM Pipeline On MJLab Candidate
 
 Preflight time: 2026-06-02 after commit `6930a67`, America/New_York.
@@ -393,7 +406,7 @@ Preflight time: 2026-06-02 after commit `6930a67`, America/New_York.
 
 | Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `9401871` | Candidate full upstream PWM orchestration smoke on MJLab | Submitted; initial state `PENDING` / `Priority` | `scripts/experiments/mjlab_qs/submit_upstream_pwm_mjlab_full_pipeline_smoke_20260602.sh`, running `scripts/experiments/mjlab_qs/locked_mjlab_python.py train_dflex.py env=mjlab_velocity_flat_unitree_g1 alg=pwm ...` from `baselines/PWM/scripts` | `f79cb1d` | The wrapper writes `cfg/env/mjlab_velocity_flat_unitree_g1.yaml` at job startup because `baselines/PWM` is a nested repo ignored by the main repo; `alg=pwm` resolves to upstream `pwm.algorithms.pwm.PWM`; smoke overrides `alg.max_epochs=8`, `alg.horizon=8`, `critic_iterations=1`, `wm_iterations=1`, `wm_batch_size=16`, W&B disabled | Base Python/torch/PWM from locked original PWM env `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4`; MJLab and local env adapter exposed by `locked_mjlab_python.py`; MJLab task `Mjlab-Velocity-Flat-Unitree-G1`, online env interaction, no QS-window dataset | seed `0` | H200 / `embers` | W&B disabled | Expected under upstream PWM Hydra output/logdir if the smoke reaches checkpoint save | Slurm logs expected under `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/upstream_pwm_mjlab_full_smoke_h200_9401871.{out,err}` | Not available | None yet | Pending smoke | Monitor job; if it starts and fails, record whether failure is env construction, terminal obs/reset semantics, or upstream PWM training |
+| `9401871` | Full upstream PWM orchestration smoke on MJLab | `COMPLETED`, exit `0:0`, elapsed `00:00:27` | `scripts/experiments/mjlab_qs/submit_upstream_pwm_mjlab_full_pipeline_smoke_20260602.sh`, running `scripts/experiments/mjlab_qs/locked_mjlab_python.py train_dflex.py env=mjlab_velocity_flat_unitree_g1 alg=pwm ...` from `baselines/PWM/scripts` | `f79cb1d`; result recorded after `98d025b` | The wrapper writes `cfg/env/mjlab_velocity_flat_unitree_g1.yaml` at job startup because `baselines/PWM` is a nested repo ignored by the main repo; `alg=pwm` resolves to upstream `pwm.algorithms.pwm.PWM`; smoke overrides `alg.max_epochs=8`, `alg.horizon=8`, `critic_iterations=1`, `wm_iterations=1`, `wm_batch_size=16`, W&B disabled | Base Python/torch/PWM from locked original PWM env `/storage/project/r-agarg35-0/eliu354/envs/pwm_orig_locked4`; MJLab and local env adapter exposed by `locked_mjlab_python.py`; MJLab task `Mjlab-Velocity-Flat-Unitree-G1`, online env interaction, no QS-window dataset | seed `0` | H200 / `embers` | W&B disabled | `baselines/PWM/scripts/outputs/2026-06-02/21-19-04/logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602/{init_policy.pt,best_policy.pt,final_policy.pt,final_policy.buffer/}` | `logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/upstream_pwm_mjlab_full_smoke_h200_9401871.{out,err}` | Last update row `[4/8]` R `0.10`, H `8.0`, S `1024`; eval mean episode loss `0.05`, mean discounted loss `0.05`, mean episode length `32.00` | None; warnings only from W&B/Gym/functorch deprecations | Yes: full-pipeline feasibility evidence | Promote to longer full-PWM MJLab run/eval only after defining performance gate |
 
 Validation details:
 

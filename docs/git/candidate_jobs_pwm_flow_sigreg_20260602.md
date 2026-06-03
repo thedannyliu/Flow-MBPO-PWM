@@ -753,3 +753,36 @@ initial scheduler state: PENDING, reason Priority, gpu-h200 / embers, 01:00:00.
 runtime: locked original PWM env through `locked_mjlab_python.py`, upstream
 `pwm.algorithms.pwm.PWM`, wrapper-generated MJLab Hydra env config, W&B disabled.
 ```
+
+Full upstream PWM MJLab smoke result:
+
+```text
+9401871 COMPLETED 0:0 after 00:00:27 on gpu-h200 / embers.
+log: logs/slurm/mjlab_qs/upstream_pwm_full_pipeline/upstream_pwm_mjlab_full_smoke_h200_9401871.out
+Hydra output: baselines/PWM/scripts/outputs/2026-06-02/21-19-04
+policy artifacts:
+  logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602/init_policy.pt
+  logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602/best_policy.pt
+  logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602/final_policy.pt
+  logs/upstream_pwm_mjlab_full_smoke_h200_seed0_20260602/final_policy.buffer/
+evidence:
+  MJLab adapter initialized task `Mjlab-Velocity-Flat-Unitree-G1`, num_envs 16,
+  obs_dim 210, act_dim 29.
+  Hydra config target `alg._target_` was `pwm.algorithms.pwm.PWM`; env target
+  was `flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env`.
+  The upstream `PWM.train()` loop ran actor/critic/world-model updates and
+  wrote init/best/final policies. Printed update rows reached `[4/8]` because
+  early epochs with an empty buffer only collect rollout data and do not print
+  update metrics.
+last smoke metrics:
+  [4/8] R:0.10, T:0.0, H:8.0, S:1024, FPS:780,
+  pi_loss:4.02, pi_grad:4.59/4.59, v_loss:0.08,
+  wm_loss:0.01, rew_loss:0.00, dyn_loss:0.01.
+  Eval summary printed mean episode loss 0.05, mean discounted loss 0.05,
+  mean episode length 32.00 over eval_runs=2.
+interpretation: a complete upstream PWM orchestration smoke now runs on MJLab
+using the PWM-tested locked runtime bridge. This is a pipeline feasibility
+success only; it is not yet a performance claim.
+next_action: run a longer full-PWM MJLab formal/eval pass if this smoke should
+be promoted beyond feasibility.
+```
