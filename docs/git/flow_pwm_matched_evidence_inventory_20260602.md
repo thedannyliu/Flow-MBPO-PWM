@@ -60,9 +60,12 @@ rollout videos. W&B-on final/best eval40 and rollout10 replacements
 `9402769`/`9402771`/`9402772` reached eval/render work but failed at W&B backend
 startup in the mixed locked-PWM/MJLab environment; queued peers
 `9402770`/`9402773`/`9402774` and `9402772_1` were canceled. Commit `7c959cb`
-forces W&B thread backend startup, and threadfix replacement arrays
-`9402882`/`9402885`/`9402884`/`9402883`/`9402887`/`9402888` are pending. No
-fixed-protocol full-upstream performance claim exists yet.
+forces W&B thread backend startup. Threadfix replacements
+`9402882`/`9402885`/`9402884`/`9402883`/`9402887`/`9402888` completed with W&B
+sync and MP4 uploads. The fixed-protocol full-upstream result is a negative
+gate: H200 eval40 final/best `-1.7261 / 39.525 / 1.000` and
+`-1.5293 / 50.650 / 1.000`; H200 rollout10 final/best `-1.8182 / 37.900 /
+1.000` and `-1.3551 / 52.500 / 1.000`.
 ```
 
 ## Scheduler Status During This Inventory
@@ -146,9 +149,8 @@ The existing evidence supports this conservative diagnosis:
 upstream PWM algorithm adapter on MJLab: complete fix2 eval/video gate; final and best both collapse with fall 1.000
 full upstream PWM pipeline bridge: mechanically feasible on MJLab through smoke,
 long diagnostic, and checkpoint real-env eval smoke, but final/best smoke
-collapses with fall 1.000; the first W&B-on replacements failed only at W&B
-backend startup after eval/render work, and thread-backed formal eval40/rollout10
-replacements are pending
+collapses with fall 1.000; thread-backed formal eval40/rollout10 gates are
+complete and also collapse with fall 1.000
 previous PWM-style runner: failed
 Flow WM only: failed in the old 2x2 policy extraction matrix
 Flow policy only: failed in the old 2x2 policy extraction matrix
@@ -169,10 +171,10 @@ MJLab package now has fall-aware eval and video evidence and is a clear negative
 adapter-level baseline. The new full-upstream-pipeline bridge preserves
 `train_dflex.py` and `PWM.train()` orchestration and has completed a longer
 diagnostic (`9401906`) plus final/best real-env eval smoke (`9401975`), but both
-checkpoints collapse with fall 1.000. The first W&B-on formal final/best eval40
-and rollout10 replacements exposed a W&B backend subprocess issue in the mixed
-locked-PWM/MJLab wrapper; thread-backed replacements are pending, so no
-full-upstream performance claim is available yet. The Ant DFlex supplemental
+checkpoints collapse with fall 1.000. Thread-backed formal final/best eval40
+and rollout10 replacements are complete with W&B/MP4 artifacts and also collapse
+with fall 1.000, so the full-upstream PWM bridge is a completed negative MJLab
+gate. The Ant DFlex supplemental
 diagnostic is complete under the
 locked original environment plus explicit GCC 11 `CPATH`; Hopper fix3 reached
 the DFlex kernel/eval path but failed in the probe script because locked PWM

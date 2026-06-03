@@ -1397,3 +1397,60 @@ America/New_York. The `sbatch` client reported socket timeouts, but `squeue` and
 | `9402772_[0-1%2]` | H100 W&B-on backup full-upstream rollout10 | `PENDING` at first poll, reason `Priority` | Same submit script, `MODE=rollout`, H100 / `embers` | `0d64c84` exported at submit time | Same rollout10 protocol | Same saved MJLab/Hydra config | 0 | H100 / `embers` | Same W&B project/rollout group | Same final/best checkpoints | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_wandb_h100_20260603/{final,best}/summary.json` and `rollout.mp4` pending | Pending | None yet | Pending backup formal video gate | Monitor |
 | `9402773_[0-1%2]` | L40S W&B-on backup full-upstream eval40 | `PENDING` at first poll, reason `Priority` | Same submit script, `MODE=eval`, L40S / `embers` | `0d64c84` exported at submit time | Same eval40 protocol | Same saved MJLab/Hydra config | 0 | L40S / `embers` | Same W&B project/eval group | Same final/best checkpoints | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_wandb_l40s_20260603/{final,best}/summary.json` pending | Pending | None yet | Pending backup formal gate | Monitor |
 | `9402770_[0-1%2]` | L40S W&B-on backup full-upstream rollout10 | `PENDING` at first poll, reason `Priority` | Same submit script, `MODE=rollout`, L40S / `embers` | `0d64c84` exported at submit time | Same rollout10 protocol | Same saved MJLab/Hydra config | 0 | L40S / `embers` | Same W&B project/rollout group | Same final/best checkpoints | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_wandb_l40s_20260603/{final,best}/summary.json` and `rollout.mp4` pending | Pending | None yet | Pending backup formal video gate | Monitor |
+
+## Continuation Inventory: Full Upstream PWM Formal Results And Pessimistic Support AWR Queue Attempt
+
+Result/submission-attempt time: 2026-06-03 after commits `3cc2d1d` and
+`a35331f`, America/New_York.
+
+Full upstream PWM threadfix formal results:
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9402882_[0-1%2]` | Full upstream PWM final/best eval40 threadfix | `COMPLETED` from artifacts/logs; `sacct` unavailable during this refresh | `submit_upstream_pwm_mjlab_formal_eval_rollout_20260603.sh`, `MODE=eval`, H200 / `embers` | `7c959cb933de291d9380a8ebf30729640258112e` in summaries | Longdiag checkpoint from `9401906`; eval episodes 40, 16 envs, max steps 1000 | Locked original PWM env plus MJLab project site via `locked_mjlab_python.py`; W&B thread backend | 0 | H200 / `embers` | final `https://wandb.ai/danny010324/flow-mbpo-mjlab-full-upstream-pwm/runs/qqloou0l`; best `https://wandb.ai/danny010324/flow-mbpo-mjlab-full-upstream-pwm/runs/3y6rzkg9` | `.../upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/{final_policy.pt,best_policy.pt}` | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_wandb_threadfix_h200_20260603/{final,best}/summary.json` | final `-1.7261 / 39.525 / 1.000`; best `-1.5293 / 50.650 / 1.000`; both BC gate false | None after threadfix | Complete negative full-upstream eval gate | No more budget on this exact checkpoint/protocol |
+| `9402885_[0-1%2]` | Full upstream PWM final/best rollout10 threadfix | `COMPLETED` from artifacts/logs; MP4 and W&B media synced | Same submit script, `MODE=rollout`, H200 / `embers` | `7c959cb933de291d9380a8ebf30729640258112e` in summaries | Same longdiag checkpoint; rollout episodes 10, max steps 1000, MP4 required | Same locked-PWM/MJLab wrapper and W&B thread backend | 0 | H200 / `embers` | final `https://wandb.ai/danny010324/flow-mbpo-mjlab-full-upstream-pwm/runs/78bhu0l3`; best `https://wandb.ai/danny010324/flow-mbpo-mjlab-full-upstream-pwm/runs/0qpe9tlq` | Same final/best checkpoints | `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_wandb_threadfix_h200_20260603/{final,best}/{summary.json,rollout.mp4}` | final `-1.8182 / 37.900 / 1.000`; best `-1.3551 / 52.500 / 1.000`; both BC gate false | None after threadfix | Complete negative full-upstream video gate | Use as visual evidence of complete upstream PWM collapse |
+| `9402884`, `9402883`, `9402887`, `9402888` | H100/L40S backup eval40 and rollout10 threadfix | `COMPLETED` from artifacts/logs; `sacct` unavailable during this refresh | Same submit wrapper on H100/L40S / `embers`; L40S used 4 CPUs | `7c959cb933de291d9380a8ebf30729640258112e` | Same eval40/rollout10 protocol | Same locked-PWM/MJLab wrapper and W&B thread backend | 0 | H100/L40S / `embers` | W&B URLs embedded in per-row summaries | Same final/best checkpoints | Summary/MP4 artifacts under `scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_*_wandb_threadfix_{h100,l40s}_20260603/` | H100 eval final `-1.7387 / 39.600 / 1.000`, best `-1.5489 / 50.925 / 1.000`; L40S eval final `-1.7156 / 39.150 / 1.000`, best `-1.5947 / 50.750 / 1.000`; rollout backups match H200 collapse | None after threadfix | Cross-partition confirmation only | Preserve as backup evidence |
+
+Candidate jobs prepared after the complete full-upstream negative gate:
+
+| Candidate | Type | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `flow_mbpo_v1_pessimistic_support_awr_h200_20260603` | diagnostic / exploratory | Yes: MJLab QS H16 dataset, BC seed0 policy, existing v1 fall/support-risk H3 replay artifacts | W&B disabled | Per-row AWR summary, checkpoints, real-eval snapshots with return/length/fall | H200 / `embers` | No | Submit when Slurm controller returns |
+| `flow_mbpo_v1_pessimistic_support_awr_h100_20260603` | diagnostic / exploratory backup | Same inputs, distinct H100 output roots | W&B disabled | Same | H100 / `embers` | No | Submit when Slurm controller returns |
+| `flow_mbpo_v1_pessimistic_support_awr_l40s_20260603` | diagnostic / exploratory backup | Same inputs, distinct L40S output roots | W&B disabled | Same | L40S / `embers`, 4 CPUs | No | Submit when Slurm controller returns |
+
+Manifest validation:
+
+```text
+CSV parse passed for all three manifests, each with three rows.
+`run_flow_mbpo_awr_row.py --check-inputs --dry-run` passed for all three H200
+rows, validating the shared dataset, metadata, normalization, BC policy, and
+synthetic replay paths. The H100/L40S manifests use the same inputs with
+distinct output roots and W&B names.
+```
+
+Submission attempts:
+
+```text
+H200 command:
+bash scripts/experiments/mjlab_qs/submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_pessimistic_support_awr_h200_20260603.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 3 --time 02:00:00 --conda-env pwm
+
+H100 command:
+bash scripts/experiments/mjlab_qs/submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_pessimistic_support_awr_h100_20260603.csv --gpu-type H100 --partition gpu-h100 --qos embers --max-concurrent 3 --time 02:00:00 --conda-env pwm
+
+L40S command:
+bash scripts/experiments/mjlab_qs/submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_pessimistic_support_awr_l40s_20260603.csv --gpu-type L40S --partition gpu-l40s --qos embers --max-concurrent 3 --time 02:00:00 --conda-env pwm --cpus 4
+```
+
+All initial and delayed retry submissions failed before receiving job IDs
+because the Slurm controller was unavailable:
+
+```text
+sbatch: error: Batch job submission failed: Unable to contact slurm controller (connect failure)
+scontrol ping:
+Slurmctld(primary) at sched-phoenix-slurmctl is DOWN
+Slurmctld(backup) at sched-phoenix-slurmdb is DOWN
+```
+
+No new Slurm job IDs were created. The next action is to rerun the three
+commands above when `scontrol ping` reports a live controller.
