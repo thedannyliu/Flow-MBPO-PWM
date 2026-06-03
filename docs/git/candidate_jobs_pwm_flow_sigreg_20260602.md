@@ -1363,3 +1363,50 @@ submit_decision:
   commit AGENTS.md, manifests, and this preflight record, then submit H100,
   A100, and L40S arrays as independent backups to the already pending H200 job.
 ```
+
+AWAC broad GPU-fill submissions and first H200 result:
+
+```text
+commit: 9210e59 Add AWAC broad GPU-fill backup manifests.
+submitted_jobs:
+  9402277_[0-2%3] mjqs_flow_mbpo_awr_H100, gpu-h100 / embers, 8 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+  9402279_[0-2%3] mjqs_flow_mbpo_awr_A100, gpu-a100 / embers, 8 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+  9402278_[0-2%3] mjqs_flow_mbpo_awr_L40S, gpu-l40s / embers, 4 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+
+H200 job 9402229_[0-2%3] completed all three rows 0:0 before/while the backup
+submissions were recorded. This proves the W&B-disabled MJLab Flow-MBPO AWAC
+test environment runs on a GPU node and reaches summaries/checkpoints.
+
+H200 row results:
+  row 0 endpoint_h1_awac_cql_mixed_evalstop_s0:
+    return 19.7945, length 296.875, fall 1.000, selection -77.2368,
+    baseline_gate_pass false, early_stop_iter 20.
+  row 1 endpoint_h3_awac_cql_mixed_evalstop_s0:
+    return 19.8573, length 297.125, fall 1.000, selection -77.1714,
+    baseline_gate_pass false, early_stop_iter 20.
+  row 2 endpoint_h5_awac_cql_mixed_evalstop_s0:
+    return 19.8948, length 298.250, fall 1.000, selection -77.1227,
+    baseline_gate_pass false, early_stop_iter 20.
+outputs:
+  scripts/outputs/mjlab_qs/flow_mbpo_awac_short_horizon_diag_20260602/*/summary.json
+  final_policy_extraction.pt, best_policy_extraction.pt,
+  best_training_loss_policy_extraction.pt, final_q_critic.pt, and
+  real_eval_snapshots/iter_000020_policy_extraction.pt in each row dir.
+git_sha_note:
+  H200 row summaries are valid environment/result evidence, but not a clean
+  fixed-SHA formal set: rows 0-1 recorded git SHA 52e56db and row 2 recorded
+  9210e59 because the repo HEAD advanced while the already-submitted array was
+  pending/running. Treat this as diagnostic evidence only.
+interpretation:
+  The PWM/AWAC MJLab environment is mechanically successful, but this H200
+  short-horizon AWAC setting is negative against the BC gate
+  `45.8491 / 594.97 / 0.625`; all rows fall at rate 1.000 and early-stop at
+  iter 20.
+next_action:
+  keep H100/A100/L40S backup arrays queued per the GPU-fill instruction; record
+  their results when they start/finish. Avoid claiming formal fixed-SHA evidence
+  from `9402229`.
+```
