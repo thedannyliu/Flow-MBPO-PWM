@@ -154,6 +154,28 @@ Primary result gates:
 - NEWT: compare MLP dynamics versus fm_ode dynamics under matched seed/task/steps by final train return and any eval lines printed by the official trainer.
 - LeWM: compare MLP predictor versus fm_ode predictor under matched seed/batches by validation prediction loss, flow-matching loss, SIGReg loss, and total loss.
 
+## H200 Results Exported
+
+NEWT H200 primary metrics:
+
+- CSV: `scripts/outputs/image_official/newt_fm_ode_dynamics_h200_20260603/metrics.csv`
+- `mlp` seed 0: final train return `19.541`, success `0.020`.
+- `fm_ode` seed 0: final train return `32.611`, success `0.033`.
+- `mlp` seed 1: final train return `22.362`, success `0.022`.
+- `fm_ode` seed 1: final train return `9.903`, success `0.010`.
+- Mean final train return: MLP `20.952`, fm_ode `21.257`.
+- Interpretation: the strict ODE dynamics path trains end-to-end, but the 2-seed H200 smoke is high variance and does not yet show a reliable improvement over the upstream MLP dynamics.
+
+LeWM H200 fix1 metrics:
+
+- CSV: `scripts/outputs/image_official/lewm_fm_ode_train_h200_fix1_20260603/metrics.csv`
+- `mlp` seed 0: validation pred loss `0.037589`, total validation loss `0.335766`.
+- `fm_ode` seed 0: validation pred loss `0.047028`, flow-matching validation loss `0.999392`, total validation loss `1.346345`.
+- `mlp` seed 1: validation pred loss `0.036997`, total validation loss `0.334957`.
+- `fm_ode` seed 1: validation pred loss `0.040036`, flow-matching validation loss `0.999412`, total validation loss `1.337664`.
+- Mean validation pred loss: MLP `0.037293`, fm_ode `0.043532`.
+- Interpretation: the LeWM flow-matching ODE predictor also trains end-to-end, but this smoke is worse than the MLP predictor on endpoint prediction loss and much worse on total loss because the uncalibrated flow-matching term is about `1.0`.
+
 ## Notes
 
 This is still a smoke/diagnostic comparison, not a formal performance claim. The goal is to determine whether a real flow-matching ODE dynamics or predictor path trains and whether early metrics look better or worse than the official MLP baseline under matched small budgets.
