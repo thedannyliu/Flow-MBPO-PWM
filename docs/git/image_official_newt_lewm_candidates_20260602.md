@@ -394,3 +394,28 @@ first_scheduler_check:
   sacct showed both arrays PENDING, QOS embers, exit 0:0.
 next_action: inspect the first started eval row immediately; if it fails, cancel the sibling rows, record the new root cause, and repair before resubmitting.
 ```
+
+Continuation poll after HDF5-fix submission:
+
+```text
+9401543_[0-5%3] LeWM HDF5-fix eval remains PENDING Priority on gpu-h200 / embers; no logs yet.
+9401544_[0-1%2] LeWM HDF5-fix train remains PENDING Priority on gpu-h200 / embers; no logs yet.
+9400714_[0-15] NEWT official broad L40S completed 0:0. Eval/train rewards by row were:
+  0 42.247/51.202
+  1 42.179/23.809
+  2 5.871/6.516
+  3 0.000/0.000
+  4 34.000/0.000
+  5 0.000/0.000
+  6 183.107/8.803
+  7 0.000/0.000
+  8 18.338/37.122
+  9 18.157/28.181
+  10 13.833/5.912
+  11 0.142/0.000
+  12 10.000/0.000
+  13 0.000/0.000
+  14 144.140/14.021
+  15 985.000/0.000
+interpretation: official NEWT L40S is now fully smoke-covered; do not submit duplicate NEWT L40S rows. Wait for LeWM HDF5-fix rows to start.
+```

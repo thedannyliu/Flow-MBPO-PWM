@@ -596,3 +596,16 @@ expected_logs:
   logs/slurm/image_official/lewm_official_pusht_train_hdf5fix_h200_%A_%a.{out,err}
 next_action: monitor first started row; cancel siblings and record root cause if the HDF5 repair exposes another official LeWM issue.
 ```
+
+Continuation poll after LeWM HDF5-fix submission:
+
+```text
+poll_time: 2026-06-02 after commit 30d7450.
+queue:
+  9401543_[0-5%3] LeWM HDF5-fix eval H200 / embers remains PENDING Priority; no logs yet.
+  9401544_[0-1%2] LeWM HDF5-fix train H200 / embers remains PENDING Priority; no logs yet.
+new_results:
+  9400435_[0-3] H100 Flow-MBPO AWR shard completed 0:0. All rows were valid negative diagnostics with fall_rate_mean 1.0 and returns 19.6023, 19.9737, 21.3537, and 11.0026.
+  9400714_[0-15] NEWT official broad L40S smoke completed 0:0. All rows produced official train/eval output; this is infrastructure evidence only.
+submit_decision: no new sbatch submission in this poll. Useful LeWM replacements are already queued, A100 Flow/NEWT jobs are already queued, and the completed H100 AWR shard confirms the same negative pattern rather than motivating a duplicate run.
+```
