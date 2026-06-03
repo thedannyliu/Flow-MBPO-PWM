@@ -860,3 +860,38 @@ wandb: disabled.
 next_action: monitor the first started row logs immediately; if one partition
 produces valid summaries first, cancel duplicate pending/running work.
 ```
+
+## Continuation Inventory: NEWT A100 Rows 7-13
+
+Preflight time: 2026-06-02 after commit `0ed4cc0`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `0ed4cc0` |
+| Dirty status before this inventory edit | clean |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -j 9400409 --format=... -P` |
+| Artifact searches | Checked `logs/slurm/image_official/newt_official_broad_smoke_9400409_{7..13}.out` for official NEWT reward lines and completion markers. |
+
+Official NEWT A100 broad rows 7-13 completed successfully. These rows are
+usable as official NEWT infrastructure smoke evidence only; they are not
+performance evidence and do not provide MJLab return/length/fall metrics.
+
+| Job ID | Task | Seed | Status | GPU / QOS | Log | Eval reward | Train reward | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9400409_7` | `cup-catch` | `0` | `COMPLETED`, exit `0:0`, elapsed `00:00:27` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_7.out` | `0.000` | `0.000` | Infrastructure smoke only | Keep remaining rows queued |
+| `9400409_8` | `walker-walk` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:30` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_8.out` | `18.338` | `37.122` | Infrastructure smoke only | Keep remaining rows queued |
+| `9400409_9` | `walker-run` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:26` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_9.out` | `18.157` | `28.181` | Infrastructure smoke only | Keep remaining rows queued |
+| `9400409_10` | `cheetah-run` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:27` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_10.out` | `15.168` | `5.912` | Infrastructure smoke only | Keep remaining rows queued |
+| `9400409_11` | `hopper-hop` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:26` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_11.out` | `0.142` | `0.000` | Infrastructure smoke only | Keep remaining rows queued |
+| `9400409_12` | `reacher-easy` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:28` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_12.out` | `10.000` | `0.000` | Infrastructure smoke only | Keep remaining rows queued |
+| `9400409_13` | `pendulum-swingup` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:28` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_13.out` | `0.000` | `0.000` | Infrastructure smoke only | Keep remaining rows queued |
+
+Current queue after this poll:
+
+```text
+9400409_14 RUNNING, A100 / embers, official NEWT cartpole-swingup seed1.
+9400409_[15%8] PENDING, A100 / embers, official NEWT cup-catch seed1.
+9402170_[0-1%2] PENDING, H100 / embers, repaired support-truncation Flow-MBPO.
+9402171_[0-1%2] PENDING, H200 / embers, repaired support-truncation Flow-MBPO.
+```
