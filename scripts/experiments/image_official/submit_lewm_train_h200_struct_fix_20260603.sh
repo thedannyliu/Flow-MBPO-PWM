@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ACCOUNT="${ACCOUNT:-gts-agarg35}"
 GPU_QOS="${GPU_QOS:-embers}"
+GPU_TYPE="${GPU_TYPE:-h200}"
+RUN_LABEL="${RUN_LABEL:-${GPU_TYPE}_structfix_20260603}"
 LOG_DIR="${ROOT}/logs/slurm/image_official"
 COMPAT_ROOT="${ROOT}/scripts/experiments/image_official/compat"
 
@@ -35,20 +37,20 @@ mkdir -p "${LOG_DIR}"
 
 lewm_train_struct_fix_job="$(
   sbatch --parsable \
-    --job-name="lewm_official_pusht_train_structfix_20260603" \
+    --job-name="lewm_official_pusht_train_${RUN_LABEL}" \
     --account="${ACCOUNT}" \
-    --partition="gpu-h200" \
+    --partition="gpu-${GPU_TYPE}" \
     --qos="${GPU_QOS}" \
-    --gres="gpu:h200:1" \
+    --gres="gpu:${GPU_TYPE}:1" \
     --nodes=1 \
     --ntasks=1 \
     --cpus-per-task=4 \
     --mem="96G" \
     --time="02:00:00" \
     --array="0-1%2" \
-    --output="${LOG_DIR}/lewm_official_pusht_train_structfix_%A_%a.out" \
-    --error="${LOG_DIR}/lewm_official_pusht_train_structfix_%A_%a.err" \
-    --export=ALL,LEWM_ROOT="${LEWM_ROOT}",LEWM_ENV="${LEWM_ENV}",STABLEWM_HOME="${STABLEWM_HOME}",COMPAT_ROOT="${COMPAT_ROOT}" \
+    --output="${LOG_DIR}/lewm_official_pusht_train_${RUN_LABEL}_%A_%a.out" \
+    --error="${LOG_DIR}/lewm_official_pusht_train_${RUN_LABEL}_%A_%a.err" \
+    --export=ALL,LEWM_ROOT="${LEWM_ROOT}",LEWM_ENV="${LEWM_ENV}",STABLEWM_HOME="${STABLEWM_HOME}",COMPAT_ROOT="${COMPAT_ROOT}",RUN_LABEL="${RUN_LABEL}" \
     <<'SBATCH'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -64,8 +66,8 @@ export HYDRA_FULL_ERROR=1
   data=pusht \
   data.dataset.name=pusht_expert_train.h5 \
   "seed=${seed}" \
-  "subdir=official_train_smoke_structfix_seed${seed}_20260603" \
-  "output_model_name=lewm_train_smoke_structfix_seed${seed}" \
+  "subdir=official_train_smoke_${RUN_LABEL}_seed${seed}" \
+  "output_model_name=lewm_train_smoke_${RUN_LABEL}_seed${seed}" \
   trainer.max_epochs=1 \
   trainer.devices=1 \
   trainer.accelerator=gpu \

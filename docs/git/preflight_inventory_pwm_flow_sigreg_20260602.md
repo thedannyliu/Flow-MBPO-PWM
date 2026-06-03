@@ -1702,3 +1702,11 @@ Replacement submitted:
 | Job ID | Purpose | Status at submit | GPU / QOS | Notes |
 | --- | --- | --- | --- | --- |
 | `9411595_[0-1]` | LeWM official PushT train smoke with Hydra struct and HDF5 dataset fixes | `PENDING`, reason `Resources` | H200 / `embers` | W&B disabled; distinct `official_train_smoke_structfix_seed*_20260603` subdirs |
+
+Follow-up status:
+
+| Job ID | Status | Evidence | Notes |
+| --- | --- | --- | --- |
+| `9411595_0` | `COMPLETED`, exit `0:0`, elapsed `00:00:44` | Slurm log shows dataset load, one validation batch, two train batches, `Trainer.fit` stopped at `max_epochs=1`, and model save completed | Checkpoint artifacts written under `$STABLEWM_HOME/checkpoints/lewm_train_smoke_structfix_seed0/{config.json,weights_epoch_1.pt}` and Hydra config under `$STABLEWM_HOME/checkpoints/official_train_smoke_structfix_seed0_20260603/config.yaml` |
+| `9411595_1` | `COMPLETED`, exit `0:0`, elapsed `00:00:39` | Same repaired H200 command completed for seed 1 | Checkpoint artifacts written under `$STABLEWM_HOME/checkpoints/lewm_train_smoke_structfix_seed1/{config.json,weights_epoch_1.pt}` and Hydra config under `$STABLEWM_HOME/checkpoints/official_train_smoke_structfix_seed1_20260603/config.yaml` |
+| `9411693_[0-1]` | `CANCELLED`, exit `0:0` | H100 backup was still pending after both H200 seeds completed | Canceled to avoid redundant cross-partition work; the repair script still accepts `GPU_TYPE` and `RUN_LABEL` for future distinct backup submissions |
