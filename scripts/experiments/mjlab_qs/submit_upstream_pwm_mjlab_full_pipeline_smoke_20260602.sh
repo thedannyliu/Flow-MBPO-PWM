@@ -41,6 +41,29 @@ export WANDB_MODE=disabled
 export MUJOCO_GL=egl
 export HYDRA_FULL_ERROR=1
 
+mkdir -p cfg/env
+cat > cfg/env/mjlab_velocity_flat_unitree_g1.yaml <<'YAML'
+config:
+  _target_: flow_mbpo_pwm.envs.mjlab_pwm_adapter.create_mjlab_pwm_env
+  task_id: Mjlab-Velocity-Flat-Unitree-G1
+  num_envs: 16
+  device: ${general.device}
+  seed: ${general.seed}
+  episode_length: 32
+  action_repeat: 2
+  no_grad: false
+
+  obs_key: state
+  obs_key_candidates: [state, policy, observation, obs]
+
+  strict_terminal_obs: true
+  expect_auto_reset: true
+  fail_on_missing_terminal_obs: false
+  warn_missing_terminal_obs_every: 10
+
+  mjlab_env_kwargs: {}
+YAML
+
 "${LOCKED_MJLAB_PYTHON}" train_dflex.py \
   env=mjlab_velocity_flat_unitree_g1 \
   alg=pwm \
