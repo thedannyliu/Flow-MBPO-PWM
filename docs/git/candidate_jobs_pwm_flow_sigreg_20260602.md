@@ -1196,3 +1196,23 @@ OmegaConf 2.3.0.
 submit_decision: commit the wrapper repair and failure record before
 resubmitting support-truncation diagnostics.
 ```
+
+Support-truncation Flow-MBPO repaired-wrapper submissions:
+
+```text
+commit: 3977b7c Fix MJLab QS conda activation wrapper.
+test_only:
+  H100 / embers accepted, predicted start 2026-06-03T11:38:25.
+  H200 / embers accepted, predicted start 2026-06-05T07:16:49.
+submitted_jobs:
+  9402170_[0-1%2] mjqs_flow_mbpo_awr_H100, gpu-h100 / embers, 8 CPUs, 128G,
+  02:00:00, H100 backup output root.
+  9402171_[0-1%2] mjqs_flow_mbpo_awr_H200, gpu-h200 / embers, 8 CPUs, 128G,
+  02:00:00, H200 output root.
+initial_state:
+  9402170 pending Priority.
+  9402171 pending Resources.
+wandb: disabled.
+next_action: monitor first row start; cancel duplicate partition if the other
+partition completes decisive summaries first.
+```

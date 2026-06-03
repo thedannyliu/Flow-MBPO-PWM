@@ -839,3 +839,24 @@ submit_array.sh --kind flow_mbpo_awr ... --gpu-type H100 --conda-env pwm --dry-r
   confirmed the Slurm wrap no longer contains `source ~/.bashrc`.
 local conda snippet activated `pwm` and imported OmegaConf 2.3.0.
 ```
+
+Repaired-wrapper replacement submissions:
+
+```text
+commit_before_submit: 3977b7c Fix MJLab QS conda activation wrapper.
+scheduler_preflight:
+  H100 / embers, 8 CPUs, 128G, 02:00:00: accepted, predicted start
+  2026-06-03T11:38:25.
+  H200 / embers, 8 CPUs, 128G, 02:00:00: accepted, predicted start
+  2026-06-05T07:16:49.
+dry_run: fixed wrapper contains no `source ~/.bashrc`.
+submitted:
+  9402170_[0-1%2] mjqs_flow_mbpo_awr_H100.
+  9402171_[0-1%2] mjqs_flow_mbpo_awr_H200.
+initial_squeue:
+  9402170_[0-1%2] PENDING, reason Priority, QOS embers.
+  9402171_[0-1%2] PENDING, reason Resources, QOS embers.
+wandb: disabled.
+next_action: monitor the first started row logs immediately; if one partition
+produces valid summaries first, cancel duplicate pending/running work.
+```
