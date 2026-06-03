@@ -162,6 +162,8 @@ fi
 ARRAY="0-$((NUM_ROWS - 1))%${MAX_CONCURRENT}"
 LOG_DIR="${PROJECT_ROOT}/logs/slurm/mjlab_qs/${KIND}"
 mkdir -p "${LOG_DIR}"
+SUBMIT_GIT_SHA="$(git -C "${PROJECT_ROOT}" rev-parse HEAD 2>/dev/null || echo unknown)"
+SUBMIT_GIT_BRANCH="$(git -C "${PROJECT_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 
 RUNNER="scripts/experiments/mjlab_qs/run_collection_row.py"
 if [[ "$KIND" == "train" ]]; then
@@ -195,6 +197,7 @@ if [[ -n "${CONDA_ENV}" ]]; then
   WRAP+=" && if [[ -f \${HOME}/miniconda3/etc/profile.d/conda.sh ]]; then source \${HOME}/miniconda3/etc/profile.d/conda.sh; else eval \"\$(conda shell.bash hook)\"; fi && conda activate ${CONDA_ENV}"
 fi
 WRAP+=" && export PYTHONPATH=${PROJECT_ROOT}/src:${PROJECT_ROOT}/baselines/PWM/src:\$PYTHONPATH"
+WRAP+=" && export FLOW_MBPO_SUBMIT_GIT_SHA=${SUBMIT_GIT_SHA} FLOW_MBPO_SUBMIT_GIT_BRANCH=${SUBMIT_GIT_BRANCH}"
 WRAP+=" && export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl EGL_PLATFORM=surfaceless"
 WRAP+=" && export WANDB_DIR=${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
 WRAP+=" && mkdir -p ${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"

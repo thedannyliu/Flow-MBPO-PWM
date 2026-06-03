@@ -81,6 +81,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def git_sha() -> str:
+    override = os.environ.get("FLOW_MBPO_SUBMIT_GIT_SHA", "").strip()
+    if override:
+        return override
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     except Exception:
@@ -88,6 +91,9 @@ def git_sha() -> str:
 
 
 def git_branch() -> str:
+    override = os.environ.get("FLOW_MBPO_SUBMIT_GIT_BRANCH", "").strip()
+    if override:
+        return override
     try:
         return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
     except Exception:

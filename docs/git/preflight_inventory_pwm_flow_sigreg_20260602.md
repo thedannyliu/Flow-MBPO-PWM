@@ -1132,3 +1132,44 @@ negative: all three H200 rows remain below the BC gate and fall at rate 1.000.
 Because the H200 array was submitted at `52e56db` and the repo HEAD advanced
 while the array was pending/running, its summaries are not a clean fixed-SHA
 formal set; keep them as diagnostic evidence only.
+
+## Continuation Inventory: Submission-Time Git SHA Fix
+
+Preflight time: 2026-06-02 after commit `82576d7`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `82576d7` |
+| Motivation | H200 AWAC job `9402229` was submitted at `52e56db`, but one row recorded `9210e59` because the repo HEAD advanced before that array element ran. |
+| Affected existing pending jobs | `9402277`, `9402278`, and `9402279` were submitted before this fix, so their wrappers do not include the override. They remain useful broad diagnostics but may not be fixed-SHA records. |
+
+Change:
+
+```text
+scripts/experiments/mjlab_qs/submit_array.sh:
+  capture `git -C ${PROJECT_ROOT} rev-parse HEAD` and branch at submission
+  time, then export `FLOW_MBPO_SUBMIT_GIT_SHA` and
+  `FLOW_MBPO_SUBMIT_GIT_BRANCH` inside the Slurm wrapper.
+
+scripts/experiments/mjlab_qs/render_policy_rollout.py:
+  `git_sha()` and `git_branch()` now prefer those environment variables before
+  falling back to live `git rev-parse`.
+```
+
+Validation:
+
+```text
+`bash -n scripts/experiments/mjlab_qs/submit_array.sh` passed.
+`python -m py_compile render_policy_rollout.py run_flow_mbpo_v0_awr_update.py`
+passed.
+`submit_array.sh --dry-run` for a Flow-MBPO AWR row emits
+`FLOW_MBPO_SUBMIT_GIT_SHA=82576d7...` and
+`FLOW_MBPO_SUBMIT_GIT_BRANCH=mjlab-qs-rollout-policy-improvement`.
+In the `pwm` conda env with project `PYTHONPATH`, overriding those variables
+makes `git_sha()` return `testsha` and `git_branch()` return `testbranch`.
+```
+
+Submit impact: future Slurm jobs submitted through this wrapper can keep
+submission-time git metadata even if later docs commits happen while the job is
+pending.

@@ -1410,3 +1410,24 @@ next_action:
   their results when they start/finish. Avoid claiming formal fixed-SHA evidence
   from `9402229`.
 ```
+
+Submission-time git metadata fix:
+
+```text
+reason:
+  H200 AWAC row summaries exposed a pending-array metadata problem: live git
+  HEAD can advance between sbatch submission and row execution.
+change:
+  `submit_array.sh` now captures submit-time git SHA/branch and exports
+  `FLOW_MBPO_SUBMIT_GIT_SHA` / `FLOW_MBPO_SUBMIT_GIT_BRANCH` in the Slurm
+  wrapper. Shared `render_policy_rollout.git_sha/git_branch` prefer those env
+  vars before falling back to live git.
+validation:
+  shell syntax and Python compile passed; dry-run wrapper includes the submit
+  SHA/branch exports; conda `pwm` env override test returned `testsha` and
+  `testbranch`.
+impact:
+  Jobs already submitted before this fix (`9402277`, `9402278`, `9402279`) do
+  not have the override in their wrapper, so keep them as broad diagnostics.
+  Future submissions through the wrapper can be fixed-SHA records.
+```
