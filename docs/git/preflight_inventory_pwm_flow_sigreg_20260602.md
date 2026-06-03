@@ -676,3 +676,32 @@ array rows:
 wandb: disabled.
 dependencies: none.
 ```
+
+## Continuation Inventory: Support-Truncation H100 Backup
+
+Preflight time: 2026-06-02 after commit `aaf657d`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `aaf657d` |
+| Dirty status before this inventory edit | new H100 backup manifest only |
+| Slurm commands | `squeue -u $USER -o ...`; H100/A100/L40S `sbatch --test-only` probes |
+| Artifact searches | Checked H200 support-truncation queue state, H100 backup manifest rows/output roots, and existing Flow-MBPO support-truncation replay inputs. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9402080_0` | H200 Flow-MBPO support-truncation diagnostic, q0.90 replay | `RUNNING` at preflight poll | `submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_20260602.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 2 --time 02:00:00 --mem 128G --cpus 8` | `23cbdbd` manifest commit; submission recorded at `aaf657d` | q0.90 state-support truncated trajectory H3 replay, mixed CQL, real eval every 20, early stop on poor return/length/fall score | Project `pwm` env; MJLab QS H16 data; BC seed0 policy; support-truncated synthetic replay | seed `0` | H200 / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/state_support_q90_trunc_cql_mixed_evalstop_s0/` | Expected `summary.json` and real-eval snapshots | Not available yet | None yet | Running only | Inspect summary/log after completion |
+| `9402080_1` | H200 Flow-MBPO support-truncation diagnostic, q0.50 replay | `PENDING`, reason `Resources` at preflight poll | Same H200 array | `23cbdbd` / `aaf657d` | q0.50 state-support truncated trajectory H3 replay, mixed CQL, real eval every 20, early stop on poor return/length/fall score | Same project env and MJLab QS inputs | seed `0` | H200 / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/state_support_q50_trunc_cql_mixed_evalstop_s0/` | Expected `summary.json` and real-eval snapshots | Not available yet | None yet | Pending only | H100 backup is justified if committed before submission because this row is still blocked on H200 resources |
+| `flow_mbpo_support_trunc_awr_diag_h100_20260602` | H100 backup manifest for the same two support-truncation diagnostics | Prepared locally; not submitted before this commit | `submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_h100_20260602.csv --gpu-type H100 --partition gpu-h100 --qos embers --max-concurrent 2 --time 02:00:00 --mem 128G --cpus 8` | Pending commit | Same two q0.90/q0.50 support-truncated replay rows as H200, but with distinct output root `scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_h100_20260602/` | Same project `pwm` env and MJLab QS inputs; no upstream-PWM locked env is needed for this Flow-MBPO AWR diagnostic | seed `0` | H100 / `embers` | W&B disabled | Expected per-row final/best/best-training policies and critic checkpoints under the H100 output root | Expected per-row `summary.json` and real-eval snapshots | Not available yet | None yet | Candidate only | Commit manifest and docs, then submit H100 backup; cancel duplicate pending/running work if either H200 or H100 completes first with decisive summaries |
+
+Scheduler alternative notes:
+
+```text
+H100 / embers, 8 CPUs, 128G, 02:00:00: accepted by sbatch --test-only,
+predicted start 2026-06-03T14:10:03.
+A100 / embers: accepted but predicted 2026-06-06T19:13:42.
+L40S / embers with 4 CPUs / 96G: accepted but predicted 2026-06-07T12:49:41.
+decision: use H100 backup only; do not add A100/L40S duplicates for this
+two-row diagnostic.
+```

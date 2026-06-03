@@ -1089,3 +1089,29 @@ dependency_required: no.
 next_action: inspect first summary/log after completion; if both rows still
 fall at 1.000, do not expand support truncation without a new mechanism.
 ```
+
+Support-truncation Flow-MBPO H100 backup candidate:
+
+```text
+candidate: flow_mbpo_support_trunc_awr_diag_h100_20260602.
+type: diagnostic backup, W&B disabled.
+manifest:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_h100_20260602.csv
+reason: H200 job 9402080 row 0 started, but row 1 remained pending for H200
+resources. H100 test-only reported an earlier concrete eligible start than A100
+or L40S alternatives, and the backup uses a distinct output root to avoid
+artifact overlap.
+rows: same q0.90 and q0.50 support-truncated replay diagnostics as the H200
+manifest, with output root
+  scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_h100_20260602/.
+validation:
+  CSV sanity check passed for 2 rows and distinct output dirs.
+  `run_flow_mbpo_awr_row.py --check-inputs --dry-run` passed for rows 0 and 1.
+  `submit_array.sh --kind flow_mbpo_awr ... --gpu-type H100 --dry-run`
+  produced a valid H100/embers array.
+  H100/embers `sbatch --test-only` accepted the request with predicted start
+  2026-06-03T14:10:03.
+submit_decision: commit first, then submit as a W&B-disabled backup; cancel the
+duplicate still-pending/running array if the other partition completes first and
+answers the diagnostic question.
+```
