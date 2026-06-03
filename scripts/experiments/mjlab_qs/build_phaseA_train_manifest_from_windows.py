@@ -16,6 +16,7 @@ def parse_csv_list(raw: str) -> List[str]:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("--stage", required=True)
+    p.add_argument("--dataset-stage", default="", help="Window dataset stage. Defaults to --stage.")
     p.add_argument("--output", required=True)
     p.add_argument("--root", default="scripts/outputs/mjlab_qs")
     p.add_argument("--tasks", default="velocity_flat_unitree_go1,velocity_flat_unitree_g1")
@@ -23,7 +24,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--seeds", default="0,1,2")
     p.add_argument("--train-iters", type=int, default=50000)
     p.add_argument("--batch-size", type=int, default=256)
+    p.add_argument("--eval-batch-size", type=int, default=1024)
     p.add_argument("--eval-every", type=int, default=5000)
+    p.add_argument("--hidden", type=int, default=512)
+    p.add_argument("--flow-substeps", type=int, default=4)
+    p.add_argument("--chunk-size", type=int, default=3)
+    p.add_argument("--done-loss-weight", type=float, default=0.1)
+    p.add_argument("--sigreg-weight", type=float, default=0.0)
+    p.add_argument("--sigreg-projections", type=int, default=128)
+    p.add_argument("--sigreg-knots", type=int, default=8)
+    p.add_argument("--sigreg-bandwidth", type=float, default=1.0)
     p.add_argument("--wandb-project", default="flow-mbpo-mjlab-phaseA-wm-feasibility")
     p.add_argument("--disable-wandb", action="store_true")
     return p.parse_args()
@@ -32,6 +42,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     root = Path(args.root)
+    dataset_stage = args.dataset_stage or args.stage
     tasks = parse_csv_list(args.tasks)
     methods = parse_csv_list(args.methods)
     seeds = [int(x) for x in parse_csv_list(args.seeds)]
@@ -40,7 +51,7 @@ def main() -> None:
 
     rows = []
     for task in tasks:
-        dataset = root / "windows" / args.stage / task / "d_qs_core_h16.pt"
+        dataset = root / "windows" / dataset_stage / task / "d_qs_core_h16.pt"
         metadata = dataset.with_suffix(".json")
         norm = dataset.with_name(dataset.stem + "_normalization.json")
         missing = [p for p in (dataset, metadata, norm) if not p.exists()]
@@ -65,7 +76,16 @@ def main() -> None:
                             args.train_iters if method == "residual_flow_frozen_mlp" else 0
                         ),
                         "batch_size": str(args.batch_size),
+                        "eval_batch_size": str(args.eval_batch_size),
                         "eval_every": str(args.eval_every),
+                        "hidden": str(args.hidden),
+                        "flow_substeps": str(args.flow_substeps),
+                        "chunk_size": str(args.chunk_size),
+                        "done_loss_weight": str(args.done_loss_weight),
+                        "sigreg_weight": str(args.sigreg_weight),
+                        "sigreg_projections": str(args.sigreg_projections),
+                        "sigreg_knots": str(args.sigreg_knots),
+                        "sigreg_bandwidth": str(args.sigreg_bandwidth),
                         "wandb_project": args.wandb_project,
                         "wandb_group": f"{args.stage}_{task}",
                         "disable_wandb": str(bool(args.disable_wandb)).lower(),

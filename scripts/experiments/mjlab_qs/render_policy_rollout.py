@@ -1,0 +1,625 @@
+#!/usr/bin/env python3
+"""Render real-environment rollout videos for completed MJLab-QS policies."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+import torch
+
+os.environ.setdefault("MUJOCO_GL", "egl")
+if os.environ.get("MUJOCO_GL") == "egl":
+    os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
+    os.environ.setdefault("EGL_PLATFORM", "surfaceless")
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.experiments.mjlab_qs.collect_mjlab_qs_native_episodes import (
+    patch_headless_display_dependency,
+    patch_mujoco_compatibility,
+    split_obs,
+    tensor_from_actor_obs,
+)
+from scripts.experiments.mjlab_qs.run_offline_pwm_policy_extraction import (
+    Actor,
+    FlowActor,
+    load_data as load_policy_data,
+    norm,
+    parse_units,
+)
+from scripts.experiments.mjlab_qs.run_original_pwm_adapter import (
+    build_pwm_agent,
+    load_data as load_original_data,
+    pack_obs,
+)
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+    p.add_argument("--policy-checkpoint", required=True)
+    p.add_argument("--output-dir", required=True)
+    p.add_argument("--checkpoint-kind", default="")
+    p.add_argument("--device", default="cuda:0")
+    p.add_argument("--rollout-episodes", type=int, default=3)
+    p.add_argument("--max-steps", type=int, default=300)
+    p.add_argument("--video-fps", type=int, default=30)
+    p.add_argument("--require-mp4", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--wandb-project", default="")
+    p.add_argument("--wandb-group", default="")
+    p.add_argument("--wandb-name", default="")
+    p.add_argument("--disable-wandb", action="store_true")
+    p.add_argument("--action-ramp-steps", type=int, default=0)
+    p.add_argument("--baseline-return", type=float, default=None)
+    p.add_argument("--baseline-length", type=float, default=None)
+    p.add_argument("--baseline-fall", type=float, default=None)
+    p.add_argument("--notes", default="")
+    p.add_argument(
+        "--save-support-features",
+        action="store_true",
+        help="Save per-step normalized state, command, action, and done flags for support/OOD calibration.",
+    )
+    p.add_argument("--checkpoint-format", choices=("auto", "generic", "original_pwm_adapter"), default="auto")
+    p.add_argument("--dataset", default="")
+    p.add_argument("--metadata", default="")
+    p.add_argument("--normalization", default="")
+    p.add_argument("--task-id", default="Mjlab-Velocity-Flat-Unitree-G1")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--command-dim", type=int, default=3)
+    p.add_argument("--command-position", choices=("tail", "head"), default="tail")
+    p.add_argument("--obs-mode", choices=("normalized", "raw"), default="normalized")
+    return p.parse_args()
+
+
+def git_sha() -> str:
+    override = os.environ.get("FLOW_MBPO_SUBMIT_GIT_SHA", "").strip()
+    if override:
+        return override
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def git_branch() -> str:
+    override = os.environ.get("FLOW_MBPO_SUBMIT_GIT_BRANCH", "").strip()
+    if override:
+        return override
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def command_line() -> str:
+    return " ".join([sys.executable, *sys.argv])
+
+
+def add_baseline_gate(summary: dict[str, Any], args: argparse.Namespace) -> None:
+    ret = summary.get("return_mean")
+    length = summary.get("episode_length_mean")
+    fall = summary.get("fall_rate_mean")
+    configured = args.baseline_return is not None and args.baseline_length is not None and args.baseline_fall is not None
+    summary["baseline_gate_configured"] = bool(configured)
+    if args.baseline_return is not None and ret is not None:
+        baseline = float(args.baseline_return)
+        summary["baseline_return"] = baseline
+        summary["return_gap_to_baseline"] = float(ret) - baseline
+        summary["return_gate_pass"] = bool(float(ret) >= baseline)
+    if args.baseline_length is not None and length is not None:
+        baseline = float(args.baseline_length)
+        summary["baseline_length"] = baseline
+        summary["length_gap_to_baseline"] = float(length) - baseline
+        summary["length_gate_pass"] = bool(float(length) >= baseline)
+    if args.baseline_fall is not None and fall is not None:
+        baseline = float(args.baseline_fall)
+        summary["baseline_fall"] = baseline
+        summary["fall_gap_to_baseline"] = float(fall) - baseline
+        summary["fall_gate_pass"] = bool(float(fall) < baseline)
+    if configured:
+        summary["baseline_gate_pass"] = bool(
+            summary.get("return_gate_pass") and summary.get("length_gate_pass") and summary.get("fall_gate_pass")
+        )
+
+
+def build_actor(ckpt: dict[str, Any], state_dim: int, command_dim: int, action_dim: int, device: torch.device):
+    ckpt_args = ckpt["args"]
+    if ckpt_args.get("policy_type", "mlp") == "mlp":
+        actor = Actor(
+            state_dim,
+            command_dim,
+            action_dim,
+            units=parse_units(ckpt_args.get("actor_units", "400,200,100")),
+            init_logstd=float(ckpt_args.get("init_logstd", -1.0)),
+            min_logstd=float(ckpt_args.get("min_logstd", -1.427)),
+        )
+    else:
+        actor = FlowActor(
+            state_dim,
+            command_dim,
+            action_dim,
+            units=parse_units(ckpt_args.get("actor_units", "400,200,100")),
+            flow_substeps=int(ckpt_args.get("flow_policy_substeps", 2)),
+            flow_integrator=ckpt_args.get("flow_policy_integrator", "heun"),
+        )
+    actor.load_state_dict(ckpt["actor"])
+    actor.to(device)
+    actor.eval()
+    return actor
+
+
+def adapter_args_from_cli(args: argparse.Namespace, output_dir: Path) -> argparse.Namespace:
+    missing = [key for key in ("dataset", "metadata", "normalization") if not getattr(args, key)]
+    if missing:
+        raise SystemExit(
+            "original_pwm_adapter checkpoints require manifest/CLI fields: " + ", ".join(missing)
+        )
+    return argparse.Namespace(
+        dataset=args.dataset,
+        metadata=args.metadata,
+        normalization=args.normalization,
+        seed=args.seed,
+        device=args.device,
+        output_dir=str(output_dir),
+        task_id=args.task_id,
+        eval_num_envs=1,
+        episode_length=args.max_steps,
+        command_dim=args.command_dim,
+        command_position=args.command_position,
+        obs_mode=args.obs_mode,
+        reward_mode="normalized",
+        pretrain_iters=0,
+        policy_iters=0,
+        wm_batch_size=256,
+        policy_batch_size=64,
+        horizon=16,
+        gamma=0.99,
+        lam=0.95,
+        actor_lr=5e-4,
+        critic_lr=5e-4,
+        model_lr=3e-4,
+        critic_iterations=8,
+        critic_batches=4,
+        num_critics=3,
+        latent_dim=512,
+        rew_rms=False,
+        ret_rms=True,
+    )
+
+
+def load_original_adapter_agent(
+    ckpt: dict[str, Any],
+    adapter_args: argparse.Namespace,
+    data: dict[str, Any],
+    device: torch.device,
+):
+    agent = build_pwm_agent(
+        adapter_args,
+        obs_dim=int(data["phys_obs"].shape[-1]) + int(data["command"].shape[-1]),
+        action_dim=int(data["policy_action"].shape[-1]),
+    )
+    agent.actor.load_state_dict(ckpt["actor"])
+    agent.wm.load_state_dict(ckpt["world_model"])
+    agent.actor.to(device).eval()
+    agent.wm.to(device).eval()
+    return agent
+
+
+def build_render_env(ckpt_args: dict[str, Any], device: str):
+    patch_mujoco_compatibility()
+    patch_headless_display_dependency()
+    import mjlab.tasks  # noqa: F401
+    from mjlab.envs import ManagerBasedRlEnv
+    from mjlab.rl import RslRlVecEnvWrapper
+    from mjlab.tasks.registry import load_env_cfg, load_rl_cfg
+
+    task_id = ckpt_args.get("task_id", "Mjlab-Velocity-Flat-Unitree-G1")
+    env_cfg = load_env_cfg(task_id, play=True)
+    agent_cfg = load_rl_cfg(task_id)
+    env_cfg.scene.num_envs = 1
+    env_cfg.seed = int(ckpt_args.get("seed", 0)) + 20000
+    if hasattr(env_cfg, "episode_length_s") and hasattr(env_cfg, "sim") and hasattr(env_cfg.sim, "mujoco"):
+        env_dt = float(env_cfg.sim.mujoco.timestep) * float(env_cfg.decimation)
+        env_cfg.episode_length_s = float(ckpt_args.get("episode_length", 1000)) * env_dt
+    base_env = ManagerBasedRlEnv(cfg=env_cfg, device=device, render_mode="rgb_array")
+    wrapped = RslRlVecEnvWrapper(base_env, clip_actions=agent_cfg.clip_actions)
+    obs_td = wrapped.get_observations()
+    obs_groups = list(agent_cfg.obs_groups["actor"])
+    return wrapped, base_env, obs_td, obs_groups
+
+
+def frame_from_render(env, base_env):
+    for candidate_env in (env, base_env):
+        render_fn = getattr(candidate_env, "render", None)
+        if not callable(render_fn):
+            continue
+        try:
+            frame = render_fn(mode="rgb_array")
+        except TypeError:
+            frame = render_fn()
+        if isinstance(frame, torch.Tensor):
+            frame = frame.detach().cpu().numpy()
+        if isinstance(frame, (list, tuple)) and frame:
+            frame = frame[0]
+        if isinstance(frame, dict):
+            for key in ("rgb", "frame", "image"):
+                if key in frame:
+                    frame = frame[key]
+                    break
+        if hasattr(frame, "shape"):
+            return frame
+    return None
+
+
+def write_csv(path: Path, rows: list[dict[str, Any]], fields: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def apply_action_ramp(action: torch.Tensor, ep_len: torch.Tensor, ramp_steps: int) -> tuple[torch.Tensor, torch.Tensor]:
+    if ramp_steps <= 0:
+        return action, torch.ones(action.shape[0], device=action.device, dtype=action.dtype)
+    factor = ((ep_len.to(action.dtype) + 1.0) / float(ramp_steps)).clamp(max=1.0)
+    return action * factor.unsqueeze(-1), factor
+
+
+def append_support_feature(
+    storage: dict[str, list[torch.Tensor]],
+    z: torch.Tensor,
+    command: torch.Tensor,
+    action: torch.Tensor,
+    raw_action: torch.Tensor,
+    episode_slot: int,
+    step: int,
+    reward: torch.Tensor,
+    done: torch.Tensor,
+    terminated: torch.Tensor,
+    truncated: torch.Tensor,
+) -> None:
+    storage["state"].append(z[:1].detach().cpu())
+    storage["command"].append(command[:1].detach().cpu())
+    storage["action"].append(action[:1].detach().cpu())
+    storage["raw_action"].append(raw_action[:1].detach().cpu())
+    storage["episode_slot"].append(torch.tensor([episode_slot], dtype=torch.long))
+    storage["step"].append(torch.tensor([step], dtype=torch.long))
+    storage["reward"].append(reward[:1].detach().cpu().float())
+    storage["done"].append(done[:1].detach().cpu().bool())
+    storage["terminated"].append(terminated[:1].detach().cpu().bool())
+    storage["truncated"].append(truncated[:1].detach().cpu().bool())
+
+
+def stack_support_features(storage: dict[str, list[torch.Tensor]]) -> dict[str, torch.Tensor]:
+    return {key: torch.cat(values, dim=0) for key, values in storage.items() if values}
+
+
+@torch.no_grad()
+def collect_original_adapter_rollout(agent, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor], args: argparse.Namespace):
+    device = torch.device(args.device)
+    env, base_env, obs_td, obs_groups = build_render_env(ckpt_args, args.device)
+    frames = []
+    step_rows: list[dict[str, Any]] = []
+    episode_rows: list[dict[str, Any]] = []
+    support_features: dict[str, list[torch.Tensor]] = {
+        "state": [],
+        "command": [],
+        "action": [],
+        "raw_action": [],
+        "episode_slot": [],
+        "step": [],
+        "reward": [],
+        "done": [],
+        "terminated": [],
+        "truncated": [],
+    }
+    returns = torch.zeros(1, device=device)
+    ep_len = torch.zeros(1, device=device)
+    episodes_done = 0
+    command_dim = int(ckpt_args.get("command_dim", 3))
+    command_position = ckpt_args.get("command_position", "tail")
+    try:
+        while episodes_done < args.rollout_episodes:
+            frame = frame_from_render(env, base_env)
+            if frame is not None:
+                frames.append(frame)
+            actor_obs = tensor_from_actor_obs(obs_td, obs_groups)
+            phys, cmd = split_obs(actor_obs, command_dim, command_position)
+            packed = pack_obs(phys.to(device), cmd.to(device), nrm, ckpt_args.get("obs_mode", "normalized"))
+            z = agent.wm.encode(packed, task=None)
+            raw_action = torch.tanh(agent.actor(z, deterministic=True)).clamp(-1.0, 1.0)
+            action, ramp_factor = apply_action_ramp(raw_action, ep_len, int(args.action_ramp_steps))
+            next_obs_td, reward, done, extras = env.step(action)
+            reward = reward.to(device).float().reshape(-1)
+            done = done.to(device).bool().reshape(-1)
+            time_out = extras.get("time_outs", torch.zeros_like(done)).to(device).bool().reshape(-1)
+            terminated = done & (~time_out)
+            returns = returns + reward
+            ep_len = ep_len + 1
+            if args.save_support_features:
+                append_support_feature(
+                    support_features,
+                    z,
+                    cmd.float().to(device),
+                    action,
+                    raw_action,
+                    episodes_done,
+                    int(ep_len[0].item()),
+                    reward,
+                    done,
+                    terminated,
+                    time_out,
+                )
+            step_rows.append(
+                {
+                    "episode_slot": episodes_done,
+                    "step": int(ep_len[0].item()),
+                    "reward": float(reward[0].item()),
+                    "action_l2": float(action[0].float().pow(2).mean().sqrt().item()),
+                    "raw_action_l2": float(raw_action[0].float().pow(2).mean().sqrt().item()),
+                    "action_ramp_factor": float(ramp_factor[0].item()),
+                    "done": int(done[0].item()),
+                    "terminated": int(terminated[0].item()),
+                    "truncated": int(time_out[0].item()),
+                }
+            )
+            if bool(done[0].item()) or int(ep_len[0].item()) >= args.max_steps:
+                episode_rows.append(
+                    {
+                        "episode": episodes_done,
+                        "return": float(returns[0].item()),
+                        "length": float(ep_len[0].item()),
+                        "terminated": int(terminated[0].item()),
+                        "truncated": int(time_out[0].item()),
+                    }
+                )
+                episodes_done += 1
+                returns.zero_()
+                ep_len.zero_()
+            obs_td = next_obs_td
+    finally:
+        env.close()
+    return frames, step_rows, episode_rows, stack_support_features(support_features)
+
+
+@torch.no_grad()
+def collect_rollout(actor, ckpt_args: dict[str, Any], nrm: dict[str, torch.Tensor], args: argparse.Namespace):
+    device = torch.device(args.device)
+    env, base_env, obs_td, obs_groups = build_render_env(ckpt_args, args.device)
+    frames = []
+    step_rows: list[dict[str, Any]] = []
+    episode_rows: list[dict[str, Any]] = []
+    support_features: dict[str, list[torch.Tensor]] = {
+        "state": [],
+        "command": [],
+        "action": [],
+        "raw_action": [],
+        "episode_slot": [],
+        "step": [],
+        "reward": [],
+        "done": [],
+        "terminated": [],
+        "truncated": [],
+    }
+    ep_return = torch.zeros(1, device=device)
+    ep_len = torch.zeros(1, dtype=torch.long, device=device)
+    episodes_done = 0
+    command_dim = int(ckpt_args.get("command_dim", 3))
+    command_position = ckpt_args.get("command_position", "tail")
+    try:
+        while episodes_done < args.rollout_episodes:
+            frame = frame_from_render(env, base_env)
+            if frame is not None:
+                frames.append(frame)
+            obs = tensor_from_actor_obs(obs_td, obs_groups)
+            phys, cmd = split_obs(obs, command_dim, command_position)
+            z = norm(phys.float(), nrm["phys_obs_mean"], nrm["phys_obs_std"])
+            c = cmd.float()
+            if c.shape[-1] and "command_mean" in nrm:
+                c = norm(c, nrm["command_mean"], nrm["command_std"])
+            raw_action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
+            action, ramp_factor = apply_action_ramp(raw_action, ep_len, int(args.action_ramp_steps))
+            next_obs_td, reward, done, extras = env.step(action)
+            reward = reward.to(device).float().reshape(-1)
+            done = done.to(device).bool().reshape(-1)
+            time_out = extras.get("time_outs", torch.zeros_like(done)).to(device).bool().reshape(-1)
+            terminated = done & (~time_out)
+            ep_return += reward[:1]
+            ep_len += 1
+            if args.save_support_features:
+                append_support_feature(
+                    support_features,
+                    z,
+                    c,
+                    action,
+                    raw_action,
+                    episodes_done,
+                    int(ep_len[0].item()),
+                    reward,
+                    done,
+                    terminated,
+                    time_out,
+                )
+            step_rows.append(
+                {
+                    "episode_slot": episodes_done,
+                    "step": int(ep_len[0].item()),
+                    "reward": float(reward[0].item()),
+                    "action_l2": float(action[0].pow(2).mean().sqrt().item()),
+                    "raw_action_l2": float(raw_action[0].pow(2).mean().sqrt().item()),
+                    "action_ramp_factor": float(ramp_factor[0].item()),
+                    "done": int(done[0].item()),
+                    "terminated": int(terminated[0].item()),
+                    "truncated": int(time_out[0].item()),
+                }
+            )
+            if bool(done[0].item()) or int(ep_len[0].item()) >= args.max_steps:
+                episode_rows.append(
+                    {
+                        "episode": episodes_done,
+                        "return": float(ep_return[0].item()),
+                        "length": int(ep_len[0].item()),
+                        "terminated": int(terminated[0].item()),
+                        "truncated": int(time_out[0].item()),
+                    }
+                )
+                episodes_done += 1
+                ep_return.zero_()
+                ep_len.zero_()
+            obs_td = next_obs_td
+    finally:
+        env.close()
+    return frames, step_rows, episode_rows, stack_support_features(support_features)
+
+
+def write_video(frames: list[Any], path: Path, fps: int, require_mp4: bool) -> None:
+    if not frames:
+        raise RuntimeError("No render frames were captured; cannot write rollout video.")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import imageio.v2 as iio
+
+        with iio.get_writer(str(path), fps=fps, format="FFMPEG") as writer:
+            for frame in frames:
+                writer.append_data(frame)
+    except Exception as exc:
+        if require_mp4:
+            raise RuntimeError(f"MP4 export failed for {path}: {exc}") from exc
+        gif_path = path.with_suffix(".gif")
+        import imageio.v2 as iio_v2
+
+        iio_v2.mimsave(str(gif_path), frames, format="GIF", fps=fps)
+
+
+def main() -> None:
+    args = parse_args()
+    device = torch.device(args.device)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    ckpt = torch.load(args.policy_checkpoint, map_location=device, weights_only=False)
+    checkpoint_format = args.checkpoint_format
+    if checkpoint_format == "auto":
+        checkpoint_format = "generic" if "args" in ckpt else "original_pwm_adapter"
+    if checkpoint_format == "original_pwm_adapter":
+        adapter_args = adapter_args_from_cli(args, output_dir)
+        data, _metadata, nrm, _train_idx, _val_idx, _test_idx = load_original_data(adapter_args, device)
+        actor = load_original_adapter_agent(ckpt, adapter_args, data, device)
+        ckpt_args = vars(adapter_args)
+    else:
+        ckpt_args = ckpt["args"]
+        data, _metadata, nrm, _train_idx = load_policy_data(argparse.Namespace(**ckpt_args), device)
+        actor = build_actor(
+            ckpt,
+            state_dim=int(data["phys_obs"].shape[-1]),
+            command_dim=int(data["command"].shape[-1]),
+            action_dim=int(data["policy_action"].shape[-1]),
+            device=device,
+        )
+    t0 = time.time()
+    run = None
+    if args.wandb_project and not args.disable_wandb:
+        import wandb
+
+        run = wandb.init(
+            project=args.wandb_project,
+            group=args.wandb_group or ckpt_args.get("wandb_group", ""),
+            name=args.wandb_name or f"{ckpt_args.get('wm_method')}_{ckpt_args.get('policy_type')}_seed{ckpt_args.get('seed')}_rollout",
+            job_type="policy_rollout_video",
+            config={
+                **ckpt_args,
+                "policy_checkpoint": args.policy_checkpoint,
+                "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
+                "checkpoint_format": checkpoint_format,
+                "rollout_episodes": args.rollout_episodes,
+                "max_steps": args.max_steps,
+                "video_fps": args.video_fps,
+                "action_ramp_steps": args.action_ramp_steps,
+                "baseline_return": args.baseline_return,
+                "baseline_length": args.baseline_length,
+                "baseline_fall": args.baseline_fall,
+                "notes": args.notes,
+                "git_sha": git_sha(),
+                "git_branch": git_branch(),
+                "command": command_line(),
+            },
+        )
+    if checkpoint_format == "original_pwm_adapter":
+        frames, step_rows, episode_rows, support_features = collect_original_adapter_rollout(actor, ckpt_args, nrm, args)
+    else:
+        frames, step_rows, episode_rows, support_features = collect_rollout(actor, ckpt_args, nrm, args)
+    video_path = output_dir / "rollout.mp4"
+    write_video(frames, video_path, args.video_fps, args.require_mp4)
+    write_csv(
+        output_dir / "rollout_steps.csv",
+        step_rows,
+        ["episode_slot", "step", "reward", "action_l2", "raw_action_l2", "action_ramp_factor", "done", "terminated", "truncated"],
+    )
+    write_csv(output_dir / "rollout_summary.csv", episode_rows, ["episode", "return", "length", "terminated", "truncated"])
+    support_features_path = ""
+    if args.save_support_features:
+        support_features_path = str(output_dir / "rollout_support_features.pt")
+        torch.save(support_features, support_features_path)
+    returns = torch.tensor([row["return"] for row in episode_rows], dtype=torch.float32)
+    lengths = torch.tensor([row["length"] for row in episode_rows], dtype=torch.float32)
+    terminated = torch.tensor([row["terminated"] for row in episode_rows], dtype=torch.float32)
+    summary = {
+        "policy_checkpoint": args.policy_checkpoint,
+        "checkpoint_kind": args.checkpoint_kind or ckpt.get("checkpoint_kind", ""),
+        "checkpoint_format": checkpoint_format,
+        "video": str(video_path),
+        "num_frames": len(frames),
+        "num_episodes": len(episode_rows),
+        "action_ramp_steps": args.action_ramp_steps,
+        "support_features": support_features_path,
+        "support_feature_rows": int(support_features.get("state", torch.empty(0)).shape[0]),
+        "return_mean": float(returns.mean().item()) if returns.numel() else None,
+        "return_std": float(returns.std(unbiased=False).item()) if returns.numel() else None,
+        "episode_length_mean": float(lengths.mean().item()) if lengths.numel() else None,
+        "fall_rate_mean": float(terminated.mean().item()) if terminated.numel() else None,
+        "wall_clock_seconds": time.time() - t0,
+        "git_sha": git_sha(),
+        "git_branch": git_branch(),
+        "command": command_line(),
+        "notes": args.notes,
+        "dataset": ckpt_args.get("dataset", ""),
+        "metadata": ckpt_args.get("metadata", ""),
+        "normalization": ckpt_args.get("normalization", ""),
+        "seed": ckpt_args.get("seed", ""),
+        "task_id": ckpt_args.get("task_id", ""),
+        "wm_method": ckpt_args.get("wm_method", ""),
+        "policy_type": ckpt_args.get("policy_type", ""),
+    }
+    add_baseline_gate(summary, args)
+    (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    if run is not None:
+        import wandb
+
+        run.log(
+            {
+                "rollout/return_mean": summary["return_mean"],
+                "rollout/episode_length_mean": summary["episode_length_mean"],
+                "rollout/fall_rate_mean": summary["fall_rate_mean"],
+                "rollout/baseline_gate_pass": summary.get("baseline_gate_pass"),
+                "rollout/return_gap_to_baseline": summary.get("return_gap_to_baseline"),
+                "rollout/length_gap_to_baseline": summary.get("length_gap_to_baseline"),
+                "rollout/fall_gap_to_baseline": summary.get("fall_gap_to_baseline"),
+                "rollout/video": wandb.Video(str(video_path), fps=args.video_fps, format="mp4"),
+            }
+        )
+        run.summary.update(summary)
+        run.finish()
+    print(json.dumps(summary, sort_keys=True), flush=True)
+
+
+if __name__ == "__main__":
+    main()

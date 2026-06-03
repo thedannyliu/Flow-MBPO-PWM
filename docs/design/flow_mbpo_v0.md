@@ -1,0 +1,160 @@
+# Flow-MBPO v0 Design
+
+Date: 2026-05-29
+
+## Goal
+
+Build the smallest reproducible Flow-MBPO path that tests whether short Flow-world-model synthetic rollouts can improve or preserve Velocity Flat Unitree G1 behavior relative to the best BC baseline.
+
+Success still requires real MJLab eval, rollout MP4/W&B videos, return, episode length, fall rate, and comparison to collector/reference/BC policies. Imagined return and world-model loss remain diagnostic only.
+
+## Non-Goals
+
+- Do not add more yaw weighting, reset weighting, action-ramp, or medium-mixing sweeps by default.
+- Do not optimize actors by unconstrained long-horizon backprop through a learned model.
+- Do not claim improvement without real rollout videos.
+
+## v0 Components
+
+1. Model interface
+   - Wrap existing MLP and Flow world models behind a shared synthetic-transition API.
+   - Required outputs per model step: next latent/state, reward, done/fall probability if available, uncertainty score.
+   - Start with existing `WorldModel`, `EnsembleWorldModel`, `FlowWorldModel`, and `EnsembleFlowWorldModel` before adding new chunked models.
+
+2. Synthetic rollout generator
+   - Initialize from real dataset windows.
+   - Use a frozen BC-warmstarted actor to choose actions.
+   - Roll out only short horizons: `H in {1, 3, 5}` for v0.
+   - Stop synthetic rollout early on predicted fall or high uncertainty.
+
+3. Synthetic replay buffer
+   - Store `(state, command, action, reward, next_state, done, uncertainty, source_model, horizon_step)`.
+   - Keep real dataset transitions separate so synthetic:real ratios are explicit.
+
+4. Policy update
+   - Start from the strongest expert+noisy uniform BC checkpoint.
+   - Use model-free updates on mixed real/synthetic batches.
+   - Prefer AWAC/AWR for first v0 because logged expert actions and BC warm starts are already available.
+   - SAC/PPO-style updates can follow after the buffer path is validated.
+
+5. Conservatism
+   - Apply `r_conservative = r_model - lambda_uncertainty * uncertainty`.
+   - Sweep only a tiny set first: `lambda_uncertainty in {0, 0.5, 1.0}` and synthetic:real ratio `{0.25, 1.0}`.
+   - Record uncertainty distribution and early-termination counts.
+
+6. Evaluation
+   - No policy claim before 40-episode real eval and rollout videos.
+   - Save and evaluate final and true-best actors.
+   - Select best actor by real-eval gate when available, not imagined return alone.
+
+## First Implementation Slice
+
+Implement a CPU/GPU smoke path with W&B disabled:
+
+1. Load `d_qs_core_h16.pt`, normalization, and the current best BC checkpoint.
+2. Load one trained MLP WM checkpoint and one Flow WM checkpoint if present.
+3. Generate a small synthetic buffer from 256 real start states with horizon `H=1`.
+4. Compute and save diagnostics only:
+   - synthetic reward mean/std;
+   - next-state delta norm;
+   - uncertainty mean/p90/max;
+   - predicted done/fall fraction;
+   - action norm;
+   - source dataset split/quality counts.
+5. Do not update policy until the synthetic buffer diagnostics are bounded and reproducible.
+
+Initial script:
+
+```bash
+python scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py \
+  --dataset scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt \
+  --metadata scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json \
+  --normalization scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json \
+  --policy-checkpoint scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final_policy_extraction.pt \
+  --wm-checkpoint scripts/outputs/mjlab_qs/results/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/mlp_ref/seed_0/best.pt \
+  --wm-checkpoint scripts/outputs/mjlab_qs/results/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/mlp_ref/seed_1/best.pt \
+  --wm-checkpoint scripts/outputs/mjlab_qs/results/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/mlp_ref/seed_2/best.pt \
+  --output-dir scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/mlp_ref_ensemble_seed0_h1 \
+  --device cuda:0 \
+  --num-starts 256 \
+  --horizon 1
+```
+
+After smoke jobs finish, export a compact MLP-vs-Flow diagnostic table:
+
+```bash
+python scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py \
+  --output-csv scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.csv \
+  --output-md scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.md \
+  --require-complete
+```
+
+Then prepare a conservative synthetic replay buffer before any policy update:
+
+```bash
+python scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py \
+  --synthetic-buffer scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1/synthetic_buffer.pt \
+  --output-dir scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90 \
+  --lambda-uncertainty 0.5 \
+  --uncertainty-quantile-termination 0.90 \
+  --truncate-rollouts-after-done
+```
+
+For `H > 1` replay, keep `--truncate-rollouts-after-done` enabled. It marks
+all later synthetic transitions from the same start as done after the first
+model-done or uncertainty-done transition, so the policy update cannot train on
+post-termination imagined states.
+
+For single-model diagnostics, do not apply quantile uncertainty termination when
+all uncertainty values are identical. With zero-spread uncertainty, there is no
+ranking signal and the replay builder should leave `done_uncertainty` false.
+
+The first trajectory/chunk WM implementation is exposed as
+`--method flow_trajectory_chunk` in `run_phaseA_wm_feasibility.py`. It predicts
+chunk intermediate states plus per-step reward and done logits, and
+`run_flow_mbpo_v0_smoke.py` records `done_probability` when the checkpoint
+supports it. Treat short smoke checkpoints as plumbing checks only; a replay
+buffer whose untrained done head marks every transition done should not be used
+for AWR.
+
+The first model-free policy-update implementation slice is AWR-style weighted
+behavior regression on mixed real/synthetic batches:
+
+```bash
+python scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py \
+  --dataset scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt \
+  --metadata scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json \
+  --normalization scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json \
+  --policy-checkpoint scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final_policy_extraction.pt \
+  --synthetic-replay scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90/synthetic_replay.pt \
+  --output-dir scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_smoke \
+  --update-iters 1000 \
+  --enable-wandb
+```
+
+This script writes a final actor and, by default, a training-loss snapshot. Add
+`--real-eval-every <N>` to run periodic real MJLab eval during the update; in
+that mode `best_policy_extraction.pt` is a true real-eval-selected snapshot and
+is marked `is_true_best_snapshot=true`. A formal claim still requires final and
+true-best 40-episode real eval plus rollout videos.
+
+## Formal v0 Run Gate
+
+Run one formal seed on `embers` only after the smoke path passes:
+
+- W&B enabled.
+- Git SHA, command, dataset, checkpoint paths, config, seed, and notes logged.
+- Final and true-best actor checkpoints written.
+- 40-episode real eval complete.
+- Rollout MP4/W&B videos rendered if scalar eval preserves or improves BC.
+
+## Baselines
+
+Use these current anchors:
+
+- expert collector: return `82.6090`, length `1000.00`, fall `0.000`
+- expert-noisy collector: return `80.3525`, length `1000.00`, fall `0.000`
+- expert+noisy uniform BC 40-episode final: return `45.8491`, length `594.97`, fall `0.625`
+- expert+noisy uniform BC 1000-step rollout final: return `41.8965`, length `547.78`, fall `0.667`
+
+The v0 method must preserve or exceed the BC anchors before expanding to more seeds or methods.

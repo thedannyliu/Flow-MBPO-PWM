@@ -1,0 +1,40 @@
+{
+  "dataset": "scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt",
+  "metadata": "scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json",
+  "normalization": "scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json",
+  "split": "train",
+  "qualities": "expert,expert_noisy",
+  "yaw_edges": "0.175,0.35,0.525",
+  "selected_windows": 2000,
+  "max_windows": 2000,
+  "sample_seed": 20260528,
+  "checkpoints": [
+    {
+      "label": "uniform_seed0",
+      "path": "scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final_policy_extraction.pt"
+    },
+    {
+      "label": "uniform_seed1",
+      "path": "scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_1/final_policy_extraction.pt"
+    },
+    {
+      "label": "uniform_seed2",
+      "path": "scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_2/final_policy_extraction.pt"
+    },
+    {
+      "label": "yawboost_seed0",
+      "path": "scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_yawboost_policy0k/seed_0/final_policy_extraction.pt"
+    },
+    {
+      "label": "yawboost_seed1",
+      "path": "scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_yawboost_policy0k/seed_1/final_policy_extraction.pt"
+    },
+    {
+      "label": "yawboost_seed2",
+      "path": "scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_yawboost_policy0k/seed_2/final_policy_extraction.pt"
+    }
+  ],
+  "git_sha": "4c4ec2675ba90623ee265b81a5a09141be08fe79",
+  "git_branch": "mjlab-qs-rollout-policy-improvement",
+  "command": "/storage/home/hcoda1/9/eliu354/miniconda3/bin/python scripts/experiments/mjlab_qs/analyze_policy_bc_error_slices.py --checkpoint uniform_seed0=scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final_policy_extraction.pt --checkpoint uniform_seed1=scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_1/final_policy_extraction.pt --checkpoint uniform_seed2=scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_2/final_policy_extraction.pt --checkpoint yawboost_seed0=scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_yawboost_policy0k/seed_0/final_policy_extraction.pt --checkpoint yawboost_seed1=scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_yawboost_policy0k/seed_1/final_policy_extraction.pt --checkpoint yawboost_seed2=scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_yawboost_policy0k/seed_2/final_policy_extraction.pt --output-dir results/mjlab_qs_policy_bc_error_yawboost_20260528 --split train --qualities expert,expert_noisy --max-windows 2000 --sample-seed 20260528 --chunk-size 512 --device cpu"
+}

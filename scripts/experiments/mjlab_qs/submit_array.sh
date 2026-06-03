@@ -5,6 +5,8 @@ KIND=""
 MANIFEST=""
 GPU_TYPE="H100"
 PARTITION="ice-gpu"
+QOS="embers"
+ACCOUNT="gts-agarg35"
 MAX_CONCURRENT=2
 TIME_LIMIT="04:00:00"
 MEMORY="128G"
@@ -12,6 +14,8 @@ CPUS=8
 PYTHON_BIN="python"
 CONDA_ENV="${CONDA_ENV_NAME:-}"
 DEPENDENCY=""
+REQUIRE_FORMAL_METADATA=0
+DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -19,6 +23,8 @@ while [[ $# -gt 0 ]]; do
     --manifest) MANIFEST="$2"; shift 2 ;;
     --gpu-type) GPU_TYPE="$(echo "$2" | tr '[:lower:]' '[:upper:]')"; shift 2 ;;
     --partition) PARTITION="$2"; shift 2 ;;
+    --qos) QOS="$2"; shift 2 ;;
+    --account) ACCOUNT="$2"; shift 2 ;;
     --max-concurrent) MAX_CONCURRENT="$2"; shift 2 ;;
     --time) TIME_LIMIT="$2"; shift 2 ;;
     --mem) MEMORY="$2"; shift 2 ;;
@@ -26,12 +32,18 @@ while [[ $# -gt 0 ]]; do
     --python-bin) PYTHON_BIN="$2"; shift 2 ;;
     --conda-env) CONDA_ENV="$2"; shift 2 ;;
     --dependency) DEPENDENCY="$2"; shift 2 ;;
+    --require-formal-metadata) REQUIRE_FORMAL_METADATA=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     *) echo "unknown arg $1"; exit 1 ;;
   esac
 done
 
 if [[ -z "$KIND" || -z "$MANIFEST" ]]; then
   echo "--kind and --manifest are required" >&2
+  exit 1
+fi
+if [[ "${QOS,,}" == "inferno" && "${ALLOW_INFERNO_QOS:-0}" != "1" ]]; then
+  echo "Error: inferno QOS requires explicit user approval. Use embers for GPU jobs." >&2
   exit 1
 fi
 
@@ -52,9 +64,106 @@ with open(sys.argv[1], newline='', encoding='utf-8') as f:
     print(sum(1 for _ in csv.DictReader(f)))
 PY
 )"
+if [[ "${REQUIRE_FORMAL_METADATA}" == "1" ]]; then
+  "${PYTHON_BIN}" - <<'PY' "${MANIFEST}" "${KIND}"
+import csv
+import sys
+
+manifest, kind = sys.argv[1], sys.argv[2]
+if kind not in {"policy_eval", "policy_rollout", "flow_mbpo_smoke", "flow_mbpo_replay", "flow_mbpo_awr"}:
+    raise SystemExit(
+        "--require-formal-metadata is only supported for policy_eval, policy_rollout, "
+        "flow_mbpo_smoke, flow_mbpo_replay, and flow_mbpo_awr"
+    )
+
+def present(row, key):
+    return bool(str(row.get(key, "")).strip())
+
+def disabled_wandb(row):
+    return str(row.get("disable_wandb", "")).strip().lower() in {"1", "true", "yes"}
+
+def enabled_wandb(row):
+    return str(row.get("enable_wandb", "")).strip().lower() in {"1", "true", "yes"}
+
+def baseline_present(row, prefix):
+    return (
+        present(row, f"{prefix}_baseline_return")
+        and present(row, f"{prefix}_baseline_length")
+        and present(row, f"{prefix}_baseline_fall")
+    ) or (present(row, "baseline_return") and present(row, "baseline_length") and present(row, "baseline_fall"))
+
+def positive_int(row, key):
+    try:
+        return int(str(row.get(key, "0") or "0")) > 0
+    except ValueError:
+        return False
+
+errors = []
+with open(manifest, newline="", encoding="utf-8") as f:
+    rows = list(csv.DictReader(f))
+for idx, row in enumerate(rows):
+    label = f"row {idx}"
+    if kind in {"policy_eval", "policy_rollout"}:
+        if disabled_wandb(row):
+            errors.append(f"{label}: disable_wandb is set; formal metadata requires W&B enabled")
+    else:
+        if not enabled_wandb(row):
+            errors.append(f"{label}: enable_wandb must be true for formal synthetic runs")
+    for key in ("wandb_project", "wandb_group", "notes"):
+        if not present(row, key):
+            errors.append(f"{label}: missing {key}")
+    if kind == "policy_eval":
+        if not baseline_present(row, "eval"):
+            errors.append(f"{label}: missing eval_baseline_* or baseline_* fields")
+        if present(row, "policy_checkpoint") and not present(row, "eval_output_dir"):
+            errors.append(f"{label}: direct checkpoint eval rows require eval_output_dir")
+    if kind == "policy_rollout":
+        if not baseline_present(row, "rollout"):
+            errors.append(f"{label}: missing rollout_baseline_* or baseline_* fields")
+        if present(row, "policy_checkpoint") and not present(row, "rollout_output_dir"):
+            errors.append(f"{label}: direct checkpoint rollout rows require rollout_output_dir")
+    if kind == "flow_mbpo_smoke":
+        for key in ("dataset", "metadata", "normalization", "policy_checkpoint"):
+            if not present(row, key):
+                errors.append(f"{label}: missing {key}")
+        if not (present(row, "wm_checkpoint") or present(row, "wm_checkpoints")):
+            errors.append(f"{label}: missing wm_checkpoint or wm_checkpoints")
+        if not (present(row, "output_dir") or present(row, "smoke_output_dir")):
+            errors.append(f"{label}: flow_mbpo_smoke rows require output_dir or smoke_output_dir")
+    if kind == "flow_mbpo_replay":
+        if not present(row, "synthetic_buffer"):
+            errors.append(f"{label}: missing synthetic_buffer")
+        if not (present(row, "output_dir") or present(row, "replay_output_dir")):
+            errors.append(f"{label}: flow_mbpo_replay rows require output_dir or replay_output_dir")
+        if str(row.get("support_risk_termination", "")).strip().lower() in {"1", "true", "yes"}:
+            for key in ("support_dataset", "support_metadata", "support_normalization"):
+                if not present(row, key):
+                    errors.append(f"{label}: support_risk_termination requires {key}")
+    if kind == "flow_mbpo_awr":
+        for key in ("dataset", "metadata", "normalization", "policy_checkpoint", "synthetic_replay"):
+            if not present(row, key):
+                errors.append(f"{label}: missing {key}")
+        if not (present(row, "output_dir") or present(row, "awr_output_dir")):
+            errors.append(f"{label}: flow_mbpo_awr rows require output_dir or awr_output_dir")
+        if not positive_int(row, "real_eval_every"):
+            errors.append(f"{label}: formal flow_mbpo_awr rows require real_eval_every > 0")
+        if str(row.get("real_eval_selection_metric", "")).strip() != "return_length_fall":
+            errors.append(f"{label}: formal flow_mbpo_awr rows require real_eval_selection_metric=return_length_fall")
+        for key in ("real_eval_baseline_return", "real_eval_baseline_length", "real_eval_baseline_fall"):
+            if not present(row, key):
+                errors.append(f"{label}: missing {key}")
+    if (present(row, "policy_checkpoint") or kind in {"flow_mbpo_smoke", "flow_mbpo_replay", "flow_mbpo_awr"}) and not present(row, "wandb_name"):
+        errors.append(f"{label}: formal direct-artifact rows require wandb_name")
+if errors:
+    raise SystemExit("Formal metadata validation failed:\n" + "\n".join(errors))
+print(f"formal metadata validation passed for {len(rows)} {kind} rows")
+PY
+fi
 ARRAY="0-$((NUM_ROWS - 1))%${MAX_CONCURRENT}"
 LOG_DIR="${PROJECT_ROOT}/logs/slurm/mjlab_qs/${KIND}"
 mkdir -p "${LOG_DIR}"
+SUBMIT_GIT_SHA="$(git -C "${PROJECT_ROOT}" rev-parse HEAD 2>/dev/null || echo unknown)"
+SUBMIT_GIT_BRANCH="$(git -C "${PROJECT_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 
 RUNNER="scripts/experiments/mjlab_qs/run_collection_row.py"
 if [[ "$KIND" == "train" ]]; then
@@ -63,19 +172,32 @@ elif [[ "$KIND" == "train_match" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_train_match_row.py"
 elif [[ "$KIND" == "policy_extract" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_policy_extraction_row.py"
+elif [[ "$KIND" == "policy_rollout" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_policy_rollout_row.py"
+elif [[ "$KIND" == "policy_eval" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_policy_eval_row.py"
+elif [[ "$KIND" == "flow_mbpo_smoke" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_smoke_row.py"
+elif [[ "$KIND" == "flow_mbpo_replay" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_replay_row.py"
+elif [[ "$KIND" == "flow_mbpo_awr" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py"
 elif [[ "$KIND" == "original_pwm_adapter" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_original_pwm_adapter_row.py"
 elif [[ "$KIND" == "native_collector" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_mjlab_native_collector_row.py"
 elif [[ "$KIND" == "native_collection" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_native_collection_row.py"
+elif [[ "$KIND" == "native_collector_rollout" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_native_collector_rollout_row.py"
 fi
 
 WRAP="cd ${PROJECT_ROOT}"
 if [[ -n "${CONDA_ENV}" ]]; then
-  WRAP+=" && source ~/.bashrc && conda activate ${CONDA_ENV}"
+  WRAP+=" && if [[ -f \${HOME}/miniconda3/etc/profile.d/conda.sh ]]; then source \${HOME}/miniconda3/etc/profile.d/conda.sh; else eval \"\$(conda shell.bash hook)\"; fi && conda activate ${CONDA_ENV}"
 fi
-WRAP+=" && export PYTHONPATH=${PROJECT_ROOT}/src:\$PYTHONPATH"
+WRAP+=" && export PYTHONPATH=${PROJECT_ROOT}/src:${PROJECT_ROOT}/baselines/PWM/src:\$PYTHONPATH"
+WRAP+=" && export FLOW_MBPO_SUBMIT_GIT_SHA=${SUBMIT_GIT_SHA} FLOW_MBPO_SUBMIT_GIT_BRANCH=${SUBMIT_GIT_BRANCH}"
 WRAP+=" && export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl EGL_PLATFORM=surfaceless"
 WRAP+=" && export WANDB_DIR=${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
 WRAP+=" && mkdir -p ${PROJECT_ROOT}/scripts/outputs/mjlab_qs/wandb"
@@ -83,8 +205,9 @@ WRAP+=" && ${PYTHON_BIN} ${RUNNER} --manifest ${MANIFEST} --row-index \$SLURM_AR
 
 SBATCH_ARGS=(
   --job-name="mjqs_${KIND}_${GPU_TYPE}" \
-  --account="coc" \
+  --account="${ACCOUNT}" \
   --partition="${PARTITION}" \
+  --qos="${QOS}" \
   --gres="${GRES}" \
   --nodes=1 \
   --ntasks=1 \
@@ -98,6 +221,13 @@ SBATCH_ARGS=(
 )
 if [[ -n "${DEPENDENCY}" ]]; then
   SBATCH_ARGS+=(--dependency="${DEPENDENCY}")
+fi
+
+if [[ "${DRY_RUN}" == "1" ]]; then
+  printf 'sbatch'
+  printf ' %q' "${SBATCH_ARGS[@]}"
+  printf '\n'
+  exit 0
 fi
 
 sbatch "${SBATCH_ARGS[@]}"

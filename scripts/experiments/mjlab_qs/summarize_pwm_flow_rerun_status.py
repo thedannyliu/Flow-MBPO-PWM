@@ -1,0 +1,434 @@
+#!/usr/bin/env python3
+"""Summarize the 2026-05-27 PWM/Flow rerun status from manifests and logs."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+
+JSON_LINE_RE = re.compile(r"^\{.*\}$")
+WANDB_RUN_RE = re.compile(r"/runs/([A-Za-z0-9_-]+)")
+FAILED_STATES = {
+    "BOOT_FAIL",
+    "CANCELLED",
+    "DEADLINE",
+    "FAILED",
+    "NODE_FAIL",
+    "OUT_OF_MEMORY",
+    "PREEMPTED",
+    "TIMEOUT",
+}
+STATE_PRIORITY = {
+    "RUNNING": 50,
+    "COMPLETING": 45,
+    "PENDING": 40,
+    "COMPLETED": 30,
+    "PREEMPTED": 20,
+    "TIMEOUT": 20,
+    "OUT_OF_MEMORY": 20,
+    "NODE_FAIL": 20,
+    "FAILED": 20,
+    "CANCELLED": 10,
+}
+
+
+def read_manifest(path: Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def load_wm_best(path: Path, enabled: bool) -> dict[str, Any]:
+    if not enabled or not path.exists():
+        return {}
+    try:
+        import torch
+
+        checkpoint = torch.load(path, map_location="cpu")
+    except Exception:
+        return {}
+    best = checkpoint.get("best", {})
+    return best if isinstance(best, dict) else {}
+
+
+def latest_iter(path: Path) -> tuple[str, str]:
+    if not path.exists():
+        return "", ""
+    last_iter = ""
+    last_return = ""
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not JSON_LINE_RE.match(line):
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if "iter" in payload:
+            last_iter = str(payload["iter"])
+        if "train/imagined_return" in payload:
+            last_return = str(payload["train/imagined_return"])
+    return last_iter, last_return
+
+
+def wandb_run(path: Path) -> str:
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    matches = WANDB_RUN_RE.findall(text)
+    if matches:
+        return matches[-1]
+    for line in text.splitlines():
+        if "Run data is saved locally" in line and "run-" in line:
+            return line.rsplit("-", 1)[-1].strip()
+    return ""
+
+
+def expand_array_suffix(suffix: str) -> list[int]:
+    if not suffix.startswith("[") or not suffix.endswith("]"):
+        return [int(suffix)]
+    body = suffix[1:-1].split("%", 1)[0]
+    indices: list[int] = []
+    for chunk in body.split(","):
+        if "-" in chunk:
+            start, end = chunk.split("-", 1)
+            indices.extend(range(int(start), int(end) + 1))
+        else:
+            indices.append(int(chunk))
+    return indices
+
+
+def job_ids(values: list[str]) -> list[str]:
+    ids: list[str] = []
+    for value in values:
+        for item in value.split(","):
+            item = item.strip()
+            if item:
+                ids.append(item)
+    return ids
+
+
+def sacct_state_map(job_id: str) -> dict[int, dict[str, str]]:
+    if not job_id:
+        return {}
+    states: dict[int, dict[str, str]] = {}
+    prefix = f"{job_id}_"
+
+    def record(raw_job: str, state: str, qos: str) -> None:
+        if not raw_job.startswith(prefix) or "." in raw_job:
+            return
+        suffix = raw_job[len(prefix) :]
+        try:
+            indices = expand_array_suffix(suffix)
+        except ValueError:
+            return
+        for idx in indices:
+            states[idx] = {"slurm_job": job_id, "slurm_state": state, "qos": qos}
+
+    try:
+        result = subprocess.run(
+            [
+                "sacct",
+                "-j",
+                job_id,
+                "--format=JobID,State,QOS",
+                "-P",
+                "--noheader",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return {}
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            parts = line.split("|")
+            if len(parts) >= 3:
+                record(*parts[:3])
+
+    try:
+        live = subprocess.run(
+            ["squeue", "-j", job_id, "-h", "-o", "%i|%T|%q"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return states
+    if live.returncode == 0:
+        for line in live.stdout.splitlines():
+            parts = line.split("|")
+            if len(parts) >= 3:
+                record(*parts[:3])
+    return states
+
+
+def merge_slurm_maps(job_state_maps: list[dict[int, dict[str, str]]]) -> dict[int, dict[str, str]]:
+    merged: dict[int, dict[str, str]] = {}
+    for state_map in job_state_maps:
+        for idx, info in state_map.items():
+            state_parts = info.get("slurm_state", "").split()
+            state = state_parts[0] if state_parts else ""
+            current = merged.get(idx, {})
+            current_parts = current.get("slurm_state", "").split()
+            current_state = current_parts[0] if current_parts else ""
+            if STATE_PRIORITY.get(state, 0) >= STATE_PRIORITY.get(current_state, 0):
+                merged[idx] = info
+    return merged
+
+
+def row_status(done: bool, partial: bool, slurm_state: str) -> str:
+    base_state = slurm_state.split()[0] if slurm_state else ""
+    if done:
+        return "done"
+    if base_state == "RUNNING":
+        return "running"
+    if base_state == "PENDING":
+        return "pending"
+    if base_state in FAILED_STATES:
+        return "failed"
+    if base_state == "COMPLETED":
+        return "completed_missing"
+    if partial:
+        return "partial"
+    return "missing"
+
+
+def progress_fraction(latest: str, expected: str, done: bool) -> str:
+    if done:
+        return "1.0"
+    if not latest or not expected:
+        return ""
+    try:
+        denominator = float(expected)
+        if denominator <= 0:
+            return ""
+        return str(float(latest) / denominator)
+    except ValueError:
+        return ""
+
+
+def wm_output_dir(row: dict[str, str]) -> Path:
+    return (
+        Path("scripts/outputs/mjlab_qs/results")
+        / row["stage"]
+        / row.get("task_key", "task_unknown")
+        / row["method"]
+        / f"seed_{row['seed']}"
+    )
+
+
+def policy_output_dir(row: dict[str, str]) -> Path:
+    return (
+        Path("scripts/outputs/mjlab_qs/policy_extraction")
+        / row["stage"]
+        / row.get("task_key", "task_unknown")
+        / row["wm_method"]
+        / row.get("policy_type", "mlp")
+        / row.get("online_profile", "offline")
+        / row["compute_profile"]
+        / f"seed_{row['seed']}"
+    )
+
+
+def wm_rows(
+    manifest: Path,
+    job_id: str,
+    slurm: dict[int, dict[str, str]],
+    load_checkpoints: bool,
+) -> list[dict[str, str]]:
+    rows = []
+    for idx, row in enumerate(read_manifest(manifest)):
+        out = wm_output_dir(row)
+        summary = out / "summary.json"
+        best = out / "best.pt"
+        data = load_json(summary) if summary.exists() else {}
+        best_data = load_wm_best(best, load_checkpoints)
+        err = Path(f"logs/slurm/mjlab_qs/train/mjqs_train_{job_id}_{idx}.err") if job_id else Path("")
+        slurm_info = slurm.get(idx, {})
+        status = row_status(summary.exists(), best.exists(), slurm_info.get("slurm_state", ""))
+        latest = str(best_data.get("iter", ""))
+        rows.append(
+            {
+                "kind": "wm",
+                "row": str(idx),
+                "method": row["method"],
+                "policy": "",
+                "seed": row["seed"],
+                "status": status,
+                "slurm_job": slurm_info.get("slurm_job", ""),
+                "slurm_state": slurm_info.get("slurm_state", ""),
+                "qos": slurm_info.get("qos", ""),
+                "expected_iters": row.get("train_iters", ""),
+                "progress_fraction": progress_fraction(latest, row.get("train_iters", ""), summary.exists()),
+                "wandb_project": row.get("wandb_project", ""),
+                "disable_wandb": row.get("disable_wandb", ""),
+                "summary": str(summary) if summary.exists() else "",
+                "best": str(best) if best.exists() else "",
+                "test_h16": str(data.get("test/rollout_dyn_mse_H16", "")),
+                "val_h16": str(
+                    data.get("best_val_rollout_dyn_mse_H16", best_data.get("val/rollout_dyn_mse_H16", ""))
+                ),
+                "eval_return_mean": "",
+                "latest_iter": latest or str(data.get("best_iter", "")),
+                "imagined_return": "",
+                "wandb_run": wandb_run(err),
+            }
+        )
+    return rows
+
+
+def policy_log_values(job_ids_: list[str], idx: int) -> tuple[str, str, str]:
+    latest = ""
+    latest_return = ""
+    latest_wandb = ""
+    for job_id in job_ids_:
+        stdout = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.out")
+        stderr = Path(f"logs/slurm/mjlab_qs/policy_extract/mjqs_policy_extract_{job_id}_{idx}.err")
+        iter_value, imagined_return = latest_iter(stdout)
+        if iter_value:
+            try:
+                if not latest or float(iter_value) >= float(latest):
+                    latest = iter_value
+                    latest_return = imagined_return
+            except ValueError:
+                latest = iter_value
+                latest_return = imagined_return
+        run = wandb_run(stderr)
+        if run:
+            latest_wandb = run
+    return latest, latest_return, latest_wandb
+
+
+def policy_rows(manifest: Path, job_ids_: list[str], slurm: dict[int, dict[str, str]]) -> list[dict[str, str]]:
+    rows = []
+    for idx, row in enumerate(read_manifest(manifest)):
+        out = policy_output_dir(row)
+        summary = out / "summary.json"
+        eval_summary = out / "eval_summary.json"
+        final = out / "final_policy_extraction.pt"
+        best = out / "best_policy_extraction.pt"
+        summary_data = load_json(summary) if summary.exists() else {}
+        eval_data = load_json(eval_summary) if eval_summary.exists() else {}
+        iter_value, imagined_return, run = policy_log_values(job_ids_, idx)
+        done = summary.exists() and eval_summary.exists() and final.exists()
+        partial = best.exists() or bool(iter_value)
+        slurm_info = slurm.get(idx, {})
+        status = row_status(done, partial, slurm_info.get("slurm_state", ""))
+        expected_iters = row.get("policy_iters", "")
+        rows.append(
+            {
+                "kind": "policy",
+                "row": str(idx),
+                "method": row["wm_method"],
+                "policy": row.get("policy_type", "mlp"),
+                "seed": row["seed"],
+                "status": status,
+                "slurm_job": slurm_info.get("slurm_job", ""),
+                "slurm_state": slurm_info.get("slurm_state", ""),
+                "qos": slurm_info.get("qos", ""),
+                "expected_iters": expected_iters,
+                "progress_fraction": progress_fraction(iter_value, expected_iters, done),
+                "wandb_project": row.get("wandb_project", ""),
+                "disable_wandb": row.get("disable_wandb", ""),
+                "summary": str(summary) if summary.exists() else "",
+                "best": str(best) if best.exists() else "",
+                "test_h16": "",
+                "eval_return_mean": str(
+                    eval_data.get("return_mean", summary_data.get("eval/return_mean", ""))
+                ),
+                "latest_iter": iter_value,
+                "imagined_return": imagined_return,
+                "wandb_run": run,
+            }
+        )
+    return rows
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--wm-manifest", type=Path)
+    parser.add_argument("--policy-manifest", type=Path)
+    parser.add_argument("--wm-job", default="")
+    parser.add_argument(
+        "--policy-job",
+        action="append",
+        default=[],
+        help="Policy Slurm array job id. May be repeated or comma-separated.",
+    )
+    parser.add_argument("--load-wm-checkpoints", action="store_true")
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+
+    rows: list[dict[str, str]] = []
+    if args.wm_manifest:
+        rows.extend(
+            wm_rows(
+                args.wm_manifest,
+                args.wm_job,
+                sacct_state_map(args.wm_job),
+                args.load_wm_checkpoints,
+            )
+        )
+    if args.policy_manifest:
+        policy_job_ids = job_ids(args.policy_job)
+        policy_slurm = merge_slurm_maps([sacct_state_map(job_id) for job_id in policy_job_ids])
+        rows.extend(
+            policy_rows(args.policy_manifest, policy_job_ids, policy_slurm)
+        )
+
+    if not rows:
+        raise SystemExit("No manifest supplied.")
+
+    fields = [
+        "kind",
+        "row",
+        "method",
+        "policy",
+        "seed",
+        "status",
+        "slurm_job",
+        "slurm_state",
+        "qos",
+        "expected_iters",
+        "progress_fraction",
+        "latest_iter",
+        "imagined_return",
+        "test_h16",
+        "val_h16",
+        "eval_return_mean",
+        "wandb_project",
+        "disable_wandb",
+        "wandb_run",
+        "summary",
+        "best",
+    ]
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(rows)
+        print(f"wrote {len(rows)} rows to {args.output}")
+    else:
+        writer = csv.DictWriter(sys.stdout, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+if __name__ == "__main__":
+    main()

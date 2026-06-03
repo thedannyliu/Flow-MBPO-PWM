@@ -1610,3 +1610,63 @@ If flow_endpoint is competitive on fixed-data rollout dynamics, the next
 proper step is frozen-WM policy extraction or offline-pretrained PWM
 initialization, before returning to the full online Dreamer-style loop.
 ```
+
+## G1 QS Formal Collection Retry - 2026-05-27
+
+The May 22 G1 collector rerun produced usable native PPO checkpoints, but the
+first formal four-bucket collection failed the empirical QS gate:
+
+```text
+stage = rerun_a25_native_qs_g1stage4_20260522
+status = FAIL
+failure = Mjlab-Velocity-Flat-Unitree-G1: empirical expert episodes 27 < 50
+NaNs = none
+```
+
+This is a quantity/source-selection failure, not a raw-data corruption failure.
+The probe ranking remains the source of truth:
+
+```text
+ranking = scripts/outputs/mjlab_qs/audits/rerun_g1_stage_probe_20260522_ranking.csv
+best expert source = native_rslrl_ppo_conservative_seed1_iter15000
+medium source = native_rslrl_ppo_conservative_seed2_iter15000
+```
+
+Submitted a retry that reuses the existing probe and collectors, increases only
+the formal expert buckets, and then runs audit plus H16 window build:
+
+```text
+stage = rerun_a25_native_qs_g1stage4_expertboost_20260527
+manifest = scripts/outputs/mjlab_qs/manifests/rerun_a25_native_qs_g1stage4_expertboost_20260527_collection.csv
+episodes = random_smooth 63, medium 219, expert 1024, expert_noisy 256
+job = 9193797
+partition = gpu-h100
+qos = embers
+account = gts-agarg35
+```
+
+Result:
+
+```text
+job = 9193797
+state = COMPLETED
+elapsed = 00:15:11
+audit status = PASS
+empirical expert episodes = 129
+reward/action NaNs = 0
+windows = scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt
+num_episodes = 1562
+num_windows = 351051
+```
+
+Success criteria:
+
+1. `audit_mjlab_qs_quality.py` reports `PASS`.
+2. empirical expert episodes are at least 50.
+3. no reward/action NaNs are present.
+4. `windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt`
+   exists and satisfies the minimum valid train-window gate.
+
+After this dataset passes, continue with the correct PWM comparison: original
+PWM-style baseline, Flow endpoint world model, Flow policy architecture, and the
+SigReg-style loss extension inspired by LeWorldModel.

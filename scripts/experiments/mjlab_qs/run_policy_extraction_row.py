@@ -5,8 +5,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import fcntl
 import subprocess
 from pathlib import Path
+
+
+def row_value(row: dict[str, str], key: str, default: str) -> str:
+    value = row.get(key, "")
+    return value if value != "" else default
 
 
 def main() -> None:
@@ -33,6 +39,12 @@ def main() -> None:
         / f"seed_{row['seed']}"
     )
     out.mkdir(parents=True, exist_ok=True)
+    lock_path = out / ".policy_extraction.lock"
+    complete_paths = [
+        out / "summary.json",
+        out / "eval_summary.json",
+        out / "final_policy_extraction.pt",
+    ]
 
     cmd = [
         args.python_bin,
@@ -58,67 +70,87 @@ def main() -> None:
         "--task-id",
         row.get("task_id", "Mjlab-Velocity-Flat-Unitree-G1"),
         "--policy-iters",
-        row.get("policy_iters", "15000"),
+        row_value(row, "policy_iters", "15000"),
         "--batch-size",
-        row.get("batch_size", "64"),
+        row_value(row, "batch_size", "64"),
         "--horizon",
-        row.get("horizon", "16"),
+        row_value(row, "horizon", "16"),
         "--gamma",
-        row.get("gamma", "0.99"),
+        row_value(row, "gamma", "0.99"),
         "--lam",
-        row.get("lam", "0.95"),
+        row_value(row, "lam", "0.95"),
         "--actor-lr",
-        row.get("actor_lr", "5e-4"),
+        row_value(row, "actor_lr", "5e-4"),
         "--critic-lr",
-        row.get("critic_lr", "5e-4"),
+        row_value(row, "critic_lr", "5e-4"),
         "--actor-units",
-        row.get("actor_units", "400,200,100"),
+        row_value(row, "actor_units", "400,200,100"),
         "--critic-units",
-        row.get("critic_units", "400,200"),
+        row_value(row, "critic_units", "400,200"),
         "--num-critics",
-        row.get("num_critics", "3"),
+        row_value(row, "num_critics", "3"),
         "--critic-iterations",
-        row.get("critic_iterations", "8"),
+        row_value(row, "critic_iterations", "8"),
         "--critic-batches",
-        row.get("critic_batches", "4"),
+        row_value(row, "critic_batches", "4"),
         "--actor-grad-norm",
-        row.get("actor_grad_norm", "1.0"),
+        row_value(row, "actor_grad_norm", "1.0"),
         "--critic-grad-norm",
-        row.get("critic_grad_norm", "100.0"),
+        row_value(row, "critic_grad_norm", "100.0"),
         "--eval-every",
-        row.get("eval_every", "1000"),
+        row_value(row, "eval_every", "1000"),
         "--eval-episodes",
-        row.get("eval_episodes", "40"),
+        row_value(row, "eval_episodes", "40"),
         "--eval-num-envs",
-        row.get("eval_num_envs", "16"),
+        row_value(row, "eval_num_envs", "16"),
         "--episode-length",
-        row.get("episode_length", "1000"),
+        row_value(row, "episode_length", "1000"),
         "--action-l2",
-        row.get("action_l2", "1e-4"),
+        row_value(row, "action_l2", "1e-4"),
+        "--policy-bc-reg",
+        row_value(row, "policy_bc_reg", "0.0"),
         "--bc-warmstart-iters",
-        row.get("bc_warmstart_iters", "0"),
+        row_value(row, "bc_warmstart_iters", "0"),
         "--bc-lr",
-        row.get("bc_lr", row.get("actor_lr", "5e-4")),
+        row_value(row, "bc_lr", row_value(row, "actor_lr", "5e-4")),
         "--bc-batch-size",
-        row.get("bc_batch_size", "256"),
+        row_value(row, "bc_batch_size", "256"),
         "--bc-eval-every",
-        row.get("bc_eval_every", "1000"),
+        row_value(row, "bc_eval_every", "1000"),
+        "--bc-sampling",
+        row_value(row, "bc_sampling", "quality_balanced"),
+        "--bc-action-rate-reg",
+        row_value(row, "bc_action_rate_reg", "0.0"),
+        "--bc-quality-filter",
+        row_value(row, "bc_quality_filter", ""),
+        "--bc-quality-window-action-norm-max",
+        row_value(row, "bc_quality_window_action_norm_max", ""),
+        "--bc-quality-loss-weights",
+        row_value(row, "bc_quality_loss_weights", ""),
+        "--bc-yaw-abs-loss-weights",
+        row_value(row, "bc_yaw_abs_loss_weights", ""),
+        "--bc-source-start0-loss-weight",
+        row_value(row, "bc_source_start0_loss_weight", "1.0"),
+        "--policy-quality-filter",
+        row_value(row, "policy_quality_filter", ""),
+        "--policy-sampling",
+        row_value(row, "policy_sampling", "quality_balanced"),
         "--flow-policy-substeps",
-        row.get("flow_policy_substeps", "2"),
+        row_value(row, "flow_policy_substeps", "2"),
         "--flow-policy-integrator",
-        row.get("flow_policy_integrator", "heun"),
+        row_value(row, "flow_policy_integrator", "heun"),
         "--online-finetune-rounds",
-        row.get("online_finetune_rounds", "0"),
+        row_value(row, "online_finetune_rounds", "0"),
         "--online-collect-windows",
-        row.get("online_collect_windows", "256"),
+        row_value(row, "online_collect_windows", "256"),
         "--online-wm-iters",
-        row.get("online_wm_iters", "1000"),
+        row_value(row, "online_wm_iters", "1000"),
         "--online-policy-iters",
-        row.get("online_policy_iters", "3000"),
+        row_value(row, "online_policy_iters", "3000"),
         "--online-wm-lr",
-        row.get("online_wm_lr", "3e-4"),
+        row_value(row, "online_wm_lr", "3e-4"),
         "--wandb-project",
-        row.get("wandb_project", "flow-mbpo-mjlab-offline-pwm-policy-extraction"),
+        row_value(row, "wandb_project", "flow-mbpo-mjlab-offline-pwm-policy-extraction"),
         "--wandb-group",
         row.get("wandb_group", stage),
         "--wandb-name",
@@ -134,7 +166,16 @@ def main() -> None:
     if row.get("disable_wandb", "").lower() in {"1", "true", "yes"}:
         cmd.append("--disable-wandb")
 
-    subprocess.run(cmd, check=True)
+    with lock_path.open("w", encoding="utf-8") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(f"policy extraction already running; skipping {out}", flush=True)
+            return
+        if all(path.exists() for path in complete_paths):
+            print(f"policy extraction already complete; skipping {out}", flush=True)
+            return
+        subprocess.run(cmd, check=True)
 
 
 if __name__ == "__main__":

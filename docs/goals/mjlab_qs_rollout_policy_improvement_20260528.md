@@ -1,0 +1,1338 @@
+# Goal Log: MJLab QS Rollout Policy Improvement
+
+Date started: 2026-05-28
+Branch: `mjlab-qs-rollout-policy-improvement`
+
+## Scope
+
+Continue the Velocity Flat Unitree G1 MJLab QS / PWM-Flow project with rollout-first evidence. Use prior completed work as evidence where it already satisfies the goal, especially `docs/phaseA/pwm_extension_submission_20260507.md` and `docs/plans/mjlab_pwm_flow_next_steps_20260528.md`.
+
+## 2026-05-29 Direction Update
+
+The next phase should stop expanding low-value BC/data micro-debugging and move toward the high-value Flow-MBPO track in `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md` and `docs/design/flow_mbpo_v0.md`.
+
+Research question:
+
+> Can Flow-based world models provide useful short-horizon synthetic rollouts for real policy improvement in Velocity Flat Unitree G1, beyond better imagined return or lower world-model loss?
+
+Priority shift:
+
+- Keep collector/reference and BC baselines as rollout-first anchors.
+- Treat BC as the warm start and minimum baseline, not the main research endpoint.
+- Do not spend major effort on more yaw weighting, reset weighting, small action smoothing sweeps, or medium-data mixing unless directly required to unblock Flow-MBPO.
+- Implement Flow-MBPO v0: model ensembles generate conservative short synthetic rollouts from real dataset states; a BC-warmstarted policy is updated with model-free SAC/AWAC/PPO-style losses on mixed real/synthetic batches.
+- Add uncertainty penalties, uncertainty early termination, rollout-horizon sweep, real/synthetic ratio sweep, and real-eval-based stopping before broad method expansion.
+- Success still requires real MJLab eval, rollout MP4/W&B videos, return, episode length, fall rate, and comparison to collector/reference/BC baselines.
+
+## Current Evidence
+
+- Collector/reference rollouts remain the target. Expert collector return is
+  `82.6090`, length is `1000.00`, and fall rate is `0.000`;
+  expert-noisy return is `80.3525`, length is `1000.00`, and fall rate is
+  `0.000`.
+- The strongest aggregate BC scalar baseline is expert+noisy uniform BC final:
+  return `45.8491`, length `594.97`, fall `0.625` over 40 episodes at
+  `max_steps=1000`.
+- The matched seed0 BC video baseline is final roll10: return `54.1283`,
+  length `688.40`, fall `0.400`; matched seed0 BC best roll10 is return
+  `48.3119`, length `637.70`, fall `0.500`.
+- PWM-style imagined optimization remains diagnostic only. It improved some
+  scalar imagined metrics but collapsed in real rollout and should stay paused.
+- Flow-MBPO v0/v1 trajectory-chunk AWR produced useful seed0 return/length
+  gains, but the best variants still tied matched BC video fall rate instead of
+  reducing it. No policy-improvement claim is allowed yet.
+- Current v1 work has moved from BC micro-tuning to pessimism and support-risk
+  infrastructure: support-distance calibration, support-risk replay/generation,
+  gate-aware true-best selection, real-eval early stopping, baseline-gate
+  logging, and conservative-Q smokes are mechanically clean. The latest
+  temp-`0.5` random-action CQL diagnostic tied matched BC roll10 return/length
+  approximately but did not reduce fall rate, and its short scalar eval was
+  poor. It is not a formal candidate.
+- True-best actor snapshots are saved and evaluated for new policy-extraction
+  and Flow-MBPO AWR runs; future formal runs should use the gate-aware
+  `return_length_fall` selection metric.
+
+## Evidence Record Map
+
+Use these locations as the durable record before launching new work:
+
+- This file is the chronological goal log and includes the latest interpretation of each run.
+- `docs/EXPERIMENT_LEDGER.md` is the compact formal-evidence table for collector, BC, PWM, and diagnostic policy runs, with W&B IDs, checkpoint/output paths, and conclusions.
+- `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md` records the shift away from low-value BC/data micro-debugging and toward Flow-MBPO.
+- `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` is the canonical current research-plan entry point; dated source notes are under `docs/goals/0531/`.
+- `docs/design/flow_mbpo_v0.md` and `docs/design/flow_mbpo_v1_pessimistic.md` record the Flow-MBPO v0/v1 method designs, pessimism requirements, smoke/formal gates, and implementation status.
+- `results/master_policy_comparison.csv` keeps the tracked summary of collector, BC, and representative PWM rows.
+- `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md` are the generated rollout aggregate reports, including horizon-aware rollout rows.
+- `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_ranking_*.csv` and `.md` summarize candidate snapshot eval/render gates when present.
+- Per-run artifacts remain under `scripts/outputs/mjlab_qs/policy_extraction/`, `scripts/outputs/mjlab_qs/policy_evals/`, `scripts/outputs/mjlab_qs/policy_rollouts/`, `scripts/outputs/mjlab_qs/native_collector_rollouts/`, `scripts/outputs/mjlab_qs/flow_mbpo_v0_eval/`, `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/`, `scripts/outputs/mjlab_qs/flow_mbpo_v1_eval/`, and `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/`; these hold checkpoints, summaries, per-episode CSVs, and MP4s.
+- Flow-MBPO v1 support-risk calibration artifacts are under `scripts/outputs/mjlab_qs/flow_mbpo_v1_support_calibration/`.
+- Flow-MBPO synthetic buffers, synthetic replay, and AWR smoke/formal outputs are under the corresponding `scripts/outputs/mjlab_qs/flow_mbpo_v0_*` and `scripts/outputs/mjlab_qs/flow_mbpo_v1_*` directories; local summaries and sidecar metadata now carry notes plus W&B run ids/URLs when W&B is enabled.
+- Slurm stdout/stderr logs are under `logs/slurm/mjlab_qs/`. Treat them as transient debugging records; durable conclusions belong in this goal log, the experiment ledger, and tracked design/research-plan docs.
+
+## Work This Goal
+
+- Created this concise goal log so future turns have a single current-state checkpoint.
+- Added required protocol docs: `docs/RUNBOOK.md`, `docs/EXPERIMENT_LEDGER.md`, `docs/DATASET_CARD_MJLAB_QS.md`, `docs/CLAIM_POLICY.md`, and `docs/DEBUG_TREE.md`.
+- Tightened formal-run metadata logging for policy extraction and rollout renderers:
+  - W&B config and local summaries now include git branch and command line.
+  - Policy extraction summaries now include dataset, metadata, normalization, WM checkpoint, output directory, final checkpoint, and best checkpoint paths.
+  - Policy rollout summaries now log fall rate directly and distinguish termination from time-limit truncation.
+  - Rollout comparison export now prefers `fall_rate_mean` from summary JSON when available.
+- Made BC-only/no-policy-update extraction rows write an evaluable true snapshot for `best_policy_extraction.pt`, with metadata explaining that best equals the current actor when no imagined-return update was run.
+- Exposed `bc_sampling` and `policy_sampling` in policy extraction manifests. Existing behavior is `quality_balanced`; the next ablation tests `uniform` expert/expert_noisy BC sampling to check whether batch composition is part of the BC weakness.
+- Prepared tracked manifest `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_mlp50k_20260528.csv`.
+- Submitted the uniform expert/expert_noisy BC ablation:
+  - git SHA: `163a626`
+  - Slurm job: `9236994`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-20260528`
+  - array: `0-2%1`
+  - status at submit check: pending
+- Submitted A100 fallback for the same manifest and output paths:
+  - Slurm job: `9237030`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - reason: H100 array remained pending; per-row output locks prevent duplicate work
+- Policy extraction completed on A100 fallback job `9237030`; unused H100 job `9236994` was cancelled.
+  - seed0 eval: return `36.2848`, length `487.15`
+  - seed1 eval: return `39.8943`, length `535.67`
+  - seed2 eval: return `61.9562`, length `766.70`
+  - all rows wrote final and best checkpoints
+- Submitted rollout rendering for the same manifest:
+  - Slurm job: `9237329`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - expected artifacts: final and best rollout MP4/W&B videos for seeds 0-2
+- Rollout job `9237329` completed on `embers`.
+  - final aggregate: return `21.5481`, length `267.89`, fall `0.222`
+  - best aggregate: return `21.5937`, length `267.89`, fall `0.222`
+  - prior expert-filtered BC final aggregate: return `19.0827`, length `238.22`, fall `0.333`
+  - interpretation: uniform sampling is a modest BC rollout improvement but still far below expert collector return `82.6090` and length `1000.00`
+- Refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `21` aggregate rows.
+- Added tracked `results/master_policy_comparison.csv` with collector, BC, and representative PWM rows.
+- Added opt-in BC action-rate regularization (`--bc-action-rate-reg`) and prepared tracked manifest `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_smooth1e2_mlp50k_20260528.csv`.
+  - purpose: test whether explicit action smoothness improves real rollout stability beyond the uniform-sampling BC gain
+  - stage: `rerun_g1_bc_expert_uniform_smooth1e2_mlp50k_20260528`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-smooth-20260528`
+  - settings: expert/expert_noisy BC, uniform sampling, `bc_action_rate_reg=0.01`, 50k BC steps, 3 seeds
+- Submitted smooth uniform-BC extraction:
+  - git SHA: `4d4488e`
+  - Slurm job: `9237622`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - row0 started running at submit check
+- Smooth uniform-BC seed0 completed:
+  - W&B run: `48rqu8f9`
+  - eval return `49.1083`, length `624.10`
+  - final and best checkpoints written
+  - note: this is much better than uniform BC seed0 eval (`36.2848`, length `487.15`), but rollout video is still required
+- Smooth uniform-BC extraction completed on Slurm job `9237622`:
+  - seed0 W&B `48rqu8f9`: eval return `49.1083`, length `624.10`, git `b3a06cf`
+  - seed1 W&B `yuoi3zdp`: eval return `35.3721`, length `478.23`, git `f71489b`
+  - seed2 W&B `in0vwa34`: eval return `53.7020`, length `678.42`, git `f71489b`
+  - all rows wrote final and best checkpoints
+  - note: seed1/2 logged a docs-only git SHA after the seed0 note commit; code/config remained from smooth-BC support
+- Submitted smooth uniform-BC rollout rendering:
+  - Slurm job: `9237887`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - expected artifacts: final and best rollout MP4/W&B videos for seeds 0-2
+- Smooth uniform-BC rollout job `9237887` completed on `embers`.
+  - final rollout per seed: seed0 return `27.9737`, length `300.00`, fall `0.000`; seed1 return `22.3277`, length `300.00`, fall `0.000`; seed2 return `14.3850`, length `203.67`, fall `0.667`
+  - best rollout per seed: seed0 return `28.0072`, length `300.00`, fall `0.000`; seed1 return `22.3120`, length `300.00`, fall `0.000`; seed2 return `14.3807`, length `203.67`, fall `0.667`
+  - final aggregate: return `21.5621`, length `267.89`, fall `0.222`
+  - best aggregate: return `21.5666`, length `267.89`, fall `0.222`
+  - W&B rollout runs: final `5f9et04a`, `lk9cr22p`, `2quaut5a`; best `o2fpcvmb`, `e4hj0jlj`, `rz1h2svk`
+  - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `23` aggregate rows
+  - interpretation: action-rate smoothness improved policy-extraction eval but did not materially improve 300-step rendered rollout over uniform BC (`21.5481` final, `21.5937` best)
+- Added 1000-step rollout comparison support and submitted an aligned BC render sanity check:
+  - code/manifest commit: `68a328f`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_uniform_vs_smooth_20260528.csv`
+  - Slurm job: `9238133`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: uniform BC and smooth uniform BC, seeds 0-2, final and best checkpoints, `rollout_max_steps=1000`
+  - purpose: test whether the apparent BC eval vs rendered-rollout mismatch is partly caused by the previous 300-step video cap
+- Long 1000-step BC rollout job `9238133` completed on `embers`.
+  - uniform final aggregate: return `41.8965`, length `547.78`, fall `0.667`
+  - uniform best aggregate: return `40.5848`, length `534.22`, fall `0.778`
+  - smooth final aggregate: return `41.8199`, length `561.78`, fall `0.667`
+  - smooth best aggregate: return `41.3141`, length `555.11`, fall `0.667`
+  - W&B uniform final `63wb3ny8`, `p1uf8prz`, `dh62wzn5`; uniform best `sw1490kx`, `wt2rpc4b`, `4b5czw08`
+  - W&B smooth final `jk37cnb5`, `gzglei3v`, `l2e22v98`; smooth best `3bnvjxoe`, `bhl80a7z`, `d9yc0hwx`
+  - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `27` aggregate rows
+  - interpretation: the previous 300-step video cap materially understated BC return/length, but smoothness is still neutral and fall rates remain high
+- Updated rollout comparison export to include a `max_steps` column in CSV/Markdown tables:
+  - commit: `1deaeac`
+  - purpose: prevent 300-step video sanity rows and 1000-step return-evidence rows from being read as the same horizon
+- Updated policy-extraction real-env eval logging:
+  - commit: `ba8d4fb`
+  - added `eval/fall_rate_mean`, `eval/timeout_rate_mean`, and `eval/max_steps`
+  - purpose: make future 40-episode non-video eval directly comparable with rollout termination accounting
+- Added a reusable policy-checkpoint eval runner and submitted a 40-episode long-horizon BC robustness eval:
+  - code/manifest commit: `ed5bdf3`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_eval40_long1000_uniform_vs_smooth_20260528.csv`
+  - Slurm job: `9238737`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: uniform BC and smooth uniform BC, seeds 0-2, final and best checkpoints, `eval_episodes=40`, `eval_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-eval40-long1000-20260528`
+- 40-episode long-horizon BC eval job `9238737` completed on `embers`.
+  - uniform final aggregate: return `45.8491`, length `594.97`, fall `0.625`, timeout `0.375`
+  - uniform best aggregate: return `42.0118`, length `550.79`, fall `0.683`, timeout `0.317`
+  - smooth final aggregate: return `37.6602`, length `501.34`, fall `0.742`, timeout `0.258`
+  - smooth best aggregate: return `46.6241`, length `601.92`, fall `0.658`, timeout `0.342`
+  - W&B uniform final `hsizha8n`, `xdh8gcox`, `zscvq48j`; uniform best `9hnlm351`, `vxeggehe`, `y9fon1y8`
+  - W&B smooth final `benhpxk0`, `p2gd1c4q`, `82yg2rqe`; smooth best `i0eu5bzd`, `lpj1nolj`, `c0pkwvnd`
+  - note: eval rows logged git `6694f41`, a docs-only commit after the code/manifest commit `ed5bdf3`
+  - interpretation: 40-episode eval confirms BC is much stronger than 300-step videos suggested, but fall rate remains too high and action-rate smoothness is not a reliable improvement
+- Added and submitted the missing expert-only BC sanity check:
+  - manifest commit: `094e76f`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expertonly_uniform_mlp50k_20260528.csv`
+  - Slurm job: `9239193`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: seeds 0-2, MLP actor, `policy_iters=0`, `bc_warmstart_iters=50000`, `bc_quality_filter=expert`, `bc_sampling=uniform`
+  - W&B project: `flow-mbpo-mjlab-bc-expertonly-20260528`
+- Expert-only BC extraction job `9239193` completed on `embers`.
+  - seed0 return `33.1208`, length `445.48`, fall `0.775`, timeout `0.225`
+  - seed1 return `26.7469`, length `366.13`, fall `0.875`, timeout `0.125`
+  - seed2 return `35.9865`, length `469.23`, fall `0.750`, timeout `0.250`
+  - aggregate return `31.9514`, length `426.94`, fall `0.800`, timeout `0.200`
+  - W&B policy runs: `7thwj7p8`, `iubh2utj`, `r9fw5ujg`
+  - note: policy rows logged git `d3a34eb`, a docs-only commit after manifest commit `094e76f`
+- Added and submitted 1000-step expert-only BC rollout rendering:
+  - rollout manifest commit: `2f4d814`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_expertonly_20260528.csv`
+  - Slurm job: `9239482`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert-only BC seeds 0-2, final and best checkpoints, `rollout_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-expertonly-rollout1000-20260528`
+- Expert-only BC 1000-step rollout job `9239482` completed on `embers`.
+  - final rollout aggregate: return `52.4252`, length `673.11`, fall `0.667`
+  - best rollout aggregate: return `53.6917`, length `697.44`, fall `0.667`
+  - W&B rollout final `201p2bk6`, `9ayrzyhd`, `hruobgdi`; best `3cepdm2x`, `1v5b2182`, `a3ferujx`
+  - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `29` aggregate rows
+  - interpretation: 3-episode videos can overestimate robustness. Expert-only seed0 video rollout reaches near-expert return, but its 40-episode eval has fall `0.775`; use 40-episode eval as the scalar baseline and videos as visual evidence.
+- Added and submitted an initial-condition diagnostic eval:
+  - eval runner commit: `6595924`
+  - manifest commit: `e7a877b`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_initdiag_eval40_long1000_20260528.csv`
+  - Slurm job: `9239804`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy uniform BC and expert-only BC final checkpoints, seeds 0-2, `eval_episodes=40`, `eval_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-initdiag-eval40-20260528`
+  - new per-episode fields: start command components, start normalized-observation norm, start action L2, return/length quantiles
+- Initial-condition diagnostic eval job `9239804` completed on `embers`.
+  - expert+noisy uniform BC final aggregate: return `45.7831`, length `589.43`, fall `0.667`, timeout `0.333`, p10 length `132.9`
+  - expert-only BC final aggregate: return `30.6292`, length `412.38`, fall `0.800`, timeout `0.200`, p10 length `113.8`
+  - W&B expert+noisy runs: `dtmjqeg4`, `4dusumqz`, `8fld5ip4`
+  - W&B expert-only runs: `ixyehsm3`, `os4aufdv`, `hqxdtdus`
+  - diagnostic correlations with episode length were weak for forward/lateral command and start obs norm, but moderately negative for yaw command and initial action L2:
+    - expert+noisy: yaw command `-0.319`, initial action L2 `-0.331`
+    - expert-only: yaw command `-0.333`, initial action L2 `-0.316`
+  - short episodes under 200 steps had higher mean yaw command than long episodes over 900 steps in both profiles; start obs norm was constant at `0.7115`
+  - interpretation: failures are more consistent with command coverage/recovery weakness than with a reset-state distribution bug. Expert-only data again underperforms expert+noisy data, so PWM should remain paused until BC robustness improves.
+- Added and submitted a yaw-balanced BC sampling sanity check:
+  - code/manifest commit: `4f8ce7c`
+  - new sampling mode: `yaw_balanced`, which samples uniformly across bins of max absolute yaw command within the already-filtered train windows
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_yawbal_mlp50k_20260528.csv`
+  - Slurm job: `9240159`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=yaw_balanced`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-yawbal-20260528`
+  - initial scheduler state: pending
+- Yaw-balanced BC extraction job `9240159` completed on `embers`.
+  - seed0 W&B `fmsrrkcw`: return `47.6621`, length `612.78`, fall `0.650`, timeout `0.350`
+  - seed1 W&B `zlvloocn`: return `38.6280`, length `516.20`, fall `0.750`, timeout `0.250`
+  - seed2 W&B `oxcjyupn`: return `48.6837`, length `627.47`, fall `0.650`, timeout `0.350`
+  - aggregate: return `44.9913`, length `585.48`, fall `0.683`, timeout `0.317`
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `d5bd14c`, a docs-only commit after code/manifest commit `4f8ce7c`
+  - interpretation: yaw-balanced sampling did not improve the 40-episode BC baseline over uniform expert+noisy BC (`45.8491`, length `594.97`, fall `0.625`), so do not spend a rollout-video job on this variant unless needed for visual debugging.
+- Added and submitted an expert+noisy+medium BC coverage check:
+  - manifest commit: `bf4e28a`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_noisy_medium_uniform_mlp50k_20260528.csv`
+  - Slurm job: `9240496`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy+medium BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-20260528`
+  - initial scheduler state: pending
+- Expert+noisy+medium BC extraction job `9240496` completed on `embers`.
+  - seed0 W&B `luzcp7ki`: return `31.4065`, length `422.83`, fall `0.800`, timeout `0.200`
+  - seed1 W&B `4ey00xkn`: return `36.9901`, length `493.17`, fall `0.800`, timeout `0.200`
+  - seed2 W&B `faijzxg3`: return `43.0546`, length `553.62`, fall `0.700`, timeout `0.300`
+  - aggregate: return `37.1504`, length `489.88`, fall `0.767`, timeout `0.233`
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `ed1990f`, a docs-only commit after manifest commit `bf4e28a`
+  - interpretation: naive medium mixing hurts BC robustness versus expert+noisy uniform BC. Medium data should not be mixed uniformly into BC without filtering, weighting, or a targeted recovery objective.
+- Added and ran a train-split MJLab-QS window audit:
+  - audit script commits: `198106c`, `79d2082`
+  - Slurm jobs: `9240866`, refreshed with action quantiles as `9240899`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - output: `results/mjlab_qs_window_audit_train_20260528/`
+  - terminal/fall/truncation window rates are `0.0000` for expert, expert_noisy, and medium train windows, so naive medium mixing did not fail because medium train windows are visibly terminal-adjacent.
+  - medium reward sum is close to expert (`1.2688` vs `1.2966`), but medium action norm is much larger: mean `0.3950` and p90 `0.4632` versus expert mean `0.3313` and p90 `0.3877`.
+  - interpretation: medium may hurt BC through action distribution mismatch rather than terminal-state pollution. A filtered or weighted medium-data test should target high-action-norm medium windows first.
+- Added and submitted a filtered-medium BC check:
+  - filter support commit: `ebbd6fe`
+  - manifest commit: `8eba601`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_noisy_medium_actnorm039_mlp50k_20260528.csv`
+  - Slurm job: `9240994`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy+medium BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - filter: `bc_quality_window_action_norm_max=medium:0.39`, chosen near the expert train-window action-norm p90 (`0.3877`)
+  - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-actnorm-20260528`
+  - initial scheduler state: pending
+- Filtered-medium BC extraction job `9240994` completed on `embers`.
+  - seed0 W&B `u66jjvhn`: return `46.9981`, length `614.38`, fall `0.600`, timeout `0.400`
+  - seed1 W&B `u2199ttx`: return `38.2174`, length `515.33`, fall `0.775`, timeout `0.225`
+  - seed2 W&B `x58pv5un`: return `38.7710`, length `510.58`, fall `0.725`, timeout `0.275`
+  - aggregate: return `41.3288`, length `546.76`, fall `0.700`, timeout `0.300`
+  - filter retained `14393 / 31600` medium train windows (`45.55%`)
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `ada801b`, a docs-only commit after filter support commit `ebbd6fe` and manifest commit `8eba601`
+  - interpretation: action-norm filtering improves over naive medium mixing (`37.1504`, length `489.88`, fall `0.767`) but still underperforms expert+noisy uniform BC (`45.8491`, length `594.97`, fall `0.625`). Do not render this variant unless needed for visual debugging.
+- Added and submitted a weighted-medium BC check:
+  - weighted-loss support commit: `c1d7472`
+  - manifest commit: `9f56963`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_noisy_medium_w025_mlp50k_20260528.csv`
+  - Slurm job: `9241333`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy+medium BC, MLP actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - loss weights: `bc_quality_loss_weights=medium:0.25`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-noisy-medium-w025-20260528`
+  - initial scheduler state: pending
+- Weighted-medium BC extraction job `9241333` completed on `embers`.
+  - seed0 W&B `ltslmhpw`: return `39.4082`, length `513.10`, fall `0.700`, timeout `0.300`
+  - seed1 W&B `30r9a4xf`: return `33.1968`, length `461.65`, fall `0.875`, timeout `0.125`
+  - seed2 W&B `rbi83678`: return `45.6027`, length `600.30`, fall `0.675`, timeout `0.325`
+  - aggregate: return `39.4026`, length `525.02`, fall `0.750`, timeout `0.250`
+  - all rows wrote final and best checkpoints
+  - note: run rows logged git `2d11de6`, a docs-only commit after weighted-loss support commit `c1d7472` and manifest commit `9f56963`
+  - interpretation: downweighting medium to `0.25` does not recover expert+noisy BC robustness and underperforms the action-norm-filtered medium run. Medium data should not be used as a plain BC warmstart target in the current pipeline.
+- Added and submitted an expert+noisy Flow-policy BC sanity check:
+  - manifest commit: `257bb23`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_flowpolicy_mlp50k_20260528.csv`
+  - Slurm job: `9241796`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy BC, Flow actor, seeds 0-2, `bc_warmstart_iters=50000`, `policy_iters=0`, `bc_sampling=uniform`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-flowpolicy-20260528`
+  - purpose: isolate whether MLP actor capacity/class is a BC bottleneck before returning to PWM-style world-model policy improvement
+  - initial scheduler state: pending
+- Flow-policy BC extraction job `9241796` completed on `embers`.
+  - seed0 W&B `rbrp36ya`: return `42.1877`, length `548.55`, fall `0.750`, timeout `0.250`
+  - seed1 W&B `uk8ssouf`: return `32.8212`, length `450.50`, fall `0.800`, timeout `0.200`
+  - seed2 W&B `21kkj46t`: return `54.9577`, length `694.33`, fall `0.475`, timeout `0.525`
+  - aggregate: return `43.3222`, length `564.46`, fall `0.675`, timeout `0.325`
+  - all rows wrote final and best checkpoints
+  - run rows logged git `7148277`, the docs-only submission commit after manifest commit `257bb23`
+  - interpretation: Flow-policy BC underperforms the current expert+noisy MLP BC scalar baseline (`45.8491`, length `594.97`, fall `0.625`). The MLP actor class is not the clearest current BC bottleneck, so do not spend a rollout-video job on this variant unless needed for visual debugging.
+- Ran an offline command-conditioned failure diagnostic on existing initdiag eval CSVs.
+  - output: `results/mjlab_qs_bc_command_failure_diagnostic_20260528.md`
+  - no new environment rollout was launched
+  - expert+noisy BC over 120 episodes: return `45.7831`, length `589.43`, fall `0.667`, timeout `0.333`
+  - expert+noisy high-abs-yaw bin: length `436.8`, fall `0.821`, return `31.20`, versus low/mid abs-yaw lengths `675.3`/`650.2`
+  - expert+noisy high-first-action bin: length `422.4`, fall `0.821`, versus low/mid first-action lengths `688.9`/`650.3`
+  - expert-only BC repeats the same pattern and is worse overall, so removing noisy expert data is not a fix
+  - interpretation: target yaw/recovery coverage or rollout-start action ramping before returning to PWM-style imagined policy improvement
+- Added and submitted an eval-time rollout-start action-ramp diagnostic.
+  - code/manifest commit: `3f23f24`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_eval40_long1000_ramp25_20260528.csv`
+  - Slurm job: `9258953`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: expert+noisy MLP BC final checkpoints, seeds 0-2, 40 episodes, `max_steps=1000`
+  - wrapper: `action_ramp_steps=25`; actor action is linearly ramped from zero after each environment reset, with raw and post-ramp start action norms logged
+  - W&B project: `flow-mbpo-mjlab-bc-ramp25-eval40-20260528`
+  - initial scheduler state: pending for priority
+  - purpose: test whether rollout-start action sensitivity is causal before making a training-side BC change or returning to PWM
+- Ramp25 eval job `9258953` failed before producing rollout evidence.
+  - all rows exited with code `1:0`
+  - cause: the job used the default `python`, which loaded a CPU-only PyTorch environment; checkpoint loading failed because `--device cuda:0` was requested while `torch.cuda.is_available()` was false
+  - no policy conclusion should be drawn from this failed submission
+  - removed stale failed-run `.policy_eval.lock` files so the same manifest can be rerun
+  - added a clearer CUDA availability guard in `eval_policy_checkpoint.py`; future failures should identify a missing CUDA runtime before checkpoint deserialization
+- Resubmitted the ramp25 eval with the `pwm` conda environment:
+  - code/docs commit: `c8b24e0`
+  - Slurm job: `9268504`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - initial scheduler state: pending for priority
+- Submitted an H100 fallback for the same ramp25 eval manifest:
+  - Slurm job: `9268692`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - array: `0-2%1`
+  - reason: A100 job `9268504` remained pending; policy-eval output checks and lock files should prevent duplicate completed results if both arrays start
+- Submitted an L40S fallback for the same ramp25 eval manifest:
+  - Slurm job: `9268821`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - array: `0-2%1`
+  - requested `--cpus 4` to satisfy the L40S partition CPU:GPU limit
+  - reason: A100 and H100 arrays remained pending for priority; output checks and lock files should prevent duplicate completed results
+- Added and ran an offline command-coverage audit over expert/expert_noisy train windows:
+  - script: `scripts/experiments/mjlab_qs/analyze_mjlab_qs_command_coverage.py`
+  - output: `results/mjlab_qs_command_coverage_train_20260528/`
+  - dataset: `scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt`
+  - selected windows: `250559`
+  - high-yaw bin (`abs(yaw) >= 0.525`) is not absent: expert `53592` windows (`26.8%`), expert_noisy `11212` windows (`22.3%`)
+  - high-yaw windows are lower-reward and higher-action than low-yaw windows:
+    - expert reward `1.1882` vs `1.4419`, action norm `0.3491` vs `0.3031`, action-rate norm `0.0387` vs `0.0042`
+    - expert_noisy reward `1.1769` vs `1.3401`, action norm `0.3405` vs `0.3084`, action-rate norm `0.0908` vs `0.0705`
+  - interpretation: the yaw failure is not just missing high-yaw train coverage. It is more consistent with harder high-yaw/recovery behavior, so simple yaw-balanced sampling alone is unlikely to solve BC robustness.
+- Ramp25 eval completed, but did not improve BC robustness.
+  - completed jobs: A100 `9268504`, H100 `9268692`; duplicate lock/output checks worked
+  - canceled pending duplicate L40S fallback `9268821`
+  - W&B runs: seed0 `84gg6hz5`, seed1 `y4c4dvs2`, seed2 `zooexgfo`
+  - aggregate over 3 seeds x 40 episodes: return `35.1589`, length `465.28`, fall `0.758`, timeout `0.242`
+  - per seed: seed0 return `36.3914`, length `477.30`, fall `0.750`; seed1 return `33.4368`, length `452.27`, fall `0.800`; seed2 return `35.6485`, length `466.27`, fall `0.725`
+  - start action was successfully ramped: mean first action L2 `0.00677` vs raw `0.16918`, ramp factor `0.04`
+  - comparison: no-ramp expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: reset action magnitude is not the main cause of BC failures. Do not render ramp25 videos or use this wrapper as a fix.
+- Added a targeted high-yaw BC loss-weighting ablation.
+  - new option: `--bc-yaw-abs-loss-weights`, applied only during BC action-MSE warm start
+  - code/manifest commit: `fa47961`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_yawboost_mlp50k_20260528.csv`
+  - rows: seeds 0-2, expert+noisy BC, MLP actor, uniform sampling, 50k BC steps, no PWM policy updates
+  - weights: `0.35:1.25,0.525:1.75`
+  - purpose: test whether explicitly increasing BC training pressure on harder high-yaw windows improves real 40-episode robustness after simple yaw-bin balancing and reset action ramping failed
+- Submitted high-yaw BC loss-weighting extraction:
+  - Slurm job: `9270759`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-yawboost-20260528`
+  - initial scheduler state: pending for priority
+- High-yaw BC loss-weighting extraction job `9270759` completed on `embers`.
+  - W&B runs: seed0 `6rqyhfoo`, seed1 `rbp4o330`, seed2 `otjwn7ml`
+  - per seed: seed0 return `53.0689`, length `677.03`, fall `0.525`; seed1 return `34.4638`, length `469.48`, fall `0.850`; seed2 return `54.5295`, length `694.92`, fall `0.525`
+  - aggregate: return `47.3541`, length `613.81`, fall `0.633`, timeout `0.367`
+  - comparison: expert+noisy uniform BC final 40-episode baseline return `45.8491`, length `594.97`, fall `0.625`
+  - all rows wrote final and best checkpoints
+  - interpretation: scalar eval is mixed. High-yaw weighting improves aggregate return/length slightly, but fall rate is not improved and seed1 is weak. This is not yet a policy-improvement claim.
+- Prepared 1000-step rollout-video manifest for high-yaw BC:
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_yawboost_20260528.csv`
+  - rows: seeds 0-2, final and best checkpoints, 3 rollout episodes, `rollout_max_steps=1000`
+  - W&B project: `flow-mbpo-mjlab-bc-yawboost-rollout1000-20260528`
+  - purpose: collect MP4/W&B video evidence before deciding whether the scalar gain is meaningful
+- Submitted high-yaw BC 1000-step rollout rendering:
+  - manifest/results commit: `6fe1867`
+  - Slurm job: `9271630`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - initial scheduler state: row0 running, rows1-2 pending behind array limit
+- High-yaw BC rollout job `9271630` completed seed0 final/best videos but left rows1-2 stuck behind `JobArrayTaskLimit`.
+  - seed0 final W&B `qc0rsmmu`: return `34.7897`, length `423.00`, fall `0.667`
+  - seed0 best W&B `zhuu4ubc`: length `423.33`, fall `0.667`
+  - canceled the stuck pending remainder of `9271630`
+  - prepared remaining-rollout manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_longroll1000_yawboost_remaining_20260528.csv`
+  - remaining rows: seeds 1-2, final and best checkpoints, same rollout output stage
+- Submitted remaining high-yaw BC rollout rows:
+  - manifest/partial-results commit: `b8bba8b`
+  - Slurm job: `9273837`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-1%1`
+  - initial scheduler state: pending for priority
+- Submitted H100 fallback for the same remaining high-yaw BC rollout rows:
+  - Slurm job: `9273970`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - array: `0-1%1`
+  - reason: A100 job `9273837` remained pending; rollout locks/output checks should prevent duplicate completed artifacts
+- Submitted L40S fallback for the same remaining high-yaw BC rollout rows:
+  - Slurm job: `9274072`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - array: `0-1%1`
+  - requested `--cpus 4` to satisfy the L40S partition CPU:GPU limit
+  - immediately after fallback submission, A100 job `9273837_0` started running
+- High-yaw BC 1000-step rollout rendering completed.
+  - final checkpoint is complete for seeds 0-2: aggregate return `41.0197`, length `551.22`, fall `0.667`
+  - final per seed: seed0 return `34.7897`, length `423.00`, fall `0.667`; seed1 W&B `ta7rp0at`, return `60.5562`, length `863.00`, fall `0.333`; seed2 W&B `0d52f11r`, return `27.7132`, length `367.67`, fall `1.000`
+  - best checkpoint is complete for seeds 0-2: aggregate return `41.0029`, length `551.56`, fall `0.667`
+  - best per seed: seed0 W&B `zhuu4ubc`, return `34.8338`, length `423.33`, fall `0.667`; seed1 W&B `06ovzzr6`, return `60.1635`, length `861.00`, fall `0.333`; seed2 W&B `704qp2np`, return `28.0114`, length `370.33`, fall `1.000`
+  - jobs: A100 `9273837_0` completed, duplicate A100 `9273837_1` skipped/completed by output checks, L40S `9274072_1` completed, H100 fallback `9273970` canceled after artifacts were complete
+  - refreshed `scripts/outputs/mjlab_qs/reports/rollout_comparison_20260528.csv` and `.md`; they now contain `31` aggregate rows
+  - interpretation: high-yaw loss weighting does not beat the expert+noisy uniform BC 1000-step rollout baseline (`41.8965`, length `547.78`, fall `0.667`) on final or best videos, despite the slight 40-episode scalar eval gain. Do not claim policy improvement and do not return to PWM yet.
+- Added and submitted a high-yaw BC initdiag eval to compare per-episode failure slices against the existing uniform/expert-only initdiag baseline.
+  - manifest commit: `b112eb7`
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_yawboost_initdiag_eval40_long1000_20260528.csv`
+  - Slurm job: `9278096`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - rows: seeds 0-2, final and best checkpoints, `eval_episodes=40`, `eval_max_steps=1000`, `eval_num_envs=16`
+  - W&B project: `flow-mbpo-mjlab-bc-yawboost-initdiag-eval40-20260528`
+  - purpose: check whether high-yaw loss weighting changes start-command, yaw, initial-action, and short-episode failure patterns before spending more rollout-video jobs
+- High-yaw BC initdiag eval job `9278096` completed on `embers`.
+  - final W&B runs `3knvcw2y`, `4ipy06sa`, `uozant9o`: aggregate return `44.3636`, length `570.12`, fall `0.683`, timeout `0.317`, p10 length `122.5`
+  - best W&B runs `kqgu9loq`, `j2xq9i8q`, `s45a9oo1`: aggregate return `46.7461`, length `607.57`, fall `0.650`, timeout `0.350`, p10 length `133.3`
+  - comparison: existing expert+noisy uniform initdiag final baseline was return `45.7831`, length `589.43`, fall `0.667`, timeout `0.333`, p10 length `132.9`
+  - high-yaw slice did not improve: uniform high-yaw (`abs(yaw) >= 0.525`) length `443.8`, fall `0.816`; yawboost final length `440.9`, fall `0.825`; yawboost best length `433.1`, fall `0.800`
+  - low-yaw slice improved only for yawboost best: uniform low-yaw length `687.4`, fall `0.597`; yawboost best length `744.8`, fall `0.518`
+  - interpretation: high-yaw loss weighting does not address high-yaw/recovery failures. The best-checkpoint scalar gain is not supported by high-yaw slice behavior or rollout videos, so it is not a policy-improvement claim.
+- Added and ran a sampled offline BC action-error slice audit.
+  - script: `scripts/experiments/mjlab_qs/analyze_policy_bc_error_slices.py`
+  - output: `results/mjlab_qs_policy_bc_error_yawboost_20260528/`
+  - sample: `2000` expert/expert_noisy train windows, fixed `sample_seed=20260528`
+  - compared uniform final seeds 0-2 against yawboost final seeds 0-2
+  - high-yaw aggregate (`abs(yaw) >= 0.525`) was essentially unchanged: uniform action MSE `0.000481`, L2 error `0.012954`; yawboost action MSE `0.000478`, L2 error `0.013044`
+  - expert high-yaw target fitting got slightly worse: uniform expert high-yaw MSE `0.000066`, L2 `0.005396`; yawboost expert high-yaw MSE `0.000067`, L2 `0.005541`
+  - expert_noisy high-yaw got only a tiny MSE decrease: uniform `0.002468`, L2 `0.049181`; yawboost `0.002450`, L2 `0.049007`
+  - interpretation: the yawboost loss does not materially improve logged-action matching on high-yaw windows. Real high-yaw failures are unlikely to be fixed by more simple yaw loss weighting.
+- Audited `policy_action` versus `env_action` in the current window dataset.
+  - collection code records `env_action` as a clone of `policy_action` for both legacy and native MJLab-QS collectors
+  - scanned train/val/test windows for expert, expert_noisy, and medium qualities in `d_qs_core_h16.pt`
+  - max absolute difference, mean absolute difference, and nonzero-difference fraction were all exactly `0.0`
+  - interpretation: the current BC target is not failing because `policy_action` and `env_action` diverge. Action-target mismatch must be elsewhere, such as action timing, observation/last-action semantics, recovery-state coverage, or environment stochasticity.
+- Audited observation/action timing and reset-start coverage.
+  - window builder alignment is `obs_t -> action_t`; `phys_obs[:, 1:, 67:96]` matches the corresponding stored policy actions exactly across train/val/test and expert, expert_noisy, and medium qualities
+  - no last-action off-by-one was found
+  - reset-like `source_start == 0` windows are sparse: expert/expert_noisy train windows are about `0.4%` reset-start, with high-yaw reset-start windows similarly sparse inside the high-yaw bin
+  - interpretation: action timing is unlikely to explain the BC failures, but reset/zero-last-action conditioning remains a plausible underrepresented failure axis.
+- Added a targeted reset-start BC loss-weighting diagnostic.
+  - code commit: `2cc6486`
+  - manifest commit: `c348c94`
+  - new option: `--bc-source-start0-loss-weight`, applied only during BC action-MSE warm start
+  - manifest: `scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_resetw25_mlp50k_20260528.csv`
+  - rows: seeds 0-2, expert+noisy BC, MLP actor, uniform sampling, 50k BC steps, no PWM policy updates
+  - weight: `25.0`, making reset-start windows roughly `9%` effective mass instead of about `0.4%`
+  - W&B project: `flow-mbpo-mjlab-bc-expert-uniform-resetw25-20260528`
+  - purpose: test whether underrepresented reset-start conditioning explains part of the remaining BC robustness gap before spending more rollout-video jobs or returning to PWM.
+- Submitted reset-start BC loss-weighting extraction.
+  - Slurm job: `9304777`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - array: `0-2%1`
+  - command: `scripts/experiments/mjlab_qs/submit_array.sh --kind policy_extract --manifest scripts/experiments/mjlab_qs/manifests/rerun_g1_bc_expert_uniform_resetw25_mlp50k_20260528.csv --gpu-type A100 --partition gpu-a100 --qos embers --max-concurrent 1 --time 04:00:00 --python-bin /storage/home/hcoda1/9/eliu354/r-agarg35-0/envs/pwm/bin/python`
+  - initial scheduler state: pending for priority
+  - purpose: produce 40-episode real-eval scalar evidence and final/best actor checkpoints before deciding whether videos are warranted.
+- Submitted H100 fallback for the same reset-start BC extraction manifest.
+  - Slurm job: `9304809`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - array: `0-2%1`
+  - reason: A100 job `9304777` remained pending for priority; runner lock and completion checks protect duplicate output directories.
+- Reset-start BC loss-weighting extraction completed on A100 job `9304777`.
+  - H100 fallback job `9304809` was canceled after all A100 rows completed
+  - W&B runs: seed0 `595om0z6`, seed1 `yfg6c0ek`, seed2 `9l63dpyo`
+  - per seed: seed0 return `40.8380`, length `549.08`, fall `0.725`, timeout `0.275`; seed1 return `35.2293`, length `473.60`, fall `0.800`, timeout `0.200`; seed2 return `59.3097`, length `741.33`, fall `0.400`, timeout `0.600`
+  - aggregate: return `45.1257`, length `588.00`, fall `0.642`, timeout `0.358`
+  - effective reset-start weighting was applied: `1024 / 250559` train windows were `source_start == 0`, raw fraction `0.00409`, weighted fraction `0.09305`
+  - comparison: expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: reset-start loss weighting does not improve BC robustness. Do not spend a rollout-video job on resetw25, and keep PWM paused.
+- Added terminal-state summaries to no-video policy eval outputs.
+  - file: `scripts/experiments/mjlab_qs/eval_policy_checkpoint.py`
+  - new `eval_episodes.csv` fields: final command, normalized obs norm, final action/raw-action L2, final previous-action L2 from actor obs, base linear/angular velocity norms, projected gravity z, and final reward from the last pre-terminal step
+  - purpose: enable recovery/failure-state diagnostics without rendering more videos or launching more BC loss-reweighting ablations.
+- Redirected the next phase to the high-value Flow-MBPO v0 track.
+  - plan: `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md`
+  - design: `docs/design/flow_mbpo_v0.md`
+  - smoke script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py`
+  - purpose: produce bounded short-horizon synthetic rollout diagnostics from real dataset states using existing MLP/Flow WM checkpoints and a BC-warmstarted actor before any new policy update.
+- Submitted Flow-MBPO v0 synthetic-buffer smoke diagnostics.
+  - Slurm job: `9324608`
+  - partition/GPU/QOS: `gpu-a100` / `A100` / `embers`
+  - W&B: disabled
+  - runs in one allocation: MLP reference WM ensemble H1 smoke, then Flow endpoint WM ensemble H1 smoke
+  - output dirs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/mlp_ref_ensemble_seed0_h1` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h1`
+  - purpose: verify synthetic buffer generation and uncertainty diagnostics before implementing any policy update.
+- Added a smoke output lock/completion guard and submitted an H100 fallback for the same Flow-MBPO v0 smoke diagnostics.
+  - lock commit: `3bda4e9`
+  - H100 fallback Slurm job: `9324851`
+  - partition/GPU/QOS: `gpu-h100` / `H100` / `embers`
+  - reason: A100 job `9324608` remained pending for priority; `summary.json` plus `synthetic_buffer.pt` completion checks and `.flow_mbpo_v0_smoke.lock` prevent duplicate writers if both jobs start.
+  - status at submit check: both `9324608` and `9324851` pending for priority
+- Added a Flow-MBPO smoke summary exporter.
+  - script: `scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py`
+  - report targets: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.csv` and `.md`
+  - purpose: make the first MLP-vs-Flow smoke diagnostics directly comparable once either queued job writes `summary.json`.
+- Added conservative synthetic replay preparation for Flow-MBPO v0.
+  - script: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - input: `synthetic_buffer.pt` from the smoke generator
+  - outputs: `synthetic_replay.pt` plus `summary.json`
+  - features: `reward_conservative = reward_raw - lambda_uncertainty * uncertainty`, combined next-state/reward uncertainty, optional uncertainty-quantile termination, and optional transition subsampling
+  - validation: py-compile, CLI help, and a `/tmp` fake-buffer run with `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.75`, and `max_transitions=6`
+- Submitted an L40S fallback for the same Flow-MBPO v0 smoke diagnostics.
+  - Slurm job: `9325185`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - resources: `4` CPUs, `128G` memory, `01:00:00`
+  - reason: A100 job `9324608` and H100 fallback `9324851` both remained pending for priority; smoke output locks protect the shared output directories.
+  - status at submit check: `9324608`, `9324851`, and `9325185` all pending for priority
+- Flow-MBPO v0 H1 smoke diagnostics completed on L40S job `9325185`.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:29`, max RSS `13136712K`
+  - canceled duplicate pending jobs `9324608` and `9324851` after outputs were complete
+  - git logged by smoke summaries: `fac5d01`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_smoke_summary.csv` and `.md`
+  - MLP reference ensemble H1: transitions `256`, reward mean `0.0127`, next-state delta L2 mean `0.3069`, next-state uncertainty mean `0.0306`, reward uncertainty mean `0.0282`, action L2 mean `0.3307`, predicted done `0.000`
+  - Flow endpoint ensemble H1: transitions `256`, reward mean `0.1409`, next-state delta L2 mean `0.2743`, next-state uncertainty mean `0.0263`, reward uncertainty mean `0.0307`, action L2 mean `0.3280`, predicted done `0.000`
+  - interpretation: the synthetic-buffer path works for existing MLP and Flow endpoint ensembles and produces bounded one-step diagnostics. Flow endpoint is slightly lower delta/next-state-uncertainty and higher synthetic reward on this smoke sample, but this is diagnostic only and is not a policy-improvement claim.
+- Prepared conservative replay buffers from both completed H1 smoke buffers.
+  - MLP replay: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/mlp_ref_ensemble_seed0_h1_unc0p5_q0p90/`
+  - Flow endpoint replay: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90/`
+  - settings: `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, transitions `256`
+  - MLP conservative replay: raw reward mean `0.0127`, conservative reward mean `-0.0167`, uncertainty mean `0.0587`, uncertainty p90 `0.1257`, uncertainty-done fraction `0.1016`
+  - Flow conservative replay: raw reward mean `0.1409`, conservative reward mean `0.1124`, uncertainty mean `0.0570`, uncertainty p90 `0.1111`, uncertainty-done fraction `0.1016`
+- Added the first model-free policy-update infrastructure for Flow-MBPO v0.
+  - script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - objective: AWR-style weighted behavior regression on mixed real dataset actions and conservative synthetic replay actions
+  - safeguards: BC anchor loss, advantage-temperature and weight clipping, synthetic done masking, output completion check, and output lock
+  - outputs: `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `summary.json`
+  - caveat: the current `best_policy_extraction.pt` is selected by training loss only and is marked `is_true_best_snapshot=False`; a formal policy-improvement run still needs real-eval-based best selection and final/best real eval/videos.
+  - validation: py-compile, CLI help, `/tmp` fake dataset/checkpoint/replay two-iteration run, checkpoint load check, and completion-skip check
+- Ran a W&B-disabled full-data Flow-MBPO v0 AWR update smoke.
+  - Slurm job: `9325565`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:11`, max RSS `6973236K`
+  - git logged by summary: `7dd5c0c`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_smoke20/`
+  - inputs: expert+noisy uniform BC seed0 final checkpoint and Flow endpoint conservative replay `flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90`
+  - settings: `update_iters=20`, real batch `128`, synthetic batch `128`, actor LR `1e-5`, `bc_anchor_weight=0.1`, W&B disabled
+  - final metrics at iter 20: loss `0.0006066`, real loss `0.0005496`, synthetic loss `0.00000178`, BC anchor loss `0.0005523`, real reward mean `0.0813`, synthetic conservative reward mean `0.1167`, synthetic done fraction in batch `0.0781`
+  - wrote `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `summary.json`; checkpoint load check passed
+  - interpretation: the full-data mixed real/synthetic AWR update path works mechanically. This remains a smoke test only; no real MJLab eval or video has been run, and the best checkpoint is not real-eval-selected.
+- Added optional real-eval-based best snapshot selection to the Flow-MBPO v0 AWR update path.
+  - option: `--real-eval-every N`
+  - eval controls: `--real-eval-episodes`, `--real-eval-num-envs`, `--episode-length`, `--task-id`, `--command-dim`, and `--command-position`
+  - behavior: when real eval is enabled, the script evaluates the actor every `N` update iterations and at the final iteration, selects the best snapshot by real return, and saves `best_policy_extraction.pt` with `checkpoint_kind=best_real_eval` and `is_true_best_snapshot=True`
+  - when real eval is disabled, behavior remains smoke-safe: best is selected by training loss and marked `is_true_best_snapshot=False`
+  - validation so far: py-compile, CLI help, and `/tmp` fake-data run with real eval disabled confirmed the non-real-eval path still writes final plus non-true-best checkpoints
+- Submitted a tiny W&B-disabled real-eval AWR smoke to validate true-best checkpoint plumbing.
+  - Slurm job: `9325783`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_realeval_smoke2/`
+  - settings: `update_iters=2`, `real_eval_every=2`, `real_eval_episodes=2`, `real_eval_num_envs=2`, W&B disabled
+  - purpose: verify that `best_policy_extraction.pt` becomes a real-eval-selected true snapshot before any formal W&B run
+- Tiny real-eval AWR smoke job `9325783` completed successfully.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:52`, max RSS `8331412K`
+  - git logged by summary: `fea6e5d`
+  - real-eval plumbing result over 2 episodes: return `84.5692`, length `1000.00`, fall `0.000`, timeout `1.000`
+  - checkpoints: final checkpoint wrote normally; best checkpoint is `checkpoint_kind=best_real_eval` and `is_true_best_snapshot=True`
+  - interpretation: real-eval-based best snapshot selection works mechanically for Flow-MBPO v0 AWR. The 2-episode scalar result is not a policy-improvement claim and still needs formal W&B run, 40-episode eval, and rollout videos.
+- Submitted the first formal one-seed Flow-MBPO v0 AWR run.
+  - Slurm job: `9325942`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-20260529`
+  - W&B group/name: `flow_endpoint_h1_unc0p5_q0p90_formal_s0` / `flow_endpoint_h1_unc0p5_q0p90_seed0_awr1k`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/`
+  - settings: Flow endpoint H1 conservative replay, seed `0`, `update_iters=1000`, real batch `128`, synthetic batch `128`, actor LR `1e-5`, `bc_anchor_weight=0.1`, `real_eval_every=500`, `real_eval_episodes=8`, `real_eval_num_envs=16`
+  - initial scheduler state: pending for priority
+  - note: this is the first formal training run only. It still requires separate 40-episode final/true-best eval and rollout videos before any policy-improvement claim.
+- Formal one-seed Flow-MBPO v0 AWR training job `9325942` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:44`, max RSS `8347388K`
+  - W&B run: `onx7k5bo`
+  - 8-episode real eval during training was weak: iter500 return `20.8623`, length `292.875`, fall `1.000`; iter1000 return `17.5540`, length `263.75`, fall `1.000`
+  - best checkpoint was selected by real eval at iter `500` and is marked `is_true_best_snapshot=True`
+  - interpretation: training-time 8-episode eval suggested collapse, so independent 40-episode eval was required before deciding whether videos were warranted.
+- Formal 40-episode eval for Flow-MBPO v0 AWR seed0 completed on job `9326058`.
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:01:35`, max RSS `7842324K`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-eval40-20260529`
+  - W&B final/best runs: `kjv0wbco`, `kxsus0py`
+  - final checkpoint 40-episode eval: return `42.3442`, length `555.65`, fall `0.725`, timeout `0.275`
+  - true-best checkpoint 40-episode eval: return `57.2850`, length `734.28`, fall `0.500`, timeout `0.500`
+  - comparison: expert+noisy uniform BC final 40-episode baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: final underperforms BC, but true-best exceeds the BC scalar baseline on return, episode length, and fall rate for seed0. This is promising but not yet a policy-improvement claim because rollout MP4/W&B videos are still required and this is one seed.
+- Submitted 1000-step rollout-video rendering for the Flow-MBPO v0 AWR seed0 final and true-best checkpoints.
+  - Slurm job: `9348826`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-rollout1000-20260530`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/`
+  - settings: final and best checkpoints, `3` rollout episodes each, `max_steps=1000`
+  - initial scheduler state: configuring/running
+- Flow-MBPO v0 AWR seed0 rollout-video job `9348826` completed.
+  - status: `COMPLETED`, elapsed `00:02:14`, max RSS `15267216K`
+  - W&B final/best rollout runs: `aytmeezx`, `s6hrz7l1`
+  - final video rollout: return `34.9697`, length `425.00`, fall `0.667`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/final/rollout.mp4`
+  - true-best video rollout: return `34.8502`, length `424.00`, fall `0.667`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best/rollout.mp4`
+  - comparison: expert+noisy uniform BC 1000-step rollout final baseline was return `41.8965`, length `547.78`, fall `0.667`
+  - interpretation: the 40-episode true-best scalar eval beat the BC scalar baseline, but the required rollout-video evidence did not preserve BC return/length. This fails the current claim gate. Do not claim policy improvement and do not expand to more seeds until the eval/video mismatch and AWR update sensitivity are understood.
+- Eval/video mismatch diagnostic:
+  - true-best 40-episode eval had `20 / 40` timeouts with median length `966.5`, but the 3-episode rollout video sample had only `1 / 3` timeout and two early falls around `130-142` steps.
+  - final 40-episode eval had `11 / 40` timeouts with median length `556.0`, while final 3-episode rollout had one timeout and two early falls around `137-138` steps.
+  - interpretation: the 3-episode video statistic is likely a high-variance sample of a mixed success/failure distribution. The video gate still fails as measured, but a best-only 10-episode rollout diagnostic is warranted to separate sampling noise from a systematic eval/render mismatch.
+- Submitted best-checkpoint 10-episode 1000-step rollout diagnostic.
+  - Slurm job: `9348911`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-rollout1000-20260530`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best_roll10/`
+  - purpose: diagnose whether the failed 3-episode video gate is sample variance; this is not seed expansion and is not a policy-improvement claim.
+- Best-checkpoint 10-episode 1000-step rollout diagnostic `9348911` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:02:02`, max RSS `10070764K`
+  - W&B run: `okln1ewq`
+  - summary: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best_roll10/summary.json`
+  - MP4: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_formal_s0/best_roll10/rollout.mp4`
+  - metrics: return `48.2876`, length `642.70`, fall `0.600`, return std `27.8551`, frames `6427`
+  - comparison: expert+noisy uniform BC 1000-step rollout final baseline was return `41.8965`, length `547.78`, fall `0.667`
+  - interpretation: the 10-episode best-only video diagnostic is more supportive than the earlier 3-episode video sample and clears the BC 1000-step rollout baseline on return, episode length, and fall rate for this seed0 true-best checkpoint. This still does not justify a broad policy-improvement claim because it is one seed, the final checkpoint remains weak, and the 3-episode video sample showed high variance.
+- Submitted matched 10-episode BC seed0 rollout under the same render protocol.
+  - Slurm job: `9349004`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - note: first submission `9348994` failed immediately because the submit wrapper lacked `PYTHONPATH`; `9349004` resubmitted with `PYTHONPATH=$PWD/src:$PWD`
+  - W&B project: `flow-mbpo-mjlab-bc-matched-rollout1000-20260530`
+  - W&B group: `bc_expert_uniform_seed0_matched_roll10`
+  - policy checkpoints: seed0 expert+noisy uniform BC final and true-best checkpoints from `scripts/outputs/mjlab_qs/policy_extraction/rerun_g1_bc_expert_uniform_mlp50k_20260528/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/`
+  - output: `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_bc_matched_roll10_20260530/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/`
+  - purpose: tighten the Flow seed0 true-best video comparison against a same-seed, same-episode-count BC render before broader Flow-MBPO seed expansion.
+- Matched BC seed0 10-episode rollout job `9349004` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:04:00`, max RSS `9684964K`
+  - W&B final/best runs: `4vww4aow`, `ob43bmh3`
+  - final summary: `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_bc_matched_roll10_20260530/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/final/summary.json`
+  - best summary: `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_bc_matched_roll10_20260530/velocity_flat_unitree_g1/mlp_ref/mlp/offline/bc50k_expert_uniform_policy0k/seed_0/best/summary.json`
+  - BC final metrics: return `54.1283`, length `688.40`, fall `0.400`, return std `33.8392`, frames `6884`
+  - BC best metrics: return `48.3119`, length `637.70`, fall `0.500`, return std `30.6670`, frames `6377`
+  - comparison to Flow-MBPO seed0 true-best 10-episode diagnostic: Flow return `48.2876`, length `642.70`, fall `0.600`
+  - interpretation: Flow-MBPO seed0 true-best does not beat the matched BC final checkpoint and is effectively tied with matched BC best on return while having a worse fall rate. This weakens the earlier 10-episode Flow result and confirms there is still no policy-improvement claim.
+- Ran a more conservative seed0 Flow-MBPO v0 AWR variant.
+  - Slurm job: `9349145`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:42`, max RSS `8289612K`
+  - W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v0-awr-conservative-20260530` / `s72fg7ef`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - settings: same seed0 Flow endpoint H1 conservative replay, real batch `224`, synthetic batch `32`, actor LR `1e-5`, BC anchor `1.0`, update iters `500`, real eval every `250`, 8 eval episodes
+  - best checkpoint is a real-eval-selected true snapshot at iter `250`
+  - training-time real eval: iter250 return `17.0962`, length `258.875`, fall `1.000`; iter500 return `12.3589`, length `198.75`, fall `1.000`
+  - interpretation: reducing synthetic ratio and increasing BC anchor did not fix the early real-eval collapse. However the earlier AWR run also had weak 8-episode training eval before a better 40-episode eval, so treat this as a negative early signal and run one independent 40-episode final/best eval before deciding whether this conservative variant is dead.
+- Conservative AWR seed0 independent 40-episode eval completed.
+  - Slurm job: `9349193`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:02:12`, max RSS `14905120K`
+  - W&B final/best eval runs: `7vve098g`, `aapboe3b`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_eval/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - final checkpoint eval: return `60.8721`, length `759.30`, fall `0.450`, timeout `0.550`
+  - true-best checkpoint eval: return `46.1720`, length `600.60`, fall `0.700`, timeout `0.300`
+  - comparison: seed0 expert+noisy uniform BC 40-episode final eval was return `43.6600`, length `568.38`, fall `0.675`; aggregate expert+noisy uniform BC 40-episode final baseline was return `45.8491`, length `594.97`, fall `0.625`
+  - interpretation: conservative final now clears the scalar BC gate and improves over the original Flow-MBPO AWR final eval, but the real-eval-selected true-best checkpoint does not clear the fall-rate gate. Video evidence is required before any claim.
+- Conservative AWR seed0 10-episode rollout-video rendering completed.
+  - Slurm job: `9349240`
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:03:53`, max RSS `9841780K`
+  - W&B final/best rollout runs: `9fsn6b8t`, `qhsxgfwo`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - final checkpoint rollout: return `47.4617`, length `625.60`, fall `0.500`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/final/rollout.mp4`
+  - true-best checkpoint rollout: return `55.5533`, length `707.60`, fall `0.400`, MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/best/rollout.mp4`
+  - matched BC seed0 10-episode final rollout was return `54.1283`, length `688.40`, fall `0.400`; matched BC seed0 best rollout was return `48.3119`, length `637.70`, fall `0.500`
+  - interpretation: evidence is split. Conservative final clears the 40-episode scalar gate but fails the matched BC final 10-episode video gate. Conservative true-best clears matched BC best video and slightly beats matched BC final on return/length while tying fall rate, but its 40-episode scalar eval has worse fall rate than BC. No single checkpoint clears both scalar and video gates, so there is still no policy-improvement claim.
+- Added candidate-snapshot persistence to the Flow-MBPO v0 AWR update path.
+  - script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - behavior: future AWR runs now save `best_training_loss_policy_extraction.pt` and one checkpoint under `real_eval_snapshots/` for each `--real-eval-every` evaluation point, in addition to existing final and best checkpoints
+  - purpose: support the next candidate-selection step without relying only on final or noisy 8-episode best-real-eval snapshots
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; `PYTHONPATH=$PWD/src:$PWD ... run_flow_mbpo_v0_awr_update.py --help`
+- Added a Flow-MBPO candidate evidence ranking utility and ran it on the conservative AWR evidence.
+  - script: `scripts/experiments/mjlab_qs/rank_flow_mbpo_candidate_evidence.py`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_ranking_cons_r224_s32_anchor1_iter500_s0.csv` and `.md`
+  - baseline used for this seed0 ranking: BC seed0 final 40-episode eval plus matched BC seed0 final 10-episode rollout
+  - result: `final` passes scalar gate but fails video gate; `best` fails scalar gate and fails strict video gate because fall rate ties the matched BC final instead of improving it
+  - interpretation: the ranking utility makes the split evidence explicit and prevents treating a single strong scalar or video result as a policy-improvement claim.
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/rank_flow_mbpo_candidate_evidence.py`; `PYTHONPATH=$PWD/src:$PWD ... rank_flow_mbpo_candidate_evidence.py --help`
+- Submitted a snapshot-enabled conservative AWR follow-up to produce a richer candidate pool.
+  - Slurm job: `9349421`
+  - partition/GPU/QOS: `gpu-l40s` / `L40S` / `embers`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-snapshots-20260530`
+  - W&B group/name: `flow_endpoint_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0` / `flow_endpoint_h1_unc0p5_q0p90_seed0_cons_snap100_iter500`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0/`
+  - settings: same conservative AWR setup as job `9349145`, but with `real_eval_every=100` so future candidate ranking can include snapshots at iter100/200/300/400/500 plus final and best-training-loss
+  - initial scheduler state: pending for priority
+  - final scheduler state: cancelled pending L40S job `9349421` and short H100 fallback `9349483`; RTX6000 fallback job `9349486` completed on `embers`
+  - RTX6000 fallback status: `COMPLETED`, exit `0:0`, elapsed `00:01:58`
+  - W&B run: `192csfst`
+  - command git: `23660aa196ae54562ba713f32cc9442d3fa24a71` on branch `mjlab-qs-rollout-policy-improvement`
+  - training-time 8-episode real evals remained weak and should be treated only as candidate-selection diagnostics: iter100 return `21.6009`, length `326.125`, fall `1.000`; iter200 return `17.6142`, length `263.875`, fall `1.000`; iter300 return `17.3154`, length `260.125`, fall `1.000`; iter400 return `18.8526`, length `287.250`, fall `1.000`; iter500 return `21.3358`, length `322.125`, fall `1.000`
+  - saved candidate checkpoints: `final_policy_extraction.pt`, `best_policy_extraction.pt`, `best_training_loss_policy_extraction.pt`, and `real_eval_snapshots/iter_000100_policy_extraction.pt` through `real_eval_snapshots/iter_000500_policy_extraction.pt`
+  - interpretation: the richer candidate pool exists, but there is still no policy-improvement claim because only low-count training eval has run for these snapshots; each candidate needs independent 40-episode eval plus 10-episode rollout-video evidence against the matched BC seed0 protocol
+- Added a candidate eval/render plan generator for Flow-MBPO AWR outputs.
+  - script: `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`
+  - behavior: scans an AWR output directory for `final`, `best`, `best_training_loss`, and `real_eval_snapshots/*_policy_extraction.pt`, then writes CSV and shell-command plans for 40-episode eval plus 10-episode rollout-video rendering
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`; `PYTHONPATH=$PWD/src:$PWD ... build_flow_mbpo_candidate_eval_plan.py --help`
+  - plan-check report for the existing conservative run: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_s0.csv` and `.sh`; found `2` candidates (`final`, `best`)
+  - snapshot candidate plan: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_snap100_s0.csv` and `.sh`; found `8` candidates (`final`, `best`, `best_training_loss`, `iter_000100`, `iter_000200`, `iter_000300`, `iter_000400`, `iter_000500`)
+- Submitted the 8-candidate snapshot eval/render plan.
+  - Slurm job: `9349584`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - initial scheduler state: `RUNNING` on `atl1-1-02-002-29-0`
+  - plan: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_eval_plan_cons_r224_s32_anchor1_iter500_snap100_s0.sh`
+  - eval W&B project/group: `flow-mbpo-mjlab-flow-mbpo-v0-candidate-eval40-20260530` / `flow_endpoint_h1_unc0p5_q0p90_cons_snap100_s0`
+  - rollout W&B project/group: `flow-mbpo-mjlab-flow-mbpo-v0-candidate-rollout1000-20260530` / `flow_endpoint_h1_unc0p5_q0p90_cons_snap100_s0`
+  - expected outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_eval/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0_candidates/` and `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0_candidates/`
+- Candidate eval/render job `9349584` completed and was ranked.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:30:23`, max RSS `9826424K`
+  - ranking report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_candidate_ranking_cons_r224_s32_anchor1_iter500_snap100_s0.csv` and `.md`
+  - W&B eval runs: final `lup6p998`, best `22pwku28`, best_training_loss `7b4gbiol`, iter100 `iy0lpp4o`, iter200 `jt8w5nut`, iter300 `4sra4u3a`, iter400 `acguvft7`, iter500 `tvjl0n8e`
+  - W&B rollout runs: final `eg5liy8q`, best `yzvbdk97`, best_training_loss `r9k93qro`, iter100 `pry2pt37`, iter200 `hirk96oj`, iter300 `shlwflzj`, iter400 `l2g8wg7g`, iter500 `xmehdj44`
+  - baseline used: matched seed0 BC final 40-episode eval return `43.6600`, length `568.38`, fall `0.675`; matched seed0 BC final 10-episode rollout return `54.1283`, length `688.40`, fall `0.400`
+  - result: no candidate passed both scalar and video gates under the strict rule that return and length must improve and fall rate must be lower than baseline
+  - closest row: `iter_000400` passed scalar eval with return `55.8213`, length `719.0750`, fall `0.4750`; rollout return `54.4738`, length `692.8000`, fall `0.4000` improved/tied the matched BC final video metrics but failed strict video gate because fall rate tied rather than improved
+  - other scalar-pass rows remained diagnostic only: `final`, `best`, `iter_000100`, and `iter_000500` passed scalar eval but failed strict video gate
+  - interpretation: checkpoint selection variance is real, but the snapshot pool still does not establish policy improvement. Do not expand this Flow endpoint AWR setup to seeds 1-2.
+- Added rollout-consistent synthetic replay truncation for the next Flow-MBPO method iteration.
+  - script: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new flag: `--truncate-rollouts-after-done`
+  - behavior: for multi-step synthetic rollouts with `start_index` and `horizon_step`, mark every transition after the first model-done or uncertainty-done transition from the same start as done, preventing AWR from training on post-termination imagined states
+  - summary now records `truncate_rollouts_after_done` and `post_first_done_fraction`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`; `PYTHONPATH=$PWD/src:$PWD python ... prepare_flow_mbpo_v0_synthetic_replay.py --help`; in-memory H3 truncation check; H1 replay preparation check at `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90_truncate_check/summary.json`
+  - interpretation: this is infrastructure for the next H3/H5 trajectory or residual replay run, not evidence of policy improvement by itself
+- Submitted a Flow endpoint H3/H5 synthetic replay diagnostic to create a horizon-sweep baseline before changing the world-model class.
+  - Slurm job: `9350024`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - initial scheduler state: pending for priority
+  - inputs: expert+noisy uniform BC seed0 final policy and Flow endpoint WM ensemble seeds 0/1/2 from `rerun_a25_native_qs_g1stage4_expertboost_20260527`
+  - outputs: H3/H5 smoke buffers under `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_endpoint_ensemble_seed0_h3/` and `_h5/`; truncated replay buffers under `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_endpoint_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
+  - settings: `num_starts=256`, `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, `--truncate-rollouts-after-done`, W&B disabled
+  - interpretation: this is a diagnostic horizon-sweep baseline for endpoint rollouts, not a policy update and not policy-improvement evidence
+- Flow endpoint H3/H5 replay diagnostic job `9350024` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:36`, max RSS `13053756K`
+  - command git: `63d82852cc3d2aacaa41297764e30b072985dbf9`
+  - H3 smoke: transitions `768`, reward mean `0.1515`, next-state uncertainty mean `0.0243`, next-state delta p90 `0.6136`
+  - H3 replay: uncertainty-done `0.1003`, post-first-done `0.1068`, final done fraction `0.1654`
+  - H5 smoke: transitions `1280`, reward mean `0.1505`, next-state uncertainty mean `0.0237`, next-state delta p90 `0.6072`
+  - H5 replay: uncertainty-done `0.1000`, post-first-done `0.1367`, final done fraction `0.1789`
+  - interpretation: multi-step endpoint replay is mechanically bounded and the rollout-consistent truncation path is active. This is only a horizon-sweep diagnostic; the next method change should add trajectory/residual world-model training and then reuse the same replay gate.
+- Submitted a residual Flow world-model smoke ensemble to produce the first residual checkpoints for the Flow-MBPO track.
+  - Slurm job: `9350121`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - initial scheduler state: pending for priority
+  - method: `residual_flow_frozen_mlp`, seeds `0,1,2`
+  - settings: `train_iters=100`, `base_pretrain_iters=100`, `batch_size=128`, `eval_batch_size=512`, hidden `256`, W&B disabled
+  - outputs: `scripts/outputs/mjlab_qs/results/flow_mbpo_v0_residual_smoke_20260530/velocity_flat_unitree_g1/residual_flow_frozen_mlp/seed_{0,1,2}/`
+  - interpretation: this is a mechanical residual-training smoke only. If it writes usable `best.pt` checkpoints, generate residual H3/H5 replay through the same truncation gate before any AWR policy update.
+- Residual Flow world-model smoke job `9350121` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:01:45`, max RSS `6867752K`
+  - wrote `best.pt` and `summary.json` for seeds `0,1,2`
+  - seed0 summary: best iter `0`, test rollout dyn MSE H16 `0.9705`, test reward MSE `0.6665`, rollout error ratio `4.4272`
+  - seed1 summary: best iter `0`, test rollout dyn MSE H16 `1.0380`, test reward MSE `0.6796`, rollout error ratio `5.1285`
+  - seed2 summary: best iter `0`, test rollout dyn MSE H16 `0.9553`, test reward MSE `0.6535`, rollout error ratio `4.4253`
+  - interpretation: the residual path writes loadable checkpoints, but this 100-iter smoke did not improve validation loss after iter0. Treat these only as mechanical inputs for residual replay plumbing, not as trained residual models.
+- Submitted residual Flow H3/H5 replay diagnostics using the smoke checkpoints.
+  - Slurm job: `9350157`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`
+  - settings: same BC policy, `num_starts=256`, H3/H5, `lambda_uncertainty=0.5`, `uncertainty_quantile_termination=0.90`, `--truncate-rollouts-after-done`, W&B disabled
+  - outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/residual_flow_frozen_mlp_smoke_ensemble_seed0_h3/` and `_h5/`; replay dirs under `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/residual_flow_frozen_mlp_smoke_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
+- Residual Flow H3/H5 replay diagnostic job `9350157` completed.
+  - status: `COMPLETED`, exit `0:0`, elapsed `00:00:21`, max RSS `6512632K`
+  - command git: `4e8320bcac45d659111fd2e3572eb5843766c8e7`
+  - H3 residual smoke: transitions `768`, reward mean `-0.0458`, next-state uncertainty mean `0.0356`, next-state delta p90 `0.0622`
+  - H3 residual replay: uncertainty-done `0.1003`, post-first-done `0.0677`, final done fraction `0.1029`, conservative reward mean `-0.0939`
+  - H5 residual smoke: transitions `1280`, reward mean `-0.0377`, next-state uncertainty mean `0.0353`, next-state delta p90 `0.0574`
+  - H5 residual replay: uncertainty-done `0.1000`, post-first-done `0.0844`, final done fraction `0.1086`, conservative reward mean `-0.0856`
+  - comparison to endpoint H3/H5: residual smoke replay is mechanically bounded but reward scale is much lower than endpoint H3/H5 reward mean around `0.15`, and the residual smoke checkpoints were only 100-iter mechanical checkpoints. Do not feed this residual smoke replay into AWR as policy-improvement evidence.
+- Added the first trajectory/chunk Flow world-model path with reward and done/fall heads.
+  - scripts: `scripts/experiments/mjlab_qs/run_phaseA_wm_feasibility.py`, `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py`, `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`, `scripts/experiments/mjlab_qs/export_flow_mbpo_smoke_summary.py`
+  - method: `flow_trajectory_chunk`
+  - behavior: predicts short action-conditioned chunks with intermediate states, per-step rewards, and per-step done logits; smoke buffers now preserve `done_probability` and model-done flags when a WM exposes a done head
+  - replay fix: uncertainty termination is skipped when the uncertainty tensor has no finite spread, preventing single-model all-zero uncertainty from marking every transition as uncertainty-done
+  - validation: `python -m py_compile` for the four touched scripts; local interface checks for chunk-only `done_probability`; degenerate-uncertainty replay check
+- Ran a mechanical trajectory/chunk smoke on `embers`.
+  - train job: `9350284`, `gpu-rtx6000`, status `COMPLETED`, exit `0:0`, elapsed `00:01:08`, max RSS `6729556K`
+  - training settings: `flow_trajectory_chunk`, seed `0`, `train_iters=2`, `batch_size=16`, `eval_batch_size=64`, hidden `64`, `flow_substeps=2`, `chunk_size=3`, W&B disabled
+  - checkpoint output: `scripts/outputs/mjlab_qs/results/flow_mbpo_v0_trajectory_chunk_smoke_check/velocity_flat_unitree_g1/flow_trajectory_chunk/seed_0/best.pt`
+  - test summary: best iter `2`, rollout dyn MSE label `H16` over `15` evaluated chunk steps `0.5796`, reward MSE `1.0245`, done BCE `0.7130`
+  - loader/replay rerun job: `9350301`, `gpu-rtx6000`, status `COMPLETED`, exit `0:0`, elapsed `00:00:11`, max RSS `6475316K`
+  - smoke output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_trajectory_chunk_smoke_seed0_h3_doneprob_v2/`
+  - replay output after degenerate-uncertainty fix: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_trajectory_chunk_smoke_seed0_h3_doneprob_v2_unc0p5_q0p90_trunc_fixed/`
+  - smoke metrics: transitions `48`, reward mean `-0.1073`, next-state delta mean `0.02561`, done probability mean `0.5109`, predicted/model done fraction `1.000`
+  - replay metrics: uncertainty-done `0.000`, model-done `1.000`, post-first-done `0.6667`, final done fraction `1.000`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_trajectory_chunk_smoke_summary_20260530.md`
+  - interpretation: this validates the mechanical trajectory/chunk training, checkpoint loading, done-probability export, and replay truncation path. It is not usable for AWR because the 2-iter untrained done head predicts done for all transitions.
+- Prepared and submitted a real trajectory/chunk Flow WM ensemble run.
+  - support commit: `4fac903`
+  - changes: formal WM runs now log git SHA/branch/command; training manifests record `eval_batch_size`, `hidden`, `flow_substeps`, `chunk_size`, and `done_loss_weight`; smoke rollout now feeds an action chunk to `flow_trajectory_chunk` instead of repeating a one-step action
+  - manifest: `scripts/experiments/mjlab_qs/manifests/flow_mbpo_v0_trajchunk_wm_5k_20260530.csv`
+  - rows: `velocity_flat_unitree_g1`, `flow_trajectory_chunk`, seeds `0,1,2`
+  - settings: `train_iters=5000`, `batch_size=128`, `eval_batch_size=512`, hidden `256`, `flow_substeps=4`, `chunk_size=3`, `done_loss_weight=0.1`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-wm-trajectory-chunk-20260530`
+  - W&B runs: seed0 `98rz3yuk`, seed1 `seqn28hm`, seed2 `67d6526v`
+  - Slurm job: `9350403`
+  - partition/GPU/QOS: `gpu-rtx6000` / `RTX6000` / `embers`; first submit with `8` CPUs was rejected by the RTX6000 CPU:GPU ratio, resubmitted with `6` CPUs
+- Trajectory/chunk Flow WM ensemble job `9350403` completed.
+  - status: seeds `0,1,2` all `COMPLETED`, exit `0:0`
+  - elapsed/max RSS: seed0 `00:08:55` / `13344876K`; seed1 `00:08:22` / `9816324K`; seed2 `00:08:34` / `10344196K`
+  - outputs: `scripts/outputs/mjlab_qs/results/flow_mbpo_v0_trajchunk_wm_5k_20260530/velocity_flat_unitree_g1/flow_trajectory_chunk/seed_{0,1,2}/`
+  - seed0 summary: best iter `5000`, test rollout dyn MSE label `H16` over `15` chunk steps `0.0954`, test reward MSE `0.0518`, done BCE `3.00e-7`
+  - seed1 summary: best iter `5000`, test rollout dyn MSE `0.0962`, test reward MSE `0.0519`, done BCE `2.44e-7`
+  - seed2 summary: best iter `5000`, test rollout dyn MSE `0.0966`, test reward MSE `0.0513`, done BCE `3.40e-7`
+  - interpretation: the real 5k chunk ensemble is much better than the 2-iter smoke and writes usable checkpoints. The done head is not useful for fall termination yet because it collapses toward near-zero done probability on rollout starts.
+- Generated H3/H5 synthetic smoke and conservative replay from the 5k trajectory/chunk ensemble.
+  - Slurm job: `9350467`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:27`, max RSS `6597320K`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-smoke-trajectory-chunk-20260530`
+  - W&B runs: H3 `h480qkds`, H5 `f7qb8wkz`
+  - smoke outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_smoke/flow_trajectory_chunk_5k_ensemble_seed0_h3/` and `_h5/`
+  - replay outputs: `scripts/outputs/mjlab_qs/flow_mbpo_v0_replay/flow_trajectory_chunk_5k_ensemble_seed0_h3_unc0p5_q0p90_trunc/` and `_h5_unc0p5_q0p90_trunc/`
+  - report: `scripts/outputs/mjlab_qs/reports/flow_mbpo_v0_trajectory_chunk_5k_smoke_summary_20260530.md`
+  - H3 smoke: transitions `768`, reward mean `-0.0108`, next-state delta mean `0.1921`, next-state uncertainty mean `0.0428`, reward uncertainty mean `0.0418`, done probability mean `3.43e-7`, predicted done `0.000`
+  - H3 replay: uncertainty-done `0.1003`, model-done `0.000`, post-first-done `0.0846`, final done fraction `0.1302`, conservative reward mean `-0.0531`
+  - H5 smoke: transitions `1280`, reward mean `-0.0071`, next-state delta mean `0.1716`, next-state uncertainty mean `0.0431`, reward uncertainty mean `0.0409`, done probability mean `3.68e-7`, predicted done `0.000`
+  - H5 replay: uncertainty-done `0.1000`, model-done `0.000`, post-first-done `0.1102`, final done fraction `0.1406`, conservative reward mean `-0.0491`
+  - interpretation: trajectory/chunk replay is now mechanically viable and uncertainty-bounded. It is not a complete fall-aware model because model-done is zero, so conservatism currently comes from ensemble uncertainty rather than the done/fall head.
+- Ran a first conservative AWR policy-update probe on the trajectory/chunk H3 replay.
+  - Slurm job: `9350496`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:01:41`, max RSS `9616808K`
+  - W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v0-awr-trajchunk-20260530` / `8c2lfqo4`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/`
+  - settings: expert+noisy uniform BC seed0 final warm start, H3 trajectory/chunk replay, `update_iters=500`, real batch `224`, synthetic batch `32`, BC anchor `1.0`, actor LR `1e-5`, real eval every `100` iters with `8` episodes
+  - wrote final, best-real, best-training-loss, and real-eval snapshot checkpoints
+  - best real-eval snapshot: iter `200`, return `20.8753`, length `280.00`, fall `1.000`
+  - final iter `500` real eval: return `14.3888`, length `222.125`, fall `1.000`
+  - initial interpretation: these internal 8-episode evals looked collapsed, but later matched diagnostics showed that the 8-episode protocol itself is too noisy/pessimistic for checkpoint ranking. Do not use this short eval alone to reject a candidate.
+- Added and ran a focused AWR/replay diagnostic.
+  - support commit: `13a7ab7`
+  - script: `scripts/experiments/mjlab_qs/analyze_flow_mbpo_awr_diagnostics.py`
+  - Slurm job: `9350631`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:08`, max RSS `6410368K`
+  - report: `scripts/outputs/mjlab_qs/reports/diagnostics/flow_trajectory_chunk_h3_awr_action_diagnostics_20260530.md` and `.json`
+  - synthetic replay stats: conservative reward mean `-0.0531`, p90 `1.5028`, p99 `2.6419`, max `2.6729`; AWR weight mean `1.7451`, p90 `4.7393`, p99 `14.8057`, max `15.2713`; done fraction `0.1302`
+  - action drift from BC is very small: final real-action delta mean `0.00246`, p90 `0.00379`; best-real real-action delta mean `0.00227`, p90 `0.00345`; best-training real-action delta mean `0.00242`, p90 `0.00370`
+  - interpretation: the AWR update barely moves actions in dataset/replay state space, so training MSE/action drift is not enough to rank safety. Real eval and rollout remain mandatory.
+- Ran same-protocol 8-episode eval diagnostics for BC and trajectory/chunk AWR.
+  - BC eval job: `9350668`, W&B run `uqvdqoy8`
+  - AWR eval job: `9350686`, W&B runs best-real `6h5h3dhk`, final `4khgu7wn`
+  - BC final 8-episode eval: return `17.2444`, length `259.875`, fall `1.000`
+  - AWR best-real 8-episode eval: return `17.3118`, length `260.00`, fall `1.000`
+  - AWR final 8-episode eval: return `17.3849`, length `260.75`, fall `1.000`
+  - interpretation: the short 8-episode eval protocol cannot distinguish BC from this AWR candidate and should not be used as a scalar gate for this task.
+- Ran 40-episode eval for trajectory/chunk H3 AWR final and best-real checkpoints.
+  - Slurm job: `9350719`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:02:07`, max RSS `7566.50M`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-awr-eval40-trajchunk-20260530`
+  - W&B runs: best-real `jzo93ni3`, final `kkor9kqs`
+  - best-real 40-episode eval: return `37.5778`, length `496.05`, fall `0.800`
+  - final 40-episode eval: return `48.7296`, length `637.225`, fall `0.575`
+  - comparison: AWR final clears both matched seed0 BC final eval (`43.6600`, length `568.38`, fall `0.675`) and aggregate expert+noisy uniform BC final eval (`45.8491`, length `594.97`, fall `0.625`) on scalar return, length, and fall rate
+- Rendered 10-episode 1000-step rollout videos for trajectory/chunk H3 AWR final and best-real checkpoints.
+  - Slurm job: `9350796`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:05:52`, max RSS `9749868K`
+  - W&B project: `flow-mbpo-mjlab-flow-mbpo-v0-rollout-trajchunk-20260530`
+  - W&B runs: final `nd6nossg`, best-real `6z2t1hdh`
+  - final roll10: return `54.4904`, length `694.00`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/final_roll10/rollout.mp4`
+  - best-real roll10: return `55.3382`, length `706.30`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0/best_roll10/rollout.mp4`
+  - comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
+  - interpretation: this is the strongest trajectory/chunk Flow-MBPO result so far. AWR final passes the 40-episode scalar gate and both final/best-real roll10 videos improve return and length over matched BC final, but fall rate ties rather than improves. Under the strict gate, do not claim policy improvement yet and do not expand to seeds 1-2 as a success run.
+- Ran a lower-synthetic-ratio trajectory/chunk H3 AWR follow-up around the best current recipe.
+  - train Slurm job: `9354153`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:02:25`, max RSS `9227804K`
+  - W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v0-awr-trajchunk-20260531` / `c5eefi3r`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v0_awr/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0/`
+  - settings: same BC seed0 final warm start and same H3 trajectory/chunk replay as above, `update_iters=500`, real batch `240`, synthetic batch `16`, BC anchor `1.0`, actor LR `1e-5`, real eval every `100` iters with `8` episodes
+  - training-time best-real snapshot: iter `100`, return `19.2824`, length `289.75`, fall `1.000`; final iter `500` real eval return `17.0372`, length `253.50`, fall `1.000`
+  - eval/render Slurm job: `9354204`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:08:12`, max RSS `9727988K`
+  - eval W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v0-awr-eval40-trajchunk-20260531`; final `r1277g19`, best-real `262xaocp`
+  - rollout W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v0-rollout-trajchunk-20260531`; final `cq51vlvk`, best-real `wpu9a0y2`
+  - final 40-episode eval: return `47.5960`, length `612.00`, fall `0.600`
+  - best-real 40-episode eval: return `39.8802`, length `527.175`, fall `0.725`
+  - final roll10: return `55.4222`, length `707.20`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0/final_roll10/rollout.mp4`
+  - best-real roll10: return `55.5495`, length `708.00`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v0_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0/best_roll10/rollout.mp4`
+  - comparison to matched seed0 BC final 40-episode eval: return `43.6600`, length `568.38`, fall `0.675`; comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
+  - interpretation: lowering the synthetic ratio from `32/256` to `16/256` preserves the useful return/length gains and final again clears the scalar BC gate, but video fall still ties matched BC instead of improving. This does not solve the strict gate; do not expand seeds or rerun this exact lowsynth variant.
+- Added the first Flow-MBPO v1 fall-aware replay plumbing.
+  - script: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new replay args/fields: `--lambda-fall`, `--done-threshold`, `--fall-threshold`, `fall_prob`, `done_probability`, `done_fall`, `done_threshold`, and `fall_threshold`
+  - behavior: `reward_conservative = reward_raw - lambda_uncertainty * uncertainty - lambda_fall * fall_prob`; final replay `done` now combines model done, fall-threshold done, uncertainty done, and optional post-first-done truncation
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`; CLI help; in-memory fake-buffer check that fall penalty, model done, fall done, and post-first-done truncation behave as expected
+  - W&B-disabled trajectory/chunk H3 replay smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_fall5_q0p90_trunc/`
+  - smoke settings: existing 5k trajectory/chunk H3 synthetic buffer, `lambda_uncertainty=0.5`, `lambda_fall=5.0`, uncertainty q90 termination, done/fall thresholds `0.5`, post-done truncation enabled
+  - smoke result: transitions `768`, conservative reward mean `-0.053116`, uncertainty-done `0.100260`, final done `0.130208`, `fall_prob` mean `3.43e-7`, max `8.98e-6`, fall-done `0.000`
+  - interpretation: the v1 replay schema now supports fall pessimism, but the current trajectory/chunk done/fall proxy is still collapsed near zero, so `lambda_fall` has almost no effect on this replay. The next method work must repair/calibrate the fall signal or use a separate support/OOD/conservative-Q signal before another formal policy update.
+- Added and ran a raw done/fall label audit.
+  - script: `scripts/experiments/mjlab_qs/analyze_mjlab_qs_done_fall_labels.py`
+  - report: `scripts/outputs/mjlab_qs/reports/done_fall_label_audit_20260531/done_fall_label_audit.md`, `.csv`, and `.json`
+  - method: load raw episode shards one at a time, avoiding the `5.7G` full window tensor; reuse the window builder's `valid_starts` rule with horizon `16`, stride `4`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/analyze_mjlab_qs_done_fall_labels.py`; CLI help
+  - result: `random_smooth`, `medium`, `expert`, and `expert_noisy` all have `done_transition_count=0`, `termination_transition_count=0`, `truncation_transition_count=0`, `fall_episode_rate=0`, `terminal_window_rate=0`, and `fall_window_rate=0`
+  - valid windows audited: random_smooth `915`, medium `37326`, expert `250009`, expert_noisy `62801`
+  - interpretation: the trajectory/chunk done/fall head collapsed because the current QS dataset contains no positive terminal/fall labels at all. Increasing `done_loss_weight` on this dataset cannot calibrate a fall head. Pessimistic v1 must either collect/include fall-positive or near-fall data, derive a state-based support/fall-risk proxy, or use OOD/conservative-Q pessimism instead of trusting model done.
+- Added a KL-like action-deviation constraint to the AWR update path.
+  - script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new arg: `--action-deviation-weight`, default `0.0` for backward compatibility
+  - behavior: when enabled, load a frozen BC/reference actor from the warm-start checkpoint and penalize MSE between current and reference actions on both real and non-done synthetic states
+  - logged metric: `awr/action_deviation_loss`; checkpoint args record `flow_mbpo_v0_action_deviation_weight`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; CLI help; `/tmp` CPU fake dataset/replay 2-iteration run with `--action-deviation-weight 2.0`, checkpoint load check, and summary check for `awr/action_deviation_loss`
+  - interpretation: this implements the v1 "KL/action-deviation to BC or previous policy" safeguard without relying on the unusable learned done/fall head. It is infrastructure only until a W&B-disabled trajectory/chunk H3 smoke and then formal W&B run prove real rollout value.
+- Ran the W&B-disabled trajectory/chunk H3 AWR action-deviation smoke.
+  - code commit: `17a2545`
+  - Slurm job: `9354631`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:14`, max RSS `6805432K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_actdev10_iter20_s0/`
+  - log: `logs/slurm/mjlab_qs/flow_mbpo_v1_awr_smoke/9354631.out`
+  - settings: existing expert+noisy H16 QS dataset, BC seed0 final warm start, trajectory/chunk H3 replay, `update_iters=20`, real batch `240`, synthetic batch `16`, BC anchor `1.0`, action-deviation weight `10.0`, actor LR `1e-5`, real eval disabled, W&B disabled
+  - summary: `real_train_windows=250559`, `synthetic_transitions=768`, conservative synthetic reward mean `-0.053114`, synthetic done fraction `0.130208`
+  - final iter metrics: loss `0.00108105`, real loss `0.00053796`, synthetic loss `2.72e-7`, BC anchor loss `0.00053876`, action-deviation loss `4.06e-7`, synthetic batch done fraction `0.0`
+  - checkpoints verified present: `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `best_training_loss_policy_extraction.pt`
+  - interpretation: the v1 action-deviation AWR path is mechanically clean on the current best trajectory/chunk H3 recipe. This is not a policy-improvement result because it has no real eval or video; it only clears the smoke gate for a single formal W&B seed on `embers`.
+- Ran the formal W&B trajectory/chunk H3 AWR action-deviation seed.
+  - code commit: `3c8c938`
+  - train Slurm job: `9354764`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:01:23`, max RSS `9188128K`
+  - train W&B project/run: `flow-mbpo-mjlab-flow-mbpo-v1-awr-trajchunk-20260531` / `dy7hzh0r`
+  - train output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_actdev10_iter500_s0/`
+  - settings: same expert+noisy H16 dataset, BC seed0 final warm start, and trajectory/chunk H3 replay as the lowsynth run; `update_iters=500`, real batch `240`, synthetic batch `16`, BC anchor `1.0`, action-deviation weight `10.0`, actor LR `1e-5`, real eval every `100` iters with `8` episodes
+  - training-time best-real snapshot: iter `300`, return `19.5770`, length `295.00`, fall `1.000`; final iter `500` real eval return `18.6699`, length `272.50`, fall `1.000`
+  - eval/render Slurm job: `9354806`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:08:17`, max RSS `9695988K`
+  - eval W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v1-awr-eval40-trajchunk-20260531`; final `fy3zyqka`, best-real `39tx14vg`
+  - rollout W&B project/runs: `flow-mbpo-mjlab-flow-mbpo-v1-rollout-trajchunk-20260531`; final `30xx57uc`, best-real `zxjfbwc7`
+  - final 40-episode eval: return `43.9079`, length `577.45`, fall `0.725`
+  - best-real 40-episode eval: return `41.4285`, length `544.575`, fall `0.750`
+  - final roll10: return `54.1049`, length `689.60`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_actdev10_iter500_s0/final_roll10/rollout.mp4`
+  - best-real roll10: return `54.3232`, length `691.40`, fall `0.400`; MP4 `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_actdev10_iter500_s0/best_roll10/rollout.mp4`
+  - comparison to matched seed0 BC final 40-episode eval: return `43.6600`, length `568.38`, fall `0.675`; comparison to matched seed0 BC final roll10: return `54.1283`, length `688.40`, fall `0.400`
+  - interpretation: action deviation preserves the matched roll10 fall tie but hurts scalar eval fall versus both matched BC and the no-action-deviation lowsynth run. The final video is essentially tied with matched BC, and best-real is only slightly above return/length while fall still ties. This fails the strict gate and should not be expanded.
+- Added a state/action support-OOD replay penalty path.
+  - script: `scripts/experiments/mjlab_qs/add_flow_mbpo_support_penalty.py`
+  - behavior: build a normalized real-data support set from `(phys_obs_t, command_t, action_t)` train windows, compute nearest-neighbor distance for each synthetic transition, calibrate the threshold from a disjoint real probe set, and subtract `lambda_support * relu(distance - threshold)` from `reward_conservative`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/add_flow_mbpo_support_penalty.py`; tiny fake dataset/replay check that support fields are written and `reward_conservative = reward_pre_support - lambda_support * support_penalty`
+  - W&B-disabled support replay smoke Slurm job: `9355084`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:06`, max RSS `6313208K`
+  - support replay output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_q0p90_support5_q0p90/`
+  - settings: current trajectory/chunk H3 replay, expert+noisy train support rows `20000`, disjoint real probe rows `4096`, threshold real-probe q90, `lambda_support=5.0`
+  - support replay result: selected real rows `250559`, support threshold `0.622495`, synthetic support distance mean `0.2290`, p90 `0.5258`, max `0.9724`, support penalty mean `0.00544`, p90 `0.0`, max `0.3499`
+  - reward effect: conservative reward mean changed from `-0.053114` to `-0.080335`; min changed from `-2.09149` to `-3.40177`
+  - W&B-disabled AWR smoke Slurm job: `9355101`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:10`, max RSS `6804900K`
+  - AWR smoke output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_support5_iter20_s0/`
+  - final iter metrics: loss `0.00102622`, real loss `0.00051070`, synthetic loss `2.30e-6`, BC anchor loss `0.00051322`, synthetic reward mean `-0.04121`, synthetic batch done fraction `0.0`
+  - interpretation: the support-OOD plumbing is mechanically clean and can feed AWR directly. On the current 768-transition H3 replay, most synthetic transitions remain inside the q90 expert+noisy support threshold, so this specific `lambda_support=5` replay is only a mild penalty. It is infrastructure, not a policy-improvement claim.
+- Ran a stronger q50 support-threshold replay/AWR smoke.
+  - available rollout logs caveat: existing `rollout_steps.csv` files contain reward, action norm, and done flags, but not full state/action vectors, so they cannot directly calibrate support distance against real rollout fall events
+  - support replay Slurm job: `9355156`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:09`, max RSS `6423796K`
+  - support replay output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_q0p90_support5_q0p50/`
+  - settings: same support set as the q90 smoke, but threshold set to real-probe q50 with `lambda_support=5.0`
+  - support replay result: threshold `0.201729`, synthetic support distance mean `0.2290`, p90 `0.5258`, max `0.9724`, support penalty mean `0.09565`, p90 `0.32410`, max `0.77069`
+  - reward effect: conservative reward mean changed from `-0.053114` to `-0.531373`; min changed from `-2.09149` to `-5.50560`
+  - AWR smoke Slurm job: `9355168`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:09`, max RSS `6804448K`
+  - AWR smoke output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_support5_q0p50_iter20_s0/`
+  - final iter metrics: loss `0.00102603`, real loss `0.00051070`, synthetic loss `2.10e-6`, BC anchor loss `0.00051322`, synthetic reward mean `-0.32340`, synthetic batch done fraction `0.0`
+  - interpretation: q50 support gating is a materially stronger pessimistic replay than q90 and still mechanically feeds AWR. It remains a smoke result only; do not run formal until support calibration is tied to real failure evidence or until the conservative-Q path is ready.
+- Added optional rollout support-feature logging.
+  - script: `scripts/experiments/mjlab_qs/render_policy_rollout.py`
+  - new arg: `--save-support-features`, default off
+  - behavior: save `rollout_support_features.pt` with per-step normalized `state`, normalized `command`, applied `action`, `raw_action`, `reward`, `done`, `terminated`, `truncated`, `episode_slot`, and `step`
+  - purpose: provide the full state/action vectors missing from existing `rollout_steps.csv`, so support distance can be calibrated against real rollout fall events
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/render_policy_rollout.py`; CLI help
+  - W&B-disabled rollout smoke Slurm job: `9355263`, `gpu-rtx6000`, `embers`, status `COMPLETED`, exit `0:0`, elapsed `00:00:26`, max RSS `7735180K`
+  - smoke output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollout_support_smoke/bc_seed0_final_ep1_step50/`
+  - smoke result: one BC seed0 final episode capped at `50` steps, return `5.4705`, length `50`, fall `0.0`, `support_feature_rows=50`, MP4 written, support feature tensor shapes `state=(50,96)`, `command=(50,3)`, `action=(50,29)`, `raw_action=(50,29)`
+  - interpretation: support calibration now has a real-rollout logging path. This is infrastructure only; next score these features against the expert+noisy support set and compare distances on successful versus failed rollout segments.
+- Added rollout support-distance scoring for saved real rollout features.
+  - script: `scripts/experiments/mjlab_qs/score_rollout_support_distance.py`
+  - behavior: score `rollout_support_features.pt` against the same expert+noisy normalized `(state, command, action)` nearest-neighbor support set used by `add_flow_mbpo_support_penalty.py`; write `rollout_support_scores.pt`, `support_steps.csv`, `support_episode_summary.csv`, and `summary.json`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/score_rollout_support_distance.py`; `/tmp` fake dataset/rollout run covering terminated and truncated episode summaries
+  - q50 Slurm smoke job: `9355461`, `gpu-rtx6000`, `embers`, status completed, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollout_support_smoke/bc_seed0_final_ep1_step50_support_q50_score/`
+  - q50 result on the no-fall 50-step BC smoke: real-probe threshold `0.201729`, rollout support-distance mean `0.5123`, p90 `0.7928`, max `1.3765`; support-penalty mean `0.3135`, p90 `0.5911`, max `1.1748`
+  - q90 Slurm smoke job: `9355480`, `gpu-rtx6000`, `embers`, status completed, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollout_support_smoke/bc_seed0_final_ep1_step50_support_q90_score/`
+  - q90 result on the same no-fall smoke: threshold `0.622495`, rollout support-distance unchanged, support-penalty mean `0.0468`, p90 `0.1703`, max `0.7540`; tail-10 support penalty is `0.0`
+  - interpretation: the scorer is mechanically clean, but a single capped no-fall BC episode is not enough calibration evidence. q50 is likely too strict for real rollout states because it heavily penalizes even this stable 50-step segment; q90 is milder but still flags transient OOD spikes. Before using support penalty for another formal AWR run, collect/score longer matched rollout support features with actual falls and timeouts, then check whether distance or tail-window distance separates failed from successful episodes.
+- Ran matched 10-episode support-feature calibration rollouts for BC and the strongest lowsynth Flow trajectory/chunk final actor.
+  - render/score Slurm job: `9355621`, `gpu-rtx6000`, `embers`; initial failed attempt `9355572` only missed `PYTHONPATH` and produced no artifacts
+  - scorer refresh job after adding grouped tail-window stats: `9355785`, `gpu-rtx6000`, `embers`
+  - BC output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_support_calibration/bc_seed0_final_roll10_support/`
+  - Flow output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_support_calibration/flow_trajchunk_h3_lowsynth_final_roll10_support/`
+  - both renders used W&B disabled, `--rollout-episodes 10`, `--max-steps 1000`, `--save-support-features`, and MP4 output
+  - BC rerender result: return `48.2874`, length `635.20`, fall `0.500`, `6352` support rows; 5 terminated episodes and 5 timeout episodes
+  - Flow lowsynth rerender result: return `54.5913`, length `694.00`, fall `0.400`, `6940` support rows; 4 terminated episodes and 6 timeout episodes
+  - q90 BC support signal: terminated episodes had support-distance max mean `11.7936` and tail10 mean `6.0608`; timeout episodes had max mean `1.7309` and tail10 mean `0.8289`
+  - q90 Flow support signal: terminated episodes had support-distance max mean `12.8382` and tail10 mean `6.3886`; timeout episodes had max mean `1.4489` and tail10 mean `0.5694`
+  - interpretation: q90 support distance strongly separates fall/termination episodes from timeout episodes in both matched BC and Flow rollouts, especially in the final 10 steps. This makes support distance a plausible real-failure risk signal. It is still diagnostic, not a policy-improvement claim; the next implementation should use this calibration to design a support-risk gate/penalty that targets late-episode OOD spikes without over-penalizing stable timeout trajectories.
+- Added an opt-in support-action penalty to the AWR update path and ran a W&B-disabled smoke.
+  - script: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new args: `--support-action-penalty-weight`, `--support-max-rows`, `--support-probe-rows`, `--support-threshold`, `--support-threshold-quantile`, `--support-state-weight`, `--support-command-weight`, and `--support-action-weight`
+  - behavior: build the same normalized expert+noisy `(state, command, action)` support set used by support scoring, calibrate a real-probe threshold, and penalize current actor actions whose batch `(state, command, actor_action)` is outside support on real and active synthetic states
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; `/tmp` fake dataset/replay 2-iteration CPU smoke with support penalty enabled
+  - real W&B-disabled smoke job: `9355897`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:00:11`, max RSS `7057380K`
+  - smoke output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_support_action_q90w1_iter20_s0/`
+  - settings: current trajectory/chunk H3 replay, BC seed0 final warm start, `update_iters=20`, real batch `240`, synthetic batch `16`, BC anchor `1.0`, support-action weight `1.0`, q90 support threshold, W&B disabled, real eval disabled
+  - support calibration: support rows `20000`, probe rows `4096`, threshold `0.622495`, probe distance mean `0.2642`, p90 `0.6225`
+  - final iter metrics: loss `0.004905`, real loss `0.0005107`, synthetic loss `2.38e-6`, BC anchor loss `0.0005132`, support-action loss `0.003879`, real support distance mean/p90 `0.2515`/`0.6042`, synthetic support distance mean/p90 `0.1762`/`0.3746`, synthetic done fraction `0.0`
+  - checkpoints verified present: `final_policy_extraction.pt`, `best_policy_extraction.pt`, and `best_training_loss_policy_extraction.pt`
+  - interpretation: the support-action objective is mechanically clean and does not destabilize the current AWR smoke. It is probably too mild at q90/weight `1.0` because most sampled update states/actions are below the calibrated threshold, while real falls show much larger late-rollout spikes. Treat this as infrastructure; do not run formal until a stronger support-risk variant is defined and smoke-tested.
+- Ran stronger support-action diagnostic smokes with active-fraction logging.
+  - code update: support-action metrics now include distance max and active fraction above the calibrated threshold for real and synthetic update batches
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; `/tmp` fake support smoke verified `awr/real_support_distance_active_fraction`
+  - q90 weight-10 smoke job: `9355960`, then rerun with active metrics in job `9356023`; output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_support_action_q90w10_metrics_iter20_s0/`
+  - q90 weight-10 final metrics: threshold `0.622495`, support-action loss `0.003879`, real active fraction `0.0917`, synthetic active fraction `0.0`, real distance mean/p90/max `0.2515`/`0.6041`/`0.8602`, synthetic mean/p90/max `0.1761`/`0.3745`/`0.4270`
+  - q50 stress smoke job: `9355991`, then rerun with active metrics in job `9356023`; output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_support_action_q50w1_metrics_iter20_s0/`
+  - q50 final metrics: threshold `0.201729`, support-action loss `0.08731`, real active fraction `0.500`, synthetic active fraction `0.375`, real distance mean/p90/max `0.2515`/`0.6041`/`0.8602`, synthetic mean/p90/max `0.1761`/`0.3745`/`0.4270`
+  - interpretation: q90 is too sparse on the update distribution, and q50 is much more active but still does not move support distances in a 20-iteration smoke. The late rollout fall signal is not represented strongly in the current AWR update batches. Plain support-action regularization should not be escalated to a formal run; use it as a diagnostic or combine it with rollout-state augmentation/conservative-Q.
+- Added optional high-risk rollout-state support penalty and diagnosed the support signal source.
+  - script update: `run_flow_mbpo_v0_awr_update.py` now accepts `--support-risk-features`, `--support-risk-penalty-weight`, `--support-risk-batch-size`, `--support-risk-min-distance`, and `--support-risk-top-quantile`
+  - behavior: load scored rollout tensors, select rows with high recorded support distance, sample those rollout states during AWR, and penalize current actor actions on those high-risk states against the expert+noisy support set
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; `/tmp` fake risk-feature smoke verified `awr/support_risk_loss` and `awr/risk_support_distance_active_fraction`
+  - high-risk AWR smoke job: `9356122`, `gpu-rtx6000`, `embers`, status completed, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_support_risk_q90_min2_w1_iter20_s0/`
+  - settings: use BC and Flow q90 scored rollout tensors, select `support_distance >= 2.0`, selected `133` risk rows out of `13292`, support-risk weight `1.0`, q90 support threshold `0.622495`, W&B disabled, real eval disabled
+  - final high-risk metrics: support-risk loss `4.5367`, source support distance mean/p90/max `5.1601`/`9.0254`/`14.3116`, actor risk support distance mean/p90/max `5.1592`/`9.0246`/`14.3115`, risk active fraction `1.0`; checkpoints written
+  - action-ablation scorer job: `9356143`, `gpu-rtx6000`, `embers`, scored the same BC/Flow rollouts with `--action-weight 0.0`
+  - action-ablation result: fall-vs-timeout separation is essentially unchanged when action is removed. BC terminated tail10 support distance `6.0567` vs timeout `0.8253`; Flow terminated `6.3846` vs timeout `0.5662`, matching the full `(state, command, action)` distances.
+  - interpretation: the calibrated support-fall signal is dominated by state/command OOD, not action OOD. Actor-only support penalties cannot repair states that are already outside support. The right next step is support-risk-aware model rollout termination/reward pessimism or conservative-Q over rollout/generated states, not another actor-action penalty formal run.
+- Ran state/command-only support replay reward-pessimism smokes.
+  - replay job: `9356199`, `gpu-rtx6000`, `embers`, status completed
+  - q90 state support output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_q0p90_state_support5_q0p90/`
+  - q50 state support output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_q0p90_state_support5_q0p50/`
+  - settings: same trajectory/chunk H3 replay, expert+noisy support rows `20000`, probe rows `4096`, `lambda_support=5.0`, `--action-weight 0.0`
+  - q90 state result: threshold `0.620098`, support distance mean/p90/max `0.2280`/`0.5246`/`0.9712`, support penalty mean `0.00548`, reward mean `-0.08050`
+  - q50 state result: threshold `0.200275`, support distance mean/p90/max `0.2280`/`0.5246`/`0.9712`, support penalty mean/p90/max `0.09559`/`0.32431`/`0.77090`, reward mean `-0.53106`
+  - comparison: state/command-only replay support is numerically almost identical to the previous full `(state, command, action)` replay support, confirming that synthetic replay OOD is also state-dominated.
+  - AWR smoke job: `9356236`, `gpu-rtx6000`, `embers`, status completed, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_state_support5_q0p50_iter20_s0/`
+  - AWR final metrics: loss `0.001026`, real loss `0.0005107`, synthetic loss `2.10e-6`, BC anchor loss `0.0005132`, synthetic reward mean `-0.3223`, synthetic done fraction `0.0`; final/best/best-training checkpoints written
+  - interpretation: state/command support replay reward-pessimism is mechanically clean and feeds AWR. It is still a replay-level smoke only. Because q50 penalized stable real rollout states too broadly and q90 is mild on synthetic replay, do not formalize this exact setting without a more targeted rollout termination or conservative-Q mechanism.
+- Added support-risk replay truncation and ran targeted smokes.
+  - script: `scripts/experiments/mjlab_qs/apply_flow_mbpo_support_truncation.py`
+  - behavior: consume a synthetic replay already scored with `support_distance` and `support_threshold`; mark support-risk crossings, optionally mark all later rows in the same `start_index`/`horizon_step` branch as done, preserve the previous done mask in `done_pre_support_truncation`, and write a new `synthetic_replay.pt` plus `summary.json`
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/apply_flow_mbpo_support_truncation.py`; fake two-branch replay verified post-risk done propagation and reward penalty arithmetic
+  - q90 state trunc output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_q0p90_state_support5_q0p90_trunc/`
+  - q90 state trunc result: threshold `0.620098`, risk crossing fraction `0.04818`, post-risk truncation fraction `0.09635`, risk branch fraction `0.10938`, done fraction increased from `0.13021` to `0.17188`
+  - q50 state trunc output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_q0p90_state_support5_q0p50_trunc/`
+  - q50 state trunc result: threshold `0.200275`, risk crossing fraction `0.45573`, post-risk truncation fraction `0.45964`, risk branch fraction `0.48047`, done fraction increased from `0.13021` to `0.48438`
+  - AWR q90-trunc smoke job: `9356396`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_state_support5_q0p90_trunc_iter20_s0/`
+  - AWR q90-trunc final metrics: loss `0.001026`, real loss `0.0005107`, synthetic loss `2.27e-6`, BC anchor loss `0.0005132`, synthetic reward mean `-0.04121`, replay synthetic done fraction `0.171875`; final/best/best-training checkpoints written
+  - interpretation: q90 support-risk truncation is a targeted and mechanically clean early-termination path, but it only touches `28/256` branches in the current H3 replay and has not been evaluated in real MJLab. q50 truncation is likely too broad for a formal setting. Do not launch a formal seed from this alone; use q90 truncation as the next conservative replay component only after pairing it with a stronger generated-state risk mechanism or conservative-Q objective.
+- Moved support-risk termination into replay preparation.
+  - script update: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new args: `--support-risk-termination`, `--support-dataset`, `--support-metadata`, `--support-normalization`, `--support-risk-penalty-weight`, support set/probe/threshold options, support feature weights, and support split/filter options
+  - behavior: during replay preparation, build the expert+noisy support set, calibrate the q-threshold from disjoint real probe rows, compute synthetic state/command/action support distance, mark rows above threshold as `support_risk_done`, optionally subtract a support-risk reward penalty, and include `support_risk_done` before `--truncate-rollouts-after-done` propagates done through later branch steps
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py scripts/experiments/mjlab_qs/add_flow_mbpo_support_penalty.py`; CLI help; `/tmp` fake support dataset verified support-risk done; no-support replay check preserved prior done fraction `0.1302083`
+  - full q90 state/command support-risk preparation job: `9356522`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_unc0p5_q0p90_support_riskterm_q90/`
+  - full q90 preparation result: support rows `20000`, probe rows `4096`, threshold `0.620098`, action weight `0.0`, support-risk done fraction `0.04818`, post-first-done fraction `0.11198`, final done fraction `0.171875`, conservative reward mean unchanged at `-0.05311` because support-risk penalty weight was `0.0`
+  - AWR smoke job: `9356566`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_support_riskterm_q90_iter20_s0/`
+  - AWR final metrics: loss `0.001026`, real loss `0.0005107`, synthetic loss `2.27e-6`, BC anchor loss `0.0005132`, synthetic reward mean `-0.04121`, replay synthetic done fraction `0.171875`; final/best/best-training checkpoints written
+  - interpretation: support-risk termination is now part of the normal replay-preparation path instead of only a post-hoc artifact transform. This is still a smoke result: it matches the previous q90 truncation behavior on the existing fixed H3 buffer, but it has not yet changed closed-loop model rollout generation or real MJLab behavior. Next implement support-aware branch stopping during synthetic rollout generation or add conservative-Q over out-of-support generated states before any formal seed.
+- Moved support-risk termination into closed-loop synthetic rollout generation.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py`
+  - new args: `--support-risk-termination`, support set/probe/threshold options, and support feature weights
+  - behavior: while generating each model rollout step, compute support distance for the current generated `(state, command, action)`; if it crosses the calibrated threshold, mark `support_risk_done`, mark the transition done, freeze the branch state for later horizon steps, and log `rollout_active`, `support_risk_distance`, `support_risk_threshold`, and `support_risk_done`
+  - default behavior check: with support-risk disabled, a fake generator test preserved old closed-loop state progression and no done rows
+  - support-aware fake test: once support distance crossed the threshold, later branch states stayed frozen and done remained true
+  - full support-aware generation job: `9356635`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_smoke/flow_trajectory_chunk_5k_ensemble_seed0_h3_support_riskterm_q90/`
+  - generation settings: trajectory/chunk 5k H3 Flow ensemble, BC seed0 final actor, `256` starts, horizon `3`, support rows `20000`, probe rows `4096`, q90 threshold `0.620098`, action weight `0.0`
+  - generation result: support-risk done fraction `0.09635`, rollout active fraction `0.94010`, horizon done fractions `[0.08203, 0.09766, 0.10938]`, support-risk distance mean/p90/max `0.23963`/`0.60024`/`0.97118`, next-state delta mean `0.12522`
+  - replay prep from support-aware buffer: `scripts/outputs/mjlab_qs/flow_mbpo_v1_replay_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_unc0p5_q0p90/`
+  - replay prep result: model-done fraction `0.09635` from generator support-risk done, uncertainty-done fraction `0.10026`, post-first-done fraction `0.10677`, final done fraction `0.16406`, conservative reward mean `-0.06376`
+  - AWR smoke job: `9356654`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_gen_support_riskterm_q90_iter20_s0/`
+  - AWR final metrics: loss `0.001026`, real loss `0.0005107`, synthetic loss `2.24e-6`, BC anchor loss `0.0005132`, synthetic reward mean `-0.04690`, replay synthetic done fraction `0.1640625`; final/best/best-training checkpoints written
+  - interpretation: support-risk is now active during closed-loop model rollout generation, not only as fixed-buffer post-processing. This is the first method-aligned support-risk slice, but it is still W&B-disabled smoke evidence only. Do not formalize until the generated replay is paired with a stronger update criterion or a real-eval plan that can beat matched BC on fall rate, return, and length.
+- Added an opt-in conservative-Q critic path to the AWR update.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new args: `--conservative-q-weight`, `--critic-actor-weight`, `--critic-lr`, `--critic-hidden`, `--critic-gamma`, and `--critic-tau`
+  - behavior: train a deterministic Q critic on mixed real and synthetic one-step transitions with Bellman loss plus a CQL-style `softplus(Q(actor_action) - Q(data_action))` penalty; optionally add a small actor loss term that maximizes the conservative critic; save `final_q_critic.pt` when the critic is enabled
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; CLI help; CPU fake critic smoke with finite `critic/loss`
+  - W&B-disabled 20-iteration conservative-Q smoke job: `9356778`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_r240_s16_anchor1_gen_support_riskterm_q90_cq1_actor0p01_iter20_s0/`
+  - settings: support-aware generated H3 replay, real batch `240`, synthetic batch `16`, BC anchor `1.0`, `--conservative-q-weight 1.0`, `--critic-actor-weight 0.01`, `update_iters=20`, W&B disabled, real eval disabled
+  - 20-iteration final metrics: AWR loss `0.000125`, critic actor loss `-0.09625`, critic loss `0.76992`, critic Bellman loss `0.07677`, CQL loss `0.69315`, CQL gap mean `1.38e-5`, `Q(data)` mean `0.09484`, `Q(actor)` mean `0.09485`, checkpoints written
+  - critic checkpoint validation job: `9356793`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_actor0p01_iter5_save_s0/`
+  - checkpoint validation result: `final_q_critic.pt` exists and contains `critic`, `target_critic`, args, `conservative_q_weight`, and `critic_actor_weight`
+  - interpretation: conservative-Q is now mechanically integrated with the support-aware generated replay path and produces critic diagnostics/artifacts. This is still a short smoke, not policy evidence. The CQL gap remains near zero after 20 iterations, so tune critic training length/weight before considering a formal seed.
+- Added random-action CQL samples to the conservative-Q smoke path.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new args: `--critic-random-actions` and `--critic-cql-temperature`
+  - behavior: when random actions are requested, sample uniform actions in `[-1, 1]`, compute `Q` on actor plus random actions, and use `temperature * logsumexp(Q_ood / temperature) - Q(data)` as the CQL gap; the default `--critic-random-actions 0` preserves the actor-only softplus CQL behavior
+  - validation: `python -m py_compile scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`; CLI help; CPU fake smoke with `critic_random_actions=4` produced finite random-action critic metrics
+  - W&B-disabled 20-iteration random-action conservative-Q smoke job: `9356862`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, output `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_actor0p01_iter20_s0/`
+  - settings: support-aware generated H3 replay, real batch `240`, synthetic batch `16`, BC anchor `1.0`, `--conservative-q-weight 1.0`, `--critic-random-actions 10`, `--critic-cql-temperature 1.0`, `--critic-actor-weight 0.01`, `update_iters=20`, W&B disabled, real eval disabled
+  - 20-iteration final metrics: AWR loss `2.48e-5`, critic actor loss `-0.10629`, critic loss `2.41859`, Bellman loss `0.07703`, CQL loss `2.34156`, CQL gap mean `2.34156`, `Q(data)` mean `0.10054`, `Q(actor)` mean `0.10057`, `Q(random)` mean `0.03787`, `Q(random)` max `0.19931`
+  - checkpoints verified present: `final_policy_extraction.pt`, `best_policy_extraction.pt`, `best_training_loss_policy_extraction.pt`, and `final_q_critic.pt`
+  - interpretation: random-action CQL fixes the near-zero actor-only CQL diagnostic by producing a meaningful conservative training gap on the same support-aware generated replay. This is still W&B-disabled smoke evidence only; it proves critic plumbing and a stronger CQL signal, not real policy improvement. Tune duration/weight/random-action mix or run a longer smoke before any formal W&B seed.
+- Ran a longer random-action conservative-Q smoke.
+  - Slurm job: `9357006`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:00:16`, max RSS `7035140K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_actor0p01_iter100_s0/`
+  - settings: same support-aware generated H3 replay and conservative-Q settings as job `9356862`, but `update_iters=100` and `log_every=10`
+  - final metrics: AWR loss `-0.001849`, critic actor loss `-0.2860`, critic loss `1.9391`, Bellman loss `0.08688`, CQL loss/gap `1.85219`, `Q(data)` mean `0.25246`, `Q(actor)` mean `0.26809`, `Q(random)` mean `-0.42555`, `Q(random)` max `0.73695`
+  - trend over logged iterations: CQL gap decreased from `2.3921` to `1.8522` but remained large; `Q(random)` mean dropped from `0.0290` to `-0.4255`, while `Q(random)` max rose from `0.1326` to `0.7369`
+  - checkpoint validation: `final_q_critic.pt` is loadable and records `critic_random_actions=10` and `critic_cql_temperature=1.0`
+  - interpretation: the longer smoke confirms random-action CQL maintains a nonzero conservative gap and pushes the average random-action value down. However, the high random-action max and increasing actor/data Q values show this is still only a critic-training diagnostic. Do not formalize from this run alone; next tune CQL weight/temperature/random-action count or reduce the actor critic weight before a one-seed W&B candidate.
+- Ran a critic-only actor-weight ablation for random-action conservative-Q.
+  - Slurm job: `9357054`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:00:10`, max RSS `7029484K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_actor0_iter100_s0/`
+  - settings: identical to job `9357006` except `--critic-actor-weight 0.0`
+  - final metrics: AWR loss `0.000937`, critic actor loss `0.0`, critic loss `1.9366`, Bellman loss `0.08701`, CQL loss/gap `1.84959`, `Q(data)` mean `0.25059`, `Q(actor)` mean `0.25223`, `Q(random)` mean `-0.42797`, `Q(random)` max `0.73796`
+  - comparison to actor-weight `0.01`: CQL gap, average random-action pessimism, and high random-action max are almost unchanged; actor-weight `0.01` mainly makes the actor objective negative via `-Q(actor)` and raises `Q(actor)` slightly above `Q(data)`
+  - interpretation: the high random-action tail is not caused primarily by the actor critic loss. Treat `critic_actor_weight=0.0` as the safer default for further W&B-disabled critic tuning, and tune CQL weight/temperature/random-action sampling before reintroducing actor-Q pressure or considering a formal seed.
+- Ran a stronger CQL-weight critic-only smoke.
+  - Slurm job: `9357126`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:00:11`, max RSS `7030648K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq5_rand10_actor0_iter100_s0/`
+  - settings: identical to job `9357054` except `--conservative-q-weight 5.0`
+  - final metrics: AWR loss `0.000937`, critic loss `8.7681`, Bellman loss `0.12316`, CQL loss/gap `1.72899`, `Q(data)` mean `0.39997`, `Q(actor)` mean `0.40181`, `Q(random)` mean `-0.45006`, `Q(random)` max `1.02192`
+  - comparison to CQL weight `1.0`: CQL gap decreased from `1.8496` to `1.7290` and average random-action Q moved slightly lower, but `Q(data)`/`Q(actor)` increased substantially and the random-action max worsened from `0.7380` to `1.0219`; Bellman loss also rose from `0.0870` to `0.1232`
+  - interpretation: increasing CQL weight is not the right next knob in this setup. It does not remove the high-valued random-action tail and may amplify Q scale. Keep `critic_actor_weight=0.0`, return CQL weight to `1.0`, and test CQL temperature or random-action sampling coverage before considering any formal seed.
+- Ran a low-temperature CQL critic-only smoke.
+  - Slurm job: `9357174`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:00:11`, max RSS `7027272K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_temp0p1_actor0_iter100_s0/`
+  - settings: same critic-only random-action smoke as job `9357054`, but `--critic-cql-temperature 0.1`
+  - final metrics: AWR loss `0.000937`, critic loss `0.14584`, Bellman loss `0.08007`, CQL loss/gap `0.06577`, `Q(data)` mean `0.18269`, `Q(actor)` mean `0.18361`, `Q(random)` mean `-0.19735`, `Q(random)` max `0.44153`
+  - comparison to temperature `1.0`: random-action max improved from `0.7380` to `0.4415`, `Q(data)`/`Q(actor)` scale stayed lower, and Bellman loss was slightly lower; however, the CQL gap collapsed from `1.8496` to `0.0658`
+  - interpretation: temperature `0.1` is useful as a tail-control diagnostic, but likely too weak as the only conservative signal. Do not formalize it. Test an intermediate temperature such as `0.5`, still with `critic_actor_weight=0.0` and CQL weight `1.0`, before any formal W&B seed.
+- Ran an intermediate-temperature CQL critic-only smoke.
+  - Slurm job: `9357227`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:00:10`, max RSS `7027732K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_temp0p5_actor0_iter100_s0/`
+  - settings: same critic-only random-action smoke as jobs `9357054` and `9357174`, but `--critic-cql-temperature 0.5`
+  - final metrics: AWR loss `0.000937`, critic loss `0.82317`, Bellman loss `0.08494`, CQL loss/gap `0.73823`, `Q(data)` mean `0.23597`, `Q(actor)` mean `0.23751`, `Q(random)` mean `-0.39914`, `Q(random)` max `0.66968`
+  - comparison across temperatures: temperature `0.1` had lower tail but too-small CQL gap (`0.0658`, max random Q `0.4415`); temperature `1.0` had stronger gap but worse tail (`1.8496`, max random Q `0.7380`); temperature `0.5` is a middle setting (`0.7382`, max random Q `0.6697`)
+  - interpretation: temperature `0.5` is the best current compromise among the three short smokes, but it is still only critic diagnostics on W&B-disabled training. Do not claim policy improvement. If continuing this branch, use temp `0.5`, `critic_actor_weight=0.0`, and CQL weight `1.0` for either a longer smoke or a small real-eval plumbing check before any formal W&B run.
+- Ran a W&B-disabled real-eval plumbing check for the temp-`0.5` conservative-Q setting.
+  - Slurm job: `9357292`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:00:43`, max RSS `8325696K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_temp0p5_actor0_iter100_eval8_s0/`
+  - settings: same temp-`0.5`, CQL weight `1.0`, random actions `10`, actor critic weight `0.0`, plus `real_eval_every=100`, `real_eval_episodes=8`, and W&B disabled
+  - final critic metrics matched the no-eval temp-`0.5` smoke: CQL gap `0.73823`, `Q(random)` mean `-0.39914`, `Q(random)` max `0.66968`
+  - 8-episode real-eval result at iter `100`: return `18.7727`, length `283.50`, fall `1.000`, timeout `0.000`
+  - checkpoint validation: `final_policy_extraction.pt`, `best_policy_extraction.pt`, `best_training_loss_policy_extraction.pt`, `real_eval_snapshots/iter_000100_policy_extraction.pt`, and `final_q_critic.pt` were written; `best_policy_extraction.pt` is marked `checkpoint_kind=best_real_eval` and `is_true_best_snapshot=True`
+  - interpretation: real-eval checkpoint plumbing works under the conservative-Q temp-`0.5` setting, but the short real-eval signal is bad and far below matched BC. This candidate is not ready for formal W&B eval/render. Continue tuning or rethink the critic objective before spending formal rollout-video budget.
+- Ran a W&B-disabled roll10 MP4 diagnostic for the same temp-`0.5` conservative-Q checkpoint.
+  - Slurm job: `9370468`, `gpu-rtx6000`, `embers`, status completed, exit `0:0`, elapsed `00:02:55`, max RSS `9971836K`
+  - output: `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_temp0p5_actor0_iter100_eval8_s0/final_roll10/`
+  - video: `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/flow_trajectory_chunk_5k_h3_gen_support_riskterm_q90_cq1_rand10_temp0p5_actor0_iter100_eval8_s0/final_roll10/rollout.mp4`
+  - settings: final checkpoint from job `9357292`, `rollout_episodes=10`, `max_steps=1000`, MP4 required, W&B disabled
+  - result: return `54.2864`, length `689.80`, fall `0.400`, return std `33.8305`
+  - per-episode pattern: six timeouts at 1000 steps and four falls at lengths `137`, `138`, `493`, and `130`
+  - checkpoint validation: final, best-real, and iter-100 real-eval snapshot actor weights are identical, so this final rollout is also the true-best actor rollout for this one-eval smoke
+  - comparison: matched BC seed0 final roll10 is return `54.1283`, length `688.40`, fall `0.400`; this diagnostic is essentially tied on rollout return/length/fall but does not reduce fall rate. The earlier 8-episode eval from the same actor was much worse, so the candidate has high eval variance and fails the strict scalar-eval gate.
+  - interpretation: the temp-`0.5` conservative-Q actor is not a formal candidate despite a roll10 that matches BC. It does not clear the required lower-fall gate, and the contradictory 8-episode eval means this branch should not consume W&B formal budget without changing the update objective or selection/eval protocol.
+- Added opt-in gate-aware true-best selection for AWR real-eval snapshots.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new args: `--real-eval-selection-metric {return,return_length_fall}`, `--real-eval-length-weight`, and `--real-eval-fall-penalty`
+  - default behavior remains return-only selection, preserving existing manifests and outputs
+  - gate-aware score: `return_mean + length_weight * episode_length_mean - fall_penalty * fall_rate_mean`
+  - purpose: avoid selecting a "true-best" checkpoint solely by return when the formal gate requires return, length, and fall rate together
+  - validation: `py_compile`, CLI help, a direct formula check, and W&B-disabled integration smoke job `9370586`
+  - integration smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/gate_aware_selection_metric_smoke_iter1_eval2_s0/`, `update_iters=1`, `real_eval_episodes=2`, metric `return_length_fall`, status completed on `embers`
+  - smoke result: `best_policy_extraction.pt` is marked `checkpoint_kind=best_real_eval`, `is_true_best_snapshot=True`, and both the best checkpoint and `real_eval_snapshots/iter_000001_policy_extraction.pt` record `real_eval/selection_score=94.3502` and `real_eval/selection_metric=return_length_fall`
+  - interpretation: this is selection infrastructure only, not policy evidence. Future formal-eligible runs should use gate-aware true-best selection or an equivalent explicit ranking so checkpoint selection matches the rollout-first claim gate.
+- Added opt-in real-eval early stopping to the AWR update loop.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new args: `--real-eval-stop-score-below`, `--real-eval-early-stop-patience`, and `--real-eval-min-delta`
+  - default behavior is disabled, preserving existing runs
+  - behavior: after each real-eval snapshot, compute the same real-eval selection score used for true-best selection; stop if it is below a configured threshold, or if it fails to improve for the requested patience
+  - purpose: make real-eval-based stopping explicit so obviously rejected candidates do not keep consuming GPU/W&B budget
+  - validation: `py_compile`, CLI help, and W&B-disabled integration smoke job `9370641`
+  - integration smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/real_eval_early_stop_smoke_iter5_eval2_s0/`, requested `update_iters=5`, `real_eval_every=1`, `real_eval_episodes=2`, metric `return_length_fall`, and forced stop threshold `9999`
+  - smoke result: job completed on `embers`, stopped at iter `1`, wrote final/best/best-training/snapshot checkpoints, and summary recorded `early_stop_iter=1` with reason `selection_score 94.4246 below threshold 9999`
+  - interpretation: this is an early-stop path validation only. The forced threshold is intentionally artificial and the 2-episode eval is not policy evidence.
+- Added opt-in baseline gate logging for AWR real-eval snapshots.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new args: `--real-eval-baseline-return`, `--real-eval-baseline-length`, and `--real-eval-baseline-fall`
+  - behavior: when all three baselines are supplied, each real-eval snapshot logs return/length/fall gaps to baseline, per-metric pass/fail, and overall `real_eval/baseline_gate_pass`
+  - gate rule: return and length must be at least baseline, fall must be strictly below baseline
+  - validation: `py_compile`, CLI help, direct formula check, and W&B-disabled integration smoke job `9370667`
+  - integration smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_awr_smoke/baseline_gate_logging_smoke_iter1_eval2_s0/`, `update_iters=1`, `real_eval_episodes=2`, metric `return_length_fall`, matched seed0 BC final roll10 baseline `54.1283` / `688.40` / `0.400`
+  - smoke result: job completed on `embers`; summary, stdout, and `real_eval_snapshots/iter_000001_policy_extraction.pt` recorded baseline values, gaps, pass bits, and `real_eval/baseline_gate_pass=True`
+  - interpretation: this is gate-logging infrastructure only. The 2-episode smoke is not policy evidence, but future W&B or formal-eligible runs can now report baseline pass/fail directly in checkpoint metadata and W&B.
+- Added opt-in baseline gate logging to the policy rollout renderer.
+  - script update: `scripts/experiments/mjlab_qs/render_policy_rollout.py`
+  - new args: `--baseline-return`, `--baseline-length`, and `--baseline-fall`
+  - behavior: rollout `summary.json` and W&B logs now include baseline values, gaps, pass bits, and overall `baseline_gate_pass` when baselines are supplied
+  - gate rule matches eval logging: return and length must be at least baseline, fall must be strictly lower
+  - validation: `py_compile`, CLI help, direct formula check, and W&B-disabled MP4 smoke job `9370771`
+  - integration smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_rollouts/baseline_gate_logging_smoke_temp0p5_final_roll2/`, temp-`0.5` conservative-Q final checkpoint, 2 episodes, `max_steps=1000`, matched seed0 BC final roll10 baseline `54.1283` / `688.40` / `0.400`
+  - smoke result: job completed on `gpu-v100` with `embers`, wrote `rollout.mp4`; 2-episode result was return `48.6899`, length `566.00`, fall `0.500`, and summary/stdout recorded `baseline_gate_pass=False`
+  - interpretation: this is renderer gate-logging infrastructure only. The 2-episode smoke is not policy evidence, but future MP4 rollout summaries can now self-report whether they clear the matched BC video gate.
+- Propagated rollout baseline gates through manifest row execution.
+  - script update: `scripts/experiments/mjlab_qs/run_policy_rollout_row.py`
+  - new optional manifest fields: `rollout_baseline_return`, `rollout_baseline_length`, and `rollout_baseline_fall`
+  - compatibility: shorter `baseline_return`, `baseline_length`, and `baseline_fall` fields are also accepted
+  - behavior: when all three fields are present, the row runner passes them to `render_policy_rollout.py` as `--baseline-return`, `--baseline-length`, and `--baseline-fall`
+  - validation: `py_compile`, static flag check, and a monkeypatched row-runner command test with a temporary manifest confirmed the renderer command includes all three baseline args
+  - interpretation: formal rollout arrays can now carry matched BC baseline gates directly from manifests, reducing the risk that final/best MP4 evidence is rendered without gate metadata.
+- Added standalone eval baseline gate logging and manifest passthrough.
+  - script updates: `scripts/experiments/mjlab_qs/eval_policy_checkpoint.py` and `scripts/experiments/mjlab_qs/run_policy_eval_row.py`
+  - new eval args: `--baseline-return`, `--baseline-length`, and `--baseline-fall`
+  - new optional manifest fields: `eval_baseline_return`, `eval_baseline_length`, and `eval_baseline_fall`; shorter `baseline_return`, `baseline_length`, and `baseline_fall` aliases are also accepted
+  - behavior: standalone eval `summary.json`, stdout, and W&B numeric logs now include baseline values, gaps, pass bits, and `baseline_gate_pass` when all three baselines are supplied
+  - gate rule matches rollout and AWR real-eval logging: return and length must be at least baseline, fall must be strictly lower
+  - validation: `py_compile`, CLI help, direct formula check, monkeypatched row-runner command test, and W&B-disabled Slurm smoke job `9370850`
+  - integration smoke: `scripts/outputs/mjlab_qs/flow_mbpo_v1_eval/baseline_gate_logging_smoke_temp0p5_final_eval2/`, temp-`0.5` conservative-Q final checkpoint, 2 eval episodes, matched aggregate BC scalar baseline `45.8491` / `594.97` / `0.625`
+  - smoke result: job completed on `gpu-v100` with `embers`; summary/stdout recorded `baseline_gate_pass=True` for the 2-episode smoke
+  - interpretation: this is eval gate-logging infrastructure only. The 2-episode eval is not policy evidence, but future 40-episode eval arrays can now self-report whether final/best actors clear the BC scalar gate.
+- Added baseline gate metadata to the Flow-MBPO candidate eval/render plan generator.
+  - script update: `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`
+  - new args: `--eval-baseline-return`, `--eval-baseline-length`, `--eval-baseline-fall`, `--rollout-baseline-return`, `--rollout-baseline-length`, and `--rollout-baseline-fall`
+  - defaults: aggregate BC scalar eval baseline `45.8491` / `594.97` / `0.625`; matched seed0 BC final roll10 baseline `54.1283` / `688.40` / `0.400`
+  - behavior: generated CSV rows now carry eval and rollout baseline columns, and generated standalone eval/render commands pass the corresponding `--baseline-*` args to the downstream scripts
+  - validation: `py_compile`, CLI help, and a `/tmp` plan generation check against the existing snapshot AWR output `flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_snap100_s0`; the check found `8` candidates and confirmed baseline fields plus command-line flags in both CSV and shell outputs
+  - interpretation: this is evidence-protocol infrastructure only. It reduces the chance that future candidate snapshot eval/render plans are run without explicit BC gate metadata, but it does not add new policy evidence.
+- Added Slurm-array-compatible direct checkpoint manifests for Flow-MBPO candidate eval/render.
+  - script updates: `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`, `scripts/experiments/mjlab_qs/run_policy_eval_row.py`, and `scripts/experiments/mjlab_qs/run_policy_rollout_row.py`
+  - new plan-builder outputs: optional `--output-eval-manifest` and `--output-rollout-manifest`
+  - behavior: the candidate builder can now emit manifests whose rows contain `policy_checkpoint`, candidate-specific output directories, W&B project/group/name fields, and eval/rollout baseline gate columns. `run_policy_eval_row.py` and `run_policy_rollout_row.py` detect `policy_checkpoint` and run that exact checkpoint directly instead of reconstructing `final`/`best` paths from a policy-extraction stage.
+  - purpose: candidate snapshot eval/render can now be submitted through `scripts/experiments/mjlab_qs/submit_array.sh --kind policy_eval` and `--kind policy_rollout`, preserving the default `embers` QOS guard and W&B row-runner path instead of relying only on hand-run shell command lists.
+  - validation: `py_compile`, CLI help, `/tmp` 8-candidate eval/rollout manifest generation, and monkeypatched row-runner checks confirming that direct eval/render commands include the exact checkpoint, candidate output dir, W&B project, and baseline gate flags.
+  - interpretation: this is submission-protocol infrastructure only. It does not add new policy evidence, but it makes future candidate snapshot eval/render runs easier to keep on the formal `embers`/W&B/baseline-gated path.
+- Tightened eval/render provenance metadata for formal evidence.
+  - script updates: `scripts/experiments/mjlab_qs/eval_policy_checkpoint.py`, `scripts/experiments/mjlab_qs/render_policy_rollout.py`, `scripts/experiments/mjlab_qs/run_policy_eval_row.py`, `scripts/experiments/mjlab_qs/run_policy_rollout_row.py`, and `scripts/experiments/mjlab_qs/build_flow_mbpo_candidate_eval_plan.py`
+  - new eval/render arg: `--notes`
+  - behavior: eval summaries and W&B configs now record notes explicitly; rollout summaries now also record dataset, metadata, normalization, seed, task id, WM method, policy type, notes, git SHA/branch, command, checkpoint, and baseline gate fields. Row runners forward manifest `notes` to eval/render.
+  - candidate plan behavior: direct candidate plan CSV and eval/rollout manifests include `notes`, and generated W&B names now reflect actual `eval_episodes`, `max_steps`, and `rollout_episodes` instead of hard-coded `eval40` / `rollout1000_ep10`.
+  - validation: `py_compile`, CLI help checks for `--notes`, `/tmp` 8-candidate plan/manifest generation with notes, and monkeypatched row-runner command checks confirming notes and parameter-matched W&B names in both eval and rollout commands.
+  - interpretation: this is provenance hardening only. It reduces the chance that future formal candidate eval/render evidence is missing notes or dataset/run context, but it does not add policy evidence.
+- Aligned candidate ranking with per-summary baseline gate metadata.
+  - script update: `scripts/experiments/mjlab_qs/rank_flow_mbpo_candidate_evidence.py`
+  - behavior: if an eval or rollout `summary.json` has `baseline_gate_configured=true` and `baseline_gate_pass`, the ranking now uses that recorded gate result and marks the gate source as `summary`; otherwise it falls back to the existing computed comparison against the baseline summary files and marks the source as `computed`
+  - report update: CSV and Markdown rankings now include `scalar_gate_source` and `video_gate_source`, and the Markdown explains when a gate came from summary metadata versus recomputation
+  - validation: `py_compile` and a `/tmp` synthetic ranking test where metrics beat the external baseline but `summary.json` recorded `baseline_gate_pass=false`; ranking correctly trusted the summary gate, while an old-style summary without gate metadata still used computed gates
+  - interpretation: this is reporting/protocol hardening only. It avoids future disagreement between eval/render summaries and candidate ranking reports, but it does not add policy evidence.
+- Added opt-in formal metadata validation to the MJLab QS Slurm array submitter.
+  - script update: `scripts/experiments/mjlab_qs/submit_array.sh`
+  - new arg: `--require-formal-metadata`
+  - behavior: for `policy_eval` and `policy_rollout`, the submitter validates the manifest before `sbatch`. It rejects rows with W&B disabled, missing `wandb_project`, missing `wandb_group`, missing `notes`, missing eval/rollout baseline fields, missing direct-checkpoint output directories, or missing `wandb_name` on direct `policy_checkpoint` rows.
+  - validation: `bash -n`; generated `/tmp` direct candidate eval/rollout manifests with notes and fake `sbatch` to confirm validation passes, `--qos=embers` is preserved, and `--array=0-7%1` is composed; a bad manifest with empty notes failed before fake `sbatch` with `missing notes`
+  - interpretation: this is submit-time protocol hardening only. It does not add policy evidence, but it gives future formal candidate eval/render submissions a preflight check for W&B, notes, baseline gates, and direct checkpoint output paths.
+- Added notes provenance to the Flow-MBPO AWR update path.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - new arg: `--notes`
+  - behavior: AWR summary/W&B config already include `vars(args)`, so notes now appear in `summary.json` when supplied. The update also writes `notes` into checkpoint `args`, so final, best, best-training, real-eval snapshot, and critic checkpoints carry the training-run notes into downstream eval/render provenance.
+  - validation: `py_compile`, CLI help check for `--notes`, and a `/tmp` fake dataset/replay/checkpoint CPU smoke with `update_iters=1` verified notes in `summary.json`, `final_policy_extraction.pt`, and `best_policy_extraction.pt`. An attempted CPU smoke on the full QS dataset was killed by the local shell environment before completion, so the final validation used the smaller fake fixture.
+  - interpretation: this is training provenance hardening only. It does not add policy evidence, but it closes the formal-run notes gap on the Flow-MBPO AWR training side.
+- Added notes provenance to synthetic replay generation and preparation.
+  - script updates: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py` and `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new arg: `--notes` on both scripts
+  - behavior: smoke summaries now record `notes`, the `synthetic_buffer.pt` path, and a `synthetic_buffer_metadata.json` sidecar path. The sidecar records git SHA/branch, command, notes, dataset/metadata/normalization, policy checkpoint, WM checkpoints, seed, split, quality filter, horizon, support-risk settings, and tensor shapes without changing the tensor-only buffer schema.
+  - replay behavior: replay preparation summaries now record `notes`, the input buffer metadata sidecar when present, and a `synthetic_replay_metadata.json` sidecar path. The replay sidecar records the preparation command, notes, input buffer notes, pessimism/termination settings, support-risk settings, transitions, done fraction, and tensor shapes without inserting non-tensor provenance into `synthetic_replay.pt`.
+  - validation: `py_compile`, CLI help checks for `--notes`, and a `/tmp` fake dataset/checkpoint CPU fixture verified smoke notes in `summary.json` and `synthetic_buffer_metadata.json`, replay notes in `summary.json` and `synthetic_replay_metadata.json`, propagation of input buffer notes into replay metadata, and preservation of the existing tensor replay keys including `reward_conservative`.
+  - interpretation: this is synthetic-data provenance hardening only. It does not add policy evidence, but it closes the remaining notes gap between WM rollout generation, replay preparation, AWR training, eval, and rollout rendering.
+- Added opt-in W&B logging to synthetic replay preparation.
+  - script update: `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - new args: `--enable-wandb`, `--wandb-project`, `--wandb-group`, and `--wandb-name`
+  - behavior: replay preparation summaries now record the W&B settings. When W&B is enabled, the script initializes a `flow_mbpo_v0_synthetic_replay` run, stores the full summary as config, and logs transition count, raw/conservative reward mean, uncertainty mean, done fraction, model/fall/uncertainty/support/post-first-done fractions.
+  - validation: `py_compile`, CLI help checks, and a `/tmp` fake synthetic-buffer fixture with a monkeypatched W&B module verified `wandb.init`, scalar logging, `finish`, summary metadata, replay sidecar metadata, input-buffer note propagation, and the existing tensor replay schema with `reward_conservative`.
+  - local environment note: the current shell imports a placeholder `wandb` module with no `init()`. The script now raises a clear `RuntimeError` if W&B logging is requested in such an environment. Formal cluster runs still need a complete W&B SDK.
+  - interpretation: this is replay-preparation provenance infrastructure only. It does not add policy evidence, but it lets future formal replay-preparation jobs satisfy the same W&B/notes protocol as training, eval, and rollout rendering.
+- Backfilled local W&B run metadata for synthetic generation and replay preparation.
+  - script updates: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_smoke.py` and `scripts/experiments/mjlab_qs/prepare_flow_mbpo_v0_synthetic_replay.py`
+  - behavior: when W&B is enabled and run initialization succeeds, both scripts now write `wandb_run_id` and `wandb_run_url` back into their local `summary.json` and metadata sidecar JSON files.
+  - validation: `py_compile`, CLI help checks, and a `/tmp` fake dataset/checkpoint fixture with a monkeypatched W&B module verified smoke and replay run ids/URLs in summaries and sidecars, W&B job types, scalar logging, finish calls, input-buffer note propagation, and preservation of replay tensor keys.
+  - interpretation: this is local artifact provenance only. It makes future synthetic-buffer and synthetic-replay artifacts self-contained enough to map back to W&B without searching external logs; it does not add policy evidence.
+- Added Slurm-array-compatible synthetic generation and replay-preparation row runners.
+  - new scripts: `scripts/experiments/mjlab_qs/run_flow_mbpo_smoke_row.py` and `scripts/experiments/mjlab_qs/run_flow_mbpo_replay_row.py`
+  - submitter update: `scripts/experiments/mjlab_qs/submit_array.sh` now supports `--kind flow_mbpo_smoke` and `--kind flow_mbpo_replay`
+  - behavior: smoke manifest rows run `run_flow_mbpo_v0_smoke.py` with dataset, metadata, normalization, policy checkpoint, one or more WM checkpoints, support-risk flags, W&B fields, and notes. Replay manifest rows run `prepare_flow_mbpo_v0_synthetic_replay.py` with synthetic-buffer path, pessimism/termination/support-risk settings, W&B fields, and notes.
+  - formal preflight: `submit_array.sh --require-formal-metadata` now covers these two synthetic kinds. It rejects missing `enable_wandb=true`, `wandb_project`, `wandb_group`, `wandb_name`, `notes`, direct output dirs, required input paths, and support-risk dataset/metadata/normalization when support-risk termination is enabled.
+  - validation: `py_compile`, `bash -n`, CLI help, monkeypatched row-runner command checks for smoke and replay rows, and fake-`sbatch` submitter checks confirmed `--qos=embers`, the correct runners, `--array=0-0%1`, valid metadata preflight pass, and bad replay metadata failure before `sbatch`.
+  - interpretation: this is submission-protocol infrastructure only. It lets future formal synthetic generation/preparation use the same manifest, `embers`, W&B, notes, and preflight path as candidate eval/render; it does not add policy evidence.
+- Added a Slurm-array-compatible Flow-MBPO AWR update row runner.
+  - new script: `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - submitter update: `scripts/experiments/mjlab_qs/submit_array.sh` now supports `--kind flow_mbpo_awr`
+  - behavior: AWR manifest rows run `run_flow_mbpo_v0_awr_update.py` with dataset, metadata, normalization, BC policy checkpoint, synthetic replay, output dir, update hyperparameters, support/conservative-Q settings, real-eval settings, W&B fields, and notes.
+  - formal preflight: `submit_array.sh --require-formal-metadata` now requires `enable_wandb=true`, W&B project/group/name, notes, dataset/metadata/normalization, policy checkpoint, synthetic replay, direct output dir, `real_eval_every > 0`, `real_eval_selection_metric=return_length_fall`, and real-eval baseline return/length/fall for `flow_mbpo_awr` rows.
+  - validation: `py_compile`, `bash -n`, CLI help, a monkeypatched row-runner command check, and fake-`sbatch` submitter checks confirmed `--qos=embers`, correct runner selection, valid metadata preflight pass, and bad AWR metadata failure before `sbatch`.
+  - interpretation: this is formal policy-update submission infrastructure only. It does not add policy evidence, but it keeps future AWR training runs on the same `embers`/W&B/notes/real-eval-gate path as replay prep and eval/render.
+- Backfilled local W&B run metadata for Flow-MBPO AWR updates.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py`
+  - behavior: when W&B is enabled and run initialization succeeds, the AWR updater now records `wandb_run_id` and `wandb_run_url` in `summary.json`, W&B config, and checkpoint `args` for final, best, best-training, real-eval snapshot, and critic checkpoints.
+  - validation: `py_compile`, CLI help check, and a `/tmp` fake dataset/replay/checkpoint fixture with a monkeypatched W&B module verified run id/url in `summary.json`, final/best checkpoint args, W&B config update, W&B summary update, logging, and finish.
+  - interpretation: this is AWR training artifact provenance only. It makes future AWR checkpoints self-contained enough to trace back to their W&B training run; it does not add policy evidence.
+- Added conservative-Q sampled-action coverage controls.
+  - script updates: `scripts/experiments/mjlab_qs/run_flow_mbpo_v0_awr_update.py` and `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - new args: `--critic-ood-action-source {uniform,data_noise,mixed}` and `--critic-action-noise-std`
+  - behavior: the default CQL OOD action source remains uniform `[-1, 1]`, preserving previous smokes. New data-noise and mixed sources let W&B-disabled critic diagnostics test local OOD actions near recorded behavior versus global uniform OOD actions.
+  - validation: `py_compile`, CLI help checks, a `/tmp` fake critic fixture exercised uniform, data-noise, and mixed sources with finite critic metrics, and a monkeypatched row-runner command check confirmed manifest passthrough.
+  - interpretation: this changes CQL diagnostic/update-objective coverage only. It does not add policy evidence and should be tested under W&B-disabled smoke before any formal W&B seed.
+- Added a tracked CQL OOD-source smoke manifest.
+  - manifest: `scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_cql_ood_source_smoke_20260601.csv`
+  - rows: two W&B-disabled `flow_mbpo_awr` smoke rows on the existing support-aware generated H3 replay, one with `critic_ood_action_source=data_noise` and one with `critic_ood_action_source=mixed`
+  - settings: `update_iters=100`, real/synthetic batch `240/16`, BC anchor `1.0`, conservative-Q weight `1.0`, actor critic weight `0.0`, random actions `10`, action-noise std `0.15`, CQL temperature `0.5`, real eval disabled
+  - validation: CSV parsed with two rows, required dataset/policy/replay paths exist, row-runner command passthrough includes the new CQL OOD args and omits W&B, and fake `sbatch` through `submit_array.sh --kind flow_mbpo_awr` preserved `--qos=embers` with array `0-1%1`
+  - interpretation: this is a reproducible W&B-disabled critic diagnostic entry point. It has not been submitted and is not policy evidence.
+- Added an AWR summary exporter for CQL/update diagnostics.
+  - script: `scripts/experiments/mjlab_qs/export_flow_mbpo_awr_summary.py`
+  - behavior: reads one or more `flow_mbpo_awr` manifests, roots, or explicit `summary.json` files and writes CSV/Markdown rows with completion status, CQL OOD source settings, last AWR loss, critic loss, CQL gap, random-action Q mean/max, best-real fields, W&B run metadata, and notes
+  - validation: `py_compile`; current CQL OOD-source manifest exports two `missing` rows; two existing completed CQL summaries export critic metrics; `--require-complete` fails on the unrun manifest with `Only 0/2 AWR summaries are complete`
+  - interpretation: this is reporting infrastructure for W&B-disabled critic diagnostics and future AWR runs. It does not add policy evidence.
+- Added AWR row-runner dry-run support.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - behavior: `--dry-run` prints the exact `run_flow_mbpo_v0_awr_update.py` command for a manifest row without executing it
+  - validation: dry-run on both CQL OOD-source smoke rows printed commands with `--critic-ood-action-source data_noise` and `--critic-ood-action-source mixed`, preserved `--critic-action-noise-std 0.15`, and did not create output summaries
+  - interpretation: this is a safety/debugging aid for W&B-disabled smoke manifests; it does not run experiments or add policy evidence.
+- Added Slurm submitter dry-run support.
+  - script update: `scripts/experiments/mjlab_qs/submit_array.sh`
+  - behavior: `--dry-run` prints the exact `sbatch` command after composing array/log/wrap arguments, without calling `sbatch`
+  - validation: CQL OOD-source `flow_mbpo_awr` dry-run printed an `sbatch` command with `--qos=embers`, `--array=0-1%1`, and no job submission; `--require-formal-metadata` still rejected the W&B-disabled smoke manifest before printing; `--qos inferno --dry-run` still failed without explicit approval
+  - interpretation: this is submission safety infrastructure. It does not submit jobs or add policy evidence.
+- Added CQL OOD-source AWR smoke workflow to `docs/RUNBOOK.md`.
+  - content: row-level dry-run command, array-level dry-run command, warning not to use formal metadata preflight on the W&B-disabled diagnostic manifest, and post-run `export_flow_mbpo_awr_summary.py --require-complete` command
+  - interpretation: this documents the safe command sequence for the current critic diagnostic path; it does not run experiments or add policy evidence.
+- Reconciled the active goal log with the 2026-05-29 high-value Flow-MBPO
+  objective and the 2026-05-31 top-conference v1 plan.
+  - source plans: `docs/goals/mjlab_qs_flow_mbpo_high_value_next_goal_20260529.md`, `docs/goals/0531/flow_mbpo_top_conf_goal_objective_20260531.txt`, `docs/goals/0531/flow_mbpo_top_conf_research_plan_20260531.md`, and `docs/goals/0531/flow_mbpo_v1_pessimistic_design_20260531.md`
+  - behavior: `docs/RUNBOOK.md` now lists the current experiment order as Flow-MBPO v1 conservative short-horizon replay, support/OOD calibration, and conservative-Q diagnostics before any formal W&B seed, instead of more BC/IL or PWM 2x2 expansion
+  - interpretation: this is documentation alignment only. The active method direction remains Pessimistic Flow-MBPO; no new policy evidence is added.
+- Added AWR row input-path validation.
+  - script update: `scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py`
+  - behavior: `--check-inputs` validates required dataset, metadata, normalization, policy checkpoint, synthetic replay, and optional support-risk feature paths before running or dry-running a row
+  - validation: current CQL OOD-source smoke row passed `--check-inputs --dry-run`; a temporary bad manifest with a missing synthetic replay path failed with `AWR row input validation failed`
+  - interpretation: this catches path errors before Slurm submission but does not run experiments or add policy evidence.
+
+## Next Action
+
+Keep PWM paused and do not claim general policy improvement. Adopt the top-conference Flow-MBPO v1 plan in `docs/goals/flow_mbpo_top_conf_research_plan_20260531.md` and `docs/design/flow_mbpo_v1_pessimistic.md` as the active method direction. The 0531 dated source notes are in `docs/goals/0531/`.
+
+Lower synthetic ratio alone did not lower matched video fall rate, and the formal action-deviation run did not fix the gate: it tied matched BC final video fall and regressed 40-episode scalar fall. v1 replay/dataset audits confirm the current trajectory/chunk fall proxy is collapsed because the QS data has no positive done/fall labels, so stop treating the learned done head as a usable safety signal on this dataset. Do not expand the action-deviation variant. The new support-OOD replay penalty path, rollout support-feature logging, rollout support-distance scorer, AWR support-action penalty, high-risk rollout-state support penalty, state/command support replay reward-pessimism path, q90 support-risk replay truncation path, support-risk replay-preparation path, support-aware closed-loop generation path, conservative-Q critic path, gate-aware true-best selection path, real-eval early-stop path, AWR real-eval baseline gate logging, standalone eval baseline gate logging, rollout baseline gate logging, and manifest baseline passthroughs are mechanically clean. The matched BC/Flow calibration rollouts show q90 support distance strongly separates terminated episodes from timeout episodes, with large final-10-step spikes before falls; action-ablation scoring shows this is mostly state/command OOD rather than action OOD. Random-action CQL now gives a meaningful W&B-disabled conservative-Q training gap, unlike the first actor-only CQL smoke, and 100-iteration smokes keep that gap nonzero while lowering average random-action Q. The actor-weight ablation shows this tail is not primarily caused by `critic_actor_weight`; use `critic_actor_weight=0.0` as the safer tuning default. Raising CQL weight to `5.0` worsened Q scale and random-action max; temperature `0.1` improved the tail but made the CQL gap likely too weak; temperature `0.5` was the best short-smoke compromise. Its 8-episode W&B-disabled real-eval check collapsed with fall `1.0`, while its 10-episode MP4 rollout tied matched BC seed0 final on return/length/fall without reducing fall rate. Do not launch a formal W&B seed from actor-only support regularization, the broad q50 support replay setting, q90 replay truncation alone, q90 prepare-time support-risk termination alone, the current q90 support-aware generation smoke alone, or the current conservative-Q smokes. Next either continue conservative-Q only as critic diagnostics or change the update objective before any formal W&B run. Require final plus gate-aware true-best 40-episode eval and matched roll10 videos to beat BC on return, length, and fall before any seed expansion.
+
+Do not claim general policy improvement until final and true-best actors clear the rollout-first gate across more seeds or a matched protocol comparison.

@@ -17,7 +17,7 @@ MEMORY="128G"
 CPUS=16
 ACCOUNT=""
 PARTITION_OVERRIDE=""
-QOS="${SLURM_QOS_OVERRIDE:-}"
+QOS="${SLURM_QOS_OVERRIDE:-embers}"
 PYTHON_BIN="python"
 CONDA_ENV="${CONDA_ENV_NAME:-}"
 DRY_RUN=0
@@ -40,7 +40,7 @@ Options:
   --cpus N                        CPUs per task (default: 16)
   --account NAME                  Slurm account override
   --partition NAME                Slurm partition override
-  --qos NAME                      Optional Slurm QoS (default: cluster default)
+  --qos NAME                      Slurm QoS (default: embers)
   --python-bin PATH               Python executable (default: python)
   --conda-env NAME                Optional conda env to activate before launch
   --dry-run                       Print sbatch command without submitting
@@ -80,6 +80,10 @@ fi
 
 if [[ ! -f "${MANIFEST}" ]]; then
   echo "Error: manifest not found: ${MANIFEST}"
+  exit 1
+fi
+if [[ "${QOS,,}" == "inferno" && "${ALLOW_INFERNO_QOS:-0}" != "1" ]]; then
+  echo "Error: inferno QOS requires explicit user approval. Use embers for GPU jobs." >&2
   exit 1
 fi
 

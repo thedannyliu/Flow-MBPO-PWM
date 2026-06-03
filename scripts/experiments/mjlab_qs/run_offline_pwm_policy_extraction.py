@@ -10,6 +10,7 @@ policy in the real MJLab environment.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import random
@@ -46,6 +47,8 @@ from scripts.experiments.mjlab_qs.run_phaseA_wm_feasibility import (
     sample_train_indices,
     train_loss,
 )
+
+SAMPLING_MODES = ["quality_balanced", "uniform", "yaw_balanced"]
 
 
 class Actor(nn.Module):
@@ -209,10 +212,55 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--command-dim", type=int, default=3)
     p.add_argument("--command-position", choices=["tail", "head", "none"], default="tail")
     p.add_argument("--action-l2", type=float, default=1.0e-4)
+    p.add_argument(
+        "--policy-bc-reg",
+        type=float,
+        default=0.0,
+        help="Weight for dataset-action BC regularization during imagined-return policy optimization.",
+    )
     p.add_argument("--bc-warmstart-iters", type=int, default=0)
     p.add_argument("--bc-lr", type=float, default=5e-4)
     p.add_argument("--bc-batch-size", type=int, default=256)
     p.add_argument("--bc-eval-every", type=int, default=1000)
+    p.add_argument("--bc-sampling", choices=SAMPLING_MODES, default="quality_balanced")
+    p.add_argument(
+        "--bc-action-rate-reg",
+        type=float,
+        default=0.0,
+        help="Weight for an action-rate smoothness penalty during BC warm start.",
+    )
+    p.add_argument(
+        "--bc-quality-filter",
+        default="",
+        help="Comma-separated dataset quality bins or ids for BC warm start, e.g. expert,expert_noisy.",
+    )
+    p.add_argument(
+        "--bc-quality-window-action-norm-max",
+        default="",
+        help="Comma-separated quality:max_action_norm filters applied after BC quality filtering, e.g. medium:0.39.",
+    )
+    p.add_argument(
+        "--bc-quality-loss-weights",
+        default="",
+        help="Comma-separated quality:weight values for BC action MSE, e.g. medium:0.25.",
+    )
+    p.add_argument(
+        "--bc-yaw-abs-loss-weights",
+        default="",
+        help="Comma-separated min_abs_yaw:weight values for BC action MSE, e.g. 0.35:1.5,0.525:2.0.",
+    )
+    p.add_argument(
+        "--bc-source-start0-loss-weight",
+        type=float,
+        default=1.0,
+        help="BC action-MSE weight for source_start==0 reset-like windows.",
+    )
+    p.add_argument(
+        "--policy-quality-filter",
+        default="",
+        help="Comma-separated dataset quality bins or ids for PWM policy sampling.",
+    )
+    p.add_argument("--policy-sampling", choices=SAMPLING_MODES, default="quality_balanced")
     p.add_argument("--skip-real-eval", action="store_true")
     p.add_argument("--online-finetune-rounds", type=int, default=0)
     p.add_argument("--online-collect-windows", type=int, default=256)
@@ -233,12 +281,307 @@ def git_sha() -> str:
         return "unknown"
 
 
+def git_branch() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def command_line() -> str:
+    return " ".join([sys.executable, *sys.argv])
+
+
 def load_data(args: argparse.Namespace, device: torch.device):
     data = torch.load(args.dataset, map_location="cpu", weights_only=False)
     metadata = json.loads(Path(args.metadata).read_text(encoding="utf-8"))
     nrm = load_norm(Path(args.normalization), device)
     train_idx = (data["split_id"] == 0).nonzero(as_tuple=False).squeeze(-1)
     return data, metadata, nrm, train_idx
+
+
+def filter_train_indices(
+    data: Dict[str, torch.Tensor],
+    metadata: Dict,
+    train_idx: torch.Tensor,
+    quality_filter: str,
+    label: str,
+) -> torch.Tensor:
+    raw_bins = [x.strip() for x in quality_filter.split(",") if x.strip()]
+    if not raw_bins:
+        return train_idx
+    qmap = {str(k): int(v) for k, v in metadata.get("quality_id_map", {}).items()}
+    selected_ids = []
+    for item in raw_bins:
+        if item in qmap:
+            selected_ids.append(qmap[item])
+        else:
+            try:
+                selected_ids.append(int(item))
+            except ValueError as exc:
+                known = ",".join(sorted(qmap)) or "<none>"
+                raise ValueError(f"unknown {label} quality bin {item!r}; known bins: {known}") from exc
+    mask = torch.zeros(train_idx.shape, dtype=torch.bool)
+    qids = data["quality_bin_id"][train_idx]
+    for qid in selected_ids:
+        mask |= qids == int(qid)
+    filtered = train_idx[mask]
+    if filtered.numel() == 0:
+        raise ValueError(f"{label} quality filter {quality_filter!r} selected zero train windows")
+    return filtered
+
+
+def parse_quality_thresholds(raw: str, metadata: Dict, label: str) -> Dict[int, float]:
+    out: Dict[int, float] = {}
+    if not raw.strip():
+        return out
+    qmap = {str(k): int(v) for k, v in metadata.get("quality_id_map", {}).items()}
+    for item in [x.strip() for x in raw.split(",") if x.strip()]:
+        if ":" not in item:
+            raise ValueError(f"{label} entry {item!r} must have form quality:max_value")
+        quality_raw, value_raw = [x.strip() for x in item.split(":", 1)]
+        if quality_raw in qmap:
+            qid = qmap[quality_raw]
+        else:
+            try:
+                qid = int(quality_raw)
+            except ValueError as exc:
+                known = ",".join(sorted(qmap)) or "<none>"
+                raise ValueError(f"unknown {label} quality bin {quality_raw!r}; known bins: {known}") from exc
+        out[int(qid)] = float(value_raw)
+    return out
+
+
+def parse_quality_weights(raw: str, metadata: Dict, label: str) -> Dict[int, float]:
+    out = parse_quality_thresholds(raw, metadata, label)
+    for qid, weight in out.items():
+        if weight < 0.0:
+            raise ValueError(f"{label} quality id {qid} has negative weight {weight}")
+    return out
+
+
+def filter_indices_by_quality_action_norm(
+    data: Dict[str, torch.Tensor],
+    metadata: Dict,
+    indices: torch.Tensor,
+    raw_thresholds: str,
+    label: str,
+) -> Tuple[torch.Tensor, Dict[str, Dict[str, float | int]]]:
+    thresholds = parse_quality_thresholds(raw_thresholds, metadata, label)
+    if not thresholds:
+        return indices, {}
+    qids = data["quality_bin_id"][indices]
+    action_norm = data["policy_action"][indices].float().pow(2).mean(dim=-1).sqrt().mean(dim=1)
+    keep = torch.ones(indices.shape, dtype=torch.bool)
+    inverse = {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+    diagnostics: Dict[str, Dict[str, float | int]] = {}
+    for qid, threshold in thresholds.items():
+        qmask = qids == int(qid)
+        before = int(qmask.sum().item())
+        if before == 0:
+            diagnostics[inverse.get(int(qid), str(int(qid)))] = {"threshold": threshold, "before": 0, "after": 0}
+            continue
+        qkeep = action_norm <= threshold
+        keep &= (~qmask) | qkeep
+        after = int((qmask & qkeep).sum().item())
+        diagnostics[inverse.get(int(qid), str(int(qid)))] = {
+            "threshold": threshold,
+            "before": before,
+            "after": after,
+            "kept_fraction": after / max(1, before),
+        }
+    filtered = indices[keep]
+    if filtered.numel() == 0:
+        raise ValueError(f"{label} action-norm filter {raw_thresholds!r} selected zero train windows")
+    return filtered, diagnostics
+
+
+def quality_counts(data: Dict[str, torch.Tensor], metadata: Dict, indices: torch.Tensor) -> Dict[str, int]:
+    inverse = {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+    counts: Dict[str, int] = {}
+    if indices.numel() == 0:
+        return counts
+    unique, values = torch.unique(data["quality_bin_id"][indices], return_counts=True)
+    for qid, count in zip(unique.tolist(), values.tolist()):
+        counts[inverse.get(int(qid), str(int(qid)))] = int(count)
+    return counts
+
+
+def quality_name_map(metadata: Dict) -> Dict[int, str]:
+    return {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+
+
+def quality_weight_summary(raw_weights: Dict[int, float], metadata: Dict) -> Dict[str, float]:
+    inverse = quality_name_map(metadata)
+    return {inverse.get(int(qid), str(int(qid))): float(weight) for qid, weight in raw_weights.items()}
+
+
+def parse_yaw_abs_weights(raw: str) -> List[Tuple[float, float]]:
+    out: List[Tuple[float, float]] = []
+    if not raw.strip():
+        return out
+    for item in [x.strip() for x in raw.split(",") if x.strip()]:
+        if ":" not in item:
+            raise ValueError(f"BC yaw-abs loss weight entry {item!r} must have form min_abs_yaw:weight")
+        threshold_raw, weight_raw = [x.strip() for x in item.split(":", 1)]
+        threshold = float(threshold_raw)
+        weight = float(weight_raw)
+        if threshold < 0.0:
+            raise ValueError(f"BC yaw-abs loss threshold must be non-negative, got {threshold}")
+        if weight < 0.0:
+            raise ValueError(f"BC yaw-abs loss weight must be non-negative, got {weight}")
+        out.append((threshold, weight))
+    return sorted(out)
+
+
+def yaw_abs_weight_summary(raw_weights: List[Tuple[float, float]]) -> List[Dict[str, float]]:
+    return [{"min_abs_yaw": float(threshold), "weight": float(weight)} for threshold, weight in raw_weights]
+
+
+def yaw_abs_weight_diagnostics(
+    data: Dict[str, torch.Tensor],
+    indices: torch.Tensor,
+    raw_weights: List[Tuple[float, float]],
+) -> Dict[str, Dict[str, float | int]]:
+    if not raw_weights:
+        return {}
+    command = data["command"][indices].float()
+    if int(command.shape[-1]) < 3:
+        raise ValueError("BC yaw-abs loss weights require command_dim >= 3")
+    yaw_abs = command[:, :, 2].abs().amax(dim=1)
+    total = int(indices.numel())
+    diagnostics: Dict[str, Dict[str, float | int]] = {}
+    for threshold, weight in raw_weights:
+        selected = yaw_abs >= float(threshold)
+        diagnostics[f"abs_yaw>={threshold:g}"] = {
+            "weight": float(weight),
+            "windows": int(selected.sum().item()),
+            "fraction": float(selected.float().mean().item()) if total else 0.0,
+        }
+    return diagnostics
+
+
+def window_quality_weights(
+    data: Dict[str, torch.Tensor],
+    ids: torch.Tensor,
+    raw_weights: Dict[int, float],
+    device: torch.device,
+) -> torch.Tensor:
+    weights = torch.ones(ids.shape, device=device, dtype=torch.float32)
+    if not raw_weights:
+        return weights
+    qids = data["quality_bin_id"][ids].to(device)
+    for qid, weight in raw_weights.items():
+        weights = torch.where(qids == int(qid), torch.full_like(weights, float(weight)), weights)
+    return weights
+
+
+def window_yaw_abs_weights(
+    data: Dict[str, torch.Tensor],
+    ids: torch.Tensor,
+    raw_weights: List[Tuple[float, float]],
+    device: torch.device,
+) -> torch.Tensor:
+    weights = torch.ones(ids.shape, device=device, dtype=torch.float32)
+    if not raw_weights:
+        return weights
+    command = data["command"][ids].to(device).float()
+    if int(command.shape[-1]) < 3:
+        raise ValueError("BC yaw-abs loss weights require command_dim >= 3")
+    yaw_abs = command[:, :, 2].abs().amax(dim=1)
+    for threshold, weight in raw_weights:
+        weights = torch.where(yaw_abs >= float(threshold), torch.full_like(weights, float(weight)), weights)
+    return weights
+
+
+def window_source_start0_weights(
+    data: Dict[str, torch.Tensor],
+    ids: torch.Tensor,
+    start0_weight: float,
+    device: torch.device,
+) -> torch.Tensor:
+    if start0_weight < 0.0:
+        raise ValueError(f"BC source_start==0 loss weight must be non-negative, got {start0_weight}")
+    weights = torch.ones(ids.shape, device=device, dtype=torch.float32)
+    if abs(start0_weight - 1.0) < 1e-12:
+        return weights
+    start0 = data["source_start"][ids].to(device).long() == 0
+    return torch.where(start0, torch.full_like(weights, float(start0_weight)), weights)
+
+
+def source_start0_weight_diagnostics(
+    data: Dict[str, torch.Tensor],
+    indices: torch.Tensor,
+    start0_weight: float,
+) -> Dict[str, float | int]:
+    start0 = data["source_start"][indices].long() == 0
+    start0_windows = int(start0.sum().item())
+    total_windows = int(indices.numel())
+    weighted_total = float(total_windows - start0_windows + start0_windows * float(start0_weight))
+    return {
+        "weight": float(start0_weight),
+        "start0_windows": start0_windows,
+        "total_windows": total_windows,
+        "start0_fraction": start0_windows / max(1, total_windows),
+        "weighted_start0_fraction": (start0_windows * float(start0_weight)) / max(1.0e-8, weighted_total),
+    }
+
+
+def build_sampling_cache(data: Dict[str, torch.Tensor], train_idx: torch.Tensor, mode: str) -> Dict:
+    if mode != "yaw_balanced":
+        return {}
+    if int(data["command"].shape[-1]) < 3:
+        raise ValueError("yaw_balanced sampling requires command_dim >= 3")
+    yaw = data["command"][train_idx, :, 2].abs().amax(dim=1).cpu()
+    edges = torch.tensor([0.175, 0.35, 0.525], dtype=yaw.dtype)
+    bin_ids = torch.bucketize(yaw, edges)
+    labels = ["[0,0.175)", "[0.175,0.35)", "[0.35,0.525)", "[0.525,inf)"]
+    bin_positions = []
+    bin_counts = {}
+    for bin_id, label in enumerate(labels):
+        positions = (bin_ids == bin_id).nonzero(as_tuple=False).squeeze(-1)
+        bin_counts[label] = int(positions.numel())
+        if positions.numel() > 0:
+            bin_positions.append(positions)
+    if not bin_positions:
+        raise ValueError("yaw_balanced sampling found zero non-empty yaw bins")
+    return {
+        "mode": mode,
+        "bin_positions": bin_positions,
+        "bin_counts": bin_counts,
+        "yaw_abs_max_edges": edges.tolist(),
+    }
+
+
+def sample_indices(
+    data: Dict[str, torch.Tensor],
+    train_idx: torch.Tensor,
+    batch_size: int,
+    mode: str,
+    cache: Dict | None = None,
+) -> torch.Tensor:
+    if mode == "quality_balanced":
+        return sample_train_indices(data, train_idx, batch_size)
+    if mode == "uniform":
+        return train_idx[torch.randint(0, train_idx.numel(), (batch_size,))]
+    if mode == "yaw_balanced":
+        cache = cache or build_sampling_cache(data, train_idx, mode)
+        bins = cache["bin_positions"]
+        chosen_bins = torch.randint(0, len(bins), (batch_size,))
+        out_positions = torch.empty(batch_size, dtype=torch.long)
+        for local_bin, positions in enumerate(bins):
+            mask = chosen_bins == local_bin
+            count = int(mask.sum().item())
+            if count:
+                out_positions[mask] = positions[torch.randint(0, positions.numel(), (count,))]
+        return train_idx[out_positions]
+    raise ValueError(f"unknown sampling mode {mode!r}")
+
+
+def sampling_cache_summary(cache: Dict) -> Dict:
+    if not cache:
+        return {}
+    return {k: v for k, v in cache.items() if k != "bin_positions"}
 
 
 def build_wm(args: argparse.Namespace, data: Dict[str, torch.Tensor], device: torch.device, frozen: bool = True) -> nn.Module:
@@ -346,13 +689,15 @@ def train_actor_critic_steps(
     num_iters: int,
     run,
     t0: float,
+    sampling_cache: Dict | None = None,
     metric_prefix: str = "train",
-) -> Tuple[float, Dict[str, float] | None]:
+) -> Tuple[float, Dict[str, float] | None, Dict[str, Dict[str, torch.Tensor]] | None]:
     best_return = -math.inf
     best_payload = None
+    best_state = None
     for local_it in range(1, num_iters + 1):
         it = start_iter + local_it
-        ids = sample_train_indices(data, train_idx, args.batch_size)
+        ids = sample_indices(data, train_idx, args.batch_size, args.policy_sampling, sampling_cache)
         z_seq, c_seq = batch_windows(data, ids, device, nrm)
         imagined_return, _values, _targets, _states, _commands, action_norm = imagine_rollout(
             wm, actor, critic, z_seq[:, 0], c_seq, args.horizon, args.gamma, args.lam, args.action_l2
@@ -364,7 +709,14 @@ def train_actor_critic_steps(
         if ret_rms is not None:
             ret_rms.update(actor_objective)
             actor_objective = actor_objective / torch.sqrt(ret_rms.var + 1e-5)
-        actor_loss = -actor_objective.mean()
+        bc_reg_loss = torch.zeros((), device=device)
+        if args.policy_bc_reg > 0.0:
+            h = min(args.horizon, z_seq.shape[1] - 1, c_seq.shape[1])
+            z_anchor = z_seq[:, :h].reshape(-1, int(data["phys_obs"].shape[-1]))
+            c_anchor = c_seq[:, :h].reshape(-1, int(data["command"].shape[-1]))
+            a_anchor = data["policy_action"][ids, :h].to(device).float().reshape(-1, int(data["policy_action"].shape[-1]))
+            bc_reg_loss = F.mse_loss(actor(z_anchor, c_anchor, deterministic=True), a_anchor)
+        actor_loss = -actor_objective.mean() + float(args.policy_bc_reg) * bc_reg_loss
         actor_opt.zero_grad(set_to_none=True)
         actor_loss.backward()
         actor_grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), args.actor_grad_norm)
@@ -405,6 +757,8 @@ def train_actor_critic_steps(
                 "iter": it,
                 f"{metric_prefix}/imagined_return": float(imagined_return.detach().mean().item()),
                 f"{metric_prefix}/actor_loss": float(actor_loss.detach().item()),
+                f"{metric_prefix}/policy_bc_reg_loss": float(bc_reg_loss.detach().item()),
+                f"{metric_prefix}/policy_bc_reg_weight": float(args.policy_bc_reg),
                 f"{metric_prefix}/critic_loss": float(critic_loss.detach().item()),
                 f"{metric_prefix}/action_norm": float(action_norm.detach().item()),
                 f"{metric_prefix}/actor_std": float(actor.std_mean().detach().item()),
@@ -417,11 +771,22 @@ def train_actor_critic_steps(
                 metrics[f"{metric_prefix}/ret_rms_var"] = float(ret_rms.var.detach().item())
             print(json.dumps(metrics, sort_keys=True), flush=True)
             if run is not None:
-                wandb.log(metrics, step=it)
+                wandb.log(metrics, step=args.bc_warmstart_iters + it)
             if metrics[f"{metric_prefix}/imagined_return"] > best_return:
                 best_return = metrics[f"{metric_prefix}/imagined_return"]
                 best_payload = {"iter": it, **metrics}
-    return best_return, best_payload
+                best_state = {
+                    "actor": copy.deepcopy({k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}),
+                    "critic": copy.deepcopy({k: v.detach().cpu().clone() for k, v in critic.state_dict().items()}),
+                }
+    return best_return, best_payload, best_state
+
+
+def snapshot_actor_critic(actor: nn.Module, critic: nn.Module) -> Dict[str, Dict[str, torch.Tensor]]:
+    return {
+        "actor": copy.deepcopy({k: v.detach().cpu().clone() for k, v in actor.state_dict().items()}),
+        "critic": copy.deepcopy({k: v.detach().cpu().clone() for k, v in critic.state_dict().items()}),
+    }
 
 
 def behavior_clone_actor_steps(
@@ -433,19 +798,34 @@ def behavior_clone_actor_steps(
     device: torch.device,
     run,
     t0: float,
+    sampling_cache: Dict | None = None,
+    quality_loss_weights: Dict[int, float] | None = None,
+    yaw_abs_loss_weights: List[Tuple[float, float]] | None = None,
 ) -> None:
     if args.bc_warmstart_iters <= 0:
         return
     opt = torch.optim.Adam(actor.parameters(), lr=args.bc_lr)
     for it in range(1, args.bc_warmstart_iters + 1):
-        ids = sample_train_indices(data, train_idx, args.bc_batch_size)
+        ids = sample_indices(data, train_idx, args.bc_batch_size, args.bc_sampling, sampling_cache)
         z_seq, c_seq = batch_windows(data, ids, device, nrm)
         target = data["policy_action"][ids].to(device).float()
         z = z_seq[:, :-1].reshape(-1, int(data["phys_obs"].shape[-1]))
         c = c_seq.reshape(-1, int(data["command"].shape[-1]))
         a_target = target.reshape(-1, int(data["policy_action"].shape[-1]))
         pred = actor(z, c, deterministic=True)
-        loss = F.mse_loss(pred, a_target)
+        per_action_mse = (pred - a_target).pow(2).mean(dim=-1)
+        window_weights = window_quality_weights(data, ids, quality_loss_weights or {}, device)
+        window_weights = window_weights * window_yaw_abs_weights(data, ids, yaw_abs_loss_weights or [], device)
+        window_weights = window_weights * window_source_start0_weights(data, ids, args.bc_source_start0_loss_weight, device)
+        weights = window_weights[:, None].expand_as(target[..., 0]).reshape(-1)
+        action_mse = (per_action_mse * weights).sum() / weights.sum().clamp_min(1e-8)
+        pred_seq = pred.reshape_as(target)
+        action_rate_loss = torch.zeros((), device=device)
+        if target.shape[1] > 1:
+            per_rate = (pred_seq[:, 1:] - pred_seq[:, :-1]).pow(2).mean(dim=-1)
+            rate_weights = window_weights[:, None].expand_as(per_rate)
+            action_rate_loss = (per_rate * rate_weights).sum() / rate_weights.sum().clamp_min(1e-8)
+        loss = action_mse + float(args.bc_action_rate_reg) * action_rate_loss
         opt.zero_grad(set_to_none=True)
         loss.backward()
         grad = torch.nn.utils.clip_grad_norm_(actor.parameters(), args.actor_grad_norm)
@@ -453,8 +833,13 @@ def behavior_clone_actor_steps(
         if it == 1 or it == args.bc_warmstart_iters or it % args.bc_eval_every == 0:
             metrics = {
                 "bc/iter": it,
-                "bc/action_mse": float(loss.detach().item()),
+                "bc/loss": float(loss.detach().item()),
+                "bc/action_mse": float(action_mse.detach().item()),
                 "bc/action_l1": float((pred.detach() - a_target).abs().mean().item()),
+                "bc/action_rate_loss": float(action_rate_loss.detach().item()),
+                "bc/action_rate_reg": float(args.bc_action_rate_reg),
+                "bc/loss_weight_mean": float(window_weights.mean().detach().item()),
+                "bc/loss_weight_max": float(window_weights.max().detach().item()),
                 "bc/actor_grad_norm": float(grad.detach().item()),
                 "bc/target_action_norm": float(a_target.pow(2).mean(dim=-1).sqrt().mean().item()),
                 "bc/pred_action_norm": float(pred.detach().pow(2).mean(dim=-1).sqrt().mean().item()),
@@ -494,6 +879,8 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
     lengths = torch.zeros(args.eval_num_envs, device=device)
     done_returns: List[float] = []
     done_lengths: List[float] = []
+    done_falls: List[float] = []
+    done_timeouts: List[float] = []
     while len(done_returns) < args.eval_episodes:
         obs = tensor_from_actor_obs(obs_td, obs_groups)
         phys, cmd = split_obs(obs, args.command_dim, args.command_position)
@@ -502,14 +889,18 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
         if c.shape[-1] and "command_mean" in nrm:
             c = norm(c, nrm["command_mean"], nrm["command_std"])
         action = actor(z, c, deterministic=True).clamp(-1.0, 1.0)
-        next_obs_td, reward, done, _extras = env.step(action)
+        next_obs_td, reward, done, extras = env.step(action)
         reward = reward.to(device).float().reshape(-1)
         done = done.to(device).bool().reshape(-1)
+        time_out = extras.get("time_outs", torch.zeros_like(done)).to(device).bool().reshape(-1)
+        terminated = done & (~time_out)
         returns = returns + reward
         lengths = lengths + 1.0
         for idx in done.nonzero(as_tuple=False).reshape(-1).tolist():
             done_returns.append(float(returns[idx].item()))
             done_lengths.append(float(lengths[idx].item()))
+            done_falls.append(float(terminated[idx].item()))
+            done_timeouts.append(float(time_out[idx].item()))
             returns[idx] = 0.0
             lengths[idx] = 0.0
             if len(done_returns) >= args.eval_episodes:
@@ -518,6 +909,8 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
     env.close()
     ret = torch.tensor(done_returns[: args.eval_episodes])
     lens = torch.tensor(done_lengths[: args.eval_episodes])
+    falls = torch.tensor(done_falls[: args.eval_episodes])
+    timeouts = torch.tensor(done_timeouts[: args.eval_episodes])
     return {
         "task_id": args.task_id,
         "resolved_task_id": args.task_id,
@@ -525,6 +918,9 @@ def real_env_eval(actor: nn.Module, args: argparse.Namespace, nrm: Dict[str, tor
         "return_std": float(ret.std(unbiased=False).item()),
         "episode_length_mean": float(lens.float().mean().item()),
         "episode_length_std": float(lens.float().std(unbiased=False).item()),
+        "fall_rate_mean": float(falls.float().mean().item()),
+        "timeout_rate_mean": float(timeouts.float().mean().item()),
+        "max_steps": float(args.episode_length),
         "num_episodes": float(args.eval_episodes),
     }
 
@@ -647,6 +1043,19 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     data, metadata, nrm, train_idx = load_data(args, device)
+    bc_train_idx = filter_train_indices(data, metadata, train_idx, args.bc_quality_filter, "BC")
+    bc_train_idx, bc_action_norm_filter_diagnostics = filter_indices_by_quality_action_norm(
+        data,
+        metadata,
+        bc_train_idx,
+        args.bc_quality_window_action_norm_max,
+        "BC quality action-norm",
+    )
+    bc_quality_loss_weights = parse_quality_weights(args.bc_quality_loss_weights, metadata, "BC quality loss weight")
+    bc_yaw_abs_loss_weights = parse_yaw_abs_weights(args.bc_yaw_abs_loss_weights)
+    policy_train_idx = filter_train_indices(data, metadata, train_idx, args.policy_quality_filter, "policy")
+    bc_sampling_cache = build_sampling_cache(data, bc_train_idx, args.bc_sampling)
+    policy_sampling_cache = build_sampling_cache(data, policy_train_idx, args.policy_sampling)
     wm = build_wm(args, data, device, frozen=True)
     state_dim = int(data["phys_obs"].shape[-1])
     action_dim = int(data["policy_action"].shape[-1])
@@ -686,12 +1095,42 @@ def main() -> None:
             group=args.wandb_group,
             name=args.wandb_name or f"{args.wm_method}_seed{args.seed}",
             job_type="policy_extraction",
-            config={**vars(args), "dataset_metadata": metadata, "git_sha": git_sha()},
+            config={
+                **vars(args),
+                "dataset_metadata": metadata,
+                "git_sha": git_sha(),
+                "git_branch": git_branch(),
+                "command": command_line(),
+                "train_windows": int(train_idx.numel()),
+                "bc_train_windows": int(bc_train_idx.numel()),
+                "policy_train_windows": int(policy_train_idx.numel()),
+                "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
+                "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
+                "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
+                "bc_quality_loss_weights": quality_weight_summary(bc_quality_loss_weights, metadata),
+                "bc_source_start0_loss_weight_diagnostics": source_start0_weight_diagnostics(
+                    data, bc_train_idx, args.bc_source_start0_loss_weight
+                ),
+                "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
+                "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
+            },
         )
 
     t0 = time.time()
-    behavior_clone_actor_steps(actor, data, train_idx, nrm, args, device, run, t0)
-    best_return, best_payload = train_actor_critic_steps(
+    behavior_clone_actor_steps(
+        actor,
+        data,
+        bc_train_idx,
+        nrm,
+        args,
+        device,
+        run,
+        t0,
+        bc_sampling_cache,
+        bc_quality_loss_weights,
+        bc_yaw_abs_loss_weights,
+    )
+    best_return, best_payload, best_state = train_actor_critic_steps(
         wm,
         actor,
         critic,
@@ -699,7 +1138,7 @@ def main() -> None:
         critic_opt,
         ret_rms,
         data,
-        train_idx,
+        policy_train_idx,
         nrm,
         args,
         device,
@@ -707,24 +1146,38 @@ def main() -> None:
         num_iters=args.policy_iters,
         run=run,
         t0=t0,
+        sampling_cache=policy_sampling_cache,
         metric_prefix="train",
     )
+    total_policy_iters = args.policy_iters
+    if best_payload is None:
+        best_return = -math.inf
+        best_payload = {
+            "iter": total_policy_iters,
+            "selection": "final_actor_no_policy_updates",
+            "note": "No imagined-return policy checkpoint was selected; best equals the current actor.",
+        }
+        best_state = snapshot_actor_critic(actor, critic)
     torch.save(
         {
-            "actor": actor.state_dict(),
-            "critic": critic.state_dict(),
+            "actor": best_state["actor"] if best_state is not None else actor.state_dict(),
+            "critic": best_state["critic"] if best_state is not None else critic.state_dict(),
             "args": vars(args),
             "best": best_payload,
+            "checkpoint_kind": "best",
+            "is_true_best_snapshot": best_state is not None,
         },
         output_dir / "best_policy_extraction.pt",
     )
 
-    total_policy_iters = args.policy_iters
     for round_id in range(1, args.online_finetune_rounds + 1):
         online_data = collect_online_windows(actor, args, nrm, device, args.online_collect_windows)
         torch.save(online_data, output_dir / f"online_round_{round_id}_windows.pt")
         if run is not None:
-            wandb.log({"online/round": round_id, "online/collected_windows": args.online_collect_windows}, step=total_policy_iters)
+            wandb.log(
+                {"online/round": round_id, "online/collected_windows": args.online_collect_windows},
+                step=args.bc_warmstart_iters + total_policy_iters,
+            )
         finetune_wm_on_online_windows(
             wm,
             args.wm_method,
@@ -732,9 +1185,9 @@ def main() -> None:
             args,
             device,
             run,
-            global_step_offset=total_policy_iters,
+            global_step_offset=args.bc_warmstart_iters + total_policy_iters,
         )
-        round_best, round_payload = train_actor_critic_steps(
+        round_best, round_payload, round_state = train_actor_critic_steps(
             wm,
             actor,
             critic,
@@ -742,7 +1195,7 @@ def main() -> None:
             critic_opt,
             ret_rms,
             data,
-            train_idx,
+            policy_train_idx,
             nrm,
             args,
             device,
@@ -756,9 +1209,26 @@ def main() -> None:
         if round_best > best_return:
             best_return = round_best
             best_payload = round_payload
+            best_state = round_state
+            torch.save(
+                {
+                    "actor": best_state["actor"] if best_state is not None else actor.state_dict(),
+                    "critic": best_state["critic"] if best_state is not None else critic.state_dict(),
+                    "args": vars(args),
+                    "best": best_payload,
+                    "checkpoint_kind": "best",
+                    "is_true_best_snapshot": best_state is not None,
+                },
+                output_dir / "best_policy_extraction.pt",
+            )
 
     torch.save(
-        {"actor": actor.state_dict(), "critic": critic.state_dict(), "args": vars(args)},
+        {
+            "actor": actor.state_dict(),
+            "critic": critic.state_dict(),
+            "args": vars(args),
+            "checkpoint_kind": "final",
+        },
         output_dir / "final_policy_extraction.pt",
     )
     if args.skip_real_eval:
@@ -770,9 +1240,43 @@ def main() -> None:
         "policy_type": args.policy_type,
         "seed": args.seed,
         "online_finetune_rounds": args.online_finetune_rounds,
-        "best_imagined_return": best_return,
+        "bc_warmstart_iters": args.bc_warmstart_iters,
+        "policy_bc_reg": args.policy_bc_reg,
+        "bc_quality_filter": args.bc_quality_filter,
+        "bc_quality_window_action_norm_max": args.bc_quality_window_action_norm_max,
+        "bc_quality_loss_weights": quality_weight_summary(bc_quality_loss_weights, metadata),
+        "bc_yaw_abs_loss_weights": yaw_abs_weight_summary(bc_yaw_abs_loss_weights),
+        "bc_source_start0_loss_weight": args.bc_source_start0_loss_weight,
+        "policy_quality_filter": args.policy_quality_filter,
+        "bc_sampling": args.bc_sampling,
+        "policy_sampling": args.policy_sampling,
+        "bc_action_rate_reg": args.bc_action_rate_reg,
+        "train_windows": int(train_idx.numel()),
+        "bc_train_windows": int(bc_train_idx.numel()),
+        "policy_train_windows": int(policy_train_idx.numel()),
+        "bc_quality_counts": quality_counts(data, metadata, bc_train_idx),
+        "policy_quality_counts": quality_counts(data, metadata, policy_train_idx),
+        "bc_action_norm_filter_diagnostics": bc_action_norm_filter_diagnostics,
+        "bc_yaw_abs_loss_weight_diagnostics": yaw_abs_weight_diagnostics(data, bc_train_idx, bc_yaw_abs_loss_weights),
+        "bc_source_start0_loss_weight_diagnostics": source_start0_weight_diagnostics(
+            data, bc_train_idx, args.bc_source_start0_loss_weight
+        ),
+        "bc_sampling_diagnostics": sampling_cache_summary(bc_sampling_cache),
+        "policy_sampling_diagnostics": sampling_cache_summary(policy_sampling_cache),
+        "policy_iters": args.policy_iters,
+        "best_imagined_return": best_return if math.isfinite(best_return) else None,
         "best_iter": best_payload["iter"] if best_payload else None,
         "wall_clock_seconds": time.time() - t0,
+        "dataset": args.dataset,
+        "metadata": args.metadata,
+        "normalization": args.normalization,
+        "wm_checkpoint": args.wm_checkpoint,
+        "output_dir": str(output_dir),
+        "final_checkpoint": str(output_dir / "final_policy_extraction.pt"),
+        "best_checkpoint": str(output_dir / "best_policy_extraction.pt"),
+        "git_sha": git_sha(),
+        "git_branch": git_branch(),
+        "command": command_line(),
         **{f"eval/{k}": v for k, v in eval_summary.items()},
     }
     (output_dir / "eval_summary.json").write_text(json.dumps(eval_summary, indent=2), encoding="utf-8")
