@@ -1067,3 +1067,47 @@ mechanism test: success means GPU-node execution reaches row summaries and
 produces final/best checkpoints plus real-eval snapshots. Performance success
 still requires comparing return/length/fall against the BC gate in the
 resulting summaries.
+
+## Continuation Inventory: AWAC Broad GPU-Fill Backups
+
+Preflight time: 2026-06-02 after commit `52e56db`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `52e56db` |
+| Existing AWAC job | `9402229_[0-2%3]` H200 pending, reason `Resources` |
+| User direction | Submit more jobs and keep GPU resources busy |
+| AGENTS.md update | Added explicit policy to keep suitable GPU resources busy for active research goals while requiring distinct output roots and labels for duplicate/backup diagnostics |
+
+Prepared independent backup manifests with the same AWAC mechanism and distinct
+output roots:
+
+| GPU target | Manifest | Output root | CPU request | Test-only result |
+| --- | --- | --- | ---: | --- |
+| H100 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_h100_20260602.csv` | `scripts/outputs/mjlab_qs/flow_mbpo_awac_short_horizon_diag_h100_20260602/` | 8 | accepted, predicted start `2026-06-03T09:01:43` |
+| A100 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_a100_20260602.csv` | `scripts/outputs/mjlab_qs/flow_mbpo_awac_short_horizon_diag_a100_20260602/` | 8 | accepted, predicted start `2026-06-06T21:51:39` |
+| L40S | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_l40s_20260602.csv` | `scripts/outputs/mjlab_qs/flow_mbpo_awac_short_horizon_diag_l40s_20260602/` | 4 | accepted, predicted start `2026-06-07T16:26:48` |
+
+Validation:
+
+```text
+Manifest sanity:
+  all three backup manifests have 3 rows, 58 fields,
+  `advantage_source=['critic_awac']`, `enable_wandb=['false']`,
+  existing synthetic replay paths, existing policy checkpoint paths, and
+  distinct output dirs.
+
+Row runner:
+  all nine `run_flow_mbpo_awr_row.py --check-inputs --dry-run` commands passed.
+
+Scheduler:
+  H100 and A100 accepted with 8 CPUs, 128G, 02:00:00.
+  L40S with 8 CPUs was rejected by Slurm because the partition has a maximum
+  CPU:GPU ratio of 4:1. L40S was retested with 4 CPUs and accepted.
+```
+
+Submit decision: commit AGENTS.md, backup manifests, and this inventory, then
+submit H100, A100, and L40S arrays. These are intentionally broad independent
+backups to keep useful GPU queues filled while preserving separate output
+roots.

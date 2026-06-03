@@ -1336,3 +1336,30 @@ next_action:
   completes, collect row summaries and decide whether any AWAC setting passes
   the BC gate or only serves as negative evidence.
 ```
+
+AWAC broad GPU-fill backup candidates:
+
+```text
+user_direction:
+  submit more useful jobs and keep GPU resources busy.
+policy_update:
+  AGENTS.md now says active GPU research goals should bias toward keeping
+  suitable GPU resources busy, and duplicate/backup diagnostics must use
+  distinct output roots, W&B groups/names, and manifest/command labels.
+manifests:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_h100_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_a100_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_l40s_20260602.csv
+validation:
+  all three manifests have 3 rows, 58 fields, `advantage_source=critic_awac`,
+  W&B disabled, existing replay/checkpoint inputs, and distinct output roots.
+  All nine `run_flow_mbpo_awr_row.py --check-inputs --dry-run` commands passed.
+  H100 test-only accepted, predicted start 2026-06-03T09:01:43.
+  A100 test-only accepted, predicted start 2026-06-06T21:51:39.
+  L40S test-only with 8 CPUs failed due partition CPU:GPU ratio 4:1; L40S
+  replacement test-only with 4 CPUs accepted, predicted start
+  2026-06-07T16:26:48.
+submit_decision:
+  commit AGENTS.md, manifests, and this preflight record, then submit H100,
+  A100, and L40S arrays as independent backups to the already pending H200 job.
+```
