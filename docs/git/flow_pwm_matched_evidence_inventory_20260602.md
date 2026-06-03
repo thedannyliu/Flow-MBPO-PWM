@@ -8,6 +8,31 @@ original-PWM final/best eval and rollout jobs have now produced a complete
 negative MJLab evidence package. This inventory is evidence-only. It does not
 make a policy-improvement claim.
 
+## PWM Fidelity Boundary
+
+The row historically called "faithful original PWM adapter" is not a full
+upstream `baselines/PWM/scripts/train_dflex.py` or `train_multitask.py`
+reproduction on MJLab. It is an adapter around the upstream PWM implementation:
+the runner imports `baselines/PWM/src/pwm.algorithms.pwm.PWM` and uses the
+upstream actor, critic, SimNorm world model, `compute_wm_loss`, `update`,
+TD(lambda), return RMS, and LR schedule, while the MJLab-QS window sampling,
+pretrain loop, policy-update loop orchestration, and real MJLab eval bridge live
+in `scripts/experiments/mjlab_qs/run_original_pwm_adapter.py`.
+
+The negative row therefore supports this claim:
+
+```text
+the upstream PWM algorithm/model/update, when adapted to MJLab-QS windows and
+MJLab eval, collapses under the fixed MJLab protocol.
+```
+
+It does not support this stronger claim:
+
+```text
+the byte-identical upstream PWM train_dflex/train_multitask pipeline fails on
+MJLab.
+```
+
 ## Scheduler Status During This Inventory
 
 ```text
@@ -44,7 +69,7 @@ scripts/outputs/mjlab_qs/status/rerun_g1_pwm_flow_wm_sigreg_aggregate_latest.csv
 
 | Row | Source stage | WM | Policy | Seed scope | Checkpoint/evidence | Return | Length | Fall | Status |
 | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |
-| Faithful original PWM adapter | `original_pwm_adapter_phase3_formal_20260601` plus fix2 eval/video jobs `9395746` and `9396189` | Original PWM adapter | Original PWM extraction | seed 0 final/best | Formal checkpoints plus fall-aware eval/video package. Eval summaries: `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_fix2_20260602/.../{final,best}/summary.json`; rollout videos and summaries: `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/.../{final,best}/`. | eval final `-0.8010`; eval best `-0.7778`; video final `-0.5265`; video best `-0.5218` | eval `44.45`; video final `46.80`; video best `46.40` | eval `1.000`; video `1.000` | Complete negative evidence gate. Faithful original PWM adapter collapses badly on MJLab and fails the BC baseline gate. |
+| Upstream PWM algorithm adapter | `original_pwm_adapter_phase3_formal_20260601` plus fix2 eval/video jobs `9395746` and `9396189` | Upstream PWM model/update via MJLab-QS adapter | Original PWM extraction/update via adapter orchestration | seed 0 final/best | Formal checkpoints plus fall-aware eval/video package. Eval summaries: `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_fix2_20260602/.../{final,best}/summary.json`; rollout videos and summaries: `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/.../{final,best}/`. | eval final `-0.8010`; eval best `-0.7778`; video final `-0.5265`; video best `-0.5218` | eval `44.45`; video final `46.80`; video best `46.40` | eval `1.000`; video `1.000` | Complete negative adapter-level evidence gate. The upstream PWM algorithm/model/update collapses through the MJLab-QS adapter and fails the BC baseline gate. |
 | Prior PWM-style runner | `rerun_g1_pwm_flow_policy2x2_20260527` | `mlp_ref` | `mlp` | seeds 0-2 | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../mlp_ref/mlp/offline/policy50k/` | `-4.5700` | `66.33` | `1.000` | Real rollout diagnostic only. Fails badly. |
 | Flow policy only | `rerun_g1_pwm_flow_policy2x2_20260527` | `mlp_ref` | `flow` | seeds 0-2, aggregate from 3 final rollouts; status CSV says 2 of 3 completed in policy-eval aggregate | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../mlp_ref/flow/offline/policy50k/` | `-3.4818` | `66.78` | `1.000` | Slightly less bad than MLP policy in this diagnostic, still failed. |
 | Flow WM only | `rerun_g1_pwm_flow_policy2x2_20260527` | `flow_endpoint` | `mlp` | seeds 0-2 | `scripts/outputs/mjlab_qs/policy_rollouts/rerun_g1_pwm_flow_policy2x2_20260527/.../flow_endpoint/mlp/offline/policy50k/` | `-4.7720` | `60.33` | `1.000` | Failed. No evidence that Flow WM alone fixed policy extraction. |
@@ -83,7 +108,7 @@ document the objective, tensor shapes, and tests before adding new SIGReg work.
 The existing evidence supports this conservative diagnosis:
 
 ```text
-faithful original PWM on MJLab: complete fix2 eval/video gate; final and best both collapse with fall 1.000
+upstream PWM algorithm adapter on MJLab: complete fix2 eval/video gate; final and best both collapse with fall 1.000
 previous PWM-style runner: failed
 Flow WM only: failed in the old 2x2 policy extraction matrix
 Flow policy only: failed in the old 2x2 policy extraction matrix
@@ -94,10 +119,13 @@ best BC: still a hard comparator, especially matched seed0 video fall 0.400
 expert and expert-noisy collectors: far above all learned policy-improvement rows
 ```
 
-Next action: do not treat faithful PWM imagined gains as verified. The fix2
+Next action: do not treat PWM adapter imagined gains as verified. The fix2
 MJLab package now has fall-aware eval and video evidence and is a clear negative
-baseline. Hybrid locked MJLab smoke `9396164`/`9396165` failed before evaluation
-because the locked W&B backend process could not import
+adapter-level baseline. A true full-upstream-pipeline MJLab claim would require
+a separate bridge that preserves the upstream `train_dflex.py` or
+`train_multitask.py` orchestration rather than this QS-window adapter. Hybrid
+locked MJLab smoke `9396164`/`9396165` failed before evaluation because the
+locked W&B backend process could not import
 `wandb.sdk.internal.internal` after the runtime path mix; if retried, run W&B
 disabled first. The Ant DFlex supplemental diagnostic is complete under the
 locked original environment plus explicit GCC 11 `CPATH`; Hopper fix3 reached

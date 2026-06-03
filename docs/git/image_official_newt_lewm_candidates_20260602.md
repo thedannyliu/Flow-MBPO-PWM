@@ -449,3 +449,24 @@ first_scheduler_check:
   sacct showed both arrays PENDING, QOS embers, exit 0:0.
 next_action: inspect the first started row immediately; if it fails, cancel siblings, record the new root cause, and repair before resubmitting.
 ```
+
+LeWM pretrained-cache failure after HDF5 pathfix:
+
+```text
+failure_time: 2026-06-02T20:37:54-20:38:30.
+failed_row: 9401638_0 `lewm_official_pusht_eval_hdf5pathfix_h200_20260602`, gpu-h200 / embers, FAILED 1:0 after 00:00:36.
+canceled_rows: 9401638_[1-5%3] and 9401639_[0-1%2] were canceled at 2026-06-02T20:38:46 to avoid repeating the same shared pretrained-cache failure.
+progress_before_failure: official eval successfully opened `${STABLEWM_HOME}/datasets/pusht_expert_train.h5` and cached `action`, `proprio`, and `state`; the dataset path and hdf5plugin repairs worked.
+root_cause: official eval called `stable_worldmodel.wm.utils.load_pretrained('pusht/lewm')`. The installed loader maps that repo id to `${STABLEWM_HOME}/checkpoints/models--pusht--lewm` and, if absent, tries `https://huggingface.co/pusht/lewm/resolve/main/config.json`, which returns HTTP 401 Unauthorized. A raw symlink from that cache dir to `${STABLEWM_HOME}/hf_pusht/weights.pt` avoids the 401 but is still invalid because the raw HF state dict uses legacy ViT keys like `encoder.encoder.layer.*.attention.attention.query.*`.
+repair: `scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh` now prepares `${STABLEWM_HOME}/checkpoints/models--pusht--lewm/{config.json,weights.pt}` before submission. It copies the HF `config.json` and writes a normalized `weights.pt` with legacy ViT keys converted to the installed Transformers schema (`encoder.layers.*.attention.q_proj/k_proj/v_proj/o_proj`, `mlp.fc1/fc2`). Replacement logs/results use the unique `hfcachefix` suffix.
+validation:
+  `bash -n scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh` passed.
+  `swm.wm.utils.load_pretrained('pusht/lewm', cache_dir=${STABLEWM_HOME})` returned `LeWM` from local cache.
+  `swm.data.HDF5Dataset('pusht_expert_train', cache_dir=${STABLEWM_HOME})` returned length 2336736 and state dim 7.
+  `swm.data.load_dataset('pusht_expert_train.h5', cache_dir=${STABLEWM_HOME})` returned length 2336736 and state dim 7.
+  `sbatch --test-only` accepted both H200/embers eval and train resource requests.
+replacement_candidate:
+  `lewm_official_pusht_eval_hfcachefix_h200_20260602`, 6 eval rows, H200 / embers, W&B disabled, no dependency.
+  `lewm_official_pusht_train_hfcachefix_h200_20260602`, 2 train smoke rows, H200 / embers, W&B disabled, no dependency.
+submit_decision: commit this repair record and wrapper first, then submit the hfcachefix replacement arrays.
+```

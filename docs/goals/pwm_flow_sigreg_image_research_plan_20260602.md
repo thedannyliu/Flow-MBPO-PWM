@@ -16,6 +16,16 @@ References:
 
 Source note: LeWM is a pixel-based JEPA-style world model using a next-embedding prediction loss plus SIGReg, a Gaussian latent regularizer. Use that as inspiration for regularizing our state/image latent world models; do not claim LeWM parity until we run their code/baselines.
 
+PWM comparator note: the current MJLab row called `original_pwm_adapter` is an
+adapter-level comparator, not a byte-identical upstream PWM pipeline run. It
+imports upstream `baselines/PWM/src/pwm.algorithms.pwm.PWM` and uses the
+upstream actor, critic, SimNorm world model, `compute_wm_loss`, `update`,
+TD(lambda), return RMS, and LR schedule, but it owns the MJLab-QS window
+sampling, pretrain-loop orchestration, policy-update-loop orchestration, and
+MJLab eval bridge. It should be treated as "upstream PWM algorithm/model/update
+adapted to MJLab-QS", not as proof that `baselines/PWM/scripts/train_dflex.py`
+or `train_multitask.py` fails on MJLab.
+
 ## Non-Negotiable Evidence Gates
 
 1. Record the status and results of current no-dependency jobs in `docs/goals/pwm_fidelity_mjlab_flow_migration_20260601.md`.
@@ -47,10 +57,10 @@ Use three concurrent layers, not a strict serial pipeline:
 Reasonable signal means at least one of:
 
 ```text
-faithful PWM or Flow-PWM smoke runs without runtime issues;
+PWM algorithm adapter or Flow-PWM smoke runs without runtime issues;
 Flow-PWM has higher real eval than a PWM baseline on the same dataset/protocol;
 Flow-PWM improves imagined return while diagnostics show possible exploitation;
-faithful PWM collapses in MJLab despite original DFlex parity;
+the PWM algorithm adapter collapses in MJLab despite original DFlex parity;
 fall/support/OOD diagnostics identify a specific failure boundary;
 an image-based setup can be reproduced cheaply enough to prepare the next comparison.
 ```
@@ -165,7 +175,7 @@ Without these eval/video artifacts, do not make a MJLab performance claim.
 
 ## Phase A: Consolidate Current Flow-PWM Evidence
 
-Goal: verify whether current Flow WM + Flow policy architecture is actually better than faithful PWM under the same MJLab real-eval protocol.
+Goal: verify whether current Flow WM + Flow policy architecture is actually better than the upstream PWM algorithm adapter under the same MJLab real-eval protocol.
 
 Tasks:
 
@@ -180,7 +190,7 @@ Tasks:
    - whether best is true real-eval best or training/imagined best.
 2. Run or locate final/best real eval and videos.
 3. Create a table:
-   - faithful PWM adapter;
+   - upstream PWM algorithm adapter;
    - previous PWM-style runner;
    - Flow WM only if available;
    - Flow policy only if available;
@@ -194,11 +204,11 @@ Deliverable:
   - Flow-PWM verified better;
   - Flow-PWM promising but unverified;
   - Flow-PWM exploits model;
-  - faithful PWM still strongest.
+  - PWM algorithm adapter still strongest.
 
 ## Phase A2: Branch On Faithful PWM Results
 
-If faithful PWM on MJLab is poor while original DFlex parity holds, prioritize transfer and fall-protocol diagnostics while still allowing Flow, SIGReg, NEWT, and LeWorldModel preparation to proceed in parallel.
+If the upstream PWM algorithm adapter on MJLab is poor while original DFlex parity holds, prioritize transfer and fall-protocol diagnostics while still allowing Flow, SIGReg, NEWT, and LeWorldModel preparation to proceed in parallel.
 
 Likely causes to test:
 
@@ -230,12 +240,12 @@ imagined return increases while real return/length/fall worsens
   -> model exploitation, not proof that a stronger Flow model alone solves the task
 ```
 
-If faithful PWM clearly beats the previous PWM-style runner, treat the previous implementation as having a fidelity gap or bug. Promote the faithful adapter to a formal MJLab baseline and compare:
+If the upstream PWM algorithm adapter clearly beats the previous PWM-style runner, treat the previous implementation as having a fidelity gap or bug. Promote the adapter to a formal MJLab baseline and compare:
 
 ```text
-Row 0: faithful original PWM WM + original policy/update
+Row 0: upstream PWM algorithm/model/update via MJLab-QS adapter
 Row 1: current PWM-style runner
-Row 2: faithful PWM with only MJLab IO changes
+Row 2: true upstream-pipeline bridge if one is built
 ```
 
 This answers whether the problem is PWM transfer to MJLab or a nonfaithful previous implementation.
@@ -247,7 +257,7 @@ Run a clean matrix with fixed MJLab QS data, fixed horizon, fixed actor/critic u
 Rows:
 
 ```text
-R0: faithful original PWM WM + original PWM policy/update
+R0: upstream PWM algorithm/model/update via MJLab-QS adapter
 R1: Flow WM + original PWM policy/update
 R2: original PWM WM + Flow policy architecture
 R3: Flow WM + Flow policy architecture
@@ -393,7 +403,7 @@ Rows:
 
 ```text
 M0: best BC
-M1: faithful PWM
+M1: upstream PWM algorithm adapter
 M2: best Flow-PWM
 M3: Flow endpoint MBPO + AWR/AWAC
 M4: Flow residual/chunk MBPO + AWR/AWAC

@@ -680,3 +680,20 @@ record: docs/git/r0_r4_controlled_matrix_status_20260602.md.
 result: R0 faithful original PWM is complete as a negative MJLab baseline; R1 and R2 are not satisfied by old 2x2 artifacts because they do not preserve the faithful R0 update/protocol; R3 has old diagnostic and broad AWR negative evidence but not a clean causal claim; R4 remains exploratory and must be selected from existing candidate evidence before any missing eval/video submission.
 submit_decision: no new sbatch submission from this preparation step. The next useful GPU work is either a concrete R1/R2 runner with explicit inputs, an R4 missing eval/video package for a selected existing checkpoint, or a short-horizon pessimistic Flow-MBPO row list, not another duplicate conservative AWR sweep.
 ```
+
+PWM comparator clarification and LeWM hfcachefix candidate:
+
+```text
+time: 2026-06-02 after commit dbc3829.
+source_audit: compared `scripts/experiments/mjlab_qs/run_original_pwm_adapter.py` with `baselines/PWM/scripts/train_dflex.py` and `baselines/PWM/src/pwm/algorithms/pwm.py`.
+clarification: the MJLab `original_pwm_adapter` rows import upstream PWM and use upstream model/update primitives, but they do not execute the full upstream Hydra `train_dflex.py` pipeline or `agent.train()` loop. They are adapter-level PWM algorithm evidence, not full upstream-pipeline evidence.
+docs_updated:
+  docs/goals/pwm_flow_sigreg_image_research_plan_20260602.md
+  docs/git/flow_pwm_matched_evidence_inventory_20260602.md
+  docs/git/r0_r4_controlled_matrix_status_20260602.md
+```
+
+| Candidate | Type | Purpose | Inputs exist? | W&B mode | Expected artifacts | GPU / QOS | Dependency required? | Submit decision |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `lewm_official_pusht_eval_hfcachefix_h200_20260602` | smoke / exploratory eval | Replace failed/canceled LeWM pathfix eval rows `9401638_[0-5]` after `9401638_0` proved the dataset path is fixed but official `load_pretrained('pusht/lewm')` needs a local normalized `${STABLEWM_HOME}/checkpoints/models--pusht--lewm` cache. | Yes: official LeWM env, PushT HDF5 dataset, hdf5plugin compat shim, HF `config.json`/`weights.pt`, and normalized local pretrained cache were validated. | Disabled. | Logs `logs/slurm/image_official/lewm_official_pusht_eval_hfcachefix_h200_%A_%a.{out,err}` and official eval result files with `hfcachefix` suffixes. | H200 / `embers`. | No. | Submit after committing wrapper/docs. |
+| `lewm_official_pusht_train_hfcachefix_h200_20260602` | smoke / exploratory train | Replace canceled train rows `9401639_[0-1]` after the shared pretrained-cache repair; run the same short official train smoke. | Yes: `swm.data.load_dataset('pusht_expert_train.h5', cache_dir=${STABLEWM_HOME})` returned length 2336736 and state dim 7. | Disabled. | Logs `logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_h200_%A_%a.{out,err}` and official train smoke checkpoint/output dirs with `hfcachefix` suffixes. | H200 / `embers`. | No. | Submit after committing wrapper/docs. |

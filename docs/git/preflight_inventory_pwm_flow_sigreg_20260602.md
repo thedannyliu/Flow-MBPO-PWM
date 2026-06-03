@@ -275,3 +275,56 @@ Preflight time: 2026-06-02 after commit `cb819b8`, America/New_York.
 | `R1/R2` | Controlled Flow WM-only and Flow policy-only rows | Not submitted; no implementable fixed-protocol row identified | New row design required | Not applicable | Must keep R0 dataset, seed, eval/video protocol, and change one variable only | Project/hybrid env decision still needed | seed 0 first | Prefer H200/H100/A100/L40S / `embers` when ready | W&B on for formal | Missing row-specific checkpoints | Missing | Not available | Missing runner/input design | Not usable yet | Build explicit row inputs before any sbatch |
 
 Current queue is unchanged: LeWM pathfix arrays `9401638` and `9401639`, A100 jobs `9399799`, `9400409`, `9400442`, and `9400528`, plus unrelated `9400333` remain pending. The R0-R4 preparation record is `docs/git/r0_r4_controlled_matrix_status_20260602.md`; it does not justify a new submission yet.
+
+## Continuation Inventory: PWM Comparator Boundary And LeWM HF Cache Repair
+
+Preflight time: 2026-06-02 after commit `dbc3829`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before edits | `dbc3829` |
+| Dirty status before this edit | clean |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -X -j 9401638,9401639 --format=...`; `seff` unavailable earlier and not used in this pass |
+| Artifact/log searches | Checked `logs/slurm/image_official/lewm_official_pusht_eval_hdf5pathfix_h200_9401638_0.{out,err}`, official LeWM loader code, external LeWM cache layout, `docs/git`, `docs/goals`, and current queue. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9401638_0` | LeWM official PushT eval after HDF5 dataset pathfix | `FAILED`, exit `1:0`, elapsed `00:00:36` | `scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh` | `8f7dbce` submission; failure repaired in current edit | Official LeWM `eval.py --config-name=pusht`, policy `pusht/lewm`, seed 0, horizon 2, eval budget 30 | Official LeWM env `/storage/project/r-agarg35-0/eliu354/envs/lewm_official_20260602`; PushT HDF5 dataset under `${STABLEWM_HOME}`; hdf5plugin compat shim active | seed `0` | H200 / `embers` | W&B disabled | Existing converted object checkpoint `${STABLEWM_HOME}/pusht/lewm_object.ckpt`; official loader wanted `${STABLEWM_HOME}/checkpoints/models--pusht--lewm` | Log `logs/slurm/image_official/lewm_official_pusht_eval_hdf5pathfix_h200_9401638_0.out`; no eval result | Not available | Dataset path was fixed, but official `load_pretrained('pusht/lewm')` fell through to `https://huggingface.co/pusht/lewm/...` and got HTTP 401 Unauthorized because the expected local pretrained cache was missing/invalid. Raw HF weights also need legacy ViT key normalization before this loader can load them. | Useful infrastructure diagnostic only | Replacement wrapper now prepares normalized local pretrained cache and uses `hfcachefix` names; submit after commit |
+| `9401638_[1-5%3]` | LeWM official PushT eval siblings after HDF5 dataset pathfix | `CANCELLED by 3509929` at `2026-06-02T20:38:46` | Same script | `8f7dbce` | Same eval array | Same env/assets | seeds 1,2 and random baseline rows | H200 / `embers` | W&B disabled | Same cache family | No useful row logs | Not available | Canceled to avoid repeating the shared pretrained-cache root cause | No | Keep canceled; replace with hfcachefix array |
+| `9401639_[0-1%2]` | LeWM official PushT train smoke after HDF5 dataset pathfix | `CANCELLED by 3509929` at `2026-06-02T20:38:46` | Same script | `8f7dbce` | Official LeWM `train.py data=pusht`, 1 epoch, 2 train batches, 1 val batch | Same env/assets | seeds 0 and 1 | H200 / `embers` | W&B disabled | Train would write official smoke checkpoints under LeWM cache | No useful row logs | Not available | Canceled because eval exposed a shared LeWM cache-layout issue before train started | No | Replace with hfcachefix train smoke after commit |
+
+Additional documentation correction in this pass:
+
+```text
+The MJLab `original_pwm_adapter` row is not a full upstream PWM `train_dflex.py`
+or `train_multitask.py` pipeline reproduction. It is adapter-level evidence:
+upstream `baselines/PWM/src/pwm.algorithms.pwm.PWM` model/update code is used,
+but MJLab-QS window sampling, loop orchestration, and MJLab eval are implemented
+in `scripts/experiments/mjlab_qs/run_original_pwm_adapter.py`. R0 and matched
+evidence docs now describe this as an upstream PWM algorithm adapter baseline,
+not a full upstream-pipeline failure claim.
+```
+
+Current queue after canceling bad LeWM pathfix rows:
+
+```text
+9400409_[0-15] NEWT official broad A100 smoke: PENDING Priority.
+9400528_[1-2%2] Flow-MBPO AWR A100 remaining rows: PENDING Priority.
+9400442 Flow-MBPO AWR A100 single row: PENDING Priority.
+```
+
+Validation for the replacement candidate:
+
+```text
+bash -n scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh
+swm.wm.utils.load_pretrained('pusht/lewm', cache_dir=${STABLEWM_HOME}) -> LeWM
+swm.data.HDF5Dataset('pusht_expert_train', cache_dir=${STABLEWM_HOME}) -> length 2336736, state dim 7
+swm.data.load_dataset('pusht_expert_train.h5', cache_dir=${STABLEWM_HOME}) -> length 2336736, state dim 7
+sbatch --test-only accepted eval and train H200 / embers requests.
+```
+
+Submit decision: after committing this repair record and wrapper, submit the
+LeWM `hfcachefix` H200 eval/train replacement arrays. No dependency is needed
+because the official env, dataset, hdf5plugin compat shim, and normalized local
+pretrained cache already exist.
