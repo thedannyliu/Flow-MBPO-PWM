@@ -1511,3 +1511,27 @@ submit_decision:
   commit the manifests and preflight records, then submit all four arrays
   through the fixed metadata wrapper. These are W&B-disabled diagnostics.
 ```
+
+AWAC replay-family seed0 submissions:
+
+```text
+commit: 9b5319d Add AWAC replay-family diagnostic manifests.
+submitted_jobs:
+  9402361_[0-4%5] mjqs_flow_mbpo_awr_H200, gpu-h200 / embers, 8 CPUs,
+  128G, 02:00:00, pending Resources at first poll.
+  9402364_[0-4%5] mjqs_flow_mbpo_awr_H100, gpu-h100 / embers, 8 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+  9402365_[0-4%5] mjqs_flow_mbpo_awr_A100, gpu-a100 / embers, 8 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+  9402363_[0-4%5] mjqs_flow_mbpo_awr_L40S, gpu-l40s / embers, 4 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+metadata:
+  submitted after manifest commit; Slurm wrapper should export
+  `FLOW_MBPO_SUBMIT_GIT_SHA=9b5319d...`.
+wandb:
+  disabled.
+next_action:
+  monitor replay-family arrays together with endpoint AWAC arrays. Record row
+  summaries and compare trajectory/residual/mlp_ref replay families against
+  endpoint AWAC and the BC gate.
+```

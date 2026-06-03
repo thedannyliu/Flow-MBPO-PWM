@@ -1282,3 +1282,19 @@ Submit decision: commit these manifests and records, then submit all four
 arrays through the fixed metadata wrapper. The dry-run before commit showed the
 current pre-commit SHA as expected; the actual submission should occur after
 the manifest commit so the wrapper records the manifest commit SHA.
+
+## Continuation Inventory: AWAC Replay-Family Seed0 Submissions
+
+Submission time: 2026-06-02 after commit `9b5319d`, America/New_York.
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9402361_[0-4%5]` | H200 replay-family seed0 AWAC diagnostics | `PENDING`, reason `Resources` at first poll | `submit_array.sh --kind flow_mbpo_awr --manifest flow_mbpo_awac_replay_family_seed0_h200_20260602.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 5 --time 02:00:00 --mem 128G --cpus 8 --conda-env pwm` | Submitted after `9b5319d`; wrapper exports submit-time SHA | `advantage_source=critic_awac`; rows cover trajectory H3/H5, residual H3/H5, mlp_ref H1; conservative critic; mixed OOD; real eval every 20 | Project `pwm` env; `PYTHONPATH` includes project `src` and `baselines/PWM/src`; MJLab QS H16 dataset; BC seed0 policy; existing replay files | 0 | H200 / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending diagnostic | Monitor |
+| `9402364_[0-4%5]` | H100 replay-family seed0 AWAC diagnostics | `PENDING`, reason `Priority` at first poll | Same as H200, manifest `flow_mbpo_awac_replay_family_seed0_h100_20260602.csv`, gpu-h100, 8 CPUs | Submitted after `9b5319d`; wrapper exports submit-time SHA | Same AWAC replay-family rows, H100 output root | Same env/dataset/replays | 0 | H100 / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending diagnostic | Monitor |
+| `9402365_[0-4%5]` | A100 replay-family seed0 AWAC diagnostics | `PENDING`, reason `Priority` at first poll | Same as H200, manifest `flow_mbpo_awac_replay_family_seed0_a100_20260602.csv`, gpu-a100, 8 CPUs | Submitted after `9b5319d`; wrapper exports submit-time SHA | Same AWAC replay-family rows, A100 output root | Same env/dataset/replays | 0 | A100 / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending diagnostic | Monitor |
+| `9402363_[0-4%5]` | L40S replay-family seed0 AWAC diagnostics | `PENDING`, reason `Priority` at first poll | Same as H200, manifest `flow_mbpo_awac_replay_family_seed0_l40s_20260602.csv`, gpu-l40s, 4 CPUs | Submitted after `9b5319d`; wrapper exports submit-time SHA | Same AWAC replay-family rows, L40S output root | Same env/dataset/replays | 0 | L40S / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending diagnostic; 4 CPUs matches L40S CPU:GPU policy | Monitor |
+
+Current active AWAC queue now includes endpoint old backups (`9402277`,
+`9402278`, `9402279`), endpoint fixed-SHA seed1 arrays (`9402337`, `9402338`,
+`9402339`, `9402340`), and replay-family seed0 arrays (`9402361`, `9402363`,
+`9402364`, `9402365`).
