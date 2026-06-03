@@ -895,3 +895,27 @@ Current queue after this poll:
 9402170_[0-1%2] PENDING, H100 / embers, repaired support-truncation Flow-MBPO.
 9402171_[0-1%2] PENDING, H200 / embers, repaired support-truncation Flow-MBPO.
 ```
+
+## Continuation Inventory: Support-Truncation H200 Results
+
+Preflight time: 2026-06-02 after commit `5fe5d24`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `5fe5d24` |
+| Dirty status before this inventory edit | clean |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -j 9402170,9402171 --format=... -P`; `scancel 9402170` |
+| Artifact searches | Checked H200 support-truncation Slurm logs, summary JSON files, checkpoints, and real-eval snapshots under the H200 output root. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9402171_0` | H200 repaired-wrapper Flow-MBPO support-truncation diagnostic, q0.90 replay | `COMPLETED`, exit `0:0`, elapsed `00:00:33` | `submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_20260602.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 2 --time 02:00:00 --mem 128G --cpus 8 --conda-env pwm` | Summary reports `0ed4cc03ed8ecd6275d11ccb4a61b107b36481df` | q0.90 state-support truncated trajectory H3 replay, mixed CQL, real eval every 20, early stop on poor return/length/fall score | Project `pwm` env; MJLab QS H16 data; BC seed0 policy; q0.90 support-truncated replay | seed `0` | H200 / `embers` | W&B disabled | `final_policy_extraction.pt`, `best_policy_extraction.pt`, `best_training_loss_policy_extraction.pt`, `final_q_critic.pt` under `scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/state_support_q90_trunc_cql_mixed_evalstop_s0/` | `summary.json`; `real_eval_snapshots/iter_000020_policy_extraction.pt` | return `23.1614`, length `337.375`, fall `1.000`, selection score `-73.4649`, baseline gate false | None; early stop by configured score threshold | Usable negative diagnostic evidence | Do not expand this exact q0.90 support-truncation AWR setting without a new mechanism |
+| `9402171_1` | H200 repaired-wrapper Flow-MBPO support-truncation diagnostic, q0.50 replay | `COMPLETED`, exit `0:0`, elapsed `00:00:31` | Same H200 repaired-wrapper array | Summary reports `5fe5d24ef0d59665083a0303ca07c66a2513f7c9` | q0.50 state-support truncated trajectory H3 replay, mixed CQL, real eval every 20, early stop on poor return/length/fall score | Project `pwm` env; MJLab QS H16 data; BC seed0 policy; q0.50 support-truncated replay | seed `0` | H200 / `embers` | W&B disabled | `final_policy_extraction.pt`, `best_policy_extraction.pt`, `best_training_loss_policy_extraction.pt`, `final_q_critic.pt` under `scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/state_support_q50_trunc_cql_mixed_evalstop_s0/` | `summary.json`; `real_eval_snapshots/iter_000020_policy_extraction.pt` | return `19.4189`, length `291.250`, fall `1.000`, selection score `-77.6686`, baseline gate false | None; early stop by configured score threshold | Usable negative diagnostic evidence | Do not expand this exact q0.50 support-truncation AWR setting without a new mechanism |
+| `9402170_[0-1%2]` | H100 repaired-wrapper backup for same support-truncation diagnostics | `CANCELLED by 3509929` while pending | H100 repaired-wrapper backup with distinct output root | `3977b7c` wrapper repair and `0ed4cc0` submission record | Same q0.90/q0.50 support-truncation diagnostics | Would have used project `pwm` env through repaired wrapper | seed `0` | H100 / `embers` | W&B disabled | None written | None written | Not available | Canceled because both H200 rows completed first and answered the diagnostic | Yes as cancellation record only | No replacement needed for this diagnostic |
+
+Interpretation: the repaired support-truncation diagnostic is valid and
+negative. Both rows fail the BC gate (`45.8491` return, `594.97` length,
+`0.625` fall), hit fall rate `1.000`, and early-stop at iter 20. This supports
+the existing conclusion that simple support truncation plus conservative AWR is
+not sufficient for MJLab recovery.

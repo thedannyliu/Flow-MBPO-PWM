@@ -1216,3 +1216,31 @@ wandb: disabled.
 next_action: monitor first row start; cancel duplicate partition if the other
 partition completes decisive summaries first.
 ```
+
+Support-truncation Flow-MBPO repaired-wrapper results:
+
+```text
+9402171_0 H200 q0.90 support-truncated replay COMPLETED 0:0.
+summary:
+  return_mean 23.1614, episode_length_mean 337.375, fall_rate_mean 1.000,
+  selection_score -73.4649, baseline_gate_pass false.
+  early_stop_iter 20, reason `selection_score -73.4649 below threshold -50`.
+outputs:
+  scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/state_support_q90_trunc_cql_mixed_evalstop_s0/summary.json
+  real_eval_snapshots/iter_000020_policy_extraction.pt
+
+9402171_1 H200 q0.50 support-truncated replay COMPLETED 0:0.
+summary:
+  return_mean 19.4189, episode_length_mean 291.250, fall_rate_mean 1.000,
+  selection_score -77.6686, baseline_gate_pass false.
+  early_stop_iter 20, reason `selection_score -77.6686 below threshold -50`.
+outputs:
+  scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/state_support_q50_trunc_cql_mixed_evalstop_s0/summary.json
+  real_eval_snapshots/iter_000020_policy_extraction.pt
+
+9402170_[0-1%2] H100 repaired-wrapper backup was canceled while pending after
+both H200 replacement rows completed and answered the diagnostic.
+interpretation: support truncation did not fix the fall/OOD failure; both rows
+remain below the BC gate `45.8491 / 594.97 / 0.625` and fall at rate 1.000.
+Do not expand this exact support-truncation AWR setting without a new mechanism.
+```
