@@ -763,3 +763,22 @@ H100 backup row 0 and row 1 `--check-inputs --dry-run` passed.
 decision: submit the H100 backup manifest because it uses distinct output dirs
 and is the earliest scheduler-backed replacement path.
 ```
+
+H100 backup submission:
+
+```text
+commit_before_submit: 661ccac Record Flow MBPO support truncation H100 preflight.
+submitted_job: 9402136_[0-1%2] mjqs_flow_mbpo_awr_H100.
+resource: gpu-h100 / embers, gpu:h100:1, 8 CPUs, 128G, 02:00:00.
+command:
+  scripts/experiments/mjlab_qs/submit_array.sh --kind flow_mbpo_awr \
+    --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_h100_20260602.csv \
+    --gpu-type H100 --partition gpu-h100 --qos embers --max-concurrent 2 \
+    --time 02:00:00 --mem 128G --cpus 8 --conda-env pwm
+initial_squeue: PENDING, reason Priority.
+initial_sacct: PENDING, QOS embers, partition gpu-h100.
+paired_h200_replacement: 9402128_[0-1%2] PENDING, reason Resources.
+wandb: disabled.
+next_action: monitor both arrays; cancel duplicate pending/running work after
+the first complete diagnostic summaries are available.
+```

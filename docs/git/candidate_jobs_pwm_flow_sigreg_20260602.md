@@ -1161,3 +1161,17 @@ validation:
 submit_decision: submit H100 backup because it has a distinct output root and a
 clearer scheduler start than the H200 resource-blocked replacement.
 ```
+
+Support-truncation Flow-MBPO H100 backup submission:
+
+```text
+commit: 661ccac Record Flow MBPO support truncation H100 preflight.
+submitted_job: 9402136_[0-1%2] mjqs_flow_mbpo_awr_H100.
+resource: gpu-h100 / embers, gpu:h100:1, 8 CPUs, 128G, 02:00:00.
+env_fix: submitted with `--conda-env pwm`.
+initial_state: PENDING, reason Priority.
+wandb: disabled.
+paired_h200_replacement: 9402128_[0-1%2], PENDING, reason Resources.
+next_action: monitor both arrays; if one completes the diagnostic first,
+cancel the duplicate array if it is still pending/running.
+```
