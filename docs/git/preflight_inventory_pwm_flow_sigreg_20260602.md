@@ -1539,3 +1539,60 @@ Submitted jobs:
 | `9404374_[0-2%3]` | H200 pessimistic support/fall-risk Flow-MBPO AWR diagnostics | rows 0 and 1 `RUNNING`; row 2 `PENDING`, reason `Resources` | `submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_pessimistic_support_awr_h200_20260603.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 3 --time 02:00:00 --conda-env pwm` | `7325980` live submit HEAD; manifests added at `a35331f` | Three rows: fall5, support-risk reward, generated support-risk termination; low synthetic ratio, strong BC/action/support anchor, CQL | Project `pwm` env; same MJLab QS H16 dataset, BC seed0 policy, v1 replay smoke artifacts | 0 | H200 / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_v1_pessimistic_support_awr_20260603/h200/*/` | Expected per-row `summary.json` and real-eval snapshots | Pending | None yet | Pending diagnostic | Monitor row 0/1 logs immediately |
 | `9404375_[0-2%3]` | H100 backup pessimistic support/fall-risk Flow-MBPO AWR diagnostics | `PENDING`, reason `Priority` | Same as H200 with `flow_mbpo_v1_pessimistic_support_awr_h100_20260603.csv`, H100 / `embers` | `7325980` | Same three-row config with distinct H100 output roots | Project `pwm` env; same inputs | 0 | H100 / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_v1_pessimistic_support_awr_20260603/h100/*/` | Pending | Pending | None yet | Pending backup diagnostic | Monitor |
 | `9404373_[0-2%3]` | L40S backup pessimistic support/fall-risk Flow-MBPO AWR diagnostics | `PENDING`, reason `Priority` | Same as H200 with `flow_mbpo_v1_pessimistic_support_awr_l40s_20260603.csv`, L40S / `embers`, `--cpus 4` | `7325980` | Same three-row config with distinct L40S output roots | Project `pwm` env; same inputs | 0 | L40S / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_v1_pessimistic_support_awr_20260603/l40s/*/` | Pending | Pending | None yet | Pending backup diagnostic | Monitor |
+
+## Continuation Inventory: Live Slurm Follow-Up And Replay PWM Backups
+
+Update time: 2026-06-03 after jobs `9404374`, `9404375`, `9404376`,
+`9404411`, and `9404414`, America/New_York.
+
+Slurm health stayed live:
+
+```text
+scontrol ping:
+Slurmctld(primary) at sched-phoenix-slurmctl is UP
+Slurmctld(backup) at sched-phoenix-slurmdb is UP
+```
+
+Intermediate results:
+
+| Job ID | Purpose | Status | Key result | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- |
+| `9404374_0` | H200 fall5 pessimistic support AWR | `COMPLETED`, exit `0:0` | Best real return `16.6346`, length `249.125`, fall `1.0`, score `-80.8742`; stopped at iter `10` because score was below threshold `-80` | Negative diagnostic | Keep as H200 collapse evidence |
+| `9404374_1` | H200 support-risk reward AWR | `COMPLETED`, exit `0:0` | Best real return `19.5888`, length `293.25`, fall `1.0`, score `-77.4787`; early stopped at iter `40` after no improvement | Negative diagnostic | Keep as H200 collapse evidence |
+| `9404374_2` | H200 generated support-risk termination AWR | `COMPLETED`, exit `0:0` | Best real return `19.3910`, length `291.125`, fall `1.0`, score `-77.6978`; early stopped at iter `50` after no improvement | Negative diagnostic | Keep as H200 collapse evidence |
+| `9404375_0` | H100 fall5 pessimistic support AWR backup | `COMPLETED`, exit `0:0` | Best real return `19.0856`, length `286.75`, fall `1.0`, score `-78.0469`; early stopped at iter `60` after no improvement | Negative diagnostic | Monitor remaining H100 row |
+| `9404375_1` | H100 support-risk reward AWR backup | `COMPLETED`, exit `0:0` | Best real return `19.7354`, length `295.625`, fall `1.0`, score `-77.3083`; early stopped at iter `40` after no improvement | Negative diagnostic | Monitor remaining H100 row |
+| `9404375_2` | H100 generated support-risk termination AWR backup | `COMPLETED`, exit `0:0` | Best real return `19.4177`, length `291.5`, fall `1.0`, score `-77.6673`; early stopped at iter `50` after no improvement | Negative diagnostic | Keep as H100 collapse evidence |
+| `9404376_0` | H200 dataset replay-driven PWM diagnostic | `RUNNING` at the latest poll | World-model pretrain reached `10000/10000`; validation WM loss `0.005466`; policy imagined-rollout update started with iter `1`, actor loss `8.8044`, value loss `2.9939` | Mechanically live; final policy/eval pending | Inspect `summary.json` and `eval_summary.json` after completion |
+| `9404411_[0%1]` | H100 backup dataset replay-driven PWM diagnostic | `PENDING`, reason `Priority` | Submitted with distinct stage/profile/output root | Pending backup | Monitor after H100 AWR clears |
+| `9404414_[0%1]` | L40S backup dataset replay-driven PWM diagnostic | `PENDING`, reason `Priority` | Submitted with distinct stage/profile/output root and `--cpus 4` | Pending backup | Monitor |
+
+Replay PWM backup manifests:
+
+```text
+scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_h100_20260603.csv
+scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_l40s_20260603.csv
+```
+
+Submission commands:
+
+```text
+bash scripts/experiments/mjlab_qs/submit_array.sh --kind original_pwm_adapter --manifest scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_h100_20260603.csv --gpu-type H100 --partition gpu-h100 --qos embers --max-concurrent 1 --time 02:00:00 --python-bin scripts/experiments/mjlab_qs/locked_mjlab_python.py
+
+bash scripts/experiments/mjlab_qs/submit_array.sh --kind original_pwm_adapter --manifest scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_l40s_20260603.csv --gpu-type L40S --partition gpu-l40s --qos embers --max-concurrent 1 --time 02:00:00 --cpus 4 --python-bin scripts/experiments/mjlab_qs/locked_mjlab_python.py
+```
+
+Preflight note: a local interactive `run_original_pwm_adapter_row.py
+--check-inputs` attempt failed because the row wrapper launched child process
+`python`, and the interactive shell's `python` did not have `torch`. The Slurm
+path exports the project `PYTHONPATH` and uses the locked wrapper in the job;
+the H200 job `9404376_0` proves that path is mechanically valid.
+
+The first L40S backup submission without `--cpus 4` was rejected before job
+creation by the scheduler with:
+
+```text
+sbatch: error: Maximum CPU:GPU ratio of 4:1 for gpu-l40s,gpu-l40s node class.
+```
+
+Replacement `9404414_[0%1]` used `--cpus 4` and submitted successfully.
