@@ -328,3 +328,20 @@ Submit decision: after committing this repair record and wrapper, submit the
 LeWM `hfcachefix` H200 eval/train replacement arrays. No dependency is needed
 because the official env, dataset, hdf5plugin compat shim, and normalized local
 pretrained cache already exist.
+
+Submitted LeWM hfcachefix replacements after commit `7ccc508`:
+
+```text
+script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh
+cache_preparation: normalized `${STABLEWM_HOME}/checkpoints/models--pusht--lewm/weights.pt`, size 72265441 bytes.
+submitted_jobs:
+  9401796_[0-5%3] lewm_official_pusht_eval_hfcachefix_h200_20260602, H200 / embers, PENDING Priority at first check.
+  9401797_[0-1%2] lewm_official_pusht_train_hfcachefix_h200_20260602, H200 / embers, PENDING Priority at first check.
+wandb: disabled.
+dependencies: none.
+sacct: both arrays PENDING, QOS embers, exit 0:0.
+expected_logs:
+  logs/slurm/image_official/lewm_official_pusht_eval_hfcachefix_h200_%A_%a.{out,err}
+  logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_h200_%A_%a.{out,err}
+next_action: inspect the first started row; keep canceled pathfix jobs as failed diagnostics and do not duplicate them.
+```

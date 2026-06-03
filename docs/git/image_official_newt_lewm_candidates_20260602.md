@@ -470,3 +470,24 @@ replacement_candidate:
   `lewm_official_pusht_train_hfcachefix_h200_20260602`, 2 train smoke rows, H200 / embers, W&B disabled, no dependency.
 submit_decision: commit this repair record and wrapper first, then submit the hfcachefix replacement arrays.
 ```
+
+LeWM hfcachefix H200 replacement submission:
+
+```text
+commit_before_submission: 7ccc508.
+script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh.
+prepared_cache: `${STABLEWM_HOME}/checkpoints/models--pusht--lewm/weights.pt`, size 72265441 bytes, normalized from `${STABLEWM_HOME}/hf_pusht/weights.pt`.
+submitted_jobs:
+  9401796_[0-5%3] lewm_official_pusht_eval_hfcachefix_h200_20260602, gpu-h200 / embers.
+  9401797_[0-1%2] lewm_official_pusht_train_hfcachefix_h200_20260602, gpu-h200 / embers.
+wandb_mode: disabled.
+dependencies: none.
+expected_artifacts:
+  logs/slurm/image_official/lewm_official_pusht_eval_hfcachefix_h200_%A_%a.{out,err}
+  logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_h200_%A_%a.{out,err}
+  official eval result files and official train smoke output dirs with `hfcachefix` suffixes.
+first_scheduler_check:
+  squeue showed both arrays PENDING Priority.
+  sacct showed both arrays PENDING, QOS embers, exit 0:0.
+next_action: monitor the first started eval row immediately; cancel siblings and record if a new shared official LeWM root cause appears.
+```

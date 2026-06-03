@@ -697,3 +697,13 @@ docs_updated:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `lewm_official_pusht_eval_hfcachefix_h200_20260602` | smoke / exploratory eval | Replace failed/canceled LeWM pathfix eval rows `9401638_[0-5]` after `9401638_0` proved the dataset path is fixed but official `load_pretrained('pusht/lewm')` needs a local normalized `${STABLEWM_HOME}/checkpoints/models--pusht--lewm` cache. | Yes: official LeWM env, PushT HDF5 dataset, hdf5plugin compat shim, HF `config.json`/`weights.pt`, and normalized local pretrained cache were validated. | Disabled. | Logs `logs/slurm/image_official/lewm_official_pusht_eval_hfcachefix_h200_%A_%a.{out,err}` and official eval result files with `hfcachefix` suffixes. | H200 / `embers`. | No. | Submit after committing wrapper/docs. |
 | `lewm_official_pusht_train_hfcachefix_h200_20260602` | smoke / exploratory train | Replace canceled train rows `9401639_[0-1]` after the shared pretrained-cache repair; run the same short official train smoke. | Yes: `swm.data.load_dataset('pusht_expert_train.h5', cache_dir=${STABLEWM_HOME})` returned length 2336736 and state dim 7. | Disabled. | Logs `logs/slurm/image_official/lewm_official_pusht_train_hfcachefix_h200_%A_%a.{out,err}` and official train smoke checkpoint/output dirs with `hfcachefix` suffixes. | H200 / `embers`. | No. | Submit after committing wrapper/docs. |
+
+Submitted after commit `7ccc508`:
+
+```text
+9401796_[0-5%3] lewm_official_pusht_eval_hfcachefix_h200_20260602, H200 / embers, PENDING Priority at first check.
+9401797_[0-1%2] lewm_official_pusht_train_hfcachefix_h200_20260602, H200 / embers, PENDING Priority at first check.
+script: scripts/experiments/image_official/submit_lewm_hdf5fix_h200_20260602.sh.
+wandb: disabled.
+dependencies: none.
+```
