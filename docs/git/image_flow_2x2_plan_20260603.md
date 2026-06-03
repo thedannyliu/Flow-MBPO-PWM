@@ -88,3 +88,49 @@ Initial status check:
 - `9415374` and `9415379` pending on priority at first check.
 - `9415411` and `9415412` submitted as A100 backups after LeWM remained pending
   and NEWT rows were short enough to duplicate cheaply.
+
+Completion status:
+
+- NEWT H200 primary `9415373_[0-7]` completed with exit `0:0`.
+- LeWM H200 primary `9415374_[0-7]` completed with exit `0:0`.
+- Remaining NEWT backup rows in `9415378` and `9415411` were cancelled after
+  H200 primary completed.
+- Remaining LeWM backup rows in `9415379` and `9415412` were cancelled after
+  H200 primary completed.
+
+## Initial Results
+
+NEWT H200 metrics:
+
+- CSV: `scripts/outputs/image_official/newt_flow_2x2_h200_20260603/metrics.csv`
+- Metric: final `train R` at 5k steps, averaged over seeds 0 and 1.
+
+| `wm_arch` | `policy_arch` | n | final train return mean | final train success mean |
+| --- | --- | ---: | ---: | ---: |
+| `mlp` | `mlp` | 2 | `16.754` | `0.017` |
+| `mlp` | `flow` | 2 | `26.446` | `0.027` |
+| `flow` | `mlp` | 2 | `19.320` | `0.019` |
+| `flow` | `flow` | 2 | `12.331` | `0.013` |
+
+Interpretation: in this short walker-run smoke, replacing the policy prior with
+the flow head improved the 5k train metric when the WM stayed MLP. Replacing the
+WM dynamics/reward with the current residual-flow heads did not improve the
+short-run metric.
+
+LeWM H200 train metrics:
+
+- CSV:
+  `scripts/outputs/image_official/lewm_flow_2x2_train_h200_20260603/metrics.csv`
+- Metric: one epoch, 8 train batches, 2 validation batches, averaged over seeds
+  0 and 1.
+
+| `predictor_arch` | `action_encoder_arch` | n | fit loss mean | fit pred loss mean | val loss mean | val pred loss mean |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `mlp` | `mlp` | 2 | `0.346582` | `0.070738` | `0.340797` | `0.041543` |
+| `mlp` | `flow` | 2 | `0.345693` | `0.068504` | `0.337587` | `0.038300` |
+| `flow` | `mlp` | 2 | `0.347257` | `0.072154` | `0.337663` | `0.039430` |
+| `flow` | `flow` | 2 | `0.343569` | `0.069079` | `0.335017` | `0.036737` |
+
+Interpretation: in this tiny LeWM train probe, flow+flow has the best validation
+loss and validation prediction loss, but the margins are small and this is not
+yet an evaluation-success result.
