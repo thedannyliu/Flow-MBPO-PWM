@@ -1215,3 +1215,18 @@ Submit decision: commit these manifests and records, then submit all four
 arrays through the fixed metadata wrapper. Because the wrapper records
 submission-time git SHA, later docs commits should not contaminate the summary
 git metadata for this batch.
+
+## Continuation Inventory: AWAC Fixed-SHA Seed1 Submissions
+
+Submission time: 2026-06-02 after commit `e1ec4df`, America/New_York.
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9402337_[0-2%3]` | H200 fixed-SHA seed1 AWAC H1/H3/H5 diagnostic | `PENDING`, reason `Resources` at first poll | `submit_array.sh --kind flow_mbpo_awr --manifest flow_mbpo_awac_fixedsha_seed1_h200_20260602.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 3 --time 02:00:00 --mem 128G --cpus 8 --conda-env pwm` | Submitted after `e1ec4df`; wrapper exports submit-time SHA | `advantage_source=critic_awac`, endpoint H1/H3/H5 replays, conservative critic, mixed OOD actions, support action penalty, real eval every 20 | Project `pwm` env; `PYTHONPATH` includes project `src` and `baselines/PWM/src`; MJLab QS H16 dataset; BC seed0 policy; existing endpoint replays | 1 | H200 / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending fixed-SHA diagnostic | Monitor |
+| `9402338_[0-2%3]` | H100 fixed-SHA seed1 AWAC H1/H3/H5 diagnostic | `PENDING`, reason `Priority` at first poll | Same as H200, manifest `flow_mbpo_awac_fixedsha_seed1_h100_20260602.csv`, gpu-h100, 8 CPUs | Submitted after `e1ec4df`; wrapper exports submit-time SHA | Same AWAC config, H100 output root | Same env/dataset/replays | 1 | H100 / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending fixed-SHA diagnostic | Monitor |
+| `9402340_[0-2%3]` | A100 fixed-SHA seed1 AWAC H1/H3/H5 diagnostic | `PENDING`, reason `Priority` at first poll | Same as H200, manifest `flow_mbpo_awac_fixedsha_seed1_a100_20260602.csv`, gpu-a100, 8 CPUs | Submitted after `e1ec4df`; wrapper exports submit-time SHA | Same AWAC config, A100 output root | Same env/dataset/replays | 1 | A100 / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending fixed-SHA diagnostic | Monitor |
+| `9402339_[0-2%3]` | L40S fixed-SHA seed1 AWAC H1/H3/H5 diagnostic | `PENDING`, reason `Priority` at first poll | Same as H200, manifest `flow_mbpo_awac_fixedsha_seed1_l40s_20260602.csv`, gpu-l40s, 4 CPUs | Submitted after `e1ec4df`; wrapper exports submit-time SHA | Same AWAC config, L40S output root | Same env/dataset/replays | 1 | L40S / `embers` | W&B disabled | Pending | Pending | Pending | None yet | Pending fixed-SHA diagnostic; 4 CPUs matches L40S CPU:GPU policy | Monitor |
+
+Current active AWAC queue after this submission includes old broad backups
+`9402277`, `9402278`, `9402279` and fixed-SHA seed1 arrays `9402337`,
+`9402338`, `9402339`, and `9402340`.

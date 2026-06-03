@@ -1457,3 +1457,27 @@ submit_decision:
   arrays through the fixed metadata wrapper. These rows are W&B-disabled
   diagnostics, not formal gates.
 ```
+
+AWAC fixed-SHA seed1 submissions:
+
+```text
+commit: e1ec4df Add fixed-SHA AWAC seed1 manifests.
+submitted_jobs:
+  9402337_[0-2%3] mjqs_flow_mbpo_awr_H200, gpu-h200 / embers, 8 CPUs,
+  128G, 02:00:00, pending Resources at first poll.
+  9402338_[0-2%3] mjqs_flow_mbpo_awr_H100, gpu-h100 / embers, 8 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+  9402340_[0-2%3] mjqs_flow_mbpo_awr_A100, gpu-a100 / embers, 8 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+  9402339_[0-2%3] mjqs_flow_mbpo_awr_L40S, gpu-l40s / embers, 4 CPUs,
+  128G, 02:00:00, pending Priority at first poll.
+metadata:
+  submitted after the fixed wrapper commit; Slurm wrapper should export
+  `FLOW_MBPO_SUBMIT_GIT_SHA=e1ec4df...` for these jobs.
+wandb:
+  disabled.
+next_action:
+  monitor old broad backups (`9402277`, `9402278`, `9402279`) and fixed-SHA
+  seed1 arrays (`9402337`, `9402338`, `9402339`, `9402340`). Record summaries
+  and compare against the H200 seed0 negative result when rows complete.
+```
