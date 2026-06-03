@@ -19,6 +19,7 @@ from omegaconf import OmegaConf
 
 
 os.environ.setdefault("MUJOCO_GL", "egl")
+os.environ.setdefault("WANDB_START_METHOD", "thread")
 if os.environ.get("MUJOCO_GL") == "egl":
     os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
     os.environ.setdefault("EGL_PLATFORM", "surfaceless")
@@ -227,6 +228,7 @@ def main() -> None:
             name=args.wandb_name or f"upstream_pwm_mjlab_{args.checkpoint_kind}_eval{args.eval_episodes}",
             job_type="upstream_pwm_mjlab_eval",
             config=summary,
+            settings={"start_method": "thread"},
         )
         run.log(
             {

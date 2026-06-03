@@ -83,6 +83,7 @@ cd "${ROOT}"
 export PYTHONNOUSERSITE=1
 export PYTHONPATH="${ROOT}/src:${ROOT}/baselines/PWM/src:${ROOT}/baselines/PWM/external/tdmpc2:${PYTHONPATH:-}"
 export WANDB_MODE="${WANDB_MODE_VALUE}"
+export WANDB_START_METHOD=thread
 export MUJOCO_GL=egl
 export HYDRA_FULL_ERROR=1
 

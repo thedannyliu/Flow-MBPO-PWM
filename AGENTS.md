@@ -113,6 +113,8 @@ Multiple GPU jobs may be submitted at the same time when the experiment plan ben
 
 For active GPU research goals, bias toward keeping available GPU resources busy: submit useful independent jobs broadly across suitable partitions instead of leaving plausible H200/H100/A100/L40S capacity idle. When submitting duplicate or backup diagnostics across partitions, every submission must use a distinct output root, W&B group/name, and manifest or command label so jobs never race on the same files and results remain attributable to the GPU/job that produced them.
 
+For MJLab PWM replication work, distinguish full upstream PWM from proxy PWM. A full PWM pipeline must run through `baselines/PWM/scripts/train_dflex.py` and upstream `pwm.algorithms.pwm.PWM` orchestration, with MJLab exposed through the adapter/config layer. Scripts such as `scripts/experiments/mjlab_qs/run_original_pwm_adapter.py` can be useful diagnostics, but they are proxy/adapter checks unless they execute the original `train_dflex.py` and `PWM.train()` pipeline.
+
 When broad submissions reveal a bad config, wrong checkpoint, missing dataset, broken wrapper, or bad environment, cancel the affected jobs with `scancel`, record the job IDs and root cause, fix the issue, and resubmit replacement jobs. This is preferred over delaying the whole queue. Prefer higher-end GPUs first, in this order unless a script or dependency requires otherwise: H200, H100, A100, L40S, then lower-tier available GPUs.
 
 Use English for git commit messages and durable documentation records, including experiment status notes, failure diagnoses, run tables, and follow-up instructions.
