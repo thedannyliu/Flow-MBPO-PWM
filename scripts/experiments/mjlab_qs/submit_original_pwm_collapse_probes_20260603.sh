@@ -7,6 +7,7 @@ GPU_QOS="${GPU_QOS:-embers}"
 GPU_TYPE="${GPU_TYPE:-h200}"
 PARTITION="${PARTITION:-gpu-${GPU_TYPE}}"
 CONDA_ENV="${CONDA_ENV:-pwm}"
+RUN_LABEL="${RUN_LABEL:-${GPU_TYPE}_20260603}"
 LOG_DIR="${ROOT}/logs/slurm/mjlab_qs/original_pwm_collapse_probe"
 
 if [[ "${GPU_QOS,,}" == "inferno" && "${ALLOW_INFERNO_QOS:-0}" != "1" ]]; then
@@ -25,14 +26,14 @@ esac
 DATASET="scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.pt"
 METADATA="scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16.json"
 NORMALIZATION="scripts/outputs/mjlab_qs/windows/rerun_a25_native_qs_g1stage4_expertboost_20260527/velocity_flat_unitree_g1/d_qs_core_h16_normalization.json"
-BASE_OUT="scripts/outputs/mjlab_qs/original_pwm_collapse_probe_20260603"
+BASE_OUT="${BASE_OUT:-scripts/outputs/mjlab_qs/original_pwm_collapse_probe_${RUN_LABEL}}"
 BASE_CKPT="scripts/outputs/mjlab_qs/original_pwm_adapter/original_pwm_dataset_replay_locked_diag_20260603/velocity_flat_unitree_g1/locked_replay_qs_core_h16_normobs_normrew/seed_0"
 
 mkdir -p "${LOG_DIR}"
 
 job="$(
   sbatch --parsable \
-    --job-name="mjqs_original_pwm_collapse_probe_${GPU_TYPE}_20260603" \
+    --job-name="mjqs_original_pwm_collapse_probe_${RUN_LABEL}" \
     --account="${ACCOUNT}" \
     --partition="${PARTITION}" \
     --qos="${GPU_QOS}" \
@@ -43,8 +44,8 @@ job="$(
     --mem="96G" \
     --time="01:30:00" \
     --array="0-2%3" \
-    --output="${LOG_DIR}/original_pwm_collapse_probe_${GPU_TYPE}_%A_%a.out" \
-    --error="${LOG_DIR}/original_pwm_collapse_probe_${GPU_TYPE}_%A_%a.err" \
+    --output="${LOG_DIR}/original_pwm_collapse_probe_${RUN_LABEL}_%A_%a.out" \
+    --error="${LOG_DIR}/original_pwm_collapse_probe_${RUN_LABEL}_%A_%a.err" \
     --export=ALL,ROOT="${ROOT}",CONDA_ENV="${CONDA_ENV}",DATASET="${DATASET}",METADATA="${METADATA}",NORMALIZATION="${NORMALIZATION}",BASE_OUT="${BASE_OUT}",BASE_CKPT="${BASE_CKPT}" \
     <<'SBATCH'
 #!/usr/bin/env bash
