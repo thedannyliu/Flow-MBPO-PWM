@@ -126,3 +126,70 @@ class FlowMatchingJEPA(nn.Module):
         target_velocity = target_emb.detach() - emb.detach()
         pred_velocity = self._velocity(z_tau, act_emb, tau)
         return F.mse_loss(pred_velocity, target_velocity)
+
+    def rollout(self, info, action_sequence, history_size: int = 3):
+        assert "pixels" in info, "pixels not in info_dict"
+        h = info["pixels"].size(2)
+        b, s, t = action_sequence.shape[:3]
+        act_0, act_future = torch.split(action_sequence, [h, t - h], dim=2)
+        info["action"] = act_0
+        n_steps = t - h
+
+        init = {k: v[:, 0] for k, v in info.items() if torch.is_tensor(v)}
+        init = self.encode(init)
+        emb = info["emb"] = init["emb"].unsqueeze(1).expand(b, s, -1, -1)
+
+        emb = rearrange(emb, "b s ... -> (b s) ...").clone()
+        act = rearrange(act_0, "b s ... -> (b s) ...")
+        act_future = rearrange(act_future, "b s ... -> (b s) ...")
+
+        for step in range(n_steps):
+            act_emb = self.action_encoder(act)
+            emb_trunc = emb[:, -history_size:]
+            act_trunc = act_emb[:, -history_size:]
+            pred_emb = self.predict(emb_trunc, act_trunc)[:, -1:]
+            emb = torch.cat([emb, pred_emb], dim=1)
+
+            next_act = act_future[:, step : step + 1]
+            act = torch.cat([act, next_act], dim=1)
+
+        act_emb = self.action_encoder(act)
+        emb_trunc = emb[:, -history_size:]
+        act_trunc = act_emb[:, -history_size:]
+        pred_emb = self.predict(emb_trunc, act_trunc)[:, -1:]
+        emb = torch.cat([emb, pred_emb], dim=1)
+
+        info["predicted_emb"] = rearrange(emb, "(b s) ... -> b s ...", b=b, s=s)
+        return info
+
+    def criterion(self, info_dict: dict):
+        pred_emb = info_dict["predicted_emb"]
+        goal_emb = info_dict["goal_emb"]
+        goal_emb = goal_emb[..., -1:, :].expand_as(pred_emb)
+        return F.mse_loss(
+            pred_emb[..., -1:, :],
+            goal_emb[..., -1:, :].detach(),
+            reduction="none",
+        ).sum(dim=tuple(range(2, pred_emb.ndim)))
+
+    def get_cost(self, info_dict: dict, action_candidates: torch.Tensor):
+        assert "goal" in info_dict, "goal not in info_dict"
+
+        device = next(self.parameters()).device
+        for key in list(info_dict.keys()):
+            if torch.is_tensor(info_dict[key]):
+                info_dict[key] = info_dict[key].to(device)
+
+        goal = {k: v[:, 0] for k, v in info_dict.items() if torch.is_tensor(v)}
+        goal["pixels"] = goal["goal"]
+
+        for key in list(info_dict.keys()):
+            if key.startswith("goal_"):
+                goal[key[len("goal_") :]] = goal.pop(key)
+
+        goal.pop("action")
+        goal = self.encode(goal)
+
+        info_dict["goal_emb"] = goal["emb"]
+        info_dict = self.rollout(info_dict, action_candidates)
+        return self.criterion(info_dict)
