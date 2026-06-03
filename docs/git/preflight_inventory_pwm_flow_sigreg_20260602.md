@@ -640,3 +640,25 @@ Preflight time: 2026-06-02 after commit `9ae1c06`, America/New_York.
 Submit decision in this poll: no new sbatch submission. Existing v1
 support/pessimistic smoke evidence is already negative for substantive update
 rows, and active A100 jobs remain queued.
+
+Support-truncation diagnostic candidate preflight:
+
+```text
+new_manifest:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_20260602.csv
+rows: 2.
+inputs_verified:
+  MJLab QS H16 dataset/metadata/normalization exist.
+  BC seed0 final policy checkpoint exists.
+  q0.90 and q0.50 state-support truncated trajectory H3 synthetic replays exist.
+  q0.90 replay done fraction after support truncation: 0.171875.
+  q0.50 replay done fraction after support truncation: 0.484375.
+validation:
+  CSV sanity check passed.
+  `run_flow_mbpo_awr_row.py --check-inputs --dry-run` passed for rows 0 and 1.
+  `submit_array.sh --kind flow_mbpo_awr --dry-run` produced a valid H200 array command.
+  H200/embers `sbatch --test-only` accepted the request.
+submit_decision: commit first, then submit W&B-disabled H200 diagnostic array
+because it changes the fall/OOD intervention beyond the already-negative broad
+AWR/support rows.
+```

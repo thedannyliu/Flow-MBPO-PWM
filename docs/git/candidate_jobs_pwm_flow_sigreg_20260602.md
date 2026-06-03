@@ -1040,3 +1040,36 @@ pessimistic row, write a concrete manifest that changes the objective beyond
 the already-negative broad AWR/v1 support smokes, e.g. a stricter fall-stop or
 support-truncation row with real_eval_every > 0 and early stop.
 ```
+
+Support-truncation Flow-MBPO diagnostic candidate:
+
+```text
+candidate: flow_mbpo_support_trunc_awr_diag_20260602.
+type: diagnostic / exploratory, W&B disabled.
+manifest:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_support_trunc_awr_diag_20260602.csv
+purpose: test a genuinely different fall/OOD response after PWM and broad AWR
+collapse by using already support-truncated trajectory H3 replay, real eval
+every 20 updates, and early stop on poor return/length/fall score.
+rows:
+  0 state_support_q90_trunc_cql_mixed_evalstop_s0:
+    input replay `flow_trajectory_chunk_5k_h3_unc0p5_q0p90_state_support5_q0p90_trunc`,
+    support truncates about 9.6% of synthetic transitions.
+  1 state_support_q50_trunc_cql_mixed_evalstop_s0:
+    input replay `flow_trajectory_chunk_5k_h3_unc0p5_q0p90_state_support5_q0p50_trunc`,
+    support truncates about 46.0% of synthetic transitions.
+common settings:
+  update_iters 60, real_eval_every 20, real_eval_episodes 8,
+  selection metric return_length_fall, early stop below score -50, CQL mixed
+  OOD actions, support action penalty 0.05, W&B disabled.
+expected artifacts:
+  scripts/outputs/mjlab_qs/flow_mbpo_support_trunc_awr_diag_20260602/*/summary.json
+  final/best/best-training checkpoints and real_eval_snapshots under each row.
+GPU / QOS: H200 / embers first; no dependency because all inputs exist.
+validation:
+  CSV sanity check passed for 2 rows and 57 fields.
+  `run_flow_mbpo_awr_row.py --check-inputs --dry-run` passed for both rows.
+  `submit_array.sh --kind flow_mbpo_awr ... --dry-run` produced an H200/embers array.
+  `sbatch --test-only` accepted H200/embers, 8 CPUs, 128G, 02:00:00.
+submit_decision: submit after committing the manifest and candidate record.
+```
