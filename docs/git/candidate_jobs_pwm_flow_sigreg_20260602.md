@@ -1313,3 +1313,26 @@ submit_decision:
   commit the manifest and preflight record, then submit the three-row H200
   W&B-disabled diagnostic array.
 ```
+
+AWAC short-horizon diagnostic submission:
+
+```text
+commit: 6bc5dc5 Add Flow MBPO AWAC short-horizon diagnostic manifest.
+submitted_job: 9402229_[0-2%3] mjqs_flow_mbpo_awr_H200.
+manifest:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_20260602.csv
+resource:
+  gpu-h200 / embers, gpu:h200:1, 8 CPUs, 128G, 02:00:00.
+wrapper:
+  `--conda-env pwm`; `PYTHONPATH` includes project `src` and
+  `baselines/PWM/src`; MuJoCo/EGL headless exports enabled.
+initial_state:
+  PENDING, reason Resources.
+wandb:
+  disabled.
+next_action:
+  monitor row start and GPU-node execution. If it fails before row execution,
+  record root cause and repair environment/wrapper before resubmission. If it
+  completes, collect row summaries and decide whether any AWAC setting passes
+  the BC gate or only serves as negative evidence.
+```

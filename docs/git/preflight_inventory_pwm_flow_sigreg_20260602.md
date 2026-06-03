@@ -1045,3 +1045,25 @@ Submit decision: commit this manifest and inventory first, then submit the
 three-row H200 W&B-disabled diagnostic array. Do not submit a duplicate H100 or
 A100 copy unless the H200 array fails to start or fails for infrastructure
 reasons.
+
+## Continuation Inventory: AWAC Short-Horizon Submission
+
+Submission time: 2026-06-02 after commit `6bc5dc5`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Submitted job | `9402229_[0-2%3]` |
+| Job name | `mjqs_flow_mbpo_awr_H200` |
+| Manifest | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_20260602.csv` |
+| Resource | `gpu-h200`, `embers`, `gpu:h200:1`, 8 CPUs, 128G, 02:00:00 |
+| Wrapper environment | `--conda-env pwm`; project `src` and `baselines/PWM/src` on `PYTHONPATH`; `MUJOCO_GL=egl`, `PYOPENGL_PLATFORM=egl`, `EGL_PLATFORM=surfaceless` |
+| Initial state | `PENDING`, reason `Resources` |
+| W&B | disabled |
+
+This is the first submitted MJLab Flow-MBPO row set using the new
+`advantage_source=critic_awac` path. The job is a diagnostic environment and
+mechanism test: success means GPU-node execution reaches row summaries and
+produces final/best checkpoints plus real-eval snapshots. Performance success
+still requires comparing return/length/fall against the BC gate in the
+resulting summaries.
