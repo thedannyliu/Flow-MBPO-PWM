@@ -493,6 +493,26 @@ failure_reason: none; the Hydra append override repair fixed the prior
 next_action: no train-smoke repair needed.
 ```
 
+Pre-submit compatibility check for full upstream PWM real-env eval:
+
+```text
+existing eval bridge compatibility:
+  `eval_policy_checkpoint.py` supports generic Flow-MBPO checkpoints with
+  embedded `args` and original PWM adapter checkpoints with QS metadata. The
+  full upstream PWM checkpoint from `9401906` has keys
+  actor, critic, world_model, obs_rms, rew_rms, ret_rms, actor_opt,
+  critic_opt, world_model_opt and no `args`; auto-detection would route it to
+  the QS adapter format even though it was trained on 210-dim online MJLab
+  observations.
+new diagnostic script:
+  scripts/experiments/mjlab_qs/eval_upstream_pwm_mjlab_checkpoint.py
+validation:
+  py_compile passed; locked bridge `--help` passed; H200/embers test-only
+  accepted.
+candidate: submit W&B-disabled final/best 8-episode real-env eval smoke before
+  considering any formal 40-episode eval/video gate for full upstream PWM.
+```
+
 Validation details:
 
 ```text

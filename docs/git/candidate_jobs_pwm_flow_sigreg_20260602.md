@@ -901,3 +901,37 @@ evidence: both rows reached Trainer.fit, ran 2 train batches and 1 val batch,
 saved epoch-1 weights, and stopped at max_epochs=1. The Hydra append override
 repair fixed the prior struct-mode failure.
 ```
+
+Full upstream PWM real-env eval smoke candidate:
+
+```text
+context: completed full upstream PWM longdiag `9401906` wrote upstream checkpoint
+files, but existing MJLab eval/render bridges do not directly support that
+checkpoint schema. `eval_policy_checkpoint.py` would auto-detect the checkpoint
+as `original_pwm_adapter` because it has no `args`, but the checkpoint was
+trained with 210-dim online MJLab observations, not the 96+3 QS adapter schema.
+new script:
+  scripts/experiments/mjlab_qs/eval_upstream_pwm_mjlab_checkpoint.py
+purpose:
+  W&B-disabled real-env eval smoke for `final_policy.pt` and `best_policy.pt`
+  from `9401906`, using the original Hydra config, upstream PWM agent load, and
+  real MJLab rewards/done flags.
+candidate:
+  upstream_pwm_mjlab_real_eval_smoke_h200_20260602, array 0 final / 1 best,
+  8 eval episodes, 16 envs, 1000 max steps.
+inputs:
+  baselines/PWM/scripts/outputs/2026-06-02/21-35-04/.hydra/config.yaml
+  baselines/PWM/scripts/outputs/2026-06-02/21-35-04/logs/upstream_pwm_mjlab_full_longdiag_h200_seed0_20260602/{final_policy.pt,best_policy.pt}
+W&B mode: disabled.
+expected artifacts:
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/{final,best}/summary.json
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_20260602/{final,best}/eval_episodes.csv
+GPU / QOS: H200 / embers.
+dependency_required: no, inputs already exist.
+validation:
+  python -m py_compile scripts/experiments/mjlab_qs/eval_upstream_pwm_mjlab_checkpoint.py
+  locked bridge `--help` succeeded.
+  bash -n scripts/experiments/mjlab_qs/submit_upstream_pwm_mjlab_real_eval_smoke_20260602.sh
+  sbatch --test-only accepted H200 / embers, 8 CPUs, 96G, 01:00:00.
+submit_decision: submit after committing script and candidate record.
+```
