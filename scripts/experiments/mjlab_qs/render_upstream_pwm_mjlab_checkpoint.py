@@ -40,6 +40,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baseline-return", type=float, default=None)
     p.add_argument("--baseline-length", type=float, default=None)
     p.add_argument("--baseline-fall", type=float, default=None)
+    p.add_argument("--wandb-project", default="")
+    p.add_argument("--wandb-group", default="")
+    p.add_argument("--wandb-name", default="")
+    p.add_argument("--disable-wandb", action="store_true")
     p.add_argument("--notes", default="")
     return p.parse_args()
 
@@ -275,7 +279,32 @@ def main() -> None:
         "notes": args.notes,
     }
     add_baseline_gate(summary, args)
+    run = None
+    if args.wandb_project and not args.disable_wandb:
+        import wandb
+
+        run = wandb.init(
+            project=args.wandb_project,
+            group=args.wandb_group,
+            name=args.wandb_name or f"upstream_pwm_mjlab_{args.checkpoint_kind}_rollout{args.rollout_episodes}",
+            job_type="upstream_pwm_mjlab_rollout_video",
+            config=summary,
+        )
+        run.log(
+            {
+                "rollout/return_mean": return_mean,
+                "rollout/episode_length_mean": length_mean,
+                "rollout/fall_rate_mean": fall_mean,
+                "rollout/timeout_rate_mean": timeout_mean,
+                "rollout/baseline_gate_pass": summary.get("baseline_gate_pass"),
+                "rollout/video": wandb.Video(str(video_path), fps=args.video_fps, format="mp4"),
+            }
+        )
+        summary["wandb_url"] = run.url
+        run.summary.update(summary)
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    if run is not None:
+        run.finish()
     print(json.dumps(summary, indent=2, sort_keys=True))
 
 

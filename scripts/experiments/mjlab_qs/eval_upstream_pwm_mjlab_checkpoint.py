@@ -8,6 +8,8 @@ import csv
 import json
 import math
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -36,8 +38,36 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baseline-return", type=float, default=None)
     p.add_argument("--baseline-length", type=float, default=None)
     p.add_argument("--baseline-fall", type=float, default=None)
+    p.add_argument("--wandb-project", default="")
+    p.add_argument("--wandb-group", default="")
+    p.add_argument("--wandb-name", default="")
+    p.add_argument("--disable-wandb", action="store_true")
     p.add_argument("--notes", default="")
     return p.parse_args()
+
+
+def git_sha() -> str:
+    override = os.environ.get("FLOW_MBPO_SUBMIT_GIT_SHA", "").strip()
+    if override:
+        return override
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def git_branch() -> str:
+    override = os.environ.get("FLOW_MBPO_SUBMIT_GIT_BRANCH", "").strip()
+    if override:
+        return override
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def command_line() -> str:
+    return " ".join([sys.executable, *sys.argv])
 
 
 def resolve_device(requested: str) -> torch.device:
@@ -182,10 +212,37 @@ def main() -> None:
         "baseline_length": args.baseline_length,
         "baseline_fall": args.baseline_fall,
         "baseline_gate_pass": baseline_gate_pass,
+        "git_sha": git_sha(),
+        "git_branch": git_branch(),
+        "command": command_line(),
         "notes": args.notes,
     }
+    run = None
+    if args.wandb_project and not args.disable_wandb:
+        import wandb
+
+        run = wandb.init(
+            project=args.wandb_project,
+            group=args.wandb_group,
+            name=args.wandb_name or f"upstream_pwm_mjlab_{args.checkpoint_kind}_eval{args.eval_episodes}",
+            job_type="upstream_pwm_mjlab_eval",
+            config=summary,
+        )
+        run.log(
+            {
+                "eval/return_mean": return_mean,
+                "eval/episode_length_mean": length_mean,
+                "eval/fall_rate_mean": fall_mean,
+                "eval/timeout_rate_mean": timeout_mean,
+                "eval/baseline_gate_pass": baseline_gate_pass,
+            }
+        )
+        summary["wandb_url"] = run.url
+        run.summary.update(summary)
     write_csv(output_dir / "eval_episodes.csv", rows)
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    if run is not None:
+        run.finish()
     print(json.dumps(summary, indent=2, sort_keys=True))
 
 

@@ -8,6 +8,9 @@ PARTITION="${PARTITION:-gpu-h200}"
 GPU_GRES="${GPU_GRES:-gpu:h200:1}"
 GPU_LABEL="${GPU_LABEL:-h200}"
 MODE="${MODE:-eval}"
+WANDB_PROJECT="${WANDB_PROJECT:-flow-mbpo-mjlab-full-upstream-pwm}"
+WANDB_GROUP="${WANDB_GROUP:-upstream_pwm_mjlab_full_pipeline_20260603}"
+WANDB_MODE_VALUE="${WANDB_MODE_VALUE:-online}"
 LOG_DIR="${ROOT}/logs/slurm/mjlab_qs/upstream_pwm_full_pipeline"
 LOCKED_MJLAB_PYTHON="${LOCKED_MJLAB_PYTHON:-${ROOT}/scripts/experiments/mjlab_qs/locked_mjlab_python.py}"
 SUBMIT_GIT_SHA="$(git -C "${ROOT}" rev-parse HEAD)"
@@ -40,12 +43,12 @@ if [[ ! -s "${POLICY_DIR}/best_policy.pt" ]]; then
 fi
 
 if [[ "${MODE}" == "eval" ]]; then
-  OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOT}/scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_${GPU_LABEL}_20260603}"
-  JOB_NAME="upstream_pwm_mjlab_eval40_${GPU_LABEL}_20260603"
+  OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOT}/scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_formal_eval40_wandb_${GPU_LABEL}_20260603}"
+  JOB_NAME="upstream_pwm_mjlab_eval40_wandb_${GPU_LABEL}_20260603"
   TIME_LIMIT="${TIME_LIMIT:-02:00:00}"
 else
-  OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOT}/scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_${GPU_LABEL}_20260603}"
-  JOB_NAME="upstream_pwm_mjlab_roll10_${GPU_LABEL}_20260603"
+  OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOT}/scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_rollout10_wandb_${GPU_LABEL}_20260603}"
+  JOB_NAME="upstream_pwm_mjlab_roll10_wandb_${GPU_LABEL}_20260603"
   TIME_LIMIT="${TIME_LIMIT:-02:00:00}"
 fi
 
@@ -65,7 +68,7 @@ sbatch --parsable \
   --array="0-1%2" \
   --output="${LOG_DIR}/${JOB_NAME}_%A_%a.out" \
   --error="${LOG_DIR}/${JOB_NAME}_%A_%a.err" \
-  --export=ALL,ROOT="${ROOT}",LOCKED_MJLAB_PYTHON="${LOCKED_MJLAB_PYTHON}",HYDRA_RUN_DIR="${HYDRA_RUN_DIR}",POLICY_DIR="${POLICY_DIR}",OUTPUT_ROOT="${OUTPUT_ROOT}",MODE="${MODE}",FLOW_MBPO_SUBMIT_GIT_SHA="${SUBMIT_GIT_SHA}",FLOW_MBPO_SUBMIT_GIT_BRANCH="${SUBMIT_GIT_BRANCH}" \
+  --export=ALL,ROOT="${ROOT}",LOCKED_MJLAB_PYTHON="${LOCKED_MJLAB_PYTHON}",HYDRA_RUN_DIR="${HYDRA_RUN_DIR}",POLICY_DIR="${POLICY_DIR}",OUTPUT_ROOT="${OUTPUT_ROOT}",MODE="${MODE}",WANDB_PROJECT="${WANDB_PROJECT}",WANDB_GROUP="${WANDB_GROUP}",WANDB_MODE_VALUE="${WANDB_MODE_VALUE}",FLOW_MBPO_SUBMIT_GIT_SHA="${SUBMIT_GIT_SHA}",FLOW_MBPO_SUBMIT_GIT_BRANCH="${SUBMIT_GIT_BRANCH}" \
   <<'SBATCH'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -79,7 +82,7 @@ esac
 cd "${ROOT}"
 export PYTHONNOUSERSITE=1
 export PYTHONPATH="${ROOT}/src:${ROOT}/baselines/PWM/src:${ROOT}/baselines/PWM/external/tdmpc2:${PYTHONPATH:-}"
-export WANDB_MODE=disabled
+export WANDB_MODE="${WANDB_MODE_VALUE}"
 export MUJOCO_GL=egl
 export HYDRA_FULL_ERROR=1
 
@@ -97,6 +100,9 @@ if [[ "${MODE}" == "eval" ]]; then
     --baseline-return 45.8491 \
     --baseline-length 594.97 \
     --baseline-fall 0.625 \
+    --wandb-project "${WANDB_PROJECT}" \
+    --wandb-group "${WANDB_GROUP}_${MODE}" \
+    --wandb-name "upstream_pwm_mjlab_${kind}_eval40_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}" \
     --notes "Formal 40-episode real-env eval for full upstream train_dflex/PWM.train MJLab checkpoint."
 else
   "${LOCKED_MJLAB_PYTHON}" "${ROOT}/scripts/experiments/mjlab_qs/render_upstream_pwm_mjlab_checkpoint.py" \
@@ -111,6 +117,9 @@ else
     --baseline-return 54.1283 \
     --baseline-length 688.40 \
     --baseline-fall 0.400 \
+    --wandb-project "${WANDB_PROJECT}" \
+    --wandb-group "${WANDB_GROUP}_${MODE}" \
+    --wandb-name "upstream_pwm_mjlab_${kind}_rollout10_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}" \
     --notes "Formal 10-episode MP4 rollout for full upstream train_dflex/PWM.train MJLab checkpoint."
 fi
 SBATCH
