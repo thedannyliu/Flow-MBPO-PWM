@@ -1002,12 +1002,13 @@ outputs:
 interpretation: the full upstream checkpoint loader and real MJLab evaluator are
 validated, but both final and best checkpoints collapse in the 8-episode
 real-env smoke and fail the BC baseline gate. This is not a formal 40-episode
-claim, but it is strong enough to avoid spending W&B/formal video budget on
-this diagnostic checkpoint.
+claim, and by itself it is negative evidence for this diagnostic checkpoint.
 follow-up action: canceled duplicate H100 backup `9401980_[0-1%2]` after the
-H200 final/best smoke completed; do not submit formal eval/video for this
-longdiag checkpoint unless the research objective changes to documenting visual
-failure examples rather than testing for success.
+H200 final/best smoke completed. User direction later requested a complete PWM
+pipeline MJLab effect check, so W&B-on formal eval40 and rollout10 replacement
+arrays `9402769`/`9402771`/`9402774`/`9402772`/`9402773`/`9402770` were
+submitted after canceling W&B-disabled arrays `9402742`-`9402747`; no
+full-upstream performance claim is available until those replacements complete.
 ```
 
 Pessimistic/support Flow-MBPO branch preflight after full PWM negative smoke:
