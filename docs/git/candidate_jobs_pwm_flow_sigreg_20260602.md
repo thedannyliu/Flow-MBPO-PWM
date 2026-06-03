@@ -837,3 +837,18 @@ Submitted continuation jobs after commit `daff684`:
   W&B disabled; official LeWM env; Hydra append overrides for
   `+trainer.limit_train_batches=2` and `+trainer.limit_val_batches=1`.
 ```
+
+R4 existing-candidate selection while jobs remained pending:
+
+```text
+record: docs/git/r0_r4_controlled_matrix_status_20260602.md
+selected scalar R4 reproduction:
+  flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0
+reason: strongest existing 40-episode scalar eval final checkpoint
+  return 60.8721, length 759.30, fall 0.450.
+gate caveat: best eval regresses, final video is below matched BC video, and
+best video only ties matched BC fall 0.400. This is promising but unverified,
+not a success row.
+submit_decision: no new sbatch submission. Existing final/best eval40 and
+rollout10 artifacts are already present for the top R4 candidates.
+```

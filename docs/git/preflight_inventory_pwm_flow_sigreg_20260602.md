@@ -439,6 +439,22 @@ PENDING Resources at first check.
 H200 / embers, PENDING Resources at first check.
 ```
 
+Continuation poll after commit `45a4355`:
+
+```text
+queue: `9401906`, `9401907_[0-1]`, `9400409_[0-15]`, `9400528_[1-2]`, and
+`9400442` all remained pending; no new Slurm logs were available.
+seff: unavailable on PATH.
+static progress: R4 existing-candidate selection was completed in
+`docs/git/r0_r4_controlled_matrix_status_20260602.md`.
+selected R4 scalar reproduction:
+  flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0
+reason: strongest existing 40-episode scalar eval final checkpoint
+  return 60.8721, length 759.30, fall 0.450.
+submit_decision: no duplicate eval/video job because final/best eval40 and
+rollout10 artifacts already exist for the top R4 candidates.
+```
+
 Validation details:
 
 ```text

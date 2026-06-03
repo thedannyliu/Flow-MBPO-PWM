@@ -74,6 +74,48 @@ R4 should be treated as exploratory even if it beats R0, because it changes more
 than one variable.
 ```
 
+## R4 Existing-Candidate Selection
+
+This selection uses already completed artifacts only. It does not trigger a new
+submission because all three strongest existing R4 candidates already have
+final/best 40-episode eval summaries and final/best 10-episode rollout videos.
+
+Reference gates:
+
+```text
+aggregate BC eval comparator: return 45.8491, length 594.97, fall 0.625
+matched seed0 BC video comparator: return 54.1283, length 688.40, fall 0.400
+strict improvement requires return >= baseline, length >= baseline, and fall
+strictly lower than baseline. Tying fall is not enough.
+```
+
+| Candidate | Selection basis | Eval40 final | Eval40 best | Roll10 final | Roll10 best | Gate interpretation |
+| --- | --- | --- | --- | --- | --- | --- |
+| `flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0` | Best scalar eval final among existing Flow-MBPO rows | return `60.8721`, length `759.30`, fall `0.450` | return `46.1720`, length `600.60`, fall `0.700` | return `47.4617`, length `625.60`, fall `0.500` | return `55.5533`, length `707.60`, fall `0.400` | Select as R4 scalar-eval reproduction if one existing row must be named. It is not a verified improvement because best eval regresses and video fall only ties matched BC for best while final video is worse. |
+| `flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0` | Best documented trajectory/chunk balance before low-synth | return `48.7296`, length `637.22`, fall `0.575` | return `37.5778`, length `496.05`, fall `0.800` | return `54.4904`, length `694.00`, fall `0.400` | return `55.3382`, length `706.30`, fall `0.400` | Promising but not selected over H1 on scalar eval. Both videos tie matched BC fall and best eval regresses. |
+| `flow_trajectory_chunk_5k_seed0_h3_unc0p5_q0p90_cons_r240_s16_anchor1_iter500_s0` | Strongest video return/length among existing Flow-MBPO rows | return `47.5960`, length `612.00`, fall `0.600` | return `39.8802`, length `527.17`, fall `0.725` | return `55.4222`, length `707.20`, fall `0.400` | return `55.5495`, length `708.00`, fall `0.400` | Best video scalar row, but eval best regresses and video fall only ties matched BC. Do not expand as success. |
+
+R4 selection decision:
+
+```text
+selected_r4_for_scalar_reproduction:
+  flow_endpoint_seed0_h1_unc0p5_q0p90_cons_r224_s32_anchor1_iter500_s0
+
+reason:
+  its final checkpoint has the strongest existing 40-episode scalar eval:
+  return 60.8721, length 759.30, fall 0.450.
+
+claim_boundary:
+  this is an exploratory best-current reproduction row, not a causal R0-R3
+  matrix row and not a verified policy improvement. The final/best gates are
+  inconsistent and no video fall improvement over matched seed0 BC is shown.
+
+next_action:
+  do not submit duplicate eval/video for this R4 candidate. If expanding R4,
+  first change the objective toward fall-risk/OOD reduction or short-horizon
+  pessimistic Flow-MBPO, then require the same final/best eval/video gates.
+```
+
 The completed broad conservative AWR sweep strengthens the exploitation/fall
 diagnosis: all completed broad/shard rows fall at rate `1.000` in 8-episode real
 evals and remain below the BC comparator. This supports the active plan's pivot
@@ -89,6 +131,6 @@ instead of duplicating the same AWR settings.
 | `r4_select_existing_best_flow_mbpo` | eval / exploratory | Partly; existing Flow-MBPO candidate eval/video artifacts exist, but candidate selection needs a fresh gate table. | W&B on for any missing formal eval/video. | Ranking table plus missing final/best eval/video if selected candidate lacks them. | H200/H100/A100/L40S / `embers`. | No if selected checkpoint exists; yes only if missing checkpoint. | Prepare selection record first; no duplicate conservative AWR submission. |
 | `pessimistic_short_horizon_flow_mbpo_next` | diagnostic / exploratory | Existing H=1/3/5 replay and support artifacts partly exist; the broad AWR result motivates stronger pessimism/fall gating rather than exact duplicate rows. | W&B off for new-code smokes. | Support/OOD/fall-stop diagnostics, real eval every 10 updates, checkpoint summaries. | H200/H100/A100/L40S / `embers`. | No for rows using existing replays; yes if fall-risk labels/head are missing. | Candidate for future submission after a concrete row list is written. |
 
-No new sbatch submission is made from this record. The queue already contains
-pending LeWM pathfix arrays and A100 NEWT/Flow jobs, and no started row has
-exposed a new failure to repair.
+No new sbatch submission is made from this record. R4 existing candidates have
+their eval/video gates, the queue already contains pending LeWM/PWM/A100 jobs,
+and no started row has exposed a new failure to repair.
