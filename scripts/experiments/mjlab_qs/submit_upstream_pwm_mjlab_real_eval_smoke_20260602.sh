@@ -6,6 +6,7 @@ ACCOUNT="${ACCOUNT:-gts-agarg35}"
 GPU_QOS="${GPU_QOS:-embers}"
 PARTITION="${PARTITION:-gpu-h200}"
 GPU_GRES="${GPU_GRES:-gpu:h200:1}"
+GPU_LABEL="${GPU_LABEL:-h200}"
 LOG_DIR="${ROOT}/logs/slurm/mjlab_qs/upstream_pwm_full_pipeline"
 LOCKED_MJLAB_PYTHON="${LOCKED_MJLAB_PYTHON:-${ROOT}/scripts/experiments/mjlab_qs/locked_mjlab_python.py}"
 
@@ -34,7 +35,7 @@ fi
 mkdir -p "${LOG_DIR}" "${OUTPUT_ROOT}"
 
 sbatch --parsable \
-  --job-name="upstream_pwm_mjlab_real_eval_smoke_h200_20260602" \
+  --job-name="upstream_pwm_mjlab_real_eval_smoke_${GPU_LABEL}_20260602" \
   --account="${ACCOUNT}" \
   --partition="${PARTITION}" \
   --qos="${GPU_QOS}" \
@@ -45,8 +46,8 @@ sbatch --parsable \
   --mem="96G" \
   --time="01:00:00" \
   --array="0-1%2" \
-  --output="${LOG_DIR}/upstream_pwm_mjlab_real_eval_smoke_h200_%A_%a.out" \
-  --error="${LOG_DIR}/upstream_pwm_mjlab_real_eval_smoke_h200_%A_%a.err" \
+  --output="${LOG_DIR}/upstream_pwm_mjlab_real_eval_smoke_${GPU_LABEL}_%A_%a.out" \
+  --error="${LOG_DIR}/upstream_pwm_mjlab_real_eval_smoke_${GPU_LABEL}_%A_%a.err" \
   --export=ALL,ROOT="${ROOT}",LOCKED_MJLAB_PYTHON="${LOCKED_MJLAB_PYTHON}",HYDRA_RUN_DIR="${HYDRA_RUN_DIR}",POLICY_DIR="${POLICY_DIR}",OUTPUT_ROOT="${OUTPUT_ROOT}" \
   <<'SBATCH'
 #!/usr/bin/env bash
