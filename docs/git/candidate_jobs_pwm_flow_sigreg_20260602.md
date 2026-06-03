@@ -671,3 +671,12 @@ result: 5 passed in 27.61s.
 interpretation: the local SIGReg utility still satisfies the documented no-GPU prerequisite tests: finite loss, finite gradients, constant-latent anti-collapse penalty, zero-weight no-op, and latent Gaussian/isotropy diagnostics.
 submit_decision: no SIGReg GPU row yet; the next SIGReg job still needs a selected controlled Flow-PWM row and the same real-eval/video evidence protocol as its no-SIGReg baseline.
 ```
+
+R0-R4 controlled matrix preparation:
+
+```text
+time: 2026-06-02 after commit cb819b8.
+record: docs/git/r0_r4_controlled_matrix_status_20260602.md.
+result: R0 faithful original PWM is complete as a negative MJLab baseline; R1 and R2 are not satisfied by old 2x2 artifacts because they do not preserve the faithful R0 update/protocol; R3 has old diagnostic and broad AWR negative evidence but not a clean causal claim; R4 remains exploratory and must be selected from existing candidate evidence before any missing eval/video submission.
+submit_decision: no new sbatch submission from this preparation step. The next useful GPU work is either a concrete R1/R2 runner with explicit inputs, an R4 missing eval/video package for a selected existing checkpoint, or a short-horizon pessimistic Flow-MBPO row list, not another duplicate conservative AWR sweep.
+```

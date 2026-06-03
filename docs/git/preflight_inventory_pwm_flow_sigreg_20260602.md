@@ -255,3 +255,23 @@ Preflight time: 2026-06-02 after commit `be114a9`, America/New_York.
 | `9400525_[0-2]` | L40S AWR shard backfill | All 3 elements `COMPLETED`, exit `0:0`; all summaries present | `submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_l40s_20260602.csv --gpu-type L40S --partition gpu-l40s --qos embers --cpus 4` | Run summaries report `0a679b3` | L40S shard manifest | Same project env and MJLab QS inputs | seed 1 rows | L40S / `embers` | W&B disabled | Under `scripts/outputs/mjlab_qs/flow_mbpo_broad_embers_awr_shards_20260602/l40s/*/` | Per-row `summary.json` | Best row `traj_h3_fall5_trunc_cql_data_noise_s1`: return `16.4492`, length `256.375`, fall `1.000` | None | Usable negative confirmation | No duplicate submission |
 
 Current queue still contains pending A100 jobs `9399799`, `9400409`, `9400442`, and `9400528`, plus unrelated `9400333 sam3_img_smoke`. No new submission is justified in this poll because active LeWM/A100 jobs are already queued and the completed AWR rows are negative diagnostics.
+
+## Continuation Inventory: R0-R4 Matrix Preparation
+
+Preflight time: 2026-06-02 after commit `cb819b8`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD | `cb819b8` |
+| Dirty status before this inventory edit | clean |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -X -S 2026-06-02 -u $USER --format=...`; `seff` unavailable on PATH |
+| Artifact searches | Checked R0/R4 eval and rollout artifacts, Flow-MBPO candidate ranking tools, status CSVs, broad AWR summaries, and pending LeWM/A100 queue state. |
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9395746_[0-1]` | R0 faithful original PWM adapter final/best 40-episode eval fix2 | `COMPLETED`, exit `0:0` | `submit_array.sh --kind policy_eval --manifest scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_eval40_final_best_fix2_20260602.csv` | Recorded in prior docs; result used in `docs/git/flow_pwm_matched_evidence_inventory_20260602.md` | Faithful original PWM adapter final/best eval40 | Hybrid locked MJLab bridge with fixed QS dataset/metadata/normalization | seed 0 final/best | H200 / `embers` | W&B enabled in manifest | Formal adapter final/best checkpoints from `9387895` | Eval summaries under `scripts/outputs/mjlab_qs/policy_evals/original_pwm_adapter_phase3_eval40_fix2_20260602/` | Eval final `-0.8010`; eval best `-0.7778`; fall `1.000` | None; valid collapse evidence | Usable negative R0 eval evidence | Treat as completed R0 baseline |
+| `9396189_[0-1]` | R0 faithful original PWM adapter final/best rollout video fix2 | `COMPLETED`, exit `0:0` | `submit_array.sh --kind policy_rollout --manifest scripts/experiments/mjlab_qs/manifests/original_pwm_adapter_phase3_rollout10_final_best_fix2_20260602.csv` | Recorded in prior docs | Faithful original PWM adapter final/best rollout10 | Hybrid locked MJLab bridge with fixed QS dataset/metadata/normalization | seed 0 final/best | H200 / `embers` | W&B enabled in manifest | Same final/best checkpoints | Rollout summaries and MP4s under `scripts/outputs/mjlab_qs/policy_rollouts/original_pwm_adapter_phase3_rollout10_fix2_20260602/` | Video final `-0.5265`; video best `-0.5218`; fall `1.000` | None; valid collapse evidence | Usable negative R0 video evidence | Treat as completed R0 baseline |
+| `R1/R2` | Controlled Flow WM-only and Flow policy-only rows | Not submitted; no implementable fixed-protocol row identified | New row design required | Not applicable | Must keep R0 dataset, seed, eval/video protocol, and change one variable only | Project/hybrid env decision still needed | seed 0 first | Prefer H200/H100/A100/L40S / `embers` when ready | W&B on for formal | Missing row-specific checkpoints | Missing | Not available | Missing runner/input design | Not usable yet | Build explicit row inputs before any sbatch |
+
+Current queue is unchanged: LeWM pathfix arrays `9401638` and `9401639`, A100 jobs `9399799`, `9400409`, `9400442`, and `9400528`, plus unrelated `9400333` remain pending. The R0-R4 preparation record is `docs/git/r0_r4_controlled_matrix_status_20260602.md`; it does not justify a new submission yet.
