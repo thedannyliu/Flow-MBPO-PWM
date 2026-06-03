@@ -206,6 +206,23 @@ Deliverable:
   - Flow-PWM exploits model;
   - PWM algorithm adapter still strongest.
 
+Current Phase A evidence status, updated 2026-06-02:
+
+| Comparator | Evidence | Conservative diagnosis |
+| --- | --- | --- |
+| Upstream PWM algorithm adapter | Final/best eval40 and rollout10 gates from fix2 jobs are complete; final/best collapse with fall `1.000`. | Negative adapter-level R0 baseline. |
+| Full upstream PWM pipeline bridge | Smoke `9401871` completed 0:0 through `train_dflex.py` and upstream `pwm.algorithms.pwm.PWM`; longer diagnostic `9401906` is pending. | Pipeline feasible, but no performance claim until final/best eval40 and rollout10 gates exist. |
+| Flow-MBPO H1 endpoint AWR | Final/best eval40 and final/best roll10 summaries exist. Eval final is strong (`60.8721`, length `759.30`, fall `0.450`), but eval best regresses (`46.1720`, fall `0.700`); video best ties matched BC fall `0.400` while final video is worse (`0.500`). | Promising but unverified; split final/best behavior and no strict fall improvement. |
+| Flow-MBPO trajectory/chunk H3 | Final/best-real eval40 and roll10 summaries exist. Final eval is above aggregate BC scalar (`48.7296`, fall `0.575`), but best-real eval regresses (`37.5778`, fall `0.800`); videos tie matched BC fall `0.400`. | Promising but unverified; not enough for seed expansion. |
+| Flow-MBPO trajectory/chunk H3 low synthetic ratio | Final/best eval40 and roll10 summaries exist. Video return/length are strong and fall ties matched BC, but eval best regresses and no fall improvement is shown. | Promising but unverified. |
+| Conservative broad Flow-MBPO AWR sweep | Completed H200/H100/L40S rows are all below BC and fall at `1.000`; A100 rows remain pending. | Negative diagnostic; do not duplicate this setting. |
+
+Current diagnosis: Flow-MBPO has better seed0 diagnostic policies than the PWM
+adapter and prior PWM-style runner, but it is still not a verified policy
+improvement because the final/best gates are inconsistent and the strict matched
+video fall gate is not improved. Treat this as "Flow-PWM promising but
+unverified" with continuing evidence for model-exploitation/fall-risk issues.
+
 ## Phase A2: Branch On Faithful PWM Results
 
 If the upstream PWM algorithm adapter on MJLab is poor while original DFlex parity holds, prioritize transfer and fall-protocol diagnostics while still allowing Flow, SIGReg, NEWT, and LeWorldModel preparation to proceed in parallel.
