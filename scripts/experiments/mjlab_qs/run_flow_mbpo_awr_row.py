@@ -85,6 +85,7 @@ def main() -> None:
         "real_batch_size",
         "synthetic_batch_size",
         "actor_lr",
+        "advantage_source",
         "adv_temperature",
         "weight_clip",
         "bc_anchor_weight",

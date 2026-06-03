@@ -41,6 +41,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--real-batch-size", type=int, default=128)
     p.add_argument("--synthetic-batch-size", type=int, default=128)
     p.add_argument("--actor-lr", type=float, default=1.0e-5)
+    p.add_argument(
+        "--advantage-source",
+        choices=["reward", "critic_awac"],
+        default="reward",
+        help="Use centered replay reward weights (AWR) or critic-derived AWAC weights.",
+    )
     p.add_argument("--adv-temperature", type=float, default=1.0)
     p.add_argument("--weight-clip", type=float, default=20.0)
     p.add_argument("--bc-anchor-weight", type=float, default=0.1)
@@ -400,6 +406,25 @@ def advantage_weights(reward: torch.Tensor, temperature: float, weight_clip: flo
     return weights.clamp(max=float(weight_clip))
 
 
+@torch.no_grad()
+def critic_awac_weights(
+    critic: QCritic,
+    actor,
+    state: torch.Tensor,
+    command: torch.Tensor,
+    action: torch.Tensor,
+    temperature: float,
+    weight_clip: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    policy_action = actor(state, command, deterministic=True).clamp(-1.0, 1.0)
+    q_data = critic(state, command, action)
+    q_policy = critic(state, command, policy_action)
+    advantage = q_data - q_policy
+    scaled = advantage / max(float(temperature), 1.0e-6)
+    weights = torch.exp(scaled.clamp(min=-20.0, max=20.0)).clamp(max=float(weight_clip))
+    return weights, advantage
+
+
 def weighted_mse(pred: torch.Tensor, target: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
     per_row = (pred - target).pow(2).mean(dim=-1)
     return (per_row * weights).sum() / weights.sum().clamp_min(1.0e-8)
@@ -690,6 +715,8 @@ def main() -> None:
     support_state = build_support_state(data, real_indices, nrm, args, device)
     support_risk_state = load_support_risk_state(args, device)
     critic_enabled = float(args.conservative_q_weight) > 0.0 or float(args.critic_actor_weight) > 0.0
+    if args.advantage_source == "critic_awac":
+        critic_enabled = True
     critic = None
     target_critic = None
     critic_opt = None
@@ -703,6 +730,7 @@ def main() -> None:
     ckpt_args.update(
         {
             "flow_mbpo_v0_update": "awr",
+            "flow_mbpo_v0_advantage_source": args.advantage_source,
             "flow_mbpo_v0_synthetic_replay": args.synthetic_replay,
             "flow_mbpo_v0_policy_checkpoint": args.policy_checkpoint,
             "flow_mbpo_v0_update_iters": int(args.update_iters),
@@ -748,6 +776,7 @@ def main() -> None:
         "support_risk_rows": int(support_risk_state["rows"].item()) if support_risk_state is not None else 0,
         "support_risk_total_rows": int(support_risk_state["total_rows"].item()) if support_risk_state is not None else 0,
         "support_risk_selection_threshold": float(support_risk_state["selection_threshold"].item()) if support_risk_state is not None else None,
+        "advantage_source": args.advantage_source,
         "critic_enabled": bool(critic_enabled),
         "conservative_q_weight": float(args.conservative_q_weight),
         "critic_actor_weight": float(args.critic_actor_weight),
@@ -806,8 +835,22 @@ def main() -> None:
         sz, sc, sa, sr, sd = sample_synthetic_batch(replay, int(args.synthetic_batch_size), device)
         real_pred = actor(rz, rc, deterministic=True).clamp(-1.0, 1.0)
         synth_pred = actor(sz, sc, deterministic=True).clamp(-1.0, 1.0)
-        real_weights = advantage_weights(rr, args.adv_temperature, args.weight_clip)
-        synth_weights = advantage_weights(sr, args.adv_temperature, args.weight_clip)
+        if args.advantage_source == "reward":
+            real_weights = advantage_weights(rr, args.adv_temperature, args.weight_clip)
+            synth_weights = advantage_weights(sr, args.adv_temperature, args.weight_clip)
+            real_advantage = rr - rr.mean()
+            synth_advantage = sr - sr.mean()
+        elif args.advantage_source == "critic_awac":
+            if critic is None:
+                raise RuntimeError("advantage_source=critic_awac requires an enabled critic")
+            real_weights, real_advantage = critic_awac_weights(
+                critic, actor, rz, rc, ra, args.adv_temperature, args.weight_clip
+            )
+            synth_weights, synth_advantage = critic_awac_weights(
+                critic, actor, sz, sc, sa, args.adv_temperature, args.weight_clip
+            )
+        else:
+            raise ValueError(f"Unknown advantage source: {args.advantage_source}")
         synth_weights = synth_weights * (~sd).float()
         real_loss = weighted_mse(real_pred, ra, real_weights)
         synth_loss = weighted_mse(synth_pred, sa, synth_weights)
@@ -885,6 +928,9 @@ def main() -> None:
                 "awr/synthetic_reward_mean": float(sr.detach().mean().item()),
                 "awr/real_weight_mean": float(real_weights.detach().mean().item()),
                 "awr/synthetic_weight_mean": float(synth_weights.detach().mean().item()),
+                "awr/real_advantage_mean": float(real_advantage.detach().mean().item()),
+                "awr/synthetic_advantage_mean": float(synth_advantage.detach().mean().item()),
+                "awr/advantage_source_is_critic_awac": float(args.advantage_source == "critic_awac"),
                 "awr/synthetic_done_fraction": float(sd.float().mean().item()),
                 "awr/grad_norm": float(grad.detach().item()),
                 "wall_clock_seconds": time.time() - t0,

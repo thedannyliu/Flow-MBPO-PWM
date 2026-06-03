@@ -1262,3 +1262,22 @@ decision: no new submission from the existing conservative AWR/support branch.
 All completed H200/H100/L40S/A100 shard rows plus support truncation remain
 negative, with fall 1.000 and below-BC returns/lengths.
 ```
+
+AWAC mechanism preparation:
+
+```text
+reason: the active plan calls for AWR/AWAC comparison after exploitation/fall
+appears. Existing Flow-MBPO update tooling only supported reward-centered AWR
+weights; no AWAC row could be truthfully submitted without a code change.
+change: add `--advantage-source {reward,critic_awac}` to
+`run_flow_mbpo_v0_awr_update.py`. The default `reward` preserves old behavior.
+`critic_awac` enables the existing conservative critic and computes actor
+regression weights from `Q(s,a_data) - Q(s,pi(s))`.
+validation:
+  `python -m py_compile run_flow_mbpo_v0_awr_update.py run_flow_mbpo_awr_row.py`
+  passed.
+  In the project `pwm` env, `--help` exposes
+  `--advantage-source {reward,critic_awac}`.
+submit_decision: commit the mechanism first, then prepare a W&B-disabled
+H=1/3/5 short-horizon AWAC diagnostic manifest using existing replay inputs.
+```

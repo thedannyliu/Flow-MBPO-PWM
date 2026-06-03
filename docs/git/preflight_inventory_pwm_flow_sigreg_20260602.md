@@ -931,6 +931,38 @@ fall remains `1.000` and every row is below BC.
 
 Current active queue after this poll: none.
 
+## Continuation Inventory: AWAC Mechanism Preparation
+
+Preflight time: 2026-06-02 after commit `c892c30`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `c892c30` |
+| Dirty status before this inventory edit | clean before AWAC code edit |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -X -S 2026-06-02 -u $USER --format=... -P`; queue was empty |
+| Artifact searches | Checked docs/git, docs/goals, Flow-MBPO AWR scripts, manifests, Slurm logs, summaries, support features, synthetic replays, and W&B-disabled outputs for prior AWR/AWAC/submission coverage. |
+
+Candidate/tooling finding:
+
+```text
+Existing Flow-MBPO update tooling implements reward-centered AWR weights plus
+optional support penalties and conservative-Q diagnostics. It does not expose a
+true AWAC mode. The active plan asks for AWR/AWAC comparison after exploitation
+and fall appear, so submitting another reward-weighted AWR row would be a
+duplicate mechanism.
+```
+
+Prepared code change:
+
+| Item | Purpose | Validation | Submit impact |
+| --- | --- | --- | --- |
+| `run_flow_mbpo_v0_awr_update.py --advantage-source {reward,critic_awac}` | Preserve default reward-weighted AWR while enabling critic-derived AWAC weights `Q(s,a_data)-Q(s,pi(s))` through the existing conservative critic | `python -m py_compile` passed; in the `pwm` env, `--help` exposes the new option | Enables a genuinely different W&B-disabled short-horizon AWAC diagnostic manifest |
+| `run_flow_mbpo_awr_row.py` manifest passthrough | Allows CSV manifests to set `advantage_source=critic_awac` | `py_compile` passed | Existing manifests remain default `reward`; new AWAC rows can be scheduled |
+
+No sbatch submission is made before committing this mechanism and writing a
+candidate manifest with explicit inputs.
+
 ## Continuation Inventory: Support-Truncation H200 Results
 
 Preflight time: 2026-06-02 after commit `5fe5d24`, America/New_York.
