@@ -896,6 +896,41 @@ Current queue after this poll:
 9402171_[0-1%2] PENDING, H200 / embers, repaired support-truncation Flow-MBPO.
 ```
 
+## Continuation Inventory: NEWT A100 Completion And A100 AWR Shards
+
+Preflight time: 2026-06-02 after commit `f0f2bd1`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `f0f2bd1` |
+| Dirty status before this inventory edit | clean |
+| Slurm commands | `squeue -u $USER -o ...`; `sacct -j 9400409,9400442,9400528 --format=... -P` |
+| Artifact searches | Checked NEWT A100 rows 14-15 logs, A100 Flow-MBPO AWR shard summaries, Slurm logs, and current queue state. |
+
+Official NEWT A100 broad smoke now completed all 16 rows, all `COMPLETED`
+with exit `0:0` under `embers`. Rows 0-13 were recorded above; rows 14-15:
+
+| Job ID | Task | Seed | Status | GPU / QOS | Log | Eval reward | Train reward | Usable? |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9400409_14` | `cartpole-swingup` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:29` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_14.out` | `144.140` | `14.021` | Infrastructure smoke only |
+| `9400409_15` | `cup-catch` | `1` | `COMPLETED`, exit `0:0`, elapsed `00:00:27` | A100 / `embers` | `logs/slurm/image_official/newt_official_broad_smoke_9400409_15.out` | `985.000` | `0.000` | Infrastructure smoke only |
+
+Remaining A100 Flow-MBPO AWR shards completed:
+
+| Job ID | Purpose | Status | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9400442` | A100 single-row Flow-MBPO AWR shard, endpoint H3 trunc CQL mixed seed1 | `COMPLETED`, exit `0:0`, elapsed `00:00:45` | Manual single-row A100 sbatch against `scripts/experiments/mjlab_qs/manifests/flow_mbpo_broad_embers_awr_a100_20260602.csv`, row 0 | Summary reports `0ed4cc03ed8ecd6275d11ccb4a61b107b36481df` | A100 shard manifest row `endpoint_h3_trunc_cql_mixed_s1` | Project `pwm` env; MJLab QS H16 data; BC seed0 policy; existing synthetic replay | seed `1` | A100 / `embers` | W&B disabled | Per-row AWR checkpoints under `scripts/outputs/mjlab_qs/flow_mbpo_broad_embers_awr_shards_20260602/a100/endpoint_h3_trunc_cql_mixed_s1/` | `summary.json`; real-eval snapshot if present | return `16.5337`, length `257.500`, fall `1.000`, baseline gate false | None | Usable negative confirmation | No duplicate submission; do not expand this exact conservative AWR setting |
+| `9400528_1` | A100 remaining Flow-MBPO AWR shard, endpoint H5 trunc CQL data-noise seed1 | `COMPLETED`, exit `0:0`, elapsed `00:00:47` | A100 remaining array against `flow_mbpo_broad_embers_awr_a100_20260602.csv`, row 1 | Summary reports `5fe5d24ef0d59665083a0303ca07c66a2513f7c9` | A100 shard manifest row `endpoint_h5_trunc_cql_data_noise_s1` | Same project env and MJLab QS inputs | seed `1` | A100 / `embers` | W&B disabled | Per-row checkpoints under `scripts/outputs/mjlab_qs/flow_mbpo_broad_embers_awr_shards_20260602/a100/endpoint_h5_trunc_cql_data_noise_s1/` | `summary.json`; real-eval snapshot if present | return `16.6024`, length `256.625`, fall `1.000`, baseline gate false | None | Usable negative confirmation | No duplicate submission |
+| `9400528_2` | A100 remaining Flow-MBPO AWR shard, trajectory H3 risk termination CQL mixed support seed1 | `COMPLETED`, exit `0:0`, elapsed `00:00:40` | Same A100 remaining array, row 2 | Summary reports `5fe5d24ef0d59665083a0303ca07c66a2513f7c9` | A100 shard manifest row `traj_h3_riskterm_cql_mixed_support_s1` | Same project env and MJLab QS inputs | seed `1` | A100 / `embers` | W&B disabled | Per-row checkpoints under `scripts/outputs/mjlab_qs/flow_mbpo_broad_embers_awr_shards_20260602/a100/traj_h3_riskterm_cql_mixed_support_s1/` | `summary.json`; real-eval snapshot if present | return `10.1437`, length `170.625`, fall `1.000`, baseline gate false | None | Usable negative confirmation | No duplicate submission |
+
+Interpretation: all A100 conservative AWR shard rows are valid negative
+diagnostics. Together with H200/H100/L40S shard results and the support
+truncation diagnostic, this closes the current conservative AWR/support branch:
+fall remains `1.000` and every row is below BC.
+
+Current active queue after this poll: none.
+
 ## Continuation Inventory: Support-Truncation H200 Results
 
 Preflight time: 2026-06-02 after commit `5fe5d24`, America/New_York.

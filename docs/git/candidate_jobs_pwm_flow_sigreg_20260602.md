@@ -1244,3 +1244,21 @@ interpretation: support truncation did not fix the fall/OOD failure; both rows
 remain below the BC gate `45.8491 / 594.97 / 0.625` and fall at rate 1.000.
 Do not expand this exact support-truncation AWR setting without a new mechanism.
 ```
+
+Conservative AWR/support branch closure:
+
+```text
+A100 remaining shard results:
+  9400442 endpoint_h3_trunc_cql_mixed_s1: return 16.5337, length 257.500,
+  fall 1.000, baseline_gate_pass false.
+  9400528_1 endpoint_h5_trunc_cql_data_noise_s1: return 16.6024,
+  length 256.625, fall 1.000, baseline_gate_pass false.
+  9400528_2 traj_h3_riskterm_cql_mixed_support_s1: return 10.1437,
+  length 170.625, fall 1.000, baseline_gate_pass false.
+NEWT A100 official broad smoke:
+  9400409_[0-15] all completed 0:0 under embers; usable as official NEWT
+  infrastructure smoke evidence only, not PWM/MJLab performance evidence.
+decision: no new submission from the existing conservative AWR/support branch.
+All completed H200/H100/L40S/A100 shard rows plus support truncation remain
+negative, with fall 1.000 and below-BC returns/lengths.
+```
