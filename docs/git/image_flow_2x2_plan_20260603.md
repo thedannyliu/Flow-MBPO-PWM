@@ -78,9 +78,13 @@ Submitted on 2026-06-03 with `embers` QOS.
 | LeWM | `lewm_flow_2x2_train_h200_20260603` | H200 | `9415374` | `0-7%4` | primary |
 | NEWT | `newt_flow_2x2_h100_backup_20260603` | H100 | `9415378` | `0-7%4` | backup, distinct output root |
 | LeWM | `lewm_flow_2x2_train_h100_backup_20260603` | H100 | `9415379` | `0-7%4` | backup, distinct output root |
+| NEWT | `newt_flow_2x2_a100_backup_20260603` | A100 | `9415411` | `0-7%4` | backup, distinct output root |
+| LeWM | `lewm_flow_2x2_train_a100_backup_20260603` | A100 | `9415412` | `0-7%4` | backup, distinct output root |
 
 Initial status check:
 
 - `9415373_0` running on H200.
 - `9415378_0` running on H100.
 - `9415374` and `9415379` pending on priority at first check.
+- `9415411` and `9415412` submitted as A100 backups after LeWM remained pending
+  and NEWT rows were short enough to duplicate cheaply.
