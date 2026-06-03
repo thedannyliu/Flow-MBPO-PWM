@@ -5,8 +5,27 @@ from __future__ import annotations
 
 import argparse
 import csv
+import shlex
 import subprocess
 from pathlib import Path
+
+
+def present(row: dict[str, str], key: str) -> bool:
+    return bool(str(row.get(key, "")).strip())
+
+
+def check_input_paths(row: dict[str, str]) -> None:
+    required = ["dataset", "metadata", "normalization"]
+    errors: list[str] = []
+    for key in required:
+        if not present(row, key):
+            errors.append(f"missing {key}")
+            continue
+        path = Path(row[key])
+        if not path.exists():
+            errors.append(f"{key} does not exist: {path}")
+    if errors:
+        raise SystemExit("Original PWM adapter row input validation failed:\n" + "\n".join(errors))
 
 
 def main() -> None:
@@ -15,10 +34,14 @@ def main() -> None:
     p.add_argument("--row-index", type=int, required=True)
     p.add_argument("--python-bin", default="python")
     p.add_argument("--device", default="cuda:0")
+    p.add_argument("--dry-run", action="store_true", help="Print the adapter command without executing it.")
+    p.add_argument("--check-inputs", action="store_true", help="Validate required input paths before running.")
     args = p.parse_args()
 
     with open(args.manifest, newline="", encoding="utf-8") as f:
         row = list(csv.DictReader(f))[args.row_index]
+    if args.check_inputs:
+        check_input_paths(row)
 
     task_key = row.get("task_key", "task_unknown")
     stage = row["stage"]
@@ -107,6 +130,10 @@ def main() -> None:
         cmd.append("--skip-real-eval")
     if row.get("disable_wandb", "").lower() in {"1", "true", "yes"}:
         cmd.append("--disable-wandb")
+
+    if args.dry_run:
+        print(shlex.join(cmd), flush=True)
+        return
 
     subprocess.run(cmd, check=True)
 
