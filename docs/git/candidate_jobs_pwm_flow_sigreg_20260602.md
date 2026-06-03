@@ -1535,3 +1535,48 @@ next_action:
   summaries and compare trajectory/residual/mlp_ref replay families against
   endpoint AWAC and the BC gate.
 ```
+
+AWAC completed H200/H100/L40S diagnostic results:
+
+```text
+fixed-SHA seed1 H200 endpoint array `9402337_[0-2%3]`:
+  all rows COMPLETED 0:0 and recorded submit SHA `e1ec4df`.
+  endpoint_h1_s1: return 8.9520, length 159.250, fall 1.000,
+  selection -89.4555, BC gate false, early stop iter 20.
+  endpoint_h3_s1: return 8.5052, length 154.375, fall 1.000,
+  selection -89.9511, BC gate false, early stop iter 20.
+  endpoint_h5_s1: return 8.8065, length 158.000, fall 1.000,
+  selection -89.6135, BC gate false, early stop iter 20.
+
+replay-family seed0 H200 array `9402361_[0-4%5]`:
+  all rows COMPLETED 0:0 and recorded submit SHA `9b5319d`.
+  traj_h3: return 19.4614, length 292.000, fall 1.000,
+  selection -77.6186, BC gate false.
+  traj_h5: return 19.4218, length 291.750, fall 1.000,
+  selection -77.6607, BC gate false.
+  residual_h3: return 19.9263, length 298.125, fall 1.000,
+  selection -77.0925, BC gate false.
+  residual_h5: return 19.5381, length 292.500, fall 1.000,
+  selection -77.5369, BC gate false.
+  mlp_ref_h1: return 19.5179, length 293.000, fall 1.000,
+  selection -77.5521, BC gate false.
+
+old endpoint backups submitted before the metadata fix:
+  `9402277_[0-2%3]` H100 and `9402278_[0-2%3]` L40S completed 0:0, but their
+  summaries record live SHA `b684ea4`; use as diagnostics, not fixed-SHA
+  evidence.
+  H100 returns/length/fall:
+    H1 19.7080 / 295.000 / 1.000
+    H3 19.6832 / 295.250 / 1.000
+    H5 19.9007 / 297.500 / 1.000
+  L40S returns/length/fall:
+    H1 19.9827 / 298.375 / 1.000
+    H3 19.0628 / 277.125 / 1.000
+    H5 19.5757 / 293.500 / 1.000
+
+interpretation:
+  AWAC mechanically runs across H200/H100/L40S and across endpoint,
+  trajectory, residual, and mlp_ref replay families, but every completed row
+  remains below the BC gate `45.8491 / 594.97 / 0.625` and falls at rate 1.000.
+  Do not promote this AWAC setting to formal evaluation/video.
+```
