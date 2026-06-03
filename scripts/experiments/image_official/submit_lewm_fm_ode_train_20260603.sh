@@ -70,9 +70,11 @@ fi
 IFS=, read -r _ task predictor_arch seed max_epochs limit_train_batches limit_val_batches ode_substeps ode_integrator fm_weight <<<"${line}"
 model_target="jepa.JEPA"
 predictor_target="module.ARPredictor"
+model_extra_args=()
 if [[ "${predictor_arch}" == "fm_ode" ]]; then
   model_target="flow_variants.lewm_flow_matching.FlowMatchingJEPA"
   predictor_target="flow_variants.lewm_flow_matching.ODEARPredictor"
+  model_extra_args=("+model.ode_substeps=${ode_substeps}" "+model.ode_integrator=${ode_integrator}")
 fi
 run_name="${RUN_LABEL}_${task}_pred${predictor_arch}_seed${seed}"
 model_name="${run_name}"
@@ -97,8 +99,7 @@ export HYDRA_FULL_ERROR=1
   "output_model_name=${model_name}" \
   "model._target_=${model_target}" \
   "model.predictor._target_=${predictor_target}" \
-  "+model.ode_substeps=${ode_substeps}" \
-  "+model.ode_integrator=${ode_integrator}" \
+  "${model_extra_args[@]}" \
   "+loss.flow_matching.weight=${fm_weight}" \
   "trainer.max_epochs=${max_epochs}" \
   trainer.devices=1 \
