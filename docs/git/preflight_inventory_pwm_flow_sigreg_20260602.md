@@ -1518,3 +1518,24 @@ Slurmctld(backup) at sched-phoenix-slurmdb is DOWN
 ```
 
 No Slurm job ID was created.
+
+## Continuation Inventory: Dataset Replay PWM And Pessimistic Support AWR Submitted
+
+Submission time: 2026-06-03 after Slurm controller recovery, America/New_York.
+
+Slurm health:
+
+```text
+scontrol ping:
+Slurmctld(primary) at sched-phoenix-slurmctl is UP
+Slurmctld(backup) at sched-phoenix-slurmdb is UP
+```
+
+Submitted jobs:
+
+| Job ID | Purpose | Status at first poll | Command / script | Git SHA | Config | Env / dataset / version | Seed | GPU / QOS | W&B link or offline dir | Checkpoint paths | Eval / video paths | Return / length / fall | Failure reason | Usable? | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `9404376_[0%1]` | Dataset replay-driven PWM diagnostic replacing online collection with MJLab-QS H16 data | `PENDING`, reason `Resources` | `submit_array.sh --kind original_pwm_adapter --manifest scripts/experiments/mjlab_qs/manifests/original_pwm_dataset_replay_locked_diag_h200_20260603.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 1 --time 02:00:00 --python-bin scripts/experiments/mjlab_qs/locked_mjlab_python.py` | `7325980` live submit HEAD; manifest added at `ce9245a` | `pretrain_iters=10000`, `policy_iters=3000`, `horizon=16`, `eval_episodes=16`, W&B disabled | Locked PWM/MJLab wrapper; MJLab-QS H16 core dataset `d_qs_core_h16.pt` with metadata/normalization from `rerun_a25_native_qs_g1stage4_expertboost_20260527` | 0 | H200 / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/original_pwm_adapter/original_pwm_dataset_replay_locked_diag_20260603/velocity_flat_unitree_g1/locked_replay_qs_core_h16_normobs_normrew/seed_0/` | Expected `summary.json` and `eval_summary.json`; no video in this diagnostic | Pending | None yet | Pending replay-driven PWM diagnostic | Inspect after start; if it completes, decide whether final/best eval/video gate is warranted |
+| `9404374_[0-2%3]` | H200 pessimistic support/fall-risk Flow-MBPO AWR diagnostics | rows 0 and 1 `RUNNING`; row 2 `PENDING`, reason `Resources` | `submit_array.sh --kind flow_mbpo_awr --manifest scripts/experiments/mjlab_qs/manifests/flow_mbpo_v1_pessimistic_support_awr_h200_20260603.csv --gpu-type H200 --partition gpu-h200 --qos embers --max-concurrent 3 --time 02:00:00 --conda-env pwm` | `7325980` live submit HEAD; manifests added at `a35331f` | Three rows: fall5, support-risk reward, generated support-risk termination; low synthetic ratio, strong BC/action/support anchor, CQL | Project `pwm` env; same MJLab QS H16 dataset, BC seed0 policy, v1 replay smoke artifacts | 0 | H200 / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_v1_pessimistic_support_awr_20260603/h200/*/` | Expected per-row `summary.json` and real-eval snapshots | Pending | None yet | Pending diagnostic | Monitor row 0/1 logs immediately |
+| `9404375_[0-2%3]` | H100 backup pessimistic support/fall-risk Flow-MBPO AWR diagnostics | `PENDING`, reason `Priority` | Same as H200 with `flow_mbpo_v1_pessimistic_support_awr_h100_20260603.csv`, H100 / `embers` | `7325980` | Same three-row config with distinct H100 output roots | Project `pwm` env; same inputs | 0 | H100 / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_v1_pessimistic_support_awr_20260603/h100/*/` | Pending | Pending | None yet | Pending backup diagnostic | Monitor |
+| `9404373_[0-2%3]` | L40S backup pessimistic support/fall-risk Flow-MBPO AWR diagnostics | `PENDING`, reason `Priority` | Same as H200 with `flow_mbpo_v1_pessimistic_support_awr_l40s_20260603.csv`, L40S / `embers`, `--cpus 4` | `7325980` | Same three-row config with distinct L40S output roots | Project `pwm` env; same inputs | 0 | L40S / `embers` | W&B disabled | Expected under `scripts/outputs/mjlab_qs/flow_mbpo_v1_pessimistic_support_awr_20260603/l40s/*/` | Pending | Pending | None yet | Pending backup diagnostic | Monitor |
