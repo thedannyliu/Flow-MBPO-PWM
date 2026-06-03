@@ -132,13 +132,13 @@ supports the active plan's pivot toward a genuinely different fall-risk/OOD or
 short-horizon objective instead of duplicating the same AWR/support settings.
 
 The completed AWAC diagnostics also close the current critic-derived advantage
-setting as negative. H200 fixed-SHA endpoint seed1 rows `9402337_[0-2]` report
-returns `8.5052`-`8.9520`, lengths `154.375`-`159.250`, and fall `1.000`.
-H200 replay-family rows `9402361_[0-4]` across trajectory, residual, and
-MLP-reference replays report returns `19.4218`-`19.9263`, lengths
-`291.750`-`298.125`, and fall `1.000`. H100/L40S endpoint backups
-`9402277`/`9402278` are likewise negative. Do not promote this AWAC setting to
-formal eval/video.
+setting as negative. Fixed-SHA endpoint seed1 rows on H200/H100/L40S
+`9402337`/`9402338`/`9402339` report returns `8.5052`-`11.3574`, lengths
+`154.000`-`192.375`, and fall `1.000`. Replay-family rows on H200/H100/L40S
+`9402361`/`9402364`/`9402363` across trajectory, residual, and MLP-reference
+replays report returns `18.6628`-`19.9263`, lengths `272.000`-`298.125`, and
+fall `1.000`. H100/L40S endpoint backups `9402277`/`9402278` are likewise
+negative. Do not promote this AWAC setting to formal eval/video.
 
 Existing v1 support/pessimism artifacts were re-exported after the full
 upstream PWM negative smoke. The high-return rows are 1-update / 2-episode

@@ -1580,3 +1580,35 @@ interpretation:
   remains below the BC gate `45.8491 / 594.97 / 0.625` and falls at rate 1.000.
   Do not promote this AWAC setting to formal evaluation/video.
 ```
+
+AWAC H100/L40S fixed-SHA and replay-family completion:
+
+```text
+fixed-SHA endpoint seed1:
+  `9402338_[0-2%3]` H100 completed 0:0, SHA `e1ec4df`.
+    H1 8.9832 / 159.250 / 1.000
+    H3 8.5861 / 154.000 / 1.000
+    H5 8.8278 / 157.625 / 1.000
+  `9402339_[0-2%3]` L40S completed 0:0, SHA `e1ec4df`.
+    H1 11.3574 / 192.375 / 1.000
+    H3 9.3057 / 165.125 / 1.000
+    H5 9.1035 / 161.375 / 1.000
+
+replay-family seed0:
+  `9402364_[0-4%5]` H100 completed 0:0, SHA `9b5319d`.
+    traj_h3 19.1829 / 288.000 / 1.000
+    traj_h5 18.6628 / 272.000 / 1.000
+    residual_h3 19.4707 / 291.500 / 1.000
+    residual_h5 19.3436 / 289.875 / 1.000
+    mlp_ref_h1 18.7725 / 273.375 / 1.000
+  `9402363_[0-4%5]` L40S completed 0:0, SHA `9b5319d`.
+    traj_h3 19.2495 / 289.000 / 1.000
+    traj_h5 19.3567 / 290.500 / 1.000
+    residual_h3 19.4806 / 292.000 / 1.000
+    residual_h5 19.4697 / 291.500 / 1.000
+    mlp_ref_h1 19.3806 / 290.625 / 1.000
+
+interpretation:
+  H100/L40S fixed-SHA endpoint and replay-family rows agree with H200: every
+  completed row fails the BC gate and falls at rate 1.000.
+```
