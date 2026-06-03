@@ -986,3 +986,62 @@ negative. Both rows fail the BC gate (`45.8491` return, `594.97` length,
 `0.625` fall), hit fall rate `1.000`, and early-stop at iter 20. This supports
 the existing conclusion that simple support truncation plus conservative AWR is
 not sufficient for MJLab recovery.
+
+## Continuation Inventory: AWAC Short-Horizon Diagnostic Manifest
+
+Preflight time: 2026-06-02 after commit `5b6064b`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `5b6064b` |
+| Dirty status before this inventory edit | one untracked manifest: `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_20260602.csv` |
+| Current queue | empty from `squeue -u $USER` |
+| Slurm preflight | H200 / `embers` `sbatch --test-only` accepted, predicted start `2026-06-05T05:47:38` |
+
+Manifest prepared for a true AWAC mechanism diagnostic, not another
+reward-weighted AWR duplicate:
+
+| Manifest | Rows | Advantage source | W&B | Inputs | Output root |
+| --- | ---: | --- | --- | --- | --- |
+| `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_20260602.csv` | 3 | `critic_awac` | disabled | MJLab QS H16 dataset, BC seed0 policy, endpoint H1/H3/H5 synthetic replay files | `scripts/outputs/mjlab_qs/flow_mbpo_awac_short_horizon_diag_20260602/` |
+
+Rows:
+
+| Row | Replay | Output dir | Purpose |
+| ---: | --- | --- | --- |
+| 0 | `flow_endpoint_ensemble_seed0_h1_unc0p5_q0p90/synthetic_replay.pt` | `endpoint_h1_awac_cql_mixed_evalstop_s0` | Shortest-horizon endpoint AWAC diagnostic |
+| 1 | `flow_endpoint_ensemble_seed0_h3_unc0p5_q0p90_trunc/synthetic_replay.pt` | `endpoint_h3_awac_cql_mixed_evalstop_s0` | Middle-horizon endpoint AWAC diagnostic |
+| 2 | `flow_endpoint_ensemble_seed0_h5_unc0p5_q0p90_trunc/synthetic_replay.pt` | `endpoint_h5_awac_cql_mixed_evalstop_s0` | Longer short-horizon endpoint AWAC diagnostic |
+
+Validation:
+
+```text
+CSV sanity:
+  rows 3
+  field_count 58
+  advantage_source ['critic_awac']
+  enable_wandb ['false']
+  synthetic_replay_exists True
+  policy_checkpoint_exists True
+  output_dirs_distinct True
+
+Row runner:
+  `python scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py --manifest ...
+  --row-index <0|1|2> --check-inputs --dry-run` passed for all three rows.
+  The dry-run commands include `--advantage-source critic_awac`.
+
+Submit wrapper:
+  `submit_array.sh --dry-run --conda-env pwm` emits `conda activate pwm`,
+  `PYTHONPATH=<project>/src:<project>/baselines/PWM/src:$PYTHONPATH`, EGL
+  headless MuJoCo exports, and the `run_flow_mbpo_awr_row.py` runner.
+
+Scheduler:
+  H200 / embers `sbatch --test-only` accepted the 0-2%3 array with 8 CPUs,
+  128G, 02:00:00, and `gpu:h200:1`.
+```
+
+Submit decision: commit this manifest and inventory first, then submit the
+three-row H200 W&B-disabled diagnostic array. Do not submit a duplicate H100 or
+A100 copy unless the H200 array fails to start or fails for infrastructure
+reasons.

@@ -11,7 +11,7 @@ Preflight inventory commit: `c44c53c Record PWM Flow preflight inventory`.
 | `ant_locked_true_eval_repair` | diagnostic | Repair/resubmit Ant final/best true DFlex eval after jobs `9387422` and `9387942` failed during DFlex kernel rebuild. | Yes: final and best Ant checkpoints from job `9384344` exist. The repair is to use the known-good locked DFlex wrapper exports: job-local sandbox, `CC=/usr/bin/gcc`, `CXX=/usr/bin/g++`, `CUDAHOSTCXX=/usr/bin/g++`, and unset `C_INCLUDE_PATH`, `CPLUS_INCLUDE_PATH`, `LIBRARY_PATH`, `GCC_EXEC_PREFIX`, and `COMPILER_PATH`. | Enabled for parity evidence under `flow-mbpo-pwm-fidelity`. | Eval summaries under `eval_results/pwm_phase1_ant_locked_h200_realenv_*_20260602`. | H200; `embers`. | No: checkpoints exist and the wrapper fix is known from prior successful locked jobs. | Submit repaired replacement. |
 | `hopper_wm_vs_real_probe_repair` | diagnostic | Repair/resubmit Hopper WM-vs-real probe after jobs `9387423` and `9387949` failed during DFlex kernel rebuild. | Yes: Hopper final and best checkpoints from job `9383814` exist. Use the same repaired locked DFlex wrapper exports as the Ant eval. | Disabled. | Probe JSON under `eval_results/pwm_phase2_hopper_locked_probe_20260602/`. | H100; `embers`. | No: checkpoints exist and the wrapper fix is known from prior successful locked jobs. | Submit repaired replacement. |
 | `R0-R4 controlled matrix` | formal | Matched one-variable A/B rows for faithful PWM, Flow WM only, Flow policy only, Flow WM+policy, and best current Flow reproduction. | Not fully prepared in this turn; faithful-PWM collapse package still needs eval/video and Flow rows need matched manifests. | W&B enabled for formal rows, disabled for any new-code smoke. | WM/prediction/calibration/grad/action/OOD/real eval/video metrics. | H200/H100/A100/L40S; `embers`. | Only if row artifacts are missing. | Defer until final/best evidence from the faithful adapter is recorded. |
-| `pessimistic_short_horizon_flow_mbpo` | exploratory / diagnostic | If collapse/OOD is confirmed, run H=1/3/5 AWR/AWAC plus support/fall/OOD diagnostics. | Existing prior Flow-MBPO infrastructure and some artifacts exist, but this branch should wait for the faithful adapter final/best package and candidate ranking refresh. | W&B disabled for new smokes, enabled for formal candidates. | Replay diagnostics, support/fall/OOD metrics, eval/video artifacts. | H200/H100/A100/L40S; `embers`. | No for smokes with existing inputs; yes only for missing replay/checkpoint artifacts. | Defer for this submission batch. |
+| `flow_mbpo_awac_short_horizon_diag_20260602` | exploratory / diagnostic | Run H=1/3/5 Flow-MBPO short-horizon updates with critic-derived AWAC weights, existing endpoint replays, conservative critic, support action penalty, and real-env early stop. | Yes: MJLab QS H16 dataset/metadata/normalization, BC seed0 policy, and endpoint H1/H3/H5 replay files all exist. | Disabled; this is a new-code mechanism diagnostic. | Per-row `summary.json`, real-eval snapshots every 20 iters, final/best policy extraction checkpoints, conservative critic checkpoint. | H200 preferred; `embers`. | No. | Submit H200 after manifest/doc commit. |
 | `SIGReg_state_latent_tests` | diagnostic / code | Add LeWM-inspired SIGReg only after documenting objective, tensor shapes, and tests. | Implemented and tested in `src/flow_mbpo_pwm/utils/sigreg.py` with documentation in `docs/git/sigreg_objective_shapes_tests_20260602.md`. | W&B off for tests/smokes. | Unit tests cover finite loss, finite gradients, zero-weight no-op, constant-latent anti-collapse penalty, and latent variance/isotropy stats. | No GPU required unless later smoke needs it. | No Slurm dependency. | Done for CPU prerequisite; do not submit SIGReg GPU rows until the pending faithful-PWM evidence package is recorded and a fresh candidate list selects a specific row. |
 
 ## Replacement Candidates After Failed Infrastructure Jobs
@@ -1280,4 +1280,36 @@ validation:
   `--advantage-source {reward,critic_awac}`.
 submit_decision: commit the mechanism first, then prepare a W&B-disabled
 H=1/3/5 short-horizon AWAC diagnostic manifest using existing replay inputs.
+```
+
+AWAC short-horizon diagnostic manifest:
+
+```text
+manifest:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_short_horizon_diag_20260602.csv
+rows:
+  0 endpoint_h1_awac_cql_mixed_evalstop_s0
+  1 endpoint_h3_awac_cql_mixed_evalstop_s0
+  2 endpoint_h5_awac_cql_mixed_evalstop_s0
+mechanism:
+  `advantage_source=critic_awac`, conservative critic enabled with
+  `conservative_q_weight=1.0`, mixed OOD actions, `critic_actor_weight=0.0`.
+  Actor regression weights use `Q(s,a_data) - Q(s,pi(s))`.
+guards:
+  W&B disabled; real eval every 20 iterations with 8 episodes and early stop
+  when return/length/fall selection score is below -50.
+validation:
+  CSV sanity: 3 rows, 58 fields, all `synthetic_replay` and
+  `policy_checkpoint` paths exist, output dirs are distinct.
+  `run_flow_mbpo_awr_row.py --check-inputs --dry-run` passed for rows 0, 1,
+  and 2, and emitted updater commands containing `--advantage-source
+  critic_awac`.
+  `submit_array.sh --dry-run --conda-env pwm` emits a wrapper that activates
+  `pwm`, exports `PYTHONPATH` with `src` and `baselines/PWM/src`, and sets
+  `MUJOCO_GL=egl`, `PYOPENGL_PLATFORM=egl`, and `EGL_PLATFORM=surfaceless`.
+  H200 `sbatch --test-only` accepted under `embers`, predicted start
+  2026-06-05T05:47:38 on `gpu-h200`.
+submit_decision:
+  commit the manifest and preflight record, then submit the three-row H200
+  W&B-disabled diagnostic array.
 ```
