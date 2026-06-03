@@ -1481,3 +1481,33 @@ next_action:
   seed1 arrays (`9402337`, `9402338`, `9402339`, `9402340`). Record summaries
   and compare against the H200 seed0 negative result when rows complete.
 ```
+
+AWAC replay-family seed0 candidates:
+
+```text
+reason:
+  Endpoint AWAC already has a valid negative H200 result and pending backups.
+  Existing replay artifacts also cover trajectory chunk, residual-flow, and
+  MLP-reference families, so these are useful independent diagnostics rather
+  than more endpoint duplicates.
+manifests:
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_h200_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_h100_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_a100_20260602.csv
+  scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_l40s_20260602.csv
+rows:
+  trajectory chunk H3/H5 ensemble replays, residual-flow H3/H5 replays, and
+  MLP-reference H1 replay.
+validation:
+  all four manifests have 5 rows, 58 fields, `seed=0`,
+  `advantage_source=critic_awac`, W&B disabled, existing replay/checkpoint
+  inputs, and distinct output roots.
+  All 20 `run_flow_mbpo_awr_row.py --check-inputs --dry-run` commands passed.
+  H200 test-only accepted, predicted start 2026-06-05T06:47:38.
+  H100 test-only accepted, predicted start 2026-06-03T07:44:29.
+  A100 test-only accepted, predicted start 2026-06-06T16:27:36.
+  L40S test-only accepted with 4 CPUs, predicted start 2026-06-07T14:52:21.
+submit_decision:
+  commit the manifests and preflight records, then submit all four arrays
+  through the fixed metadata wrapper. These are W&B-disabled diagnostics.
+```

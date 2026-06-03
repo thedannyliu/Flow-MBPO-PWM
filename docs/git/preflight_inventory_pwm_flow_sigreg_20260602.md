@@ -1230,3 +1230,55 @@ Submission time: 2026-06-02 after commit `e1ec4df`, America/New_York.
 Current active AWAC queue after this submission includes old broad backups
 `9402277`, `9402278`, `9402279` and fixed-SHA seed1 arrays `9402337`,
 `9402338`, `9402339`, and `9402340`.
+
+## Continuation Inventory: AWAC Replay-Family Seed0 Candidates
+
+Preflight time: 2026-06-02 after commit `0c6d9e9`, America/New_York.
+
+| Field | Value |
+| --- | --- |
+| Branch | `mjlab-qs-rollout-policy-improvement` |
+| Current HEAD before this edit | `0c6d9e9` |
+| Current AWAC queue | `9402277`, `9402278`, `9402279`, `9402337`, `9402338`, `9402339`, and `9402340` pending |
+| Purpose | Submit independent AWAC diagnostics across replay families, not another endpoint duplicate. |
+
+Prepared manifests:
+
+| GPU target | Manifest | Rows | Output root | CPU request | Test-only result |
+| --- | --- | ---: | --- | ---: | --- |
+| H200 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_h200_20260602.csv` | 5 | `scripts/outputs/mjlab_qs/flow_mbpo_awac_replay_family_seed0_h200_20260602/` | 8 | accepted, predicted start `2026-06-05T06:47:38` |
+| H100 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_h100_20260602.csv` | 5 | `scripts/outputs/mjlab_qs/flow_mbpo_awac_replay_family_seed0_h100_20260602/` | 8 | accepted, predicted start `2026-06-03T07:44:29` |
+| A100 | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_a100_20260602.csv` | 5 | `scripts/outputs/mjlab_qs/flow_mbpo_awac_replay_family_seed0_a100_20260602/` | 8 | accepted, predicted start `2026-06-06T16:27:36` |
+| L40S | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_awac_replay_family_seed0_l40s_20260602.csv` | 5 | `scripts/outputs/mjlab_qs/flow_mbpo_awac_replay_family_seed0_l40s_20260602/` | 4 | accepted, predicted start `2026-06-07T14:52:21` |
+
+Rows per manifest:
+
+```text
+0 flow_trajectory_chunk_5k_ensemble_seed0_h3_unc0p5_q0p90_trunc
+1 flow_trajectory_chunk_5k_ensemble_seed0_h5_unc0p5_q0p90_trunc
+2 residual_flow_frozen_mlp_smoke_ensemble_seed0_h3_unc0p5_q0p90_trunc
+3 residual_flow_frozen_mlp_smoke_ensemble_seed0_h5_unc0p5_q0p90_trunc
+4 mlp_ref_ensemble_seed0_h1_unc0p5_q0p90
+```
+
+Validation:
+
+```text
+Manifest sanity:
+  all four manifests have 5 rows, 58 fields, `seed=['0']`,
+  `advantage_source=['critic_awac']`, `enable_wandb=['false']`, existing
+  synthetic replay paths, existing policy checkpoint paths, and distinct
+  output dirs.
+
+Row runner:
+  all 20 `run_flow_mbpo_awr_row.py --check-inputs --dry-run` commands passed.
+
+Scheduler:
+  H200/H100/A100 accepted with 8 CPUs, 128G, 02:00:00.
+  L40S accepted with 4 CPUs, 128G, 02:00:00.
+```
+
+Submit decision: commit these manifests and records, then submit all four
+arrays through the fixed metadata wrapper. The dry-run before commit showed the
+current pre-commit SHA as expected; the actual submission should occur after
+the manifest commit so the wrapper records the manifest commit SHA.
