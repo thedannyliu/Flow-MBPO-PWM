@@ -455,6 +455,17 @@ submit_decision: no duplicate eval/video job because final/best eval40 and
 rollout10 artifacts already exist for the top R4 candidates.
 ```
 
+Running poll after R4 selection commit:
+
+```text
+9401906 upstream_pwm_mjlab_full_longdiag_h200_20260602 moved from PENDING to
+RUNNING on gpu-h200 / embers at 2026-06-02T21:34:33.
+early stdout showed `Setting seed: 0` and `Running sim with no_grad=True`;
+stderr showed only the known locked-env W&B/Gym/functorch deprecation warnings.
+No result or failure is available yet.
+9401907_[0-1] remained PENDING Resources.
+```
+
 Validation details:
 
 ```text

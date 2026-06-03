@@ -852,3 +852,15 @@ not a success row.
 submit_decision: no new sbatch submission. Existing final/best eval40 and
 rollout10 artifacts are already present for the top R4 candidates.
 ```
+
+Continuation poll after R4 selection:
+
+```text
+9401906 upstream_pwm_mjlab_full_longdiag_h200_20260602 started on gpu-h200 /
+embers at 2026-06-02T21:34:33.
+early log status: reached seed/runtime setup (`Setting seed: 0`,
+`Running sim with no_grad=True`) and emitted only known W&B/Gym/functorch
+deprecation warnings; no adapter initialization or training metrics yet at the
+first running poll.
+9401907_[0-1] remained PENDING Resources.
+```
