@@ -950,3 +950,18 @@ expected outputs:
 next_action: inspect both summary files after completion before deciding on a
 formal 40-episode eval/video gate for the full upstream PWM MJLab pipeline.
 ```
+
+Full upstream PWM real-env eval smoke H100 backup submission:
+
+```text
+reason: H200 submission `9401975_[0-1%2]` remained pending for Resources; H100
+test-only predicted a concrete start, so an equivalent backup smoke was
+submitted with a separate output root.
+commit: 31e9212 Parameterize upstream PWM eval smoke GPU label.
+job: 9401980_[0-1%2] upstream_pwm_mjlab_real_eval_smoke_h100_20260602.
+array mapping: 0 final_policy.pt, 1 best_policy.pt.
+submitted: H100 / embers, 1 GPU, 8 CPUs, 96G, 01:00:00, W&B disabled.
+output root:
+  scripts/outputs/mjlab_qs/upstream_pwm_full_pipeline_real_eval_smoke_h100_20260602
+initial scheduler state: PENDING, reason Priority.
+```

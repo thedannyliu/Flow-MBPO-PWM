@@ -524,6 +524,18 @@ inputs_verified_before_submit: Hydra config, final_policy.pt, and best_policy.pt
 from `9401906` exist and are non-empty.
 ```
 
+Backup submission for full upstream PWM real-env eval smoke:
+
+```text
+reason: H200 job `9401975_[0-1%2]` was pending for Resources; H100 test-only
+reported a concrete eligible start time, so the same eval smoke was submitted
+to H100 with a distinct output root to avoid artifact overlap.
+commit: 31e9212 Parameterize upstream PWM eval smoke GPU label.
+submitted_job: 9401980_[0-1%2] upstream_pwm_mjlab_real_eval_smoke_h100_20260602.
+resource: gpu-h100 / embers, gpu:h100:1, 8 CPUs, 96G, 01:00:00.
+initial_state: PENDING, reason Priority.
+```
+
 Validation details:
 
 ```text
