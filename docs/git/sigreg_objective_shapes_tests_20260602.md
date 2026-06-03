@@ -111,3 +111,14 @@ SIGReg can improve latent statistics or prediction loss without improving real
 rollout. A SIGReg row remains diagnostic until it includes the same real eval,
 episode length, fall rate, final/best checkpoints, and video/W&B evidence as the
 non-SIGReg baseline.
+
+## Verification
+
+2026-06-02 continuation check after commit `405d8f3`:
+
+```text
+command: pytest -q tests/test_sigreg.py
+result: 5 passed in 27.61s
+coverage: finite loss, finite gradients, constant-latent anti-collapse penalty,
+zero-weight no-op, and latent variance/isotropy diagnostics.
+```

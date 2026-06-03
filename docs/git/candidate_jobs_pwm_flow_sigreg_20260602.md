@@ -661,3 +661,13 @@ artifact_extraction:
 interpretation: all conservative AWR rows remain below BC return 45.8491, length 594.97, fall 0.625; this confirms model-exploitation/fall failure rather than a policy-improvement signal.
 submit_decision: no new sbatch submission from this poll. LeWM replacements and A100 NEWT/Flow rows are already queued, and completed AWR rows are usable negative diagnostics rather than formal candidates.
 ```
+
+SIGReg CPU prerequisite recheck:
+
+```text
+time: 2026-06-02 after commit 405d8f3.
+command: pytest -q tests/test_sigreg.py
+result: 5 passed in 27.61s.
+interpretation: the local SIGReg utility still satisfies the documented no-GPU prerequisite tests: finite loss, finite gradients, constant-latent anti-collapse penalty, zero-weight no-op, and latent Gaussian/isotropy diagnostics.
+submit_decision: no SIGReg GPU row yet; the next SIGReg job still needs a selected controlled Flow-PWM row and the same real-eval/video evidence protocol as its no-SIGReg baseline.
+```
