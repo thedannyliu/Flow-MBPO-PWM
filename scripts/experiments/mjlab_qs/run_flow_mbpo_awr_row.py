@@ -116,6 +116,7 @@ def main() -> None:
         "grad_norm",
         "split",
         "quality_filter",
+        "real_quality_mixture",
         "log_every",
         "real_eval_every",
         "real_eval_episodes",
@@ -143,6 +144,10 @@ def main() -> None:
             cmd.extend([f"--{key.replace('_', '-')}", row[key]])
     if truthy(row.get("enable_wandb")):
         cmd.append("--enable-wandb")
+    if truthy(row.get("real_require_no_fall_window")):
+        cmd.append("--real-require-no-fall-window")
+    if truthy(row.get("real_require_no_done_window")):
+        cmd.append("--real-require-no-done-window")
 
     if args.dry_run:
         print(shlex.join(cmd), flush=True)

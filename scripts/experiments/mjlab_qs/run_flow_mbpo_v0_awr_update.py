@@ -116,6 +116,25 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--grad-norm", type=float, default=1.0)
     p.add_argument("--split", default="train", choices=["train", "val", "test"])
     p.add_argument("--quality-filter", default="expert,expert_noisy")
+    p.add_argument(
+        "--real-quality-mixture",
+        default="",
+        help=(
+            "Optional quality sampling mixture for real batches, e.g. "
+            "expert:0.5,medium:0.5. When unset, real rows are sampled uniformly "
+            "from --quality-filter."
+        ),
+    )
+    p.add_argument(
+        "--real-require-no-fall-window",
+        action="store_true",
+        help="Keep only real windows with no termination flags before sampling.",
+    )
+    p.add_argument(
+        "--real-require-no-done-window",
+        action="store_true",
+        help="Keep only real windows with no done flags before sampling.",
+    )
     p.add_argument("--log-every", type=int, default=100)
     p.add_argument("--real-eval-every", type=int, default=0)
     p.add_argument("--real-eval-episodes", type=int, default=8)
@@ -201,28 +220,140 @@ def isin(values: torch.Tensor, candidates: torch.Tensor) -> torch.Tensor:
     return mask
 
 
+def quality_id(metadata: dict[str, Any], item: str) -> int:
+    quality_map = metadata["quality_id_map"]
+    if item in quality_map:
+        return int(quality_map[item])
+    try:
+        return int(item)
+    except ValueError as exc:
+        known = ",".join(sorted(str(k) for k in quality_map)) or "<none>"
+        raise ValueError(f"Unknown quality bin {item!r}; known bins: {known}") from exc
+
+
 def select_real_indices(data: dict[str, torch.Tensor], metadata: dict[str, Any], args: argparse.Namespace) -> torch.Tensor:
     split_map = metadata["split_id_map"]
-    quality_map = metadata["quality_id_map"]
     split_id = int(split_map[args.split])
     quality_names = [item.strip() for item in args.quality_filter.split(",") if item.strip()]
-    quality_ids = torch.tensor([int(quality_map[name]) for name in quality_names], dtype=torch.long)
     mask = data["split_id"].long() == split_id
-    mask = mask & isin(data["quality_bin_id"].long(), quality_ids)
+    if quality_names:
+        quality_ids = torch.tensor([quality_id(metadata, name) for name in quality_names], dtype=torch.long)
+        mask = mask & isin(data["quality_bin_id"].long(), quality_ids)
+    if bool(args.real_require_no_fall_window):
+        mask = mask & (~data["termination"].bool().any(dim=1))
+    if bool(args.real_require_no_done_window):
+        mask = mask & (~data["done"].bool().any(dim=1))
     indices = mask.nonzero(as_tuple=False).reshape(-1)
     if indices.numel() == 0:
-        raise ValueError(f"No real windows match split={args.split!r}, quality_filter={quality_names!r}")
+        raise ValueError(
+            "No real windows match "
+            f"split={args.split!r}, quality_filter={quality_names!r}, "
+            f"real_require_no_fall_window={bool(args.real_require_no_fall_window)}, "
+            f"real_require_no_done_window={bool(args.real_require_no_done_window)}"
+        )
     return indices
+
+
+def quality_counts(data: dict[str, torch.Tensor], metadata: dict[str, Any], indices: torch.Tensor) -> dict[str, int]:
+    inverse = {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+    if indices.numel() == 0:
+        return {}
+    unique, counts = torch.unique(data["quality_bin_id"][indices].long(), return_counts=True)
+    return {inverse.get(int(qid), str(int(qid))): int(count) for qid, count in zip(unique.tolist(), counts.tolist())}
+
+
+def parse_real_quality_mixture(metadata: dict[str, Any], raw: str) -> list[tuple[int, str, float]]:
+    out: list[tuple[int, str, float]] = []
+    for item in [part.strip() for part in str(raw or "").split(",") if part.strip()]:
+        if ":" not in item:
+            raise ValueError(f"real quality mixture entry {item!r} must have form quality:weight")
+        name, weight_raw = [part.strip() for part in item.split(":", 1)]
+        weight = float(weight_raw)
+        if weight <= 0.0:
+            raise ValueError(f"real quality mixture weight must be positive for {name!r}, got {weight}")
+        out.append((quality_id(metadata, name), name, weight))
+    total = sum(weight for _, _, weight in out)
+    if total <= 0.0 and out:
+        raise ValueError(f"real quality mixture has non-positive total weight: {raw!r}")
+    return [(qid, name, weight / total) for qid, name, weight in out]
+
+
+def build_real_sampler(
+    data: dict[str, torch.Tensor],
+    metadata: dict[str, Any],
+    real_indices: torch.Tensor,
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    mixture = parse_real_quality_mixture(metadata, args.real_quality_mixture)
+    if not mixture:
+        return {
+            "mode": "uniform",
+            "indices": real_indices,
+            "groups": [],
+            "weights": torch.empty(0, dtype=torch.float32),
+            "summary": {
+                "mode": "uniform",
+                "quality_counts": quality_counts(data, metadata, real_indices),
+            },
+        }
+    groups: list[torch.Tensor] = []
+    weights: list[float] = []
+    summary_rows: list[dict[str, float | int | str]] = []
+    qids = data["quality_bin_id"][real_indices].long()
+    inverse = {int(v): str(k) for k, v in metadata.get("quality_id_map", {}).items()}
+    for qid, name, weight in mixture:
+        group = real_indices[qids == int(qid)]
+        if group.numel() == 0:
+            raise ValueError(
+                f"real quality mixture requested {name!r}, but no selected rows remain after filters"
+            )
+        groups.append(group)
+        weights.append(float(weight))
+        summary_rows.append(
+            {
+                "quality": inverse.get(int(qid), name),
+                "quality_id": int(qid),
+                "target_fraction": float(weight),
+                "available_rows": int(group.numel()),
+            }
+        )
+    return {
+        "mode": "quality_mixture",
+        "indices": real_indices,
+        "groups": groups,
+        "weights": torch.tensor(weights, dtype=torch.float32),
+        "summary": {
+            "mode": "quality_mixture",
+            "mixture": summary_rows,
+            "quality_counts": quality_counts(data, metadata, real_indices),
+        },
+    }
+
+
+def sample_real_ids(real_sampler: dict[str, Any], batch_size: int) -> torch.Tensor:
+    if real_sampler["mode"] == "uniform":
+        indices = real_sampler["indices"]
+        return indices[torch.randint(indices.numel(), (batch_size,))]
+    groups: list[torch.Tensor] = real_sampler["groups"]
+    weights: torch.Tensor = real_sampler["weights"]
+    choices = torch.multinomial(weights, int(batch_size), replacement=True)
+    out = torch.empty(int(batch_size), dtype=torch.long)
+    for group_idx, group in enumerate(groups):
+        mask = choices == int(group_idx)
+        count = int(mask.sum().item())
+        if count:
+            out[mask] = group[torch.randint(group.numel(), (count,))]
+    return out
 
 
 def sample_real_batch(
     data: dict[str, torch.Tensor],
-    indices: torch.Tensor,
+    real_sampler: dict[str, Any],
     nrm: dict[str, torch.Tensor],
     batch_size: int,
     device: torch.device,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    pick = indices[torch.randint(indices.numel(), (batch_size,))]
+    pick = sample_real_ids(real_sampler, batch_size)
     phys = data["phys_obs"][pick, 0].to(device).float()
     command = data["command"][pick, 0].to(device).float()
     action = data["policy_action"][pick, 0].to(device).float()
@@ -235,12 +366,12 @@ def sample_real_batch(
 
 def sample_real_transition_batch(
     data: dict[str, torch.Tensor],
-    indices: torch.Tensor,
+    real_sampler: dict[str, Any],
     nrm: dict[str, torch.Tensor],
     batch_size: int,
     device: torch.device,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    pick = indices[torch.randint(indices.numel(), (batch_size,))]
+    pick = sample_real_ids(real_sampler, batch_size)
     phys = data["phys_obs"][pick].to(device).float()
     command_seq = data["command"][pick].to(device).float()
     action = data["policy_action"][pick, 0].to(device).float()
@@ -320,14 +451,14 @@ def train_conservative_critic(
     actor,
     opt: torch.optim.Optimizer,
     data: dict[str, torch.Tensor],
-    real_indices: torch.Tensor,
+    real_sampler: dict[str, Any],
     replay: dict[str, torch.Tensor],
     nrm: dict[str, torch.Tensor],
     args: argparse.Namespace,
     device: torch.device,
 ) -> dict[str, float]:
     rz, rc, ra, rr, rnz, rnc, rd = sample_real_transition_batch(
-        data, real_indices, nrm, int(args.real_batch_size), device
+        data, real_sampler, nrm, int(args.real_batch_size), device
     )
     sz, sc, sa, sr, snz, snc, sd = sample_synthetic_transition_batch(replay, int(args.synthetic_batch_size), device)
     z = torch.cat([rz, sz], dim=0)
@@ -712,6 +843,7 @@ def main() -> None:
         for param in reference_actor.parameters():
             param.requires_grad_(False)
     real_indices = select_real_indices(data, metadata, args)
+    real_sampler = build_real_sampler(data, metadata, real_indices, args)
     support_state = build_support_state(data, real_indices, nrm, args, device)
     support_risk_state = load_support_risk_state(args, device)
     critic_enabled = float(args.conservative_q_weight) > 0.0 or float(args.critic_actor_weight) > 0.0
@@ -754,6 +886,9 @@ def main() -> None:
             "flow_mbpo_v1_real_eval_baseline_return": args.real_eval_baseline_return,
             "flow_mbpo_v1_real_eval_baseline_length": args.real_eval_baseline_length,
             "flow_mbpo_v1_real_eval_baseline_fall": args.real_eval_baseline_fall,
+            "flow_mbpo_v1_real_quality_mixture": args.real_quality_mixture,
+            "flow_mbpo_v1_real_require_no_fall_window": bool(args.real_require_no_fall_window),
+            "flow_mbpo_v1_real_require_no_done_window": bool(args.real_require_no_done_window),
             "dataset": args.dataset,
             "metadata": args.metadata,
             "normalization": args.normalization,
@@ -767,6 +902,7 @@ def main() -> None:
         "git_branch": git_branch(),
         "command": command_line(),
         "real_train_windows": int(real_indices.numel()),
+        "real_sampler": real_sampler["summary"],
         "synthetic_transitions": int(replay["reward_conservative"].shape[0]),
         "support_action_penalty_enabled": support_state is not None,
         "support_rows": int(support_state["support_rows"]) if support_state is not None else 0,
@@ -829,9 +965,9 @@ def main() -> None:
         critic_metrics: dict[str, float] = {}
         if critic is not None and target_critic is not None and critic_opt is not None:
             critic_metrics = train_conservative_critic(
-                critic, target_critic, actor, critic_opt, data, real_indices, replay, nrm, args, device
+                critic, target_critic, actor, critic_opt, data, real_sampler, replay, nrm, args, device
             )
-        rz, rc, ra, rr = sample_real_batch(data, real_indices, nrm, int(args.real_batch_size), device)
+        rz, rc, ra, rr = sample_real_batch(data, real_sampler, nrm, int(args.real_batch_size), device)
         sz, sc, sa, sr, sd = sample_synthetic_batch(replay, int(args.synthetic_batch_size), device)
         real_pred = actor(rz, rc, deterministic=True).clamp(-1.0, 1.0)
         synth_pred = actor(sz, sc, deterministic=True).clamp(-1.0, 1.0)
