@@ -110,5 +110,17 @@ All required input paths in the generated manifests were checked before submissi
 
 ## Submission Status
 
-Pending Slurm submission after this protocol commit. Jobs should be submitted with QOS `embers`, not `inferno`.
+Submitted from commit `a60d1ba99a55b3576e140ea04510b211f23743f6` with QOS `embers`, not `inferno`.
 
+| track | job ID | mode | GPU | status at submission |
+| --- | --- | --- | --- | --- |
+| AWR damage/action-drift diagnostics | `9419844` | array `0-9%4` | H100 | pending |
+| exact-replay real-only/synthetic-ratio AWR | `9419845` | array `0-11%4` | H200 | pending |
+| replay quality diagnostics | `9419848` | sequential rows `0,1` | L40S | pending |
+| checkpoint direct eval | `9419850` | sequential rows `0..40` | H100 | pending |
+
+Submission notes:
+
+- The initial checkpoint-eval array submission was rejected by `QOSMaxSubmitJobPerUserLimit`, so it was resubmitted as one sequential H100 job.
+- The initial replay-quality L40S array submission used 8 CPUs and was rejected by the L40S CPU:GPU ratio limit, so it was resubmitted as one sequential L40S job with 4 CPUs.
+- A 12h sequential checkpoint-eval submission was rejected by the embers walltime limit; the accepted checkpoint-eval job uses 4h. If it times out, rerun the same manifest after completed rows are skipped by existing output checks.
