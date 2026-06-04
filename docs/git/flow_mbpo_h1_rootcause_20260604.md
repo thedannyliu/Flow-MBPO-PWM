@@ -123,9 +123,11 @@ SHA note:
 | exact-replay real-only/synthetic-ratio AWR | `9419845` | array `0-11%4` | H200 | pending |
 | replay quality diagnostics | `9419848` | sequential rows `0,1` | L40S | pending |
 | checkpoint direct eval | `9419850` | sequential rows `0..40` | H100 | pending |
+| checkpoint direct eval retry | `9432225` | sequential rows `0..40` | H100 | pending |
 
 Submission notes:
 
 - The initial checkpoint-eval array submission was rejected by `QOSMaxSubmitJobPerUserLimit`, so it was resubmitted as one sequential H100 job.
 - The initial replay-quality L40S array submission used 8 CPUs and was rejected by the L40S CPU:GPU ratio limit, so it was resubmitted as one sequential L40S job with 4 CPUs.
 - A 12h sequential checkpoint-eval submission was rejected by the embers walltime limit; the accepted checkpoint-eval job uses 4h. If it times out, rerun the same manifest after completed rows are skipped by existing output checks.
+- The first checkpoint-eval sequential job `9419850` failed because the generated manifest used invalid evaluator fields `command_position=first` and `obs_mode=phys`. The manifest builder was fixed to use evaluator defaults `tail` and `normalized`, committed as `cf813bc`, and resubmitted as `9432225`.
