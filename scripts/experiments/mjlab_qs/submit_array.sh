@@ -182,6 +182,10 @@ elif [[ "$KIND" == "flow_mbpo_replay" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_replay_row.py"
 elif [[ "$KIND" == "flow_mbpo_awr" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_awr_row.py"
+elif [[ "$KIND" == "flow_mbpo_awr_diagnostic" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_awr_diagnostic_row.py"
+elif [[ "$KIND" == "flow_mbpo_replay_quality" ]]; then
+  RUNNER="scripts/experiments/mjlab_qs/run_flow_mbpo_replay_quality_row.py"
 elif [[ "$KIND" == "original_pwm_adapter" ]]; then
   RUNNER="scripts/experiments/mjlab_qs/run_original_pwm_adapter_row.py"
 elif [[ "$KIND" == "native_collector" ]]; then

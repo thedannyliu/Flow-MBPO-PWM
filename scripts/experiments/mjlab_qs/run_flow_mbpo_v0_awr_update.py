@@ -715,6 +715,13 @@ def support_action_penalty(
 
 def support_distance_metrics(prefix: str, distance: torch.Tensor, threshold: torch.Tensor | None) -> dict[str, float]:
     distance = distance.detach()
+    if distance.numel() == 0:
+        return {
+            f"{prefix}_mean": math.nan,
+            f"{prefix}_p90": math.nan,
+            f"{prefix}_max": math.nan,
+            f"{prefix}_active_fraction": 0.0,
+        }
     metrics = {
         f"{prefix}_mean": float(distance.mean().item()),
         f"{prefix}_p90": float(torch.quantile(distance, 0.90).item()),
