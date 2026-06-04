@@ -99,16 +99,46 @@ Mean best in-training real eval return:
 
 Result: dataset distribution matters, but none of these AWR variants approach the BC baseline or the historical `60.87`.
 
-## Current Pending Result
+## Direct Eval Retry Update
 
 Checkpoint direct eval retry:
 
 - failed job: `9419850`, invalid manifest fields `command_position=first`, `obs_mode=phys`
 - fixed commit: `cf813bc`
 - retry job: `9432225`
-- current state: pending on H100 embers, reason `Priority`
+- current state during this update: running on H100 embers
 
-This is the decisive test for whether the historical `60.87` can be reproduced by direct eval under the current runner.
+Partial direct-eval outputs from `9432225`:
+
+| checkpoint | return | length | fall |
+| --- | ---: | ---: | ---: |
+| BC seed0 initial | `47.02` | `604.1` | `0.650` |
+| BC seed1 initial | `36.10` | `480.0` | `0.800` |
+| BC seed2 initial | `40.10` | `513.3` | `0.700` |
+| strongest exact-H1 final | `62.02` | `786.0` | `0.425` |
+| strongest exact-H1 best-real-eval | `39.47` | `513.6` | `0.775` |
+| fix1 r224/s32 seed0 iter250 | `46.36` | `601.2` | `0.675` |
+| fix1 r224/s32 seed0 iter500 | `52.87` | `672.9` | `0.575` |
+| fix1 r224/s32 seed0 final | `50.94` | `649.0` | `0.575` |
+| fix1 r224/s32 seed0 best-real-eval | `56.98` | `727.8` | `0.400` |
+| fix1 r192/s64 seed0 iter250 | `45.49` | `585.2` | `0.650` |
+
+Interim interpretation: the historical strongest final direct eval is reproducible under the current runner (`62.02` vs historical `60.87`). The suspicious gap is now more specific: short in-training real eval can underrate checkpoints that look strong under formal eval40. This means the result is not simply a stale artifact, but robustness over eval seeds and across AWR seeds is still unresolved.
+
+## Newly Submitted Follow-Up Eval
+
+Submitted to close the remaining evidence gaps:
+
+| job | manifest | purpose |
+| --- | --- | --- |
+| `9432431` | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_h1_strongest_robust_eval_h100_20260604.csv` | repeated eval40 over eval seeds 0-4 for BC seed0, strongest final, strongest best, and fix1 r224/s32 seed0 iter500 |
+| `9432430` | `scripts/experiments/mjlab_qs/manifests/flow_mbpo_h1_exact_ratio_checkpoint_eval_h100_20260604.csv` | formal eval40 for all exact-replay ratio sweep checkpoints: iter250, iter500, final, best |
+
+Both jobs were submitted on H100 with QOS `embers`.
+
+## Pending Result
+
+The decisive remaining test is no longer whether the historical `60.87` can be reproduced once; it can. The remaining question is whether that improvement is stable across eval seeds and across exact-replay ratio/AWR seeds.
 
 ## Insights
 
@@ -116,5 +146,4 @@ This is the decisive test for whether the historical `60.87` can be reproduced b
 2. The problem is not simply the `_truncate_check` replay path; exact replay and `_truncate_check` have the same measured quality stats, and exact replay ratio sweeps are still weak.
 3. AWR itself may be too weak or badly aligned: real-only AWR is also poor, and action drift from BC is extremely small.
 4. The synthetic reward model is suspicious: top H1 synthetic rewards are much higher than nearest real rewards, so AWR may be overweighting unrealistic high-reward transitions even though the actor movement is small.
-5. The historical `60.87` should be treated as unconfirmed until `9432225` completes; current evidence leans toward artifact/eval variance/config-specific result rather than a robust improvement.
-
+5. The historical `60.87` is reproducible in the current runner, but still not proven robust. Current evidence now points to a checkpoint-selection/eval-protocol issue: 8-episode in-training eval can look weak while formal eval40 finds strong checkpoints.
