@@ -110,7 +110,12 @@ All required input paths in the generated manifests were checked before submissi
 
 ## Submission Status
 
-Submitted from commit `a60d1ba99a55b3576e140ea04510b211f23743f6` with QOS `embers`, not `inferno`.
+Executable code and manifests were committed in `a60d1ba99a55b3576e140ea04510b211f23743f6`; later commits in this file are documentation-only submission records. Jobs used QOS `embers`, not `inferno`.
+
+SHA note:
+
+- Array jobs submitted through `submit_array.sh` export `FLOW_MBPO_SUBMIT_GIT_SHA=a60d1ba99a55b3576e140ea04510b211f23743f6`.
+- Sequential fallback jobs call `git rev-parse HEAD` at runtime; if they start after this documentation update, their recorded HEAD may be a later doc-only commit, with the same executable code/manifests.
 
 | track | job ID | mode | GPU | status at submission |
 | --- | --- | --- | --- | --- |
