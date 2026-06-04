@@ -49,7 +49,7 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
             if key not in fields:
                 fields.append(key)
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     print(f"wrote {len(rows)} rows: {path}")
@@ -88,8 +88,8 @@ def eval_row(candidate: str, checkpoint: Path, kind: str, seed: int, notes: str)
         "normalization": str(NORMALIZATION),
         "seed": str(seed),
         "command_dim": "3",
-        "command_position": "first",
-        "obs_mode": "phys",
+        "command_position": "tail",
+        "obs_mode": "normalized",
         "disable_wandb": "true",
         "wandb_project": "flow-mbpo-mjlab-h1-rootcause-20260604",
         "wandb_group": "checkpoint_eval",
