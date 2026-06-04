@@ -198,3 +198,90 @@ Primary logs:
 - `logs/slurm/mjlab_qs/flow_mbpo_awr/`
 - `logs/slurm/mjlab_qs/policy_extract/`
 - `logs/slurm/mjlab_qs/original_pwm_collapse_probe/`
+
+## Monitoring Snapshot - 2026-06-04 02:48 EDT
+
+### Job Status
+
+| Job ID | Track | Status |
+| --- | --- | --- |
+| `9419642` | Flow-MBPO endpoint H1 multiseed/ratio | `COMPLETED`, 9/9 rows |
+| `9419641` | Data-distribution Flow-MBPO-style AWR | `COMPLETED`, 10/10 rows |
+| `9419605` | all-expert Flow/MLP 2x2 policy extraction | `PENDING`, 12 rows |
+| `9419607` | PWM collapse diagnostics | `PENDING`, 3 rows |
+
+### Endpoint H1 Multiseed/Ratio Results
+
+Job `9419642` completed without Slurm failures. All rows ran to `update_iters=500` with two real-env eval snapshots.
+
+Per-row best real-eval metrics:
+
+| Ratio | Seed | Return | Length | Fall | Selection Score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `real192/syn64` | `0` | `19.8589` | `294.75` | `1.000` | `-77.1936` |
+| `real192/syn64` | `1` | `15.1366` | `234.00` | `1.000` | `-82.5234` |
+| `real192/syn64` | `2` | `23.4868` | `339.125` | `1.000` | `-73.1220` |
+| `real224/syn32` | `0` | `23.2943` | `344.375` | `1.000` | `-73.2619` |
+| `real224/syn32` | `1` | `15.2849` | `238.625` | `1.000` | `-82.3289` |
+| `real224/syn32` | `2` | `23.5517` | `334.75` | `1.000` | `-73.1008` |
+| `real248/syn8` | `0` | `27.9866` | `390.625` | `0.875` | `-55.6071` |
+| `real248/syn8` | `1` | `17.4911` | `269.375` | `1.000` | `-79.8152` |
+| `real248/syn8` | `2` | `21.0284` | `306.375` | `1.000` | `-75.9078` |
+
+Mean by ratio:
+
+| Ratio | Mean Return | Mean Length | Mean Fall | Mean Score |
+| --- | ---: | ---: | ---: | ---: |
+| `real192/syn64` | `19.4941` | `289.292` | `1.000` | `-77.6130` |
+| `real224/syn32` | `20.7103` | `305.917` | `1.000` | `-76.2305` |
+| `real248/syn8` | `22.1687` | `322.125` | `0.958` | `-70.4434` |
+
+Interpretation:
+
+- Lower synthetic ratio (`real248/syn8`) is the least bad variant, but it is still clearly below the BC baseline used by the gate: return `45.8491`, length `594.97`, fall `0.625`.
+- This fix1 multiseed sweep does not reproduce the earlier strongest Flow-MBPO endpoint H1 formal result (`final eval40` return `60.8721`, length `759.30`, fall `0.45`).
+- The gap suggests the earlier strong candidate was sensitive to details not fully matched by this sweep, likely checkpoint/source artifact, eval protocol, or run configuration differences rather than a robust ratio-only effect.
+
+### Data Distribution AWR Results
+
+Job `9419641` completed without Slurm failures. The sampler summaries in each `summary.json` confirm that the new sampler controls were applied.
+
+Per-row best real-eval metrics:
+
+| Distribution | Seed | Return | Length | Fall | Selection Score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `mixed_uniform_windows` | `0` | `16.0875` | `249.625` | `1.000` | `-81.4162` |
+| `mixed_uniform_windows` | `1` | `16.1409` | `259.125` | `1.000` | `-81.2679` |
+| `expert_only` | `0` | `18.7047` | `261.25` | `1.000` | `-78.6828` |
+| `expert_only` | `1` | `15.9107` | `253.25` | `1.000` | `-81.5568` |
+| `expert50_medium50` | `0` | `10.1461` | `155.375` | `1.000` | `-88.3001` |
+| `expert50_medium50` | `1` | `10.6156` | `186.375` | `1.000` | `-87.5206` |
+| `expert50_noisy50` | `0` | `20.0458` | `270.375` | `1.000` | `-77.2505` |
+| `expert50_noisy50` | `1` | `17.3762` | `273.75` | `1.000` | `-79.8863` |
+| `nofall_nodone_success100_proxy` | `0` | `13.4583` | `205.5` | `1.000` | `-84.4867` |
+| `nofall_nodone_success100_proxy` | `1` | `13.8603` | `228.0` | `1.000` | `-83.8597` |
+
+Mean by distribution:
+
+| Distribution | Mean Return | Mean Length | Mean Fall | Mean Score |
+| --- | ---: | ---: | ---: | ---: |
+| `mixed_uniform_windows` | `16.1142` | `254.375` | `1.000` | `-81.3421` |
+| `expert_only` | `17.3077` | `257.25` | `1.000` | `-80.1198` |
+| `expert50_medium50` | `10.3809` | `170.875` | `1.000` | `-87.9104` |
+| `expert50_noisy50` | `18.7110` | `272.063` | `1.000` | `-78.5684` |
+| `nofall_nodone_success100_proxy` | `13.6593` | `216.75` | `1.000` | `-84.1732` |
+
+Interpretation:
+
+- Data-distribution changes alone did not rescue this Flow-MBPO-style AWR extraction.
+- `expert50_noisy50` is the best data-distribution mean, but it is still much worse than the BC baseline and all rows have fall rate `1.0`.
+- The no-fall/no-done success-100 proxy did not help; this suggests simply filtering to clean windows is not enough when the synthetic replay / policy update is already destabilizing the policy.
+
+### Current Follow-Up
+
+- Do not cancel `9419605` or `9419607`; they are still pending and cover separate diagnostics.
+- The next useful check is comparing these weak fix1 rows against the exact artifact/config of the earlier strong endpoint H1 candidate, especially:
+  - policy checkpoint source and seed,
+  - synthetic replay path and truncation settings,
+  - formal eval checkpoint choice (`final` vs `best`),
+  - whether the previous `final eval40` used a different output directory than this fix1 sweep.
