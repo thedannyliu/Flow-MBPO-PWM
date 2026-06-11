@@ -54,31 +54,134 @@ the ablation sections.
 
 ## Pipeline Signal
 
-The important pipeline change is not "Flow replaces PWM." The useful shift is
-from unconstrained imagined policy extraction to short-horizon, pessimistic
-synthetic replay with real eval/video gates.
+Algorithm: MJLab QS Flow-MBPO Training and Evaluation Pipeline
 
-```mermaid
-flowchart LR
-    A[QS dataset + normalization] --> B[BC warm start]
-    A --> C[Flow / MLP WM ensemble]
-    B --> D[Short synthetic rollouts from real states]
-    C --> D
-    D --> E[Conservative replay: uncertainty/support/fall risk]
-    A --> F[Real replay]
-    E --> G[AWR / AWAC / conservative Q update]
-    F --> G
-    G --> H[Final + true-best checkpoints]
-    H --> I[Eval40 + roll10 video gate]
-```
+Input:
+    Velocity Flat Unitree G1 MJLab QS data.
 
-What this says about future work:
+    Main dataset:
+        - `d_qs_core_h16.pt`
+        - mixed QS quality IDs: `expert`, `expert_noisy`, `medium`, `random_smooth`
+        - state observation
+        - command / task conditioning
+        - action
+        - reward
+        - done / termination / truncation labels -> Current QS shards have effectively no positive done/fall labels, so learned fall heads are not reliable yet.
 
-- Use H1/cheap rows for diagnostics, but do not claim performance from short
-  in-training eval.
-- Use H3/trajectory rows when testing fall/support pessimism because that is
-  where return/length signal is clearest.
-- Do not expand Flow variants until the fall gate is directly targeted.
+    Reference policies:
+        - expert collector -> Target behavior: high return, full length, zero fall.
+        - expert-noisy collector -> Stable noisy target.
+        - medium collector -> Data-quality midpoint, not a target.
+        - random_smooth -> Failure floor.
+
+Model:
+    Baseline policy:
+        - MLP BC policy trained from QS windows.
+        - Expert+noisy uniform BC is the current practical warm start. -> We use it as the minimum baseline and initialization for Flow-MBPO.
+
+    World model candidates:
+        - MLP one-step world model.
+        - Flow endpoint world model.
+        - Flow residual / frozen-MLP residual variants.
+        - Flow trajectory/chunk world model. -> Current strongest research signal comes from short trajectory/chunk replay, not from pure PWM-style architecture replacement.
+
+    Policy update modules:
+        - AWR / AWAC-style weighted behavior update.
+        - Optional conservative Q critic. -> Current CQL evidence is diagnostic; use it as targeted pessimism, not as a generic extra loss.
+        - Optional action-deviation / BC-anchor losses. -> Simple actor-side safeguards did not solve the fall gate.
+
+Training Pipeline:
+Step 1: Establish Collector And BC Baselines
+    Use existing MJLab collector checkpoints and QS windows. -> We do not recollect the main dataset in the current report.
+
+    Evaluate:
+        - expert / expert-noisy / medium / random references
+        - BC variants from QS windows
+
+    Result:
+        - expert collector is the target.
+        - expert+noisy uniform BC is the current scalar baseline.
+        - matched seed0 BC roll10 is the video baseline.
+
+Step 2: Diagnose PWM-Style Policy Extraction
+    Train or load a learned world model and run PWM-style imagined policy extraction.
+
+    Original idea:
+        dataset windows
+        -> learned world model
+        -> long-horizon imagined actor/critic optimization
+        -> extracted policy
+
+    Current finding:
+        - fixed-window WM reward/dynamics diagnostics can look reasonable.
+        - imagined return / critic value can rise.
+        - real MJLab rollout collapses. -> The failure is mainly policy/critic exploitation of unsupported model regions.
+
+Step 3: Generate Short-Horizon Synthetic Replay
+    Start from real QS dataset states and roll out a BC-warmstarted policy through a WM ensemble.
+
+    Synthetic rollout settings:
+        - H=1 endpoint replay -> Cheap root-cause / ratio diagnostics.
+        - H=3 trajectory/chunk replay -> Stronger return/length signal.
+        - H=5 and broader variants -> Diagnostic only unless H=3 fall gate improves first.
+
+    Replay stores:
+        - state / command / action
+        - model reward
+        - conservative reward
+        - next state
+        - done / uncertainty / support-risk metadata
+
+    Modification:
+        Original PWM used the model mainly for imagined optimization.
+        -> We use the model to generate explicit short synthetic replay, then update the policy with model-free-style losses.
+
+Step 4: Policy Update From BC Warm Start
+    Mix real QS transitions and synthetic transitions in AWR/AWAC/CQL-style updates.
+
+    Current useful settings:
+        - BC warm start.
+        - low synthetic ratios are safer than broad synthetic mixing.
+        - final and true-best checkpoints are saved.
+
+    Current negative signals:
+        - more H1 synthetic replay did not improve short real eval.
+        - action-deviation regularization hurt scalar eval and did not improve video fall.
+        - broad conservative/AWAC/support-truncation rows are diagnostic, not wins.
+
+Step 5: Add Pessimism / Support / OOD Control
+    Because fall labels are missing, use calibrated support distance as a proxy.
+
+    Current support signal:
+        - q90 support distance separates terminated vs timeout real rollout episodes.
+        - the signal is mostly state/command OOD, not action OOD.
+
+    Next modification:
+        Current support penalties were mostly actor-side or post-hoc.
+        -> Move support risk into synthetic rollout generation, replay termination/reward, or conservative Q over generated out-of-support states/actions.
+
+Evaluation Pipeline:
+    For every serious candidate:
+        1. Save final checkpoint.
+        2. Save true-best / snapshot checkpoints when real-eval selection is enabled.
+        3. Run 40-episode real MJLab eval at max_steps=1000.
+        4. Run 10-episode, 1000-step rollout MP4/W&B video.
+        5. Compare against:
+            - expert collector
+            - expert-noisy collector
+            - medium collector
+            - best scalar BC
+            - matched seed0 BC video
+
+    Claim gate:
+        - return must match or exceed the relevant BC baseline.
+        - episode length must match or exceed the relevant BC baseline.
+        - fall rate must be strictly lower than the relevant BC baseline.
+        - W&B run, git SHA, dataset/version, checkpoint paths, command, and notes must be recorded.
+
+    Current outcome:
+        Flow-MBPO H1/H3 can improve return and length.
+        -> No general policy-improvement claim yet because fall rate has not improved over matched BC.
 
 ## Ablations With Signal
 
