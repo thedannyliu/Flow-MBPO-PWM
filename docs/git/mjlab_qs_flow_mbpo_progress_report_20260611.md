@@ -71,47 +71,41 @@ Key read:
 - Any next method should be judged by whether it lowers fall, not only whether
   it raises return.
 
-## Pipeline (Data-To-Eval Map)
+## Pipeline (Data Collection -> Training -> Eval)
 
-This is a branch map, not one pipeline shared by every run. BC warm start,
-short synthetic rollout, AWR/AWAC/CQL, and support-risk penalties are
-variant-specific choices.
+Algorithm: MJLab QS Offline Policy-Improvement Pipeline
 
-Algorithm: MJLab QS Data Collection, Variant Training, And Evaluation
-
-Common Input:
-    Environment:
+Data Collection:
+Step 1: Data collection spec
+    Task:
         - `Mjlab-Velocity-Flat-Unitree-G1`
         - velocity-flat command following
         - state observation: 96 dims
         - command: 3 dims
         - action: 29 dims
 
-Step 1: Collect Reference Rollouts
-    Use native MJLab / RSL-RL PPO collector checkpoints plus a smooth-random
-    reference policy.
+    Source policies:
+        - expert: native MJLab / RSL-RL PPO collector.
+        - expert_noisy: same collector with action-noise coverage.
+        - medium: weaker collector, useful as a diagnostic quality bin.
+        - random_smooth: smooth random reference policy.
 
-    Quality bins:
-        - expert -> stable full-horizon collector; target behavior.
-        - expert_noisy -> expert collector with action-noise coverage; still stable.
-        - medium -> lower-performing collector; diagnostic / optional coverage.
-        - random_smooth -> smooth random policy; failure floor.
-
-    Current rollout anchors:
+    Rollout anchors:
         - expert: return `82.6090`, length `1000.00`, fall `0.000`.
         - expert_noisy: return `80.3525`, length `1000.00`, fall `0.000`.
         - medium: return `49.1935`, length `653.33`, fall `0.667`.
         - random_smooth: return `0.4857`, length `75.33`, fall `1.000`.
 
-    -> These bins define both dataset quality labels and evaluation anchors.
+    -> These rollouts define both the dataset quality labels and the evaluation
+       reference levels.
 
-Step 2: Build The QS Window Dataset
-    Convert raw rollout episodes into fixed-horizon state-action windows.
+Step 2: Data spec
+    Convert raw rollout episodes into fixed-horizon windows.
 
-    Dataset stage:
-        - `rerun_a25_native_qs_g1stage4_expertboost_20260527`
+    Dataset:
+        - stage: `rerun_a25_native_qs_g1stage4_expertboost_20260527`
         - file: `d_qs_core_h16.pt`
-        - raw inputs: expert, expert_noisy, medium, random_smooth `.pt` rollouts
+        - raw inputs: expert, expert_noisy, medium, random_smooth rollout files
         - horizon: `16`
         - stride: `4`
         - total: `1562` episodes / `351051` valid windows
@@ -125,133 +119,141 @@ Step 2: Build The QS Window Dataset
         - quality ID
         - train / val / test split
 
-    Label limitation:
-        - current train windows have effectively no positive fall labels.
-        -> Direct learned fall heads are weak; support/OOD distance is currently
-           more useful as a fall-risk proxy.
-
-    Train split counts:
+    Train split:
         - expert: `819` episodes / `200178` windows
         - expert_noisy: `205` episodes / `50381` windows
         - medium: `175` episodes / `31600` windows
         - random_smooth: `50` episodes / `728` windows
         - all train windows: `282887`
 
-Step 3: Decide Which Data Enters Each Experiment
-    Default policy-training data:
-        - expert + expert_noisy train windows only
+Step 3: Data decision rule
+    Default policy data:
+        - expert + expert_noisy train windows
         - selected BC train windows: `250559`
-        - reason: expert gives target behavior; expert_noisy adds coverage
-          without losing full-horizon stability.
+        - reason: expert gives the target behavior; expert_noisy adds coverage
+          while preserving full-horizon stability.
 
-    Optional data ablations:
-        - expert-only BC -> worse robustness.
-        - expert+noisy+medium BC -> worse BC return/fall.
-        - medium action-norm filtering / loss downweighting -> helps versus
-          naive medium mixing, still below expert+noisy.
-        - random_smooth -> reference failure behavior, not a default training target.
+    Data ablations:
+        - expert-only -> worse robustness.
+        - expert+noisy+medium -> worse return/fall when mixed uniformly.
+        - medium filtering/downweighting -> improves over naive medium mixing,
+          but still does not beat expert+noisy.
+        - random_smooth -> failure reference, not a default training target.
 
-    Current data decision:
-        -> Keep expert+noisy as the default BC / Flow-MBPO real-data support.
-        -> Use medium only for targeted recovery/fall-boundary tests, not
-           uniform BC mixing.
+    Current rule:
+        -> Train policy baselines and Flow-MBPO updates from expert+noisy by
+           default.
+        -> Use medium only for targeted recovery/fall-boundary experiments, not
+           as uniform BC data.
 
-Variant Branches:
+Training:
+Step 1: Train behavior-cloning baselines
+    Input:
+        selected QS policy windows.
 
-    Branch A: BC Baselines
-        Input:
-            selected QS windows.
+    Model:
+        - MLP BC policy.
+        - Flow policy BC variant.
 
-        Train:
-            BC policy for `50k` steps.
+    Update:
+        behavior cloning for `50k` steps.
 
-        Variants tested:
-            - MLP policy vs Flow policy
-            - expert-only vs expert+noisy vs expert+noisy+medium
-            - uniform / quality-balanced / yaw-balanced sampling
-            - smoothness, reset weighting, medium filtering/downweighting
+    Variants:
+        - expert-only vs expert+noisy vs expert+noisy+medium
+        - uniform / quality-balanced / yaw-balanced sampling
+        - action smoothness, reset weighting, medium filtering/downweighting
 
-        No short synthetic rollout.
-        No PWM imagined actor optimization.
-        No AWR/AWAC/CQL policy-improvement stage.
+    Important:
+        no learned-world-model policy optimization.
+        no short synthetic rollout.
 
-    Branch B: PWM-Style Policy Extraction
-        Input:
-            QS windows + learned world model checkpoint.
+    -> Key-result link: expert+noisy MLP BC is the practical baseline; Flow
+       policy BC and data micro-sweeps did not replace it.
 
-        Train:
-            learned MLP or Flow world model
-            -> imagined actor/critic optimization
-            -> extracted policy
+Step 2: Train world models and test PWM-style extraction
+    Input:
+        QS train windows and learned world-model checkpoints.
 
-        Variants tested:
-            - MLP WM + MLP policy
-            - MLP WM + Flow policy
-            - Flow WM + MLP policy
-            - Flow WM + Flow policy
-            - early weak/no BC anchoring
-            - later BC warm start + BC regularization
+    World model:
+        - MLP one-step / rollout world model.
+        - Flow endpoint world model.
+        - trajectory/chunk Flow variants.
 
-        No explicit short synthetic replay buffer.
-        -> Main finding: imagined optimization collapses in real rollout even
-           when fixed-window WM metrics look acceptable.
+    PWM-style policy extraction:
+        learned world model
+        -> imagined actor/critic optimization
+        -> extracted policy
 
-    Branch C: Flow-MBPO Synthetic-Replay Updates
-        Input:
-            expert+noisy QS windows + Flow world model / ensemble.
+    Variants:
+        - MLP WM + MLP policy
+        - MLP WM + Flow policy
+        - Flow WM + MLP policy
+        - Flow WM + Flow policy
+        - later BC warm start + BC regularization after early collapse
 
-        Generate:
-            start from real QS states
-            -> roll a policy through the learned model for short horizons
-            -> store synthetic transitions with reward, next state, done, and
-               optional uncertainty/support metadata
+    Important:
+        no explicit synthetic replay buffer in this path.
 
-        Main variants:
-            - Flow endpoint H1 replay
-            - Flow trajectory/chunk H3 replay
-            - real/synthetic batch ratios such as `224/32` and `240/16`
-            - AWR/AWAC-style update from a BC checkpoint
-            - optional CQL, action-deviation, support penalty, support truncation
+    -> Key-result link: replacing MLP with Flow inside the same imagined
+       extraction pipeline did not solve real rollout collapse.
 
-        Short synthetic rollout is only this branch, not the whole project.
-        BC warm start is the current useful setting, but it is a design choice
-        introduced after weaker extraction paths failed.
+Step 3: Train Flow-MBPO synthetic-replay policies
+    Input:
+        expert+noisy real windows, BC checkpoint, and Flow world model.
 
-    Branch D: Support / Pessimism Diagnostics
-        Input:
-            real rollout logs with saved state/command/action features and
-            expert+noisy support windows.
+    Generate synthetic replay:
+        real QS start state
+        -> short model rollout through Flow WM
+        -> synthetic transition buffer
 
-        Diagnose:
-            score rollout support distance
-            -> compare terminated vs timeout episodes
-            -> score synthetic replay support risk
-            -> test support penalties, truncation, or conservative-Q smokes
+    Main tested settings:
+        - H1 Flow endpoint replay.
+        - H3 Flow trajectory/chunk replay.
+        - real/synthetic update ratios such as `224/32` and `240/16`.
+        - AWR/AWAC-style policy update from the BC checkpoint.
 
-        No policy-improvement claim from this branch alone.
-        -> Main role: convert the fall-rate blocker into a targeted next
-           objective for Branch C.
+    Important:
+        BC warm start and short synthetic replay are Flow-MBPO modifications,
+        not assumptions shared by BC-only or PWM-style extraction runs.
 
-Evaluation Pipeline:
-    For a serious policy candidate:
-        1. Save final checkpoint.
-        2. Save true-best / snapshot checkpoints when checkpoint selection is enabled.
-        3. Run 40-episode real MJLab eval at `max_steps=1000`.
-        4. Run 10-episode, 1000-step rollout MP4/W&B video.
-        5. Compare within the matched protocol against expert, expert_noisy,
-           medium, random_smooth, scalar BC, and matched BC video.
+    -> Key-result link: this is the only path that produced meaningful
+       return/length lift over BC, but fall rate still did not improve.
 
-    Claim gate:
-        - return must match or exceed the relevant BC baseline.
-        - episode length must match or exceed the relevant BC baseline.
-        - fall rate must be strictly lower than the relevant BC baseline.
-        - W&B run, git SHA, dataset/version, checkpoint paths, command, and notes must be recorded.
+Evaluation:
+Step 1: Scalar real-environment eval
+    Run real MJLab eval at `max_steps=1000`.
 
-Current Interpretation:
-    Flow-MBPO H1/H3 is the only branch with meaningful return/length lift over
-    BC, but it has not reduced fall rate. The next pipeline should therefore
-    stay in Branch C and add Branch-D-style support/pessimism inside generation,
-    replay targets, or conservative Q.
+    Main scalar protocol:
+        - 40 episodes.
+        - metrics: return, episode length, fall rate, timeout rate.
+        - compare against expert, expert_noisy, medium, random_smooth, and BC.
+
+Step 2: Video rollout gate
+    Render rollout MP4 / W&B video at `max_steps=1000`.
+
+    Main video protocol:
+        - 10 episodes for serious candidates.
+        - same metrics: return, length, fall.
+        - compare within the matched video protocol.
+
+    -> Key-result link: Flow-MBPO can improve return/length but still only ties
+       or worsens the matched BC fall gate, so it is not yet a policy-improvement
+       claim.
+
+Step 3: Claim rule
+    A policy-improvement claim requires:
+        - return >= matched BC.
+        - episode length >= matched BC.
+        - fall rate < matched BC.
+        - final / selected checkpoint recorded.
+        - W&B run, git SHA, dataset stage, checkpoint path, command, and notes.
+
+Current pipeline interpretation:
+    The key signal is not "Flow architecture wins everywhere." It is:
+        BC establishes the floor
+        -> PWM-style imagined extraction is unsafe
+        -> Flow used as short-horizon synthetic replay can raise return/length
+        -> the next missing component must target fall robustness.
 
 ## Ablations & Signals
 
