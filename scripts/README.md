@@ -1,11 +1,17 @@
-# Scripts Directory Guide
+# Scripts
 
-This repository keeps the active single-task online RL workflow in a focused layout.
+Run from the repository root after installing `flow_mbpo_pwm`.
 
-## Active Paths
+| Directory / entry | Role |
+| --- | --- |
+| `train_dflex.py`, `train_online.py` | Training drivers |
+| `cfg/` | Hydra algorithms and environments |
+| `experiments/single_task_online/` | Online run manifests and submission |
+| `experiments/mjlab_qs/` | Collection, data gates and policy extraction |
+| `experiments/world_model_phase1/` | Offline world-model training, evaluation and summaries |
+| Other `experiments/` directories | Named research protocols; inspect required artifacts first |
 
-- `scripts/train_dflex.py` / `scripts/train_online.py`
-- `scripts/cfg/`
-- `scripts/eval/eval_online_single_task.py`
-- `scripts/experiments/single_task_online/`
-- `scripts/assets/motions/g1_tracking_dummy_motion.npz`
+Build a manifest, inspect it, then submit it using that workflow's launcher.
+Dated CSVs/configurations preserve historical experiments and are not defaults.
+Keep generated outputs in ignored directories. See [maintenance notes](../docs/maintenance.md)
+for retired scripts and renamed exporters.
