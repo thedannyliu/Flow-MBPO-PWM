@@ -1,103 +1,71 @@
 # Flow-MBPO-PWM
 
-Flow Matching Model-Based Policy Optimization based on PWM (Policy Learning with Large World Models).
+Flow-matching world models for differentiable model-based policy optimization,
+built on [PWM](https://github.com/imgeorgiev/PWM). The research question is whether
+learned flow dynamics provide useful surrogate gradients for policy learning.
 
-## Overview
+The repository includes MLP/flow world models, online PWM training, offline
+world-model probes, and MJLab data collection and policy extraction workflows.
+These are distinct experimental paths; an adapter smoke is not a full PWM run.
 
-This repository implements Flow-based world models for first-order gradient policy optimization, building on the [PWM framework](https://github.com/imgeorgiev/PWM). We explore whether Flow Matching can provide better-behaved surrogate dynamics for model-based RL.
+## Install
 
-## Installation
+Use Python 3.10+. For the pinned DFlex training environment:
 
 ```bash
-# Clone the repository
-git clone git@github.com:thedannyliu/Flow-MBPO-PWM.git
-cd Flow-MBPO-PWM
-
-# Create conda environment
 conda env create -f environment.yaml
 conda activate pwm
-
-# Install package in editable mode
-pip install -e .
+python -m pip install -e . --no-deps
 ```
 
-## Quick Start
+For library development in an existing compatible PyTorch environment,
+`python -m pip install -e '.[dev]'` installs core dependencies and pytest.
+Simulator stacks are optional: `.[simulation]` contains the broader MuJoCo/JAX
+research dependencies. The uv setup expects the `mujoco_playground` submodule;
+initialize it before using that environment. Do not mix it into the legacy
+CUDA 11.8 DFlex environment without resolving version compatibility.
 
-### Single-Task Online Pipeline (PACE-ICE + PACE-Phoenix)
+## First check: generate a manifest
 
-The active workflow is under `scripts/experiments/single_task_online/`.
+This checks experiment configuration without a simulator, GPU or cluster job:
 
 ```bash
-# Build a smoke manifest
 python scripts/experiments/single_task_online/build_manifest.py \
-  --stage smoke \
-  --output scripts/experiments/single_task_online/manifests/smoke_tmp.csv
-
-# Split by cluster (fixed task-to-cluster assignment)
+  --stage smoke --output /tmp/flow_smoke.csv
 python scripts/experiments/single_task_online/split_manifest_by_cluster.py \
-  --manifest scripts/experiments/single_task_online/manifests/smoke_tmp.csv
-
-# Submit on one cluster
-bash scripts/experiments/single_task_online/submit_manifest_array.sh \
-  --manifest scripts/experiments/single_task_online/manifests/smoke_tmp_pace_ice.csv \
-  --gpu-type H100 --max-concurrent 4
+  --manifest /tmp/flow_smoke.csv
+python -m pytest tests
 ```
 
-See `scripts/experiments/single_task_online/README.md` for full usage, including packed mode
-(one GPU running multiple light rows concurrently).
+Manifest generation and tensor unit tests do not validate learning performance.
 
-## Configuration
+## Choose a workflow
 
-Configs are in `scripts/cfg/`:
+| Workflow | Entry points |
+| --- | --- |
+| Online single-task PWM | [Manifest workflow](scripts/experiments/single_task_online/README.md) |
+| MJLab collection, quality gates, policy extraction | `scripts/experiments/mjlab_qs/` |
+| Offline world-model probes | `scripts/experiments/world_model_phase1/` |
+| Training algorithms and models | `src/flow_mbpo_pwm/{algorithms,models}/` |
+| Hydra configs | `scripts/cfg/{alg,env}/` |
 
-| Config | Description |
-|--------|-------------|
-| `alg/pwm_5M_baseline_final.yaml` | MLP world model baseline |
-| `alg/pwm_5M_flow_v1_substeps2.yaml` | Flow WM, Heun, K=2 |
-| `alg/pwm_5M_flow_v2_substeps4.yaml` | Flow WM, Heun, K=4 (recommended) |
-| `alg/pwm_5M_flow_v3_substeps8_euler.yaml` | Flow WM, Euler, K=8 |
-| `env/dflex_ant.yaml` | Ant locomotion environment |
+Flow settings include `use_flow_dynamics`, `flow_integrator` and
+`flow_substeps`. Config names encode the variant; compare the resolved configs,
+not only their filenames. Cluster submission is an explicit separate step.
 
-### Key Hyperparameters
+## Results and reproducibility
 
-Both baseline and flow configs use:
-- `wm_batch_size: 256`
-- `wm_buffer_size: 1_000_000`
-- `num_envs: 128`
-- `max_epochs: 15_000`
-- `horizon: 16`
+Start with the [documentation index](docs/README.md). For any learning claim,
+record task, seeds, dataset/checkpoint, resolved configuration, training budget
+and evaluation protocol. Diagnostics, partial runs and proxy adapters must be
+identified as such. No single headline result is established by the smoke above.
 
-Flow-specific parameters:
-- `use_flow_dynamics: true/false`
-- `flow_integrator: heun/euler`
-- `flow_substeps: 2/4/8`
+The [maintenance notes](docs/maintenance.md) explain removed operational retries
+and consolidated exporters. Development history and experimental records remain
+available in git.
 
-## Project Structure
+## Upstream reference
 
-```
-Flow-MBPO-PWM/
-├── src/                 # Source code
-│   ├── algorithms/          # PWM training algorithm
-│   ├── models/              # WorldModel, FlowWorldModel, Actor
-│   └── utils/               # Helpers, integrators, monitoring
-├── scripts/                 # Active single-task training/eval/experiment scripts
-│   └── experiments/single_task_online/
-└── environment.yaml         # Conda environment
-```
-
-## Citation
-
-```bibtex
-@misc{georgiev2024pwm,
-    title={PWM: Policy Learning with Large World Models},
-    author={Ignat Georgiev, Varun Giridha, Nicklas Hansen, and Animesh Garg},
-    eprint={2407.02466},
-    archivePrefix={arXiv},
-    primaryClass={cs.LG},
-    year={2024}
-}
-```
-
-## License
-
-MIT License
+Ignat Georgiev, Varun Giridha, Nicklas Hansen and Animesh Garg,
+*PWM: Policy Learning with Large World Models*, arXiv:2407.02466 (2024).
+Preserve upstream attribution and the terms of each dependency.

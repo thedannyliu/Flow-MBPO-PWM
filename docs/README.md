@@ -1,9 +1,15 @@
-# Flow-MBPO-PWM Documentation
+# Research and operating documentation
 
-This directory intentionally exposes only the current MJLab restart plan on GitHub.
+| Need | Document |
+| --- | --- |
+| Execute and inspect runs | [Runbook](RUNBOOK.md) |
+| Interpret what a run establishes | [Claim policy](CLAIM_POLICY.md) |
+| Understand MJLab data | [Dataset card](DATASET_CARD_MJLAB_QS.md) |
+| Locate recorded experiments | [Experiment ledger](EXPERIMENT_LEDGER.md) |
+| Diagnose a failed experiment | [Debug tree](DEBUG_TREE.md) |
+| Understand script/package cleanup | [Maintenance notes](maintenance.md) |
 
-## Current Plan
-
-- [MJLab Offline World-Model Restart Plan](plans/mjlab_offline_world_model_restart_plan_20260426.md)
-
-Older experiment logs, intermediate summaries, raw outputs, evaluation CSVs, and server-local notes remain ignored locally and are not tracked in this repository.
+`design/` contains model/protocol rationale; `envs/` contains environment notes.
+`goals/`, `plans/` and `phaseA/` preserve dated research decisions. Read their
+dates and status before treating a proposal as the current execution recipe.
+Do not copy monitoring transcripts into public quickstarts.

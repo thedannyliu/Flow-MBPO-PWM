@@ -1,13 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "flow-mbpo-pwm"
 version = "0.1.0"
+description = "Flow world models for differentiable model-based policy optimization"
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "torch",
-    "hydra-core",
-    "omegaconf",
-    "wandb",
-    "gymnasium",
+    "torch", "numpy", "hydra-core", "omegaconf", "wandb",
+    "gym", "gymnasium", "tensordict", "torchrl", "tqdm",
+    "matplotlib", "seaborn", "tensorboardX",
+]
+
+[project.optional-dependencies]
+simulation = [
     "jax[cuda12]",
     "absl-py",
     "brax>=0.12.5",
@@ -20,11 +28,11 @@ dependencies = [
     "mujoco",
     "warp-lang>=1.11",
     "orbax-checkpoint>=0.11.22",
-    "tqdm",
     "rsl-rl-lib>=3.0.0",
-    "tensordict",
     "playground",
 ]
+
+dev = ["pytest>=8"]
 
 [[tool.uv.index]]
 name = "mujoco"
@@ -40,3 +48,7 @@ explicit = true
 mujoco = { index = "mujoco" }
 warp-lang = { index = "nvidia" }
 playground = { path = "mujoco_playground", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["flow_mbpo_pwm*"]
